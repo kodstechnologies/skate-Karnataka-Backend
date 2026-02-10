@@ -1,5 +1,6 @@
 import express from "express";
-import { authenticate } from "../../../middleware/authMiddleware";
+import { authenticate } from "../../../middleware/authMiddleware.js";
+import { displayAllCoach, displayAllCoachById, displayBookSession, displayBookSessionById } from "../controller/coach.model.js";
 
 const router = express.Router();
 
@@ -19,7 +20,7 @@ router.get("/display",
  */
 router.get("/full-details/:id",
     authenticate(["user"]),
-    displayAllCoachFullDetails);
+    displayAllCoachById);
 
 /**
     * @description Book a session with a coach
@@ -28,15 +29,15 @@ router.get("/full-details/:id",
  */
 router.get("/book-a-session/:id",
     authenticate(["user"]),
-    displayAllCoachFullDetails);
+    displayBookSession);
 
-    /**
-    * @description Book a session with a coach
-    * @route POST /coach/book-a-session/:id
-    * @access Private (user)
- */
+/**
+* @description Book a session with a coach
+* @route POST /coach/book-a-session/:id
+* @access Private (user)
+*/
 router.post("/book-a-session/:id",
     authenticate(["user", "admin"]),
-    bookSessionWithCoach);
+    displayBookSessionById);
 
 export default router;

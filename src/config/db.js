@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 import { MONGODB_URI, DB_NAME } from "./envConfig.js";
+console.log("🚀 ~ MONGODB_URI:===", MONGODB_URI)
+
 
 export async function connectDB() {
     try {

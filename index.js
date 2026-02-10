@@ -13,7 +13,7 @@ async function startServer() {
     try {
         await connectDB()
         // ⚠️ Seeder best practice
-        if (NODE_ENV !== "production") {
+        if (NODE_ENV == "production") {
             await seeder()
         }
         server.listen(PORT, () => {

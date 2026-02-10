@@ -1,5 +1,6 @@
 import express from "express";
-import { authenticate } from "../../../middleware/authMiddleware";
+import { authenticate } from "../../../middleware/authMiddleware.js";
+import { displayAllGallery } from "../controller/gallery.controller.js";
 
 const router = express.Router();
 

@@ -1,5 +1,6 @@
 import express from "express";
-import { authenticate } from "../../../middleware/authMiddleware";
+import { authenticate } from "../../../middleware/authMiddleware.js";
+import { ContactSupport, DeleteUser, GetAchievements, GetDigitalIDCard, GetRankings, GetUserProfile, LoginUser, LogoutUser, RefreshToken, RegisterUser, ToggleNotifications, UpdateUserProfile, VerifyPassword } from "../controller/auth.controller.js";
 
 const router = express.Router();
 

@@ -11,7 +11,7 @@ import { Admin } from "../modules/auth/model/admin.model.js";
 async function checkAdmin() {
     try {
         const existingAdmin = await Admin.findOne({
-            phoneNumber: ADMIN_PHONE_NO,
+            phone: ADMIN_PHONE_NO,
         });
 
         if (!existingAdmin) {
@@ -19,7 +19,7 @@ async function checkAdmin() {
                 firstName: ADMIN_FIRST_NAME,
                 lastName: ADMIN_LAST_NAME,
                 email: ADMIN_EMAIL,
-                phoneNumber: ADMIN_PHONE_NO,
+                phone: ADMIN_PHONE_NO,
                 permissions: ["ALL"],
             });
 

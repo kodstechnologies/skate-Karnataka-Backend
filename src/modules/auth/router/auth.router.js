@@ -1,6 +1,6 @@
 import express from "express";
 import { authenticate } from "../../../middleware/authMiddleware.js";
-import { ContactSupport, DeleteUser, GetAchievements, GetDigitalIDCard, GetRankings, GetUserProfile, LoginUser, LogoutUser, RefreshToken, RegisterUser, ToggleNotifications, UpdateUserProfile, VerifyPassword } from "../controller/auth.controller.js";
+import { ContactSupport, DeleteUser, GetAchievements, GetDigitalIDCard, GetRankings, GetUserProfile, LoginUser, LogoutUser, RefreshToken, RegisterUser, ToggleNotifications, UpdateUserProfile, VerifyOTP } from "../controller/auth.controller.js";
 
 const router = express.Router();
 
@@ -31,14 +31,14 @@ router.post("/login", LoginUser);
 
 /**
  * @description User password verification
- * @route POST /auth/verify-password
+ * @route POST /auth/verify-otp
  * @access Public
  * @body {
  *   phone: string,
- *  password: string
+ *  otp: string
  * }
  */
-router.post("/verify-password", VerifyPassword);
+router.post("/verify-otp", VerifyOTP);
 
 /**
  * @description Refresh access token

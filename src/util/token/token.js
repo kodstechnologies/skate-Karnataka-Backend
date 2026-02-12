@@ -15,22 +15,22 @@ const generateRandomNumber = (length = 6) => {
 
 // 🔐 Generate Access Token
 const generateAccessToken = (user) => {
+    console.log("🚀 ~ generateAccessToken ~ user:", user)
     return jwt.sign(
         {
-            id: user._id,
-            email: user.email,
-            role: user.role
+            id: user.userId,
         },
         JWT_ACCESS_SECRET,
         { expiresIn: JWT_ACCESS_EXPIRES } // short expiry
     );
 };
 
+
 // 🔁 Generate Refresh Token
 const generateRefreshToken = (user) => {
     return jwt.sign(
         {
-            id: user._id
+            id: user.userId
         },
         JWT_REFRESH_SECRET,
         { expiresIn: JWT_REFRESH_EXPIRES } // long expiry

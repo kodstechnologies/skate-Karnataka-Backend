@@ -3,14 +3,15 @@ import mongoose from "mongoose";
 
 const otpSchema = new mongoose.Schema(
     {
-        identifier: {
-            type: String, // phone number or email
+        userId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "BaseAuth",
             required: true,
             index: true,
         },
 
         otp: {
-            type: String, // store hashed OTP in prod
+            type: String, // hash in production
             required: true,
         },
 

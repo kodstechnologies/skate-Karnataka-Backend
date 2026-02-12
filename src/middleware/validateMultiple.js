@@ -1,4 +1,4 @@
-import { AppError } from "../utils/common/AppError.js";
+import { AppError } from "../util/common/AppError.js";
 
 export const validateMultiple = (schemas) => {
     return (req, res, next) => {

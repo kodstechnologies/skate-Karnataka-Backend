@@ -1,61 +1,70 @@
 import jwt from "jsonwebtoken";
 import { BaseAuth } from "../modules/auth/model/baseAuth.model.js";
-import {
-    JWT_ACCESS_SECRET
-} from "../config/envConfig.js";
+import { JWT_ACCESS_SECRET } from "../config/envConfig.js";
 import { AppError } from "../util/common/AppError.js";
+import { log } from "console";
 
-// ---------------------------------------
-// 🔐 AUTH MIDDLEWARE (ROLE BASED)
-// ---------------------------------------
 export const authenticate = (allowedRoles = []) => {
     return async (req, res, next) => {
         try {
-            // 1️⃣ Get token from Header OR Cookie
-            let token = null;
+            // 1️⃣ Get Authorization header
+            const authHeader = req.headers.authorization?.trim();
+            // console.log("🚀 ~ authenticate ~ authHeader:", authHeader)
 
-            if (req.headers.authorization?.startsWith("Bearer ")) {
-                token = req.headers.authorization.split(" ")[1];
-            } else if (req.cookies?.auth_token) {
-                token = req.cookies.auth_token;
-            }
-
-            if (!token) {
+            if (!authHeader) {
                 return next(new AppError("Unauthorized: Token missing", 401));
             }
 
-            // 2️⃣ Verify token
-            const decoded = jwt.verify(token, JWT_ACCESS_SECRET);
+            // 2️⃣ Extract token (Bearer OR raw)
+            const token = authHeader.toLowerCase().startsWith("bearer ")
+                ? authHeader.split(" ")[1]
+                : authHeader;
 
-            // 3️⃣ Get user
-            const user = await BaseAuth.findById(decoded.id).select("-password");
+            if (!token) {
+                return next(new AppError("Unauthorized: Invalid token format", 401));
+            }
+
+            // 3️⃣ Verify JWT
+            const decoded = jwt.verify(token, JWT_ACCESS_SECRET);
+            // console.log("decoded payload:", decoded, "type:", typeof decoded);
+
+            if (!decoded?.id) {
+                return next(new AppError("Invalid token: userId missing", 401));
+            }
+
+            // 4️⃣ Find user
+            const user = await BaseAuth.findById(decoded.id.toString());
+            // log("🚀 ~ authenticate ~ user:", user)
 
             if (!user) {
                 return next(new AppError("Unauthorized: User not found", 401));
             }
 
-            // 4️⃣ Role-based authorization
+            // 5️⃣ Role check
             if (
                 allowedRoles.length &&
-                !allowedRoles.includes(decoded.role)
+                !allowedRoles.includes(user.role)
             ) {
                 return next(
                     new AppError("Forbidden: Insufficient permissions", 403)
                 );
             }
 
-            // 5️⃣ Attach user to request
             req.user = user;
+            req.token = token;
+
             next();
+
         } catch (error) {
-            return next(
-                new AppError(
-                    error.name === "TokenExpiredError"
-                        ? "Token expired"
-                        : "Invalid token",
-                    401
-                )
-            );
+            if (error.name === "TokenExpiredError") {
+                return next(new AppError("Token expired", 401));
+            }
+
+            if (error.name === "JsonWebTokenError") {
+                return next(new AppError("Invalid token", 401));
+            }
+
+            return next(new AppError("Authentication failed", 401));
         }
     };
 };

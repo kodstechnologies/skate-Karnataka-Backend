@@ -44,7 +44,7 @@ const BaseAuthSchema = new mongoose.Schema(
             trim: true,
             required: true,
         },
-        dateOfBirth: {
+        dob: {
             type: Date,
             required: true,
         },
@@ -52,6 +52,11 @@ const BaseAuthSchema = new mongoose.Schema(
             type: Boolean,
             default: true,
         },
+        isNotificationsEnabled: {
+            type: Boolean,
+            default: true,
+        },
+        
         // Multi-device refresh tokens
         refreshTokens: {
             type: [String],

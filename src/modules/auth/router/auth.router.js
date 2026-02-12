@@ -1,6 +1,8 @@
 import express from "express";
 import { authenticate } from "../../../middleware/authMiddleware.js";
 import { ContactSupport, DeleteUser, GetAchievements, GetDigitalIDCard, GetRankings, GetUserProfile, LoginUser, LogoutUser, RefreshToken, RegisterUser, ToggleNotifications, UpdateUserProfile, VerifyOTP } from "../controller/auth.controller.js";
+import { LoginValidation, LogoutValidation, RegisterValidation, VerifyOTPValidation } from "../validation/auth.validation.js";
+import { validateMultiple } from "../../../middleware/validateMultiple.js";
 
 const router = express.Router();
 
@@ -17,7 +19,9 @@ const router = express.Router();
  *   role: string
  * }
  */
-router.post("/register", RegisterUser);
+router.post("/register",
+    validateMultiple(RegisterValidation),
+    RegisterUser);
 
 /**
  * @description User login
@@ -27,7 +31,9 @@ router.post("/register", RegisterUser);
  *   phone: string
  * }
  */
-router.post("/login", LoginUser);
+router.post("/login",
+    validateMultiple(LoginValidation),
+    LoginUser);
 
 /**
  * @description User password verification
@@ -38,7 +44,9 @@ router.post("/login", LoginUser);
  *  otp: string
  * }
  */
-router.post("/verify-otp", VerifyOTP);
+router.post("/verify-otp",
+    validateMultiple(VerifyOTPValidation),
+    VerifyOTP);
 
 /**
  * @description Refresh access token
@@ -59,6 +67,7 @@ router.post("/refresh-token",
  */
 router.post("/logout",
     authenticate(["user", "admin"]),
+    validateMultiple(LogoutValidation),
     LogoutUser);
 
 /**
@@ -127,7 +136,7 @@ router.get("/rankings",
  * @route POST /auth/toggle-notifications
  * @access Private
  */
-router.post("/toggle-notifications",
+router.get("/toggle-notifications",
     authenticate(["user", "admin"]),
     ToggleNotifications);
 

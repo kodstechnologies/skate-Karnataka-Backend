@@ -1,7 +1,7 @@
 import express from "express";
 import { authenticate } from "../../../middleware/authMiddleware.js";
 import { ContactSupport, DeleteUser, GetAchievements, GetDigitalIDCard, GetRankings, GetUserProfile, LoginUser, LogoutUser, RefreshToken, RegisterUser, ToggleNotifications, UpdateUserProfile, VerifyOTP } from "../controller/auth.controller.js";
-import { LoginValidation, LogoutValidation, RegisterValidation, VerifyOTPValidation } from "../validation/auth.validation.js";
+import { LoginValidation, LogoutValidation, RegisterValidation, UpdateProfileValidation, VerifyOTPValidation } from "../validation/auth.validation.js";
 import { validateMultiple } from "../../../middleware/validateMultiple.js";
 
 const router = express.Router();
@@ -84,6 +84,7 @@ router.post("/logout",
  */
 router.patch("/update-profile",
     authenticate(["user", "admin"]),
+    validateMultiple(UpdateProfileValidation),
     UpdateUserProfile);
 
 /**

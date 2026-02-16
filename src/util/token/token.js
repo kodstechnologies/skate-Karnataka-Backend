@@ -15,7 +15,7 @@ const generateRandomNumber = (length = 6) => {
 
 // 🔐 Generate Access Token
 const generateAccessToken = (user) => {
-    console.log("🚀 ~ generateAccessToken ~ user:", user)
+    // console.log("🚀 ~ generateAccessToken ~ user:", user)
     return jwt.sign(
         {
             id: user.userId,

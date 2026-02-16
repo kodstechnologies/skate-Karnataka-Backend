@@ -21,8 +21,8 @@ app.get('/', (req, res) => {
 
 app.use("/auth", authRouter);
 app.use("/coach", coachRouter);
-app.use("/competitions", competitionsRouter);
-app.use("/events", eventsRouter);
+app.use("/competition", competitionsRouter);
+app.use("/event", eventsRouter);
 app.use("/gallery", galleryRouter);
 app.use("/notification", notificationRouter);
 

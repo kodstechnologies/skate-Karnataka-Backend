@@ -9,16 +9,12 @@ const isexist = async (userData) => {
     });
     return existingUser;
 };
-
 const registerUser = async (userData) => {
-    // console.log("🚀 ~ registerUser ~ userData:", userData);
     const user = await new BaseAuth(userData).save();
-    // console.log("🚀 ~ registerUser ~ user:", user);
     return user;
 };
 
 const generateOtp = async (userData) => {
-    console.log("🚀 ~ generateOtp ~ userData:", userData);
     // 🔢 Generate 6 digit OTP
     const otp = generateRandomNumber(6);
     // Delete old OTP for this user
@@ -28,16 +24,12 @@ const generateOtp = async (userData) => {
         otp: otp,
         expiresAt: new Date(Date.now() + 5 * 60 * 1000) // 5 minutes
     }).save();
-    console.log("🚀 ~ generateOtp ~ otpDoc:", otpDoc);
-
     return otp; // optional (for SMS sending)
 };
 
 const checkOtp = async (userData) => {
-    console.log("🚀 ~ checkOtp ~ userData==:", userData)
     const { userId, otp } = userData;
     let otpDoc;
-
     if (NODE_ENV === "development" && otp === "123456") {
         otpDoc = await Otp.findOne({
             userId,
@@ -50,12 +42,9 @@ const checkOtp = async (userData) => {
             expiresAt: { $gt: new Date() }
         });
     }
-
     if (!otpDoc) {
         throw new Error("Invalid or expired OTP");
     }
-
-    // Delete OTP after successful verification
     await Otp.deleteMany({ userId });
 
     return true;
@@ -75,7 +64,6 @@ const saveFirebaseToken = async (userData) => {
 }
 
 const removeFirebaseTokenAndRefressToken = async (userData) => {
-    console.log("🚀 ~ removeFirebaseTokenAndRefressToken ~ userData:", userData)
     const { userId, firebaseToken } = userData;
     if (!firebaseToken) return; // if not provided, skip    
     await BaseAuth.findByIdAndUpdate(
@@ -88,34 +76,26 @@ const removeFirebaseTokenAndRefressToken = async (userData) => {
 }
 
 const deleteAccount = async (userId) => {
-    console.log("🚀 ~ deleteAccount ~ userId:", userId)
     await BaseAuth.findByIdAndDelete(userId);
 }
 
 const getUserProfile = async (userId) => {
-    // console.log("🚀 ~ getUserProfile ~ userId:", userId)
     const user = await BaseAuth.findById(userId).select("-firebaseTokens -__v -refreshTokens -createdAt -updatedAt");
     return user;
 }
 
 const GetDigitalIDCardDetaisl = async (userData) => {
-    console.log("🚀 ~ GetDigitalIDCardDetaisl ~ userData:", userData)
     const user = await BaseAuth.findById(userData._id).select("fullName phone countryCode photo email district dob");
     return user;
 }
 
 const toggleNotification = async (userData) => {
-    console.log("🚀 userData:", userData);
-
     const user = await BaseAuth.findById(userData._id);
-
     if (!user) {
         throw new Error("User not found");
     }
-
     // toggle value
     user.isNotificationsEnabled = !user.isNotificationsEnabled;
-
     await user.save();
     return user.isNotificationsEnabled;
 };

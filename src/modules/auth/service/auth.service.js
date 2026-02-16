@@ -22,7 +22,7 @@ const LoginUserService = async (userData) => {
     return userExists._id;
 };
 const VerifyOTPService = async (userData) => {
-    console.log("🚀 ~ VerifyOTPService ~ userData:", userData)
+    // console.log("🚀 ~ VerifyOTPService ~ userData:", userData)
     await checkOtp(userData);
     await saveFirebaseToken(userData);
     const accessToken = generateAccessToken(userData);
@@ -34,7 +34,8 @@ const LogoutUserService = async (userData) => {
     console.log("🚀 ~ LogoutUserService ~ userData:", userData)
     await removeFirebaseTokenAndRefressToken({ ...userData, firebaseToken: null });
 };
-const UpdateUserProfileService = async (req, res) => { };
+const UpdateUserProfileService = async (userData, updateData) => {
+};
 const DeleteUserService = async (userData) => {
     console.log("🚀 ~ DeleteUserService ~ userData:", userData._id)
     await deleteAccount(userData._id);

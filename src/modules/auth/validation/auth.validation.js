@@ -131,7 +131,7 @@ const RefreshTokenValidation = {
  */
 const UpdateProfileValidation = {
     body: Joi.object({
-        name: Joi.string().min(3).max(50).optional(),
+        fullName: Joi.string().min(3).max(50).optional(),
         dob: Joi.date().iso().optional(),
         district: Joi.string().optional(),
         email: Joi.string().email().optional(),

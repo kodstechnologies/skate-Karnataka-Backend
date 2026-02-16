@@ -1,10 +1,10 @@
 import { ApiResponse } from "../../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../../util/common/asyncHandler.js";
-import { ContactSupportService, DeleteUserService, GetDigitalIDCardService, GetUserProfileService, LoginUserService, LogoutUserService, RegisterUserService, ToggleNotificationsService, VerifyOTPService } from "../service/auth.service.js";
+import { ContactSupportService, DeleteUserService, GetDigitalIDCardService, GetUserProfileService, LoginUserService, LogoutUserService, RegisterUserService, ToggleNotificationsService, UpdateUserProfileService, VerifyOTPService } from "../service/auth.service.js";
 
 const RegisterUser = asyncHandler(async (req, res) => {
     const result = await RegisterUserService(req.body);
-    console.log("🚀 ~ result:-----", result)
+    // console.log("🚀 ~ result:-----", result)
     return res
         .status(201)
         .json(
@@ -18,7 +18,7 @@ const RegisterUser = asyncHandler(async (req, res) => {
 
 const LoginUser = asyncHandler(async (req, res) => {
     const result = await LoginUserService(req.body);
-    console.log("🚀 ~ result:", result)
+    // console.log("🚀 ~ result:", result)
     return res
         .status(200)
         .json(
@@ -61,7 +61,18 @@ const LogoutUser = asyncHandler(async (req, res) => {
             )
         );
 });
-const UpdateUserProfile = asyncHandler(async (req, res) => { });
+const UpdateUserProfile = asyncHandler(async (req, res) => {
+    const result = await UpdateUserProfileService(req.user, req.body);
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                result,
+                "User profile updated successfully"
+            )
+        );
+ });
 const DeleteUser = asyncHandler(async (req, res) => {
     console.log("🚀 ~ req.body:", req.user._id)
     const result = await DeleteUserService(req.user);
@@ -77,7 +88,7 @@ const DeleteUser = asyncHandler(async (req, res) => {
 });
 const GetUserProfile = asyncHandler(async (req, res) => {
     const result = await GetUserProfileService(req.user);
-    console.log("🚀 ~ result:", result)
+    // console.log("🚀 ~ result:", result)
     return res
         .status(200)
         .json(

@@ -61,13 +61,14 @@ const RegisterValidation = {
  */
 const LoginValidation = {
     body: Joi.object({
-        phone: Joi.string()
-            .pattern(/^[0-9]{10}$/)
+        email: Joi.string()
+            .email()
             .required()
             .messages({
-                "string.pattern.base": "Phone must be 10 digits",
-                "any.required": "Phone is required"
+                "string.email": "Invalid email format",
+                "any.required": "Email is required"
             }),
+
         role: Joi.string()
             .valid("user", "admin")
             .required()

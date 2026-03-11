@@ -5,7 +5,7 @@ import { Otp } from "../model/otp.model.js";
 
 const isexist = async (userData) => {
     const existingUser = await BaseAuth.findOne({
-        phone: userData.phone
+        email: userData.email
     });
     return existingUser;
 };

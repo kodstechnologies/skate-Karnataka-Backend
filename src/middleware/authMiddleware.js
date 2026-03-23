@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import { BaseAuth } from "../modules/auth/model/baseAuth.model.js";
+import { BaseAuth } from "../modules/auth/baseAuth.model.js";
 import { AppError } from "../util/common/AppError.js";
 import { asyncHandler } from "../util/common/asyncHandler.js";
 

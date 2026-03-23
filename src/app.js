@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import authRouter from "./modules/auth/router/auth.router.js"
+import authRouter from "./modules/auth/auth.router.js"
 import coachRouter from "./modules/coach/router/coach.router.js"
 import competitionsRouter from "./modules/competition/router/competition.router.js"
 import eventsRouter from "./modules/event/router/event.router.js"

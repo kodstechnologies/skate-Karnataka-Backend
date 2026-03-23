@@ -16,6 +16,22 @@ const RegisterUser = asyncHandler(async (req, res) => {
         );
 });
 
+const sendEmailOTP = asyncHandler(async (req, res) =>{
+
+})
+
+const verifyEmailOTP = asyncHandler(async (req, res) =>{
+
+})
+
+const sendPhoneOTP = asyncHandler(async (req, res) =>{
+
+})
+
+const verifyPhoneOTP = asyncHandler(async(req, res) =>{
+
+})
+
 const LoginUser = asyncHandler(async (req, res) => {
     const result = await LoginUserService(req.body);
     // console.log("🚀 ~ result:", result)
@@ -138,6 +154,10 @@ const ContactSupport = asyncHandler(async (req, res) => {
 
 export {
     RegisterUser,
+    sendEmailOTP,
+    verifyEmailOTP,
+    sendPhoneOTP,
+    verifyPhoneOTP,
     LoginUser,
     VerifyOTP,
     RefreshToken,

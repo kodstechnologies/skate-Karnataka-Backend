@@ -5,73 +5,89 @@ import mongoose from "mongoose";
  * REGISTER VALIDATION
  */
 const RegisterValidation = {
-  body: Joi.object({
-    fullName: Joi.string()
-      .trim()
-      .min(3)
-      .max(50)
-      .required()
-      .messages({
-        "string.empty": "Full name is required",
-        "string.min": "Full name must be at least 3 characters long",
-        "string.max": "Full name cannot exceed 50 characters",
-        "any.required": "Full name is required",
-      }),
+    body: Joi.object({
+        fullName: Joi.string()
+            .trim()
+            .min(3)
+            .max(50)
+            .required()
+            .messages({
+                "string.empty": "Full name is required",
+                "string.min": "Full name must be at least 3 characters long",
+                "string.max": "Full name cannot exceed 50 characters",
+                "any.required": "Full name is required",
+            }),
 
-    address: Joi.string()
-      .trim()
-      .min(5)
-      .max(200)
-      .required()
-      .messages({
-        "string.empty": "Address is required",
-        "string.min": "Address must be at least 5 characters",
-        "string.max": "Address cannot exceed 200 characters",
-        "any.required": "Address is required",
-      }),
+        address: Joi.string()
+            .trim()
+            .min(5)
+            .max(200)
+            .required()
+            .messages({
+                "string.empty": "Address is required",
+                "string.min": "Address must be at least 5 characters",
+                "string.max": "Address cannot exceed 200 characters",
+                "any.required": "Address is required",
+            }),
 
-    district: Joi.string()
-      .trim()
-      .required()
-      .messages({
-        "string.empty": "District is required",
-        "any.required": "District is required",
-      }),
+        district: Joi.string()
+            .trim()
+            .required()
+            .messages({
+                "string.empty": "District is required",
+                "any.required": "District is required",
+            }),
 
-    gender: Joi.string()
-      .valid("male", "female", "other")
-      .optional()
-      .messages({
-        "any.only": "Gender must be male, female, or other",
-      }),
+        gender: Joi.string()
+            .valid("male", "female", "other")
+            .optional()
+            .messages({
+                "any.only": "Gender must be male, female, or other",
+            }),
 
-    email: Joi.string()
-      .email()
-      .required()
-      .messages({
-        "string.email": "Please enter a valid email address",
-        "string.empty": "Email is required",
-        "any.required": "Email is required",
-      }),
+        email: Joi.string()
+            .email()
+            .required()
+            .messages({
+                "string.email": "Please enter a valid email address",
+                "string.empty": "Email is required",
+                "any.required": "Email is required",
+            }),
 
-    phone: Joi.string()
-      .pattern(/^[6-9]\d{9}$/)
-      .required()
-      .messages({
-        "string.pattern.base": "Phone number must be a valid 10-digit Indian number",
-        "string.empty": "Phone number is required",
-        "any.required": "Phone number is required",
-      }),
+        phone: Joi.string()
+            .pattern(/^[6-9]\d{9}$/)
+            .required()
+            .messages({
+                "string.pattern.base": "Phone number must be a valid 10-digit Indian number",
+                "string.empty": "Phone number is required",
+                "any.required": "Phone number is required",
+            }),
 
-    role: Joi.string()
-      .valid("skater", "parent", "school", "academy", "officials", "guest", "admin")
-      .default("guest")
-      .messages({
-        "any.only":
-          "Role must be one of: skater, parent, school, academy, officials, guest, admin",
-      }),
-  }),
+        role: Joi.string()
+            .valid("skater", "parent", "school", "academy", "officials", "guest", "admin")
+            .default("guest")
+            .messages({
+                "any.only":
+                    "Role must be one of: skater, parent, school, academy, officials, guest, admin",
+            }),
+    }),
 };
+
+const sendEmailOTPValidation = {
+
+}
+
+const verifyEmailOTPVelidation = {
+
+}
+
+const sendPhoneOTPVelidation = {
+
+}
+
+const verifyPhoneOTPVelidation = {
+
+}
 
 /**
  * LOGIN VALIDATION
@@ -159,6 +175,10 @@ const UpdateProfileValidation = {
 
 export {
     RegisterValidation,
+    sendEmailOTPValidation,
+    verifyEmailOTPVelidation,
+    sendPhoneOTPVelidation,
+    verifyPhoneOTPVelidation,
     LoginValidation,
     VerifyOTPValidation,
     LogoutValidation,

@@ -1,7 +1,7 @@
 import express from "express";
 import { authenticate } from "../../middleware/authMiddleware.js";
-import { ContactSupport, DeleteUser, GetAchievements, GetDigitalIDCard, GetRankings, GetUserProfile, LoginUser, LogoutUser, RefreshToken, RegisterUser, ToggleNotifications, UpdateUserProfile, VerifyOTP } from "./auth.controller.js";
-import { LoginValidation, LogoutValidation, RegisterValidation, UpdateProfileValidation, VerifyOTPValidation } from "./auth.validation.js";
+import { ContactSupport, DeleteUser, GetAchievements, GetDigitalIDCard, GetRankings, GetUserProfile, LoginUser, LogoutUser, RefreshToken, RegisterUser, sendEmailOTP, sendPhoneOTP, ToggleNotifications, UpdateUserProfile, verifyEmailOTP, VerifyOTP, verifyPhoneOTP } from "./auth.controller.js";
+import { LoginValidation, LogoutValidation, RegisterValidation, sendEmailOTPValidation, sendPhoneOTPVelidation, UpdateProfileValidation, verifyEmailOTPVelidation, VerifyOTPValidation, verifyPhoneOTPVelidation } from "./auth.validation.js";
 import { validateMultiple } from "../../middleware/validateMultiple.js";
 
 
@@ -24,6 +24,30 @@ router.post("/v1/register",
     validateMultiple(RegisterValidation),
     RegisterUser);
 
+router.post(
+  "/v1/send-email-otp",
+  validateMultiple(sendEmailOTPValidation),
+  sendEmailOTP
+);
+
+router.post(
+  "/v1/verify-email-otp",
+  validateMultiple(verifyEmailOTPVelidation),
+  verifyEmailOTP
+);
+
+router.post(
+  "/v1/send-phone-otp",
+  validateMultiple(sendPhoneOTPVelidation),
+  sendPhoneOTP
+);
+
+router.post(
+  "/v1/verify-phone-otp",
+  validateMultiple(verifyPhoneOTPVelidation),
+  verifyPhoneOTP
+);
+
 /**
  * @description User login
  * @route POST /auth/login
@@ -32,7 +56,7 @@ router.post("/v1/register",
  *   phone: string
  * }
  */
-router.post("/login",
+router.post("/v1/login",
     validateMultiple(LoginValidation),
     LoginUser);
 

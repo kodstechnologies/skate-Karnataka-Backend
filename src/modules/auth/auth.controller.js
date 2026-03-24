@@ -1,6 +1,6 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { ContactSupportService, DeleteUserService, GetDigitalIDCardService, GetUserProfileService, LoginUserService, LogoutUserService, RegisterUserService, ToggleNotificationsService, UpdateUserProfileService, VerifyOTPService } from "./auth.service.js";
+import { ContactSupportService, DeleteUserService, GetDigitalIDCardService, GetUserProfileService, LoginUserService, LogoutUserService, RegisterUserService, sendEmailOTPService, sendPhoneOTPService, ToggleNotificationsService, UpdateUserProfileService, verifyEmailOTPService, VerifyOTPService, verifyPhoneOTPService } from "./auth.service.js";
 
 const RegisterUser = asyncHandler(async (req, res) => {
     const result = await RegisterUserService(req.body);
@@ -16,21 +16,52 @@ const RegisterUser = asyncHandler(async (req, res) => {
         );
 });
 
-const sendEmailOTP = asyncHandler(async (req, res) =>{
+const sendEmailOTP = asyncHandler(async (req, res) => {
+  await sendEmailOTPService(req.body);
 
-})
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      null,
+      "Email OTP sent successfully"
+    )
+  );
+});
+const verifyEmailOTP = asyncHandler(async (req, res) => {
+  await verifyEmailOTPService(req.body);
 
-const verifyEmailOTP = asyncHandler(async (req, res) =>{
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      null,
+      "Email OTP verified successfully"
+    )
+  );
+});
 
-})
+const sendPhoneOTP = asyncHandler(async (req, res) => {
+  await sendPhoneOTPService(req.body);
 
-const sendPhoneOTP = asyncHandler(async (req, res) =>{
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      null,
+      "Phone OTP sent successfully"
+    )
+  );
+});
 
-})
+const verifyPhoneOTP = asyncHandler(async (req, res) => {
+  await verifyPhoneOTPService(req.body);
 
-const verifyPhoneOTP = asyncHandler(async(req, res) =>{
-
-})
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      null,
+      "Phone OTP verified successfully"
+    )
+  );
+});
 
 const LoginUser = asyncHandler(async (req, res) => {
     const result = await LoginUserService(req.body);

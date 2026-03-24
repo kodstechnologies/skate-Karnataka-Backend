@@ -73,21 +73,74 @@ const RegisterValidation = {
     }),
 };
 
+
 const sendEmailOTPValidation = {
+    body: Joi.object({
+        email: Joi.string()
+            .email()
+            .required()
+            .messages({
+                "string.email": "Invalid email format",
+                "any.required": "Email is required"
+            }),
+    }),
+};
 
-}
+const verifyEmailOTPValidation = {
+    body: Joi.object({
+        email: Joi.string()
+            .email()
+            .required()
+            .messages({
+                "string.email": "Invalid email format",
+                "any.required": "Email is required"
+            }),
 
-const verifyEmailOTPVelidation = {
+        otp: Joi.string()
+            .length(4) // exactly 4 characters
+            .pattern(/^[0-9]+$/) // only digits
+            .required()
+            .messages({
+                "string.length": "OTP must be exactly 4 digits",
+                "string.pattern.base": "OTP must contain only numbers",
+                "any.required": "OTP is required"
+            }),
+    }),
+};
 
-}
 
-const sendPhoneOTPVelidation = {
 
-}
+const sendPhoneOTPValidation = {
+    body: Joi.object({
+        phone: Joi.string()
+            .pattern(/^[6-9]\d{9}$/) // Indian mobile numbers
+            .required()
+            .messages({
+                "string.pattern.base": "Phone must be a valid 10-digit Indian number",
+                "any.required": "Phone number is required"
+            }),
+    }),
+};
 
-const verifyPhoneOTPVelidation = {
+const verifyPhoneOTPValidation = {
+    body: Joi.object({
+        phone: Joi.string()
+            .pattern(/^[6-9]\d{9}$/)
+            .required()
+            .messages({
+                "string.pattern.base": "Phone must be a valid 10-digit Indian number",
+                "any.required": "Phone number is required"
+            }),
 
-}
+        otp: Joi.string()
+            .pattern(/^\d{4}$/) // exactly 4 digits
+            .required()
+            .messages({
+                "string.pattern.base": "OTP must be exactly 4 digits",
+                "any.required": "OTP is required"
+            }),
+    }),
+};
 
 /**
  * LOGIN VALIDATION
@@ -176,9 +229,9 @@ const UpdateProfileValidation = {
 export {
     RegisterValidation,
     sendEmailOTPValidation,
-    verifyEmailOTPVelidation,
-    sendPhoneOTPVelidation,
-    verifyPhoneOTPVelidation,
+    verifyEmailOTPValidation,
+    sendPhoneOTPValidation,
+    verifyPhoneOTPValidation,
     LoginValidation,
     VerifyOTPValidation,
     LogoutValidation,

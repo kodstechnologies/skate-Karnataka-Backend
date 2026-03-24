@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken";
 import { JWT_ACCESS_EXPIRES, JWT_ACCESS_SECRET, JWT_REFRESH_EXPIRES, JWT_REFRESH_SECRET } from "../../config/envConfig.js";
 
 // Generate Random Number with Custom Length
-const generateRandomNumber = (length = 6) => {
+const generateRandomNumber = (length = 4) => {
     let randomNumber = "";
 
     for (let i = 0; i < length; i++) {

@@ -1,7 +1,7 @@
 import express from "express";
 import { authenticate } from "../../middleware/authMiddleware.js";
 import { ContactSupport, DeleteUser, GetAchievements, GetDigitalIDCard, GetRankings, GetUserProfile, LoginUser, LogoutUser, RefreshToken, RegisterUser, sendEmailOTP, sendPhoneOTP, ToggleNotifications, UpdateUserProfile, verifyEmailOTP, VerifyOTP, verifyPhoneOTP } from "./auth.controller.js";
-import { LoginValidation, LogoutValidation, RegisterValidation, sendEmailOTPValidation, sendPhoneOTPVelidation, UpdateProfileValidation, verifyEmailOTPVelidation, VerifyOTPValidation, verifyPhoneOTPVelidation } from "./auth.validation.js";
+import { LoginValidation, LogoutValidation, RegisterValidation, sendEmailOTPValidation, sendPhoneOTPValidation, UpdateProfileValidation, verifyEmailOTPValidation, VerifyOTPValidation, verifyPhoneOTPValidation } from "./auth.validation.js";
 import { validateMultiple } from "../../middleware/validateMultiple.js";
 
 
@@ -9,12 +9,13 @@ const router = express.Router();
 
 /**
  * @description User registration
- * @route POST /auth/register
+ * @route POST /auth/v1/register
  * @access Public
  * @body {
- *   name: string,
- *   dob: string (YYYY-MM-DD),
+ *   fullName: string,
+ *   address: string,
  *   district: string,
+ *   gender: string,
  *   email: string,
  *   phone: string,
  *   role: string
@@ -25,27 +26,27 @@ router.post("/v1/register",
     RegisterUser);
 
 router.post(
-  "/v1/send-email-otp",
-  validateMultiple(sendEmailOTPValidation),
-  sendEmailOTP
+    "/v1/send-email-otp",
+    validateMultiple(sendEmailOTPValidation),
+    sendEmailOTP
 );
 
 router.post(
-  "/v1/verify-email-otp",
-  validateMultiple(verifyEmailOTPVelidation),
-  verifyEmailOTP
+    "/v1/verify-email-otp",
+    validateMultiple(verifyEmailOTPValidation),
+    verifyEmailOTP
 );
 
 router.post(
-  "/v1/send-phone-otp",
-  validateMultiple(sendPhoneOTPVelidation),
-  sendPhoneOTP
+    "/v1/send-phone-otp",
+    validateMultiple(sendPhoneOTPValidation),
+    sendPhoneOTP
 );
 
 router.post(
-  "/v1/verify-phone-otp",
-  validateMultiple(verifyPhoneOTPVelidation),
-  verifyPhoneOTP
+    "/v1/verify-phone-otp",
+    validateMultiple(verifyPhoneOTPValidation),
+    verifyPhoneOTP
 );
 
 /**

@@ -26,7 +26,6 @@ const otpSchema = new mongoose.Schema(
         },
         krsaId: {
             type: String,
-            unique: true,
             index: true,
             immutable: true,
         },

@@ -146,24 +146,20 @@ const verifyPhoneOTPValidation = {
  * LOGIN VALIDATION
  */
 const LoginValidation = {
-    body: Joi.object({
-        email: Joi.string()
-            .email()
-            .required()
-            .messages({
-                "string.email": "Invalid email format",
-                "any.required": "Email is required"
-            }),
-
-        role: Joi.string()
-            .valid("user", "admin")
-            .required()
-            .messages({
-                "any.only": "Role must be user or admin"
-            })
-    })
+  body: Joi.object({
+    identifier: Joi.string()
+      .min(3)
+      .max(50)
+      .required()
+      .messages({
+        "string.base": "Identifier must be a string",
+        "string.empty": "Identifier cannot be empty",
+        "string.min": "Identifier must be at least 3 characters",
+        "string.max": "Identifier must be at most 50 characters",
+        "any.required": "Identifier is required"
+      }),
+  })
 };
-
 /**
  * VERIFY OTP VALIDATION
  */

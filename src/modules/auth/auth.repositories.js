@@ -10,20 +10,26 @@ const registerUser = async (userData) => {
 };
 
 const isExistEmail = async (email) => {
-    const isEmail = await BaseAuth.findOne(email)
+    console.log(email,"email")
+    const isEmail = await BaseAuth.findOne({email})
+    console.log(isEmail,"----")
     return isEmail;
 }
 
 const removeOldEmailOtp = async (email) => {
+    console.log(email,"uuuu")
     await Otp.findOneAndDelete(email);
+    console.log(email,"uuuu")
 }
 
 const saveEmailOtp = async (email, otp) => {
-    await Otp.create({
+
+    const dd = await Otp.create({
         email: email.email,
         otp,
         expiresAt: new Date(Date.now() + 5 * 60 * 1000)
     })
+console.log(dd,"dd")
 }
 
 const checkEmailOTP = async (email) =>{
@@ -32,17 +38,34 @@ const checkEmailOTP = async (email) =>{
 }
 
 const isExistPhone = async (phone) => {
-    const isPhone = await BaseAuth.findOne(phone)
+    console.log(phone,"phone")
+    const isPhone = await BaseAuth.findOne({phone})
     return isPhone;
+}
+const isExistKSRAId = async (krsaId) => {
+    console.log(krsaId,"krsaId")
+    const iskrsaId = await BaseAuth.findOne({krsaId})
+    return iskrsaId;
 }
 
 const removeOldPhoneOtp = async (phone) => {
     await Otp.findOneAndDelete(phone);
 }
+const removeOldKRSAIdOtp = async (krsaId) => {
+    await Otp.findOneAndDelete(krsaId);
+}
 
 const savePhoneOTP = async (phone, otp) => {
     await Otp.create({
         phone: phone.phone,
+        otp,
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000)
+    })
+}
+
+const saveKRSAIdOTP = async (krsaId, otp) => {
+    await Otp.create({
+        krsaId: krsaId.krsaId,
         otp,
         expiresAt: new Date(Date.now() + 5 * 60 * 1000)
     })
@@ -88,6 +111,7 @@ const checkOtp = async (userData) => {
 
     return true;
 };
+
 
 const saveFirebaseToken = async (userData) => {
     const { userId, firebaseToken } = userData;
@@ -150,10 +174,13 @@ export {
     registerUser,
     isExistEmail,
     isExistPhone,
+    isExistKSRAId,
     removeOldEmailOtp,
     removeOldPhoneOtp,
+    removeOldKRSAIdOtp,
     saveEmailOtp,
     savePhoneOTP,
+    saveKRSAIdOTP,
     checkEmailOTP,
     checkPhoneOTP,
     generateOtp,

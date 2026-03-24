@@ -21,10 +21,8 @@ const BaseAuthSchema = new mongoose.Schema(
       unique: true,
       index: true,
       trim: true,
-
       minlength: [10, "Phone number must be exactly 10 digits"],
       maxlength: [10, "Phone number must be exactly 10 digits"],
-
       match: [/^[6-9]\d{9}$/, "Please enter a valid Indian phone number"],
     },
 
@@ -56,7 +54,6 @@ const BaseAuthSchema = new mongoose.Schema(
       default: "+91",
     },
 
-    // Profile Photo
     photo: {
       type: String,
       default: "",
@@ -69,10 +66,7 @@ const BaseAuthSchema = new mongoose.Schema(
       trim: true,
       unique: true,
       sparse: true,
-      match: [
-        /^\S+@\S+\.\S+$/,
-        "Please enter a valid email address",
-      ],
+      match: [/^\S+@\S+\.\S+$/, "Please enter a valid email address"],
     },
 
     dob: {
@@ -98,8 +92,57 @@ const BaseAuthSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+
+    krsaId: {
+      type: String,
+      unique: true,
+      index: true,
+      immutable: true,
+    },
   },
   options
 );
+
+// ==================== PRE-SAVE HOOK FOR KRSA ID (Best Version) ====================
+
+BaseAuthSchema.pre("save", async function () {
+  // Skip if already has krsaId (useful during updates)
+  if (this.krsaId) {
+    return;
+  }
+
+  const rolePrefixMap = {
+    skater: "S",
+    parent: "P",
+    school: "SC",
+    academy: "A",
+    officials: "O",
+    guest: "G",
+  };
+
+  const prefix = rolePrefixMap[this.role] || "U";
+
+  let attempts = 0;
+  const maxAttempts = 15;
+
+  while (attempts < maxAttempts) {
+    const randomNumber = Math.floor(100000 + Math.random() * 900000);
+    const newId = `KRSA${randomNumber}${prefix}`;
+
+    const existing = await this.constructor
+      .findOne({ krsaId: newId })
+      .lean();
+
+    if (!existing) {
+      this.krsaId = newId;
+      return;                    // Success → exit middleware
+    }
+
+    attempts++;
+  }
+
+  // If we reach here → failed to generate unique ID
+  throw new Error("Failed to generate unique KRSA ID after 15 attempts");
+});
 
 export const BaseAuth = mongoose.model("BaseAuth", BaseAuthSchema);

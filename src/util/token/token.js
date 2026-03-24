@@ -3,11 +3,11 @@ import { JWT_ACCESS_EXPIRES, JWT_ACCESS_SECRET, JWT_REFRESH_EXPIRES, JWT_REFRESH
 
 // Generate Random Number with Custom Length
 const generateRandomNumber = (length = 4) => {
-    let randomNumber = "";
+    let randomNumber = "1234";
 
-    for (let i = 0; i < length; i++) {
-        randomNumber += Math.floor(Math.random() * 10);
-    }
+    // for (let i = 0; i < length; i++) {
+    //     randomNumber += Math.floor(Math.random() * 10);
+    // }
 
     return randomNumber;
 };

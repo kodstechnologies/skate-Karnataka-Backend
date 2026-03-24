@@ -1,24 +1,24 @@
-import { isExistEmail, checkOtp, deleteAccount, generateOtp, GetDigitalIDCardDetaisl, getSupportContact, getUserProfile, registerUser, removeFirebaseTokenAndRefressToken, saveFirebaseToken, toggleNotification, isExistPhone, removeOldEmailOtp, removeOldPhoneOtp, saveEmailOtp, savePhoneOTP, checkEmailOTP, checkPhoneOTP } from "./auth.repositories.js";
+import { isExistEmail, checkOtp, deleteAccount, generateOtp, GetDigitalIDCardDetaisl, getSupportContact, getUserProfile, registerUser, removeFirebaseTokenAndRefressToken, saveFirebaseToken, toggleNotification, removeOldEmailOtp, removeOldPhoneOtp, saveEmailOtp, savePhoneOTP, checkEmailOTP, checkPhoneOTP, isExistPhone, removeOldKRSAIdOtp, saveKRSAIdOTP, isExistKSRAId } from "./auth.repositories.js";
 import { generateAccessToken, generateRandomNumber, generateRefreshToken } from "../../util/token/token.js";
 import { AppError } from "../../util/common/AppError.js";
 import { sendOTPToEmail } from "../../util/otp/emailOtp.js";
 import { sendOTPToPhone } from "../../util/otp/phoneOtp.js";
 
 const RegisterUserService = async (userData) => {
-    const isEmail = await isExistEmail(userData);
-    const idPhone = await isExistPhone(userData);
-
-    if (isEmail || idPhone) {
+    const { email, phone } = userData;
+    const isEmail = await isExistEmail(email);
+    const idPhone = await isExistPhone(phone);
+    if ((isEmail !== null) || (idPhone !== null)) {
         throw new AppError("User already exists", 409);
     }
     const user = await registerUser(userData);
-    await generateOtp(user);
     return user._id;
 };
 
 const sendEmailOTPService = async (email) => {
     // check email priviously exist or not  
-    const ExistEmail = await isExistEmail(email);
+    const ExistEmail = await isExistEmail(email.email);
+    console.log(ExistEmail, "ExistEmail")
     if (ExistEmail) {
         throw new AppError("Email already exist", 409);
     }
@@ -27,6 +27,7 @@ const sendEmailOTPService = async (email) => {
     await removeOldEmailOtp(email);
     // save in db 
     const otp = generateRandomNumber();
+    console.log(otp, "otpotp")
     await saveEmailOtp(email, otp);
     // send otp 
     await sendOTPToEmail(email);
@@ -47,7 +48,7 @@ const verifyEmailOTPService = async (data) => {
 };
 const sendPhoneOTPService = async (phone) => {
     // check email priviously exist or not  
-    const ExistPhone = await isExistPhone(phone);
+    const ExistPhone = await isExistPhone(phone.phone);
     if (ExistPhone) {
         throw new AppError("Phone already exist", 409);
     }
@@ -61,27 +62,71 @@ const sendPhoneOTPService = async (phone) => {
 }
 
 const verifyPhoneOTPService = async (data) => {
-    const {phone , otp} = data;
+    const { phone, otp } = data;
 
     const record = await checkPhoneOTP(phone);
-    if(record.otp !== otp){
-        throw new AppError("Invalid OTP" ,400);
+    if (record.otp !== otp) {
+        throw new AppError("Invalid OTP", 400);
     }
-    if(record.expiresAt < new Date()){
+    if (record.expiresAt < new Date()) {
         throw new AppError("OTP has expired", 400);
     }
 
     return true;
 }
 
-const LoginUserService = async (userData) => {
-    const userExists = await isexistEmail(userData);
-    console.log("🚀 ~ LoginUserService ~ userExists:", userExists)
-    if (!userExists) {
-        throw new AppError("User does not exist", 404);
+
+const LoginUserService = async (identifier) => {
+    const otp = generateRandomNumber();
+
+    console.log(identifier, "identifier");
+
+    // Email
+    if (identifier.includes("@")) {
+        const user = await isExistEmail(identifier);
+
+        if (!user) {
+            throw new AppError("Email not registered", 404);
+        }
+
+        await removeOldEmailOtp(identifier);
+        await saveEmailOtp(identifier, otp);
+
+        return { type: "email", identifier };
     }
-    await generateOtp(userExists);
-    return userExists._id;
+
+    // Phone
+    else if (/^[6-9]\d{9}$/.test(identifier)) {
+        console.log(identifier, "identifier")
+        const user = await isExistPhone(identifier);
+        console.log(user, "----")
+        if (!user) {
+            throw new AppError("Phone number not registered", 404);
+        }
+
+        await removeOldPhoneOtp(identifier);
+        await savePhoneOTP(identifier, otp);
+
+        return { type: "phone", identifier};
+    }
+
+    // KRSA ID  (NEW)
+    else if (/^KRSA\d{6}[A-Z]+$/.test(identifier)) {
+        const user = await isExistKSRAId(identifier);
+
+        if (!user) {
+            throw new AppError("KRSA ID not found", 404);
+        }
+        await removeOldKRSAIdOtp(identifier);
+        await saveKRSAIdOTP(identifier, otp);
+
+        return { type: "krsaId", identifier };
+    }
+
+    // Invalid
+    else {
+        throw new AppError("Invalid identifier format", 400);
+    }
 };
 const VerifyOTPService = async (userData) => {
     // console.log("🚀 ~ VerifyOTPService ~ userData:", userData)

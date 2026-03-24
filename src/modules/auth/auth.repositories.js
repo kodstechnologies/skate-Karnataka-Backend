@@ -76,7 +76,10 @@ const checkPhoneOTP = async (phone) => {
     const record = await Otp.findOne({ phone });
     return record;
 }
-
+const isExist = async (userData) =>{
+    const isUser = await BaseAuth.findById(userData.userId);
+    return isUser;
+}
 const generateOtp = async (userData) => {
     // 🔢 Generate 6 digit OTP
     const otp = generateRandomNumber(6);
@@ -91,7 +94,7 @@ const generateOtp = async (userData) => {
 };
 
 const checkOtp = async (userData) => {
-    console.log(userData, "data")
+    // console.log(userData, "data")
     const { userId, otp } = userData;
     let otpDoc;
 
@@ -100,7 +103,7 @@ const checkOtp = async (userData) => {
         otp,
         expiresAt: { $gt: new Date() }
     });
-    console.log(otpDoc, "otpDoc")
+    // console.log(otpDoc, "otpDoc")
     if (!otpDoc) {
         throw new Error("Invalid or expired OTP");
     }
@@ -171,6 +174,7 @@ export {
     isExistEmail,
     isExistPhone,
     isExistKSRAId,
+    isExist,
     removeOldEmailOtp,
     removeOldPhoneOtp,
     removeOldKRSAIdOtp,

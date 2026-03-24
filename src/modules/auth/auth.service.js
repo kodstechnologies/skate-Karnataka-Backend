@@ -1,4 +1,4 @@
-import { isExistEmail, checkOtp, deleteAccount, generateOtp, GetDigitalIDCardDetaisl, getSupportContact, getUserProfile, registerUser, removeFirebaseTokenAndRefressToken, saveFirebaseToken, toggleNotification, removeOldEmailOtp, removeOldPhoneOtp, saveEmailOtp, savePhoneOTP, checkEmailOTP, checkPhoneOTP, isExistPhone, removeOldKRSAIdOtp, saveKRSAIdOTP, isExistKSRAId } from "./auth.repositories.js";
+import { isExistEmail, checkOtp, deleteAccount, generateOtp, GetDigitalIDCardDetaisl, getSupportContact, getUserProfile, registerUser, removeFirebaseTokenAndRefressToken, saveFirebaseToken, toggleNotification, removeOldEmailOtp, removeOldPhoneOtp, saveEmailOtp, savePhoneOTP, checkEmailOTP, checkPhoneOTP, isExistPhone, removeOldKRSAIdOtp, saveKRSAIdOTP, isExistKSRAId ,isExist } from "./auth.repositories.js";
 import { generateAccessToken, generateRandomNumber, generateRefreshToken } from "../../util/token/token.js";
 import { AppError } from "../../util/common/AppError.js";
 import { sendOTPToEmail } from "../../util/otp/emailOtp.js";
@@ -100,7 +100,7 @@ const LoginUserService = async (identifier) => {
         console.log(identifier, "identifier")
         const user = await isExistPhone(identifier);
         const id = user._id;
-        console.log(user, "----", id)
+        // console.log(user, "----", id)
         if (!user) {
             throw new AppError("Phone number not registered", 404);
         }
@@ -135,7 +135,10 @@ const VerifyOTPService = async (userData) => {
     await saveFirebaseToken(userData);
     const accessToken = generateAccessToken(userData);
     const refreshToken = generateRefreshToken(userData);
-    return { userId: userData.userId, accessToken, refreshToken };
+    console.log(userData);
+    const user = await isExist(userData);
+
+    return { userId: userData.userId, krsaId:user.krsaId , accessToken, refreshToken };
 };
 const RefreshTokenService = async (req, res) => { };
 const LogoutUserService = async (userData) => {

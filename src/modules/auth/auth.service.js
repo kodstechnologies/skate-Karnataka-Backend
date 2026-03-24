@@ -79,48 +79,49 @@ const verifyPhoneOTPService = async (data) => {
 const LoginUserService = async (identifier) => {
     const otp = generateRandomNumber();
 
-    console.log(identifier, "identifier");
+    // console.log(identifier, "identifier");
 
     // Email
     if (identifier.includes("@")) {
         const user = await isExistEmail(identifier);
-
+        const id = user._id;
         if (!user) {
             throw new AppError("Email not registered", 404);
         }
 
         await removeOldEmailOtp(identifier);
-        await saveEmailOtp(identifier, otp);
+        await saveEmailOtp(identifier, otp, id);
 
-        return { type: "email", identifier };
+        return { type: "email", identifier, id };
     }
 
     // Phone
     else if (/^[6-9]\d{9}$/.test(identifier)) {
         console.log(identifier, "identifier")
         const user = await isExistPhone(identifier);
-        console.log(user, "----")
+        const id = user._id;
+        console.log(user, "----", id)
         if (!user) {
             throw new AppError("Phone number not registered", 404);
         }
 
         await removeOldPhoneOtp(identifier);
-        await savePhoneOTP(identifier, otp);
+        await savePhoneOTP(identifier, otp, id);
 
-        return { type: "phone", identifier};
+        return { type: "phone", identifier, id };
     }
 
     // KRSA ID  (NEW)
     else if (/^KRSA\d{6}[A-Z]+$/.test(identifier)) {
         const user = await isExistKSRAId(identifier);
-
+        const id = user._id;
         if (!user) {
             throw new AppError("KRSA ID not found", 404);
         }
         await removeOldKRSAIdOtp(identifier);
-        await saveKRSAIdOTP(identifier, otp);
+        await saveKRSAIdOTP(identifier, otp, id);
 
-        return { type: "krsaId", identifier };
+        return { type: "krsaId", identifier, id };
     }
 
     // Invalid

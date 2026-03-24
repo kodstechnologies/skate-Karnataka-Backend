@@ -180,10 +180,10 @@ const VerifyOTPValidation = {
             }),
 
         otp: Joi.string()
-            .pattern(/^[0-9]{6}$/)
+            .pattern(/^[0-9]{4}$/)
             .required()
             .messages({
-                "string.pattern.base": "OTP must be exactly 6 digits",
+                "string.pattern.base": "OTP must be exactly 4 digits",
                 "any.required": "OTP is required"
             }),
 

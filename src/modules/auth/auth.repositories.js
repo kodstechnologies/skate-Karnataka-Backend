@@ -10,41 +10,40 @@ const registerUser = async (userData) => {
 };
 
 const isExistEmail = async (email) => {
-    console.log(email,"email")
-    const isEmail = await BaseAuth.findOne({email})
-    console.log(isEmail,"----")
+    console.log(email, "email")
+    const isEmail = await BaseAuth.findOne({ email })
+    console.log(isEmail, "----")
     return isEmail;
 }
 
 const removeOldEmailOtp = async (email) => {
-    console.log(email,"uuuu")
+    console.log(email, "uuuu")
     await Otp.findOneAndDelete(email);
-    console.log(email,"uuuu")
+    console.log(email, "uuuu")
 }
 
-const saveEmailOtp = async (email, otp) => {
-
-    const dd = await Otp.create({
+const saveEmailOtp = async (email, otp, id) => {
+    await Otp.create({
+        userId: id,
         email: email.email,
         otp,
         expiresAt: new Date(Date.now() + 5 * 60 * 1000)
     })
-console.log(dd,"dd")
 }
 
-const checkEmailOTP = async (email) =>{
-    const record = await Otp.findOne({email});
+const checkEmailOTP = async (email) => {
+    const record = await Otp.findOne({ email });
     return record;
 }
 
 const isExistPhone = async (phone) => {
-    console.log(phone,"phone")
-    const isPhone = await BaseAuth.findOne({phone})
+    console.log(phone, "phone")
+    const isPhone = await BaseAuth.findOne({ phone })
     return isPhone;
 }
 const isExistKSRAId = async (krsaId) => {
-    console.log(krsaId,"krsaId")
-    const iskrsaId = await BaseAuth.findOne({krsaId})
+    console.log(krsaId, "krsaId")
+    const iskrsaId = await BaseAuth.findOne({ krsaId })
     return iskrsaId;
 }
 
@@ -55,24 +54,26 @@ const removeOldKRSAIdOtp = async (krsaId) => {
     await Otp.findOneAndDelete(krsaId);
 }
 
-const savePhoneOTP = async (phone, otp) => {
+const savePhoneOTP = async (phone, otp, id) => {
     await Otp.create({
+        userId: id,
         phone: phone.phone,
         otp,
         expiresAt: new Date(Date.now() + 5 * 60 * 1000)
     })
 }
 
-const saveKRSAIdOTP = async (krsaId, otp) => {
+const saveKRSAIdOTP = async (krsaId, otp, id) => {
     await Otp.create({
+        userId: id,
         krsaId: krsaId.krsaId,
         otp,
         expiresAt: new Date(Date.now() + 5 * 60 * 1000)
     })
 }
 
-const checkPhoneOTP = async (phone) =>{
-    const record = await Otp.findOne({phone});
+const checkPhoneOTP = async (phone) => {
+    const record = await Otp.findOne({ phone });
     return record;
 }
 
@@ -90,20 +91,16 @@ const generateOtp = async (userData) => {
 };
 
 const checkOtp = async (userData) => {
+    console.log(userData, "data")
     const { userId, otp } = userData;
     let otpDoc;
-    if (NODE_ENV === "development" && otp === "123456") {
-        otpDoc = await Otp.findOne({
-            userId,
-            expiresAt: { $gt: new Date() }
-        });
-    } else {
-        otpDoc = await Otp.findOne({
-            userId,
-            otp,
-            expiresAt: { $gt: new Date() }
-        });
-    }
+
+    otpDoc = await Otp.findOne({
+        userId,
+        otp,
+        expiresAt: { $gt: new Date() }
+    });
+    console.log(otpDoc, "otpDoc")
     if (!otpDoc) {
         throw new Error("Invalid or expired OTP");
     }
@@ -111,7 +108,6 @@ const checkOtp = async (userData) => {
 
     return true;
 };
-
 
 const saveFirebaseToken = async (userData) => {
     const { userId, firebaseToken } = userData;

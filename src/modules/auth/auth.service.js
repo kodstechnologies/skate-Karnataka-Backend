@@ -137,8 +137,8 @@ const VerifyOTPService = async (userData) => {
     const refreshToken = generateRefreshToken(userData);
     console.log(userData);
     const user = await isExist(userData);
-
-    return { userId: userData.userId, krsaId:user.krsaId , accessToken, refreshToken };
+console.log(user,"user")
+    return { userId: userData.userId, role:user.role, krsaId:user.krsaId , accessToken, refreshToken };
 };
 const RefreshTokenService = async (req, res) => { };
 const LogoutUserService = async (userData) => {

@@ -54,12 +54,6 @@ const BaseAuthSchema = new mongoose.Schema(
       default: "+91",
     },
 
-    photo: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-
     email: {
       type: String,
       lowercase: true,
@@ -67,10 +61,6 @@ const BaseAuthSchema = new mongoose.Schema(
       unique: true,
       sparse: true,
       match: [/^\S+@\S+\.\S+$/, "Please enter a valid email address"],
-    },
-
-    dob: {
-      type: Date,
     },
 
     isActive: {
@@ -99,6 +89,10 @@ const BaseAuthSchema = new mongoose.Schema(
       index: true,
       immutable: true,
     },
+    verifay:{
+      type: Boolean,
+      default : false,
+    }
   },
   options
 );

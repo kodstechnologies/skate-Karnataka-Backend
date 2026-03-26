@@ -6,6 +6,8 @@ import competitionsRouter from "./modules/competition/router/competition.router.
 import eventsRouter from "./modules/event/router/event.router.js"
 import galleryRouter from "./modules/gallery/router/gallery.router.js"
 import notificationRouter from "./modules/notification/router/notefication.router.js"
+import clubRouter from "./modules/club/club.router.js"
+import districtRouter from "./modules/district/district.router.js"
 
 const app = express();
 
@@ -21,6 +23,8 @@ app.get('/healthz', (req, res) => {
 
 app.use("/auth", authRouter);
 app.use("/coach", coachRouter);
+app.use("/club", clubRouter);
+app.use("/district", districtRouter);
 app.use("/competition", competitionsRouter);
 app.use("/event", eventsRouter);
 app.use("/gallery", galleryRouter);

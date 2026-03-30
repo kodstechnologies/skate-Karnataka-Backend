@@ -14,7 +14,13 @@ const createClubValidation = {
 
 const editClubValidation = {
     body: Joi.object({
-
+        district: Joi.string(),
+        name: Joi.string(),
+        address: Joi.string(),
+        about: Joi.string().allow(""),
+        skaters: Joi.number(),
+        rank: Joi.number(),
+        championships: Joi.number(),
     })
 }
 

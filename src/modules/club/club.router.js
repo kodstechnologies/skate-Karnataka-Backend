@@ -15,6 +15,7 @@ router.post("/v1/",
 router.get("/v1/:id",
     displaySingleClub);
 router.patch("/v1/:id",
+    upload.single("img"),
     validateMultiple(editClubValidation),
     updateClub);
 router.delete("/v1/:id",

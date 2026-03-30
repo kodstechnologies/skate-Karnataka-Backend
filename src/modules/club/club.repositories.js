@@ -20,20 +20,48 @@ const createClubRepository = async (data) => {
     return await Club.create({ district, districtName, name, about, skaters, rank, championships });
 }
 
-const clubIdStoreinDestrict = async(districtId ,clubId)=> {
-await District.findByIdAndUpdate(
-    districtId,
-    {
-        $push: {club: clubId}
-    },{
-        new :true
+const clubIdStoreinDestrict = async (districtId, clubId) => {
+    await District.findByIdAndUpdate(
+        districtId,
+        {
+            $push: { club: clubId }
+        }, {
+        new: true
     }
-);
+    );
+}
+
+const isThisClubExist = async(id) =>{
+    return await Club.findById(id);
+}
+
+const displayFullDetailsOfClub = async (id) => {
+    return await Club.findById(id);
+}
+
+const updateClubDetails = async (data, id) => {
+    const updatedClub = await Club.findByIdAndUpdate(
+        id,
+        { $set: data },
+        { returnDocument: "after", runValidators: true }
+    );
+
+    if (!updatedClub) {
+        throw new Error("Club not found");
+    }
+}
+
+const deleteClubDetails = async (id) => {
+    await Club.findByIdAndDelete(id);
 }
 
 export {
     allClubsRepository,
     isExistClub,
     createClubRepository,
-    clubIdStoreinDestrict
+    clubIdStoreinDestrict,
+    displayFullDetailsOfClub,
+    isThisClubExist,
+    updateClubDetails,
+    deleteClubDetails
 }

@@ -1,6 +1,6 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { createNewDistrictService, getAllDistrictService } from "./district.service.js";
+import { createNewDistrictService, districtDeletedService, getAllDistrictService, singleDistrictAllClubNameService, updateDistrictService } from "./district.service.js";
 
 const displayAllDistrict = asyncHandler(async (req, res) => {
   const districts = await getAllDistrictService();
@@ -14,32 +14,56 @@ const displayAllDistrict = asyncHandler(async (req, res) => {
   );
 });
 const createNewDistrict = asyncHandler(async (req, res) => {
-    await createNewDistrictService(req.body);
-    return res.status(201).json(
-        new ApiResponse(
-            201,
-            null,
-            "District created sucessafully"
-        )
+  await createNewDistrictService(req.body);
+  return res.status(201).json(
+    new ApiResponse(
+      201,
+      null,
+      "District created successfully"
     )
+  )
 })
 
-const displaySingleDistrictAllClubs = asyncHandler( async (req, res) =>{
-
+const displaySingleDistrictAllClubs = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const districtClubs = await singleDistrictAllClubNameService(id);
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      districtClubs,
+      `Display ${districtClubs.name} district all clubs`
+    )
+  )
 })
 
-const updateDistrict = asyncHandler( async (req, res) =>{
-
+const updateDistrict = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  await updateDistrictService(id, req.body);
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      null,
+      "District details updated successfully"
+    )
+  )
 })
 
-const deleteDistrict = asyncHandler( async( req, res) =>{
-
+const deleteDistrict = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  await districtDeletedService(id);
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      null,
+      "District deleted successfully"
+    )
+  )
 })
 
 export {
-    displayAllDistrict,
-    createNewDistrict,
-    displaySingleDistrictAllClubs,
-    updateDistrict,
-    deleteDistrict
+  displayAllDistrict,
+  createNewDistrict,
+  displaySingleDistrictAllClubs,
+  updateDistrict,
+  deleteDistrict
 }

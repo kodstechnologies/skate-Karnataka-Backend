@@ -1,4 +1,4 @@
-import { isExistEmail, checkOtp, deleteAccount, generateOtp, GetDigitalIDCardDetaisl, getSupportContact, getUserProfile, registerUser, removeFirebaseTokenAndRefressToken, saveFirebaseToken, toggleNotification, removeOldEmailOtp, removeOldPhoneOtp, saveEmailOtp, savePhoneOTP, checkEmailOTP, checkPhoneOTP, isExistPhone, removeOldKRSAIdOtp, saveKRSAIdOTP, isExistKSRAId ,isExist } from "./auth.repositories.js";
+import { isExistEmail, checkOtp, deleteAccount, generateOtp, GetDigitalIDCardDetaisl, getSupportContact, getUserProfile, registerUser, removeFirebaseTokenAndRefressToken, saveFirebaseToken, toggleNotification, removeOldEmailOtp, removeOldPhoneOtp, saveEmailOtp, savePhoneOTP, checkEmailOTP, checkPhoneOTP, isExistPhone, removeOldKRSAIdOtp, saveKRSAIdOTP, isExistKSRAId ,isExist, afterLoginSketerFormRepositorie } from "./auth.repositories.js";
 import { generateAccessToken, generateRandomNumber, generateRefreshToken } from "../../util/token/token.js";
 import { AppError } from "../../util/common/AppError.js";
 import { sendOTPToEmail } from "../../util/otp/emailOtp.js";
@@ -140,6 +140,11 @@ const VerifyOTPService = async (userData) => {
 console.log(user,"user")
     return { userId: userData.userId, role:user.role, krsaId:user.krsaId , accessToken, refreshToken };
 };
+
+const afterLoginFormSkaterService = async(data) =>{
+    await afterLoginSketerFormRepositorie(data);
+}
+
 const RefreshTokenService = async (req, res) => { };
 const LogoutUserService = async (userData) => {
     console.log("🚀 ~ LogoutUserService ~ userData:", userData)
@@ -177,6 +182,7 @@ export {
     verifyPhoneOTPService,
     LoginUserService,
     VerifyOTPService,
+    afterLoginFormSkaterService,
     RefreshTokenService,
     LogoutUserService,
     UpdateUserProfileService,

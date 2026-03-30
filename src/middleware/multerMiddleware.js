@@ -1,26 +1,30 @@
 import multer from "multer";
 
-// multer configuration
 export const upload = multer({
-    storage: multer.memoryStorage(), // store file in RAM
+  storage: multer.memoryStorage(),
 
-    limits: {
-        fileSize: 5 * 1024 * 1024, // max 5MB
-    },
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+  },
 
-    fileFilter: (req, file, cb) => {
-        // allowed image types
-        const allowedTypes = [
-            "image/jpeg",
-            "image/jpg",
-            "image/png",
-            "image/webp"
-        ];
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = [
+      // images
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/webp",
 
-        if (allowedTypes.includes(file.mimetype)) {
-            cb(null, true); // allow upload
-        } else {
-            cb(new Error("Only image files (JPG, JPEG, PNG, WebP) are allowed!"), false);
-        }
-    },
+      // documents
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ];
+
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only image and document files are allowed!"), false);
+    }
+  },
 });

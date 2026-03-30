@@ -1,6 +1,6 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { ContactSupportService, DeleteUserService, GetDigitalIDCardService, GetUserProfileService, LoginUserService, LogoutUserService, RegisterUserService, sendEmailOTPService, sendPhoneOTPService, ToggleNotificationsService, UpdateUserProfileService, verifyEmailOTPService, VerifyOTPService, verifyPhoneOTPService } from "./auth.service.js";
+import { afterLoginFormSkaterService, ContactSupportService, DeleteUserService, GetDigitalIDCardService, GetUserProfileService, LoginUserService, LogoutUserService, RegisterUserService, sendEmailOTPService, sendPhoneOTPService, ToggleNotificationsService, UpdateUserProfileService, verifyEmailOTPService, VerifyOTPService, verifyPhoneOTPService } from "./auth.service.js";
 
 const RegisterUser = asyncHandler(async (req, res) => {
     const result = await RegisterUserService(req.body);
@@ -92,6 +92,19 @@ const VerifyOTP = asyncHandler(async (req, res) => {
             )
         );
 });
+
+const afterLoginSkaterform = asyncHandler(async (req, res) => {
+    await afterLoginFormSkaterService(req.body);
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            null,
+            "Form Submioted sucessafully"
+        )
+    )
+})
 
 const RefreshToken = asyncHandler(async (req, res) => { });
 
@@ -193,6 +206,7 @@ export {
     VerifyOTP,
     RefreshToken,
     LogoutUser,
+    afterLoginSkaterform,
     UpdateUserProfile,
     DeleteUser,
     GetUserProfile,

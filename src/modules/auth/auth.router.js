@@ -1,8 +1,9 @@
 import express from "express";
 import { authenticate } from "../../middleware/authMiddleware.js";
-import { ContactSupport, DeleteUser, GetAchievements, GetDigitalIDCard, GetRankings, GetUserProfile, LoginUser, LogoutUser, RefreshToken, RegisterUser, sendEmailOTP, sendPhoneOTP, ToggleNotifications, UpdateUserProfile, verifyEmailOTP, VerifyOTP, verifyPhoneOTP } from "./auth.controller.js";
-import { LoginValidation, LogoutValidation, RegisterValidation, sendEmailOTPValidation, sendPhoneOTPValidation, UpdateProfileValidation, verifyEmailOTPValidation, VerifyOTPValidation, verifyPhoneOTPValidation } from "./auth.validation.js";
+import { afterLoginSkaterform, ContactSupport, DeleteUser, GetAchievements, GetDigitalIDCard, GetRankings, GetUserProfile, LoginUser, LogoutUser, RefreshToken, RegisterUser, sendEmailOTP, sendPhoneOTP, ToggleNotifications, UpdateUserProfile, verifyEmailOTP, VerifyOTP, verifyPhoneOTP } from "./auth.controller.js";
+import { afterLoginSaterFormValidation, LoginValidation, LogoutValidation, RegisterValidation, sendEmailOTPValidation, sendPhoneOTPValidation, UpdateProfileValidation, verifyEmailOTPValidation, VerifyOTPValidation, verifyPhoneOTPValidation } from "./auth.validation.js";
 import { validateMultiple } from "../../middleware/validateMultiple.js";
+import { upload } from "../../middleware/multerMiddleware.js";
 
 
 const router = express.Router();
@@ -49,6 +50,7 @@ router.post(
     verifyPhoneOTP
 );
 
+
 /**
  * @description User login
  * @route POST /auth/login
@@ -73,6 +75,19 @@ router.post("/v1/login",
 router.post("/verify-otp",
     validateMultiple(VerifyOTPValidation),
     VerifyOTP);
+
+// -========== login complite =====================
+
+router.post(
+  "/v1/after-login-skater-form",
+  upload.fields([
+    { name: "img", maxCount: 1 },
+    { name: "document", maxCount: 1 }
+  ]),
+  validateMultiple(afterLoginSaterFormValidation),
+  afterLoginSkaterform
+);
+
 
 /**
  * @description Refresh access token

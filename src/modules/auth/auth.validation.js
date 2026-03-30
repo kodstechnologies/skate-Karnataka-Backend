@@ -142,23 +142,24 @@ const verifyPhoneOTPValidation = {
     }),
 };
 
+
 /**
  * LOGIN VALIDATION
  */
 const LoginValidation = {
-  body: Joi.object({
-    identifier: Joi.string()
-      .min(3)
-      .max(50)
-      .required()
-      .messages({
-        "string.base": "Identifier must be a string",
-        "string.empty": "Identifier cannot be empty",
-        "string.min": "Identifier must be at least 3 characters",
-        "string.max": "Identifier must be at most 50 characters",
-        "any.required": "Identifier is required"
-      }),
-  })
+    body: Joi.object({
+        identifier: Joi.string()
+            .min(3)
+            .max(50)
+            .required()
+            .messages({
+                "string.base": "Identifier must be a string",
+                "string.empty": "Identifier cannot be empty",
+                "string.min": "Identifier must be at least 3 characters",
+                "string.max": "Identifier must be at most 50 characters",
+                "any.required": "Identifier is required"
+            }),
+    })
 };
 /**
  * VERIFY OTP VALIDATION
@@ -192,6 +193,43 @@ const VerifyOTPValidation = {
 };
 
 
+const afterLoginSaterFormValidation = {
+    body: Joi.object({
+        fullName: Joi.string().min(2).max(100),
+        phone: Joi.string(),
+        krsaId: Joi.string().allow("").optional(),
+        rsfiId: Joi.string().allow("").optional(),
+
+        dob: Joi.date(),
+
+        aadharNumber: Joi.string()
+            .pattern(/^[0-9]{12}$/)
+        ,
+
+        gender: Joi.string()
+            .valid("male", "female", "other")
+        ,
+
+        category: Joi.string(),
+        discipline: Joi.string(),
+
+        address: Joi.string().max(200),
+
+        district: Joi.string(), // ObjectId (string)
+        club: Joi.string(),     // ObjectId (string)
+
+        parent: Joi.string(),
+
+        bloodGroup: Joi.string()
+            .valid("A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-")
+        ,
+
+        school: Joi.string(),
+        grade: Joi.string(),
+
+        signature: Joi.string().allow("").optional()
+    })
+};
 
 const LogoutValidation = {
     body: Joi.object({
@@ -230,6 +268,7 @@ export {
     verifyPhoneOTPValidation,
     LoginValidation,
     VerifyOTPValidation,
+    afterLoginSaterFormValidation,
     LogoutValidation,
     RefreshTokenValidation,
     UpdateProfileValidation

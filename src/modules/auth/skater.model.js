@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { BaseAuth } from "./baseAuth.model";
+import { BaseAuth } from "./baseAuth.model.js";
 
 const skaterSchema = new mongoose.Schema({
   photo: {

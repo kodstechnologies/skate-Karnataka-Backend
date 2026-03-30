@@ -1,8 +1,7 @@
-import { NODE_ENV } from "../../config/envConfig.js";
-import { AppError } from "../../util/common/AppError.js";
 import { generateRandomNumber } from "../../util/token/token.js";
 import { BaseAuth } from "./baseAuth.model.js";
 import { Otp } from "./otp.model.js";
+import { Skater } from "./skater.model.js";
 
 const registerUser = async (userData) => {
     const user = await new BaseAuth(userData).save();
@@ -10,9 +9,7 @@ const registerUser = async (userData) => {
 };
 
 const isExistEmail = async (email) => {
-    console.log(email, "email")
     const isEmail = await BaseAuth.findOne({ email })
-    console.log(isEmail, "----")
     return isEmail;
 }
 
@@ -112,6 +109,93 @@ const checkOtp = async (userData) => {
     return true;
 };
 
+const afterLoginSketerFormRepositorie = async (data) => {
+  const {
+    phone,
+    fullName,
+    address,
+    district,
+    gender,
+    rsfiId,
+    dob,
+    aadharNumber,
+    category,
+    discipline,
+    club,
+    parent,
+    bloodGroup,
+    school,
+    grade,
+    signature,
+    photo,
+    documents
+  } = data;
+
+  console.log(data, "data");
+
+  // 🔍 Check if already exists (by phone OR krsaId)
+  let existingUser = await Skater.findOne({ phone });
+
+  if (existingUser) {
+    // ✅ UPDATE
+    const updatedUser = await Skater.findByIdAndUpdate(
+      existingUser._id,
+      {
+        fullName,
+        address,
+        district,
+        gender,
+        rsfiId,
+        dob,
+        aadharNumber,
+        category,
+        discipline,
+        club,
+        parent,
+        bloodGroup,
+        school,
+        grade,
+        signature,
+        photo,
+        ...(documents && { $push: { documents: { $each: documents } } })
+      },
+      { new: true }
+    );
+
+    return {
+      type: "updated",
+      data: updatedUser
+    };
+  }
+
+  // ✅ CREATE
+  const newUser = await Skater.create({
+    phone,
+    fullName,
+    address,
+    district,
+    gender,
+    rsfiId,
+    dob,
+    aadharNumber,
+    category,
+    discipline,
+    club,
+    parent,
+    bloodGroup,
+    school,
+    grade,
+    signature,
+    photo,
+    documents
+  });
+
+  return {
+    type: "created",
+    data: newUser
+  };
+};
+
 const saveFirebaseToken = async (userData) => {
     const { userId, firebaseToken } = userData;
     if (!firebaseToken) return; // if not provided, skip
@@ -185,6 +269,7 @@ export {
     checkPhoneOTP,
     generateOtp,
     checkOtp,
+    afterLoginSketerFormRepositorie,
     saveFirebaseToken,
     removeFirebaseTokenAndRefressToken,
     deleteAccount,

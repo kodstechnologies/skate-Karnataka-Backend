@@ -84,6 +84,7 @@ const BaseAuthSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    
   },
   options
 );

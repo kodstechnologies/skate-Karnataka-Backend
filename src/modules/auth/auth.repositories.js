@@ -113,82 +113,90 @@ const checkOtp = async (userData) => {
 
 
 const afterLoginSkaterFormRepositories = async (data, id) => {
-  // ✅ Validate ID
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new Error("Invalid ID");
-  }
+    // ✅ Validate ID
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new Error("Invalid ID");
+    }
 
-  // ✅ Check role
-  const user = await BaseAuth.findById(id);
+    // ✅ Check role
+    const user = await BaseAuth.findById(id);
 
-  if (!user) {
-    throw new Error("User not found");
-  }
+    if (!user) {
+        throw new Error("User not found");
+    }
 
-  // ✅ Allow both "skater" and "Skater"
-  if (!["skater", "Skater"].includes(user.role)) {
-    throw new Error("Only skater can be updated");
-  }
+    // ✅ Allow both "skater" and "Skater"
+    if (!["skater", "Skater"].includes(user.role)) {
+        throw new Error("Only skater can be updated");
+    }
 
-  // 🔥 Optional: Fix role permanently
-  if (user.role === "skater") {
-    user.role = "Skater";
-    await user.save();
-  }
+    // 🔥 Optional: Fix role permanently
+    if (user.role === "skater") {
+        user.role = "Skater";
+        await user.save();
+    }
 
-  // ================= UPDATE =================
+    // ================= UPDATE =================
 
-  // convert ObjectId
-  if (data.district && mongoose.Types.ObjectId.isValid(data.district)) {
-    data.district = new mongoose.Types.ObjectId(data.district);
-  }
+    // convert ObjectId
+    if (data.district && mongoose.Types.ObjectId.isValid(data.district)) {
+        data.district = new mongoose.Types.ObjectId(data.district);
+    }
 
-  if (data.club && mongoose.Types.ObjectId.isValid(data.club)) {
-    data.club = new mongoose.Types.ObjectId(data.club);
-  }
+    if (data.club && mongoose.Types.ObjectId.isValid(data.club)) {
+        data.club = new mongoose.Types.ObjectId(data.club);
+    }
 
-  // update
-  const updated = await Skater.findByIdAndUpdate(
-    id,
-    { $set: data },
-    { new: true, runValidators: true }
-  )
-    .populate("district")
-    .populate("club");
+    // update
+    const updated = await Skater.findByIdAndUpdate(
+        id,
+        // { $set: data },
+        {
+            $set: {
+                ...data,
+                verifay: true
+            }
+        },
+        { new: true, runValidators: true }
+    )
+        .populate("district")
+        .populate("club");
 
-  if (!updated) {
-    throw new Error("Skater not found");
-  }
+    if (!updated) {
+        throw new Error("Skater not found");
+    }
 
-  return updated;
+
+
+    return updated;
 };
 
- const afterLoginClubFormRepositories = async (data, id) => {
-  console.log(data, "====");
-  console.log(id, "ID");
+const afterLoginClubFormRepositories = async (data, id) => {
+    console.log(data, "====");
+    console.log(id, "ID");
 
-  // ✅ Validate ID
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new Error("Invalid ID");
-  }
-
-  // ✅ Update
-  const updated = await Academy.findByIdAndUpdate(
-    id,
-    { $set: data },
-    {
-      new: true,
-      runValidators: true,
+    // ✅ Validate ID
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new Error("Invalid ID");
     }
-  );
 
-  console.log(updated, "UPDATED");
+    // ✅ Update
+    const updated = await Academy.findByIdAndUpdate(
+        id,
+        { $set: data },
+        {
+            new: true,
+            runValidators: true,
+        }
+    );
 
-  if (!updated) {
-    throw new Error("Academy not found");
-  }
+    console.log(updated, "UPDATED");
 
-  return updated;
+    if (!updated) {
+        throw new Error("Academy not found");
+    }
+
+    return updated;
 };
 
 const saveFirebaseToken = async (userData) => {

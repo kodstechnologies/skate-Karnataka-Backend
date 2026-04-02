@@ -1,7 +1,7 @@
 import express from "express";
 import { authenticate } from "../../middleware/authMiddleware.js";
-import { afterLoginClubForm, afterLoginSkaterForm, ContactSupport, DeleteUser, GetAchievements, GetDigitalIDCard, GetRankings, GetUserProfile, LoginUser, LogoutUser, RefreshToken, RegisterUser, sendEmailOTP, sendPhoneOTP, ToggleNotifications, UpdateUserProfile, verifyEmailOTP, VerifyOTP, verifyPhoneOTP } from "./auth.controller.js";
-import { afterLoginClubFormValidation, afterLoginSkaterFormValidation, LoginValidation, LogoutValidation, RegisterValidation, sendEmailOTPValidation, sendPhoneOTPValidation, UpdateProfileValidation, verifyEmailOTPValidation, VerifyOTPValidation, verifyPhoneOTPValidation } from "./auth.validation.js";
+import { afterLoginClubForm, afterLoginGuestForm, afterLoginOfficialForm, afterLoginParentForm, afterLoginSchoolForm, afterLoginSkaterForm, ContactSupport, DeleteUser, GetAchievements, GetDigitalIDCard, GetRankings, GetUserProfile, LoginUser, LogoutUser, RefreshToken, RegisterUser, sendEmailOTP, sendPhoneOTP, ToggleNotifications, UpdateUserProfile, verifyEmailOTP, VerifyOTP, verifyPhoneOTP } from "./auth.controller.js";
+import { afterLoginClubFormValidation, afterLoginGuestFormValidation, afterLoginOfficialFormValidation, afterLoginParentFormValidation, afterLoginSchoolFormValidation, afterLoginSkaterFormValidation, LoginValidation, LogoutValidation, RegisterValidation, sendEmailOTPValidation, sendPhoneOTPValidation, UpdateProfileValidation, verifyEmailOTPValidation, VerifyOTPValidation, verifyPhoneOTPValidation } from "./auth.validation.js";
 import { validateMultiple } from "../../middleware/validateMultiple.js";
 import { upload } from "../../middleware/multerMiddleware.js";
 
@@ -100,6 +100,55 @@ router.post(
   afterLoginClubForm
 );
 
+// -========== login completed guest =====================
+
+router.post(
+  "/v1/after-login-guest-form/:id",
+  upload.fields([
+    { name: "img", maxCount: 1 },
+    { name: "document", maxCount: 1 }
+  ]),
+  validateMultiple(afterLoginGuestFormValidation),
+  afterLoginGuestForm
+);
+
+// -========== login completed parent =====================
+
+router.post(
+  "/v1/after-login-parent-form/:id",
+  upload.fields([
+    { name: "img", maxCount: 1 },
+    { name: "document", maxCount: 1 }
+  ]),
+  validateMultiple(afterLoginParentFormValidation),
+  afterLoginParentForm
+);
+
+
+// -========== login completed school =====================
+
+router.post(
+  "/v1/after-login-School-form/:id",
+  upload.fields([
+    { name: "img", maxCount: 1 },
+    { name: "document", maxCount: 1 }
+  ]),
+  validateMultiple(afterLoginSchoolFormValidation),
+  afterLoginSchoolForm
+);
+
+
+// -========== login completed official =====================
+
+router.post(
+  "/v1/after-login-official-form/:id",
+  upload.fields([
+    { name: "img", maxCount: 1 },
+    { name: "document", maxCount: 1 }
+  ]),
+  validateMultiple(afterLoginOfficialFormValidation),
+  afterLoginOfficialForm
+);
 
 /**
  * @description Refresh access token

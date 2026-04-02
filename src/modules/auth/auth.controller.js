@@ -122,6 +122,22 @@ const afterLoginClubForm = asyncHandler(async( req, res) =>{
     )
 })
 
+const afterLoginGuestForm = asyncHandler(async(req, res) =>{
+// const {id} = 
+})
+
+const afterLoginParentForm = asyncHandler(async(req, res) =>{
+
+})
+
+const afterLoginSchoolForm = asyncHandler(async(req, res) =>{
+
+})
+
+const afterLoginOfficialForm = asyncHandler(async(req, res) =>{
+
+})
+
 const RefreshToken = asyncHandler(async (req, res) => { });
 
 const LogoutUser = asyncHandler(async (req, res) => {
@@ -224,7 +240,11 @@ export {
     LogoutUser,
     afterLoginSkaterForm,
     afterLoginClubForm,
-    
+    afterLoginGuestForm,
+    afterLoginParentForm,
+    afterLoginSchoolForm,
+    afterLoginOfficialForm,
+
     UpdateUserProfile,
     DeleteUser,
     GetUserProfile,

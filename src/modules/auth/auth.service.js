@@ -1,4 +1,4 @@
-import { isExistEmail, checkOtp, deleteAccount, generateOtp, GetDigitalIDCardDetaisl, getSupportContact, getUserProfile, registerUser, removeFirebaseTokenAndRefressToken, saveFirebaseToken, toggleNotification, removeOldEmailOtp, removeOldPhoneOtp, saveEmailOtp, savePhoneOTP, checkEmailOTP, checkPhoneOTP, isExistPhone, removeOldKRSAIdOtp, saveKRSAIdOTP, isExistKSRAId ,isExist, afterLoginSkaterFormRepositories, afterLoginClubFormRepositories } from "./auth.repositories.js";
+import { isExistEmail, checkOtp, deleteAccount, generateOtp, GetDigitalIDCardDetaisl, getSupportContact, getUserProfile, registerUser, removeFirebaseTokenAndRefressToken, saveFirebaseToken, toggleNotification, removeOldEmailOtp, removeOldPhoneOtp, saveEmailOtp, savePhoneOTP, checkEmailOTP, checkPhoneOTP, isExistPhone, removeOldKRSAIdOtp, saveKRSAIdOTP, isExistKSRAId, isExist, afterLoginSkaterFormRepositories, afterLoginClubFormRepositories } from "./auth.repositories.js";
 import { generateAccessToken, generateRandomNumber, generateRefreshToken } from "../../util/token/token.js";
 import { AppError } from "../../util/common/AppError.js";
 import { sendOTPToEmail } from "../../util/otp/emailOtp.js";
@@ -137,16 +137,16 @@ const VerifyOTPService = async (userData) => {
     const refreshToken = generateRefreshToken(userData);
     console.log(userData);
     const user = await isExist(userData);
-console.log(user,"user")
-    return { userId: userData.userId, role:user.role, krsaId:user.krsaId , accessToken, refreshToken };
+    console.log(user, "user")
+    return { userId: userData.userId, verifay:user.verifay, role: user.role, krsaId: user.krsaId, accessToken, refreshToken };
 };
 
-const afterLoginFormSkaterService = async(data,id) =>{
-    await afterLoginSkaterFormRepositories(data ,id);
+const afterLoginFormSkaterService = async (data, id) => {
+    await afterLoginSkaterFormRepositories(data, id);
 }
 
-const afterLoginFormClubService = async(data, id) =>{
-    console.log(data,"---")
+const afterLoginFormClubService = async (data, id) => {
+    console.log(data, "---")
     await afterLoginClubFormRepositories(data, id);
 }
 

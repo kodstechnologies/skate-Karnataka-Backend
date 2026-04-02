@@ -265,6 +265,24 @@ const afterLoginClubFormValidation = {
   }).min(1), // ✅ at least one field required
 };
 
+const afterLoginGuestFormValidation = {
+
+}
+
+const afterLoginParentFormValidation = {
+
+}
+
+const afterLoginOfficialFormValidation = {
+
+}
+
+const afterLoginSchoolFormValidation = {
+
+}
+
+
+
 const LogoutValidation = {
     body: Joi.object({
         refreshTokens: Joi.string().required(),
@@ -304,6 +322,10 @@ export {
     VerifyOTPValidation,
     afterLoginSkaterFormValidation,
     afterLoginClubFormValidation,
+    afterLoginGuestFormValidation,
+    afterLoginParentFormValidation,
+    afterLoginOfficialFormValidation,
+    afterLoginSchoolFormValidation,
     LogoutValidation,
     RefreshTokenValidation,
     UpdateProfileValidation

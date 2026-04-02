@@ -6,7 +6,7 @@ import { upload } from "../../middleware/multerMiddleware.js";
 
 const router = express.Router();
 
-router.get("/v1/all/:districtName",
+router.get("/v1/all/:id",
     displayAllClubs);
 router.post("/v1/",
     upload.single("img"),

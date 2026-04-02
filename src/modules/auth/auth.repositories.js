@@ -1,4 +1,6 @@
+import mongoose from "mongoose";
 import { generateRandomNumber } from "../../util/token/token.js";
+import { Academy } from "./academy.model.js";
 import { BaseAuth } from "./baseAuth.model.js";
 import { Otp } from "./otp.model.js";
 import { Skater } from "./skater.model.js";
@@ -73,7 +75,7 @@ const checkPhoneOTP = async (phone) => {
     const record = await Otp.findOne({ phone });
     return record;
 }
-const isExist = async (userData) =>{
+const isExist = async (userData) => {
     const isUser = await BaseAuth.findById(userData.userId);
     return isUser;
 }
@@ -109,91 +111,84 @@ const checkOtp = async (userData) => {
     return true;
 };
 
-const afterLoginSketerFormRepositorie = async (data) => {
-  const {
-    phone,
-    fullName,
-    address,
-    district,
-    gender,
-    rsfiId,
-    dob,
-    aadharNumber,
-    category,
-    discipline,
-    club,
-    parent,
-    bloodGroup,
-    school,
-    grade,
-    signature,
-    photo,
-    documents
-  } = data;
 
-  console.log(data, "data");
-
-  // 🔍 Check if already exists (by phone OR krsaId)
-  let existingUser = await Skater.findOne({ phone });
-
-  if (existingUser) {
-    // ✅ UPDATE
-    const updatedUser = await Skater.findByIdAndUpdate(
-      existingUser._id,
-      {
-        fullName,
-        address,
-        district,
-        gender,
-        rsfiId,
-        dob,
-        aadharNumber,
-        category,
-        discipline,
-        club,
-        parent,
-        bloodGroup,
-        school,
-        grade,
-        signature,
-        photo,
-        ...(documents && { $push: { documents: { $each: documents } } })
-      },
-      { new: true }
-    );
-
-    return {
-      type: "updated",
-      data: updatedUser
-    };
+const afterLoginSkaterFormRepositories = async (data, id) => {
+  // ✅ Validate ID
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new Error("Invalid ID");
   }
 
-  // ✅ CREATE
-  const newUser = await Skater.create({
-    phone,
-    fullName,
-    address,
-    district,
-    gender,
-    rsfiId,
-    dob,
-    aadharNumber,
-    category,
-    discipline,
-    club,
-    parent,
-    bloodGroup,
-    school,
-    grade,
-    signature,
-    photo,
-    documents
-  });
+  // ✅ Check role
+  const user = await BaseAuth.findById(id);
 
-  return {
-    type: "created",
-    data: newUser
-  };
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  // ✅ Allow both "skater" and "Skater"
+  if (!["skater", "Skater"].includes(user.role)) {
+    throw new Error("Only skater can be updated");
+  }
+
+  // 🔥 Optional: Fix role permanently
+  if (user.role === "skater") {
+    user.role = "Skater";
+    await user.save();
+  }
+
+  // ================= UPDATE =================
+
+  // convert ObjectId
+  if (data.district && mongoose.Types.ObjectId.isValid(data.district)) {
+    data.district = new mongoose.Types.ObjectId(data.district);
+  }
+
+  if (data.club && mongoose.Types.ObjectId.isValid(data.club)) {
+    data.club = new mongoose.Types.ObjectId(data.club);
+  }
+
+  // update
+  const updated = await Skater.findByIdAndUpdate(
+    id,
+    { $set: data },
+    { new: true, runValidators: true }
+  )
+    .populate("district")
+    .populate("club");
+
+  if (!updated) {
+    throw new Error("Skater not found");
+  }
+
+  return updated;
+};
+
+ const afterLoginClubFormRepositories = async (data, id) => {
+  console.log(data, "====");
+  console.log(id, "ID");
+
+  // ✅ Validate ID
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new Error("Invalid ID");
+  }
+
+  // ✅ Update
+  const updated = await Academy.findByIdAndUpdate(
+    id,
+    { $set: data },
+    {
+      new: true,
+      runValidators: true,
+    }
+  );
+
+  console.log(updated, "UPDATED");
+
+  if (!updated) {
+    throw new Error("Academy not found");
+  }
+
+  return updated;
 };
 
 const saveFirebaseToken = async (userData) => {
@@ -269,7 +264,8 @@ export {
     checkPhoneOTP,
     generateOtp,
     checkOtp,
-    afterLoginSketerFormRepositorie,
+    afterLoginSkaterFormRepositories,
+    afterLoginClubFormRepositories,
     saveFirebaseToken,
     removeFirebaseTokenAndRefressToken,
     deleteAccount,

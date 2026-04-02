@@ -1,6 +1,6 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { afterLoginFormSkaterService, ContactSupportService, DeleteUserService, GetDigitalIDCardService, GetUserProfileService, LoginUserService, LogoutUserService, RegisterUserService, sendEmailOTPService, sendPhoneOTPService, ToggleNotificationsService, UpdateUserProfileService, verifyEmailOTPService, VerifyOTPService, verifyPhoneOTPService } from "./auth.service.js";
+import { afterLoginFormClubService, afterLoginFormSkaterService, ContactSupportService, DeleteUserService, GetDigitalIDCardService, GetUserProfileService, LoginUserService, LogoutUserService, RegisterUserService, sendEmailOTPService, sendPhoneOTPService, ToggleNotificationsService, UpdateUserProfileService, verifyEmailOTPService, VerifyOTPService, verifyPhoneOTPService } from "./auth.service.js";
 
 const RegisterUser = asyncHandler(async (req, res) => {
     const result = await RegisterUserService(req.body);
@@ -93,15 +93,31 @@ const VerifyOTP = asyncHandler(async (req, res) => {
         );
 });
 
-const afterLoginSkaterform = asyncHandler(async (req, res) => {
-    await afterLoginFormSkaterService(req.body);
+const afterLoginSkaterForm = asyncHandler(async (req, res) => {
+    const {id}  = req.params;
+    await afterLoginFormSkaterService(req.body ,id);
     return res
     .status(200)
     .json(
         new ApiResponse(
             200,
             null,
-            "Form Submioted sucessafully"
+            "Skater form submitted successfully"
+        )
+    )
+})
+
+const afterLoginClubForm = asyncHandler(async( req, res) =>{
+    const { id } = req.params;
+    console.log(req.body,"body");
+    await afterLoginFormClubService(req.body, id);
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            null,
+            "Club from submitted successfully"
         )
     )
 })
@@ -206,7 +222,9 @@ export {
     VerifyOTP,
     RefreshToken,
     LogoutUser,
-    afterLoginSkaterform,
+    afterLoginSkaterForm,
+    afterLoginClubForm,
+    
     UpdateUserProfile,
     DeleteUser,
     GetUserProfile,

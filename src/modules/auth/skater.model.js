@@ -66,7 +66,7 @@ const skaterSchema = new mongoose.Schema({
     trim: true,
   },
 
-  grade: {   
+  grade: {
     type: String,
     default: "",
     trim: true,
@@ -79,21 +79,19 @@ const skaterSchema = new mongoose.Schema({
 
   documents: [
     {
-      url: {
-        type: String,
-        required: false,
-        trim: true,
-      },
-      name: {
-        type: String,
-        trim: true,
-      },
+      url: String,
+      name: String,
       uploadedAt: {
         type: Date,
         default: Date.now,
       },
     },
   ],
+});
+
+// ✅ FORCE ROLE
+skaterSchema.pre("save", function () {
+  this.role = "Skater";
 });
 
 export const Skater = BaseAuth.discriminator("Skater", skaterSchema);

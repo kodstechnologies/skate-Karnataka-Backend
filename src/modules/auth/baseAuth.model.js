@@ -11,40 +11,30 @@ const BaseAuthSchema = new mongoose.Schema(
       type: String,
       trim: true,
       required: [true, "Full name is required"],
-      minlength: [3, "Full name must be at least 3 characters"],
-      maxlength: [50, "Full name cannot exceed 50 characters"],
+      minlength: [3, "Minimum 3 characters"],
+      maxlength: [50, "Maximum 50 characters"],
     },
 
     phone: {
       type: String,
-      required: [true, "Phone number is required"],
+      required: true,
       unique: true,
       index: true,
       trim: true,
-      minlength: [10, "Phone number must be exactly 10 digits"],
-      maxlength: [10, "Phone number must be exactly 10 digits"],
-      match: [/^[6-9]\d{9}$/, "Please enter a valid Indian phone number"],
+      match: [/^[6-9]\d{9}$/, "Invalid Indian phone number"],
     },
 
     address: {
       type: String,
       trim: true,
-      minlength: [5, "Address must be at least 5 characters"],
-      maxlength: [200, "Address cannot exceed 200 characters"],
+      maxlength: 200,
     },
 
-    district: {
-      type: String,
-      trim: true,
-      required: [true, "District is required"],
-    },
+    // ❌ REMOVED district (important)
 
     gender: {
       type: String,
-      enum: {
-        values: ["male", "female", "other"],
-        message: "Gender must be male, female, or other",
-      },
+      enum: ["male", "female", "other"],
       lowercase: true,
       trim: true,
     },
@@ -60,7 +50,7 @@ const BaseAuthSchema = new mongoose.Schema(
       trim: true,
       unique: true,
       sparse: true,
-      match: [/^\S+@\S+\.\S+$/, "Please enter a valid email address"],
+      match: [/^\S+@\S+\.\S+$/, "Invalid email"],
     },
 
     isActive: {
@@ -89,54 +79,47 @@ const BaseAuthSchema = new mongoose.Schema(
       index: true,
       immutable: true,
     },
-    verifay:{
+
+    verifay: {
       type: Boolean,
-      default : false,
-    }
+      default: false,
+    },
   },
   options
 );
 
-// ==================== PRE-SAVE HOOK FOR KRSA ID (Best Version) ====================
-
+// ✅ FIXED KRSA ID GENERATION
 BaseAuthSchema.pre("save", async function () {
-  // Skip if already has krsaId (useful during updates)
-  if (this.krsaId) {
-    return;
-  }
+  if (this.krsaId) return;
 
   const rolePrefixMap = {
-    skater: "S",
-    parent: "P",
-    school: "SC",
-    academy: "A",
-    officials: "O",
-    guest: "G",
+    Skater: "S",
+    Parent: "P",
+    School: "SC",
+    Academy: "A",
+    Officials: "O",
+    Guest: "G",
   };
 
   const prefix = rolePrefixMap[this.role] || "U";
 
   let attempts = 0;
-  const maxAttempts = 15;
 
-  while (attempts < maxAttempts) {
-    const randomNumber = Math.floor(100000 + Math.random() * 900000);
-    const newId = `KRSA${randomNumber}${prefix}`;
+  while (attempts < 15) {
+    const random = Math.floor(100000 + Math.random() * 900000);
+    const newId = `KRSA${random}${prefix}`;
 
-    const existing = await this.constructor
-      .findOne({ krsaId: newId })
-      .lean();
+    const exists = await this.constructor.findOne({ krsaId: newId });
 
-    if (!existing) {
+    if (!exists) {
       this.krsaId = newId;
-      return;                    // Success → exit middleware
+      return;
     }
 
     attempts++;
   }
 
-  // If we reach here → failed to generate unique ID
-  throw new Error("Failed to generate unique KRSA ID after 15 attempts");
+  throw new Error("Failed to generate KRSA ID");
 });
 
 export const BaseAuth = mongoose.model("BaseAuth", BaseAuthSchema);

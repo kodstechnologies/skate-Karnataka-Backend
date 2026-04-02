@@ -3,10 +3,10 @@ import { asyncHandler } from "../../util/common/asyncHandler.js";
 import { allClubService, createClubService, deleteClubSchema, displaySingleClubService, updateClubDetailsService } from "./club.service.js";
 
 const displayAllClubs = asyncHandler(async (req, res) => {
-    const { districtId } = req.params;   // ✅ correct extraction
+    const { districtName } = req.params;   // ✅ correct extraction
 
-    const clubs = await allClubService(districtId);
-
+    const clubs = await allClubService(districtName);
+console.log(clubs,"---")
     return res.status(200).json(
         new ApiResponse(
             200,

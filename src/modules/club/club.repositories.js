@@ -1,14 +1,20 @@
 import { District } from "../district/district.model.js";
 import { Club } from "./club.model.js";
 
-const allClubsRepository = async (id) => {
-    return await District.findById(id)
+const allClubsRepository = async (name) => {
+    const district = await District.findOne({ name })
         .populate({
             path: "club",
-            select: "name" // ✅ only fetch club name
-        });
-};
+            select: "name"
+        })
+        .lean();
 
+    if (!district) {
+        throw new Error("District not found");
+    }
+
+    return district;
+};
 const isExistClub = async (name) => {
     return await District.findOne({ name });
 }

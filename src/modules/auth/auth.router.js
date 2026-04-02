@@ -1,7 +1,7 @@
 import express from "express";
 import { authenticate } from "../../middleware/authMiddleware.js";
-import { afterLoginSkaterform, ContactSupport, DeleteUser, GetAchievements, GetDigitalIDCard, GetRankings, GetUserProfile, LoginUser, LogoutUser, RefreshToken, RegisterUser, sendEmailOTP, sendPhoneOTP, ToggleNotifications, UpdateUserProfile, verifyEmailOTP, VerifyOTP, verifyPhoneOTP } from "./auth.controller.js";
-import { afterLoginSaterFormValidation, LoginValidation, LogoutValidation, RegisterValidation, sendEmailOTPValidation, sendPhoneOTPValidation, UpdateProfileValidation, verifyEmailOTPValidation, VerifyOTPValidation, verifyPhoneOTPValidation } from "./auth.validation.js";
+import { afterLoginClubForm, afterLoginSkaterForm, ContactSupport, DeleteUser, GetAchievements, GetDigitalIDCard, GetRankings, GetUserProfile, LoginUser, LogoutUser, RefreshToken, RegisterUser, sendEmailOTP, sendPhoneOTP, ToggleNotifications, UpdateUserProfile, verifyEmailOTP, VerifyOTP, verifyPhoneOTP } from "./auth.controller.js";
+import { afterLoginClubFormValidation, afterLoginSkaterFormValidation, LoginValidation, LogoutValidation, RegisterValidation, sendEmailOTPValidation, sendPhoneOTPValidation, UpdateProfileValidation, verifyEmailOTPValidation, VerifyOTPValidation, verifyPhoneOTPValidation } from "./auth.validation.js";
 import { validateMultiple } from "../../middleware/validateMultiple.js";
 import { upload } from "../../middleware/multerMiddleware.js";
 
@@ -76,16 +76,28 @@ router.post("/verify-otp",
     validateMultiple(VerifyOTPValidation),
     VerifyOTP);
 
-// -========== login complite =====================
+// -========== login completed skater =====================
 
 router.post(
-  "/v1/after-login-skater-form",
+  "/v1/after-login-skater-form/:id",
   upload.fields([
     { name: "img", maxCount: 1 },
     { name: "document", maxCount: 1 }
   ]),
-  validateMultiple(afterLoginSaterFormValidation),
-  afterLoginSkaterform
+  validateMultiple(afterLoginSkaterFormValidation),
+  afterLoginSkaterForm
+);
+
+// -========== login completed club =====================
+
+router.post(
+  "/v1/after-login-club-form/:id",
+  upload.fields([
+    { name: "img", maxCount: 1 },
+    { name: "document", maxCount: 1 }
+  ]),
+  validateMultiple(afterLoginClubFormValidation),
+  afterLoginClubForm
 );
 
 

@@ -1,6 +1,6 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { afterLoginFormClubService, afterLoginFormSkaterService, ContactSupportService, DeleteUserService, GetDigitalIDCardService, GetUserProfileService, LoginUserService, LogoutUserService, RegisterUserService, sendEmailOTPService, sendPhoneOTPService, ToggleNotificationsService, UpdateUserProfileService, verifyEmailOTPService, VerifyOTPService, verifyPhoneOTPService } from "./auth.service.js";
+import { afterLoginFormClubService, afterLoginFormGuestService, afterLoginFormOfficialService, afterLoginFormParentService, afterLoginFormSkaterService, ContactSupportService, DeleteUserService, GetDigitalIDCardService, GetUserProfileService, LoginUserService, LogoutUserService, RegisterUserService, sendEmailOTPService, sendPhoneOTPService, ToggleNotificationsService, UpdateUserProfileService, verifyEmailOTPService, VerifyOTPService, verifyPhoneOTPService } from "./auth.service.js";
 
 const RegisterUser = asyncHandler(async (req, res) => {
     const result = await RegisterUserService(req.body);
@@ -123,19 +123,59 @@ const afterLoginClubForm = asyncHandler(async( req, res) =>{
 })
 
 const afterLoginGuestForm = asyncHandler(async(req, res) =>{
-// const {id} = 
+const {id} = req.params;
+await afterLoginFormGuestService(req.body, id);
+return res
+.status(200)
+.json(
+    new ApiResponse(
+        200,
+        null,
+        "Guest from submitted successfully"
+    )
+)
 })
 
 const afterLoginParentForm = asyncHandler(async(req, res) =>{
-
+const {id} = req.params;
+await afterLoginFormParentService(req.body, id);
+return res
+.status(200)
+.json(
+    new ApiResponse(
+        200,
+        null,
+        "Parent from submitted successfully"
+    )
+)
 })
 
 const afterLoginSchoolForm = asyncHandler(async(req, res) =>{
-
+const {id} = req.params;
+await afterLoginFormParentService(req.body, id);
+return res
+.status(200)
+.json(
+    new ApiResponse(
+        200,
+        null,
+        "Parent from submitted successfully"
+    )
+)
 })
 
 const afterLoginOfficialForm = asyncHandler(async(req, res) =>{
-
+const {id} = req.params;
+await afterLoginFormOfficialService(req.body, id);
+return res
+.status(200)
+.json(
+    new ApiResponse(
+        200,
+        null,
+        "Official from submitted successfully"
+    )
+)
 })
 
 const RefreshToken = asyncHandler(async (req, res) => { });

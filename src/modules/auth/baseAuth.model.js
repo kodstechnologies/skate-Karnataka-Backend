@@ -80,11 +80,11 @@ const BaseAuthSchema = new mongoose.Schema(
       immutable: true,
     },
 
-    verifay: {
+    verify: {
       type: Boolean,
       default: false,
     },
-    
+
   },
   options
 );

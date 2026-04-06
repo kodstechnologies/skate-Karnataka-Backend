@@ -113,48 +113,14 @@ const checkOtp = async (userData) => {
 
 
 const afterLoginSkaterFormRepositories = async (data, id) => {
-    // ✅ Validate ID
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-        throw new Error("Invalid ID");
-    }
-
-    // ✅ Check role
-    const user = await BaseAuth.findById(id);
-
-    if (!user) {
-        throw new Error("User not found");
-    }
-
-    // ✅ Allow both "skater" and "Skater"
-    if (!["skater", "Skater"].includes(user.role)) {
-        throw new Error("Only skater can be updated");
-    }
-
-    // 🔥 Optional: Fix role permanently
-    if (user.role === "skater") {
-        user.role = "Skater";
-        await user.save();
-    }
-
-    // ================= UPDATE =================
-
-    // convert ObjectId
-    if (data.district && mongoose.Types.ObjectId.isValid(data.district)) {
-        data.district = new mongoose.Types.ObjectId(data.district);
-    }
-
-    if (data.club && mongoose.Types.ObjectId.isValid(data.club)) {
-        data.club = new mongoose.Types.ObjectId(data.club);
-    }
 
     // update
     const updated = await Skater.findByIdAndUpdate(
-        id,
-        // { $set: data },
+         { _id: id, role: "Skater" },
         {
             $set: {
                 ...data,
-                verifay: true
+                verify: true
             }
         },
         { new: true, runValidators: true }
@@ -166,31 +132,27 @@ const afterLoginSkaterFormRepositories = async (data, id) => {
         throw new Error("Skater not found");
     }
 
-
-
-    return updated;
 };
 
 const afterLoginClubFormRepositories = async (data, id) => {
     console.log(data, "====");
     console.log(id, "ID");
 
-    // ✅ Validate ID
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-        throw new Error("Invalid ID");
-    }
-
     // ✅ Update
     const updated = await Academy.findByIdAndUpdate(
-        id,
-        { $set: data },
+       { _id: id, role: "Academy" },
+        {
+            $set: {
+                ...data,
+                verify: true
+            }
+        },
         {
             new: true,
             runValidators: true,
         }
     );
 
-    console.log(updated, "UPDATED");
 
     if (!updated) {
         throw new Error("Academy not found");
@@ -198,6 +160,87 @@ const afterLoginClubFormRepositories = async (data, id) => {
 
     return updated;
 };
+
+const afterLoginGuestFormRepositories = async(data , id) =>{
+   console.log(data, "====");
+    console.log(id, "ID");
+
+    // ✅ Update
+    const updated = await Academy.findByIdAndUpdate(
+       { _id: id, role: "Guest" },
+        {
+            $set: {
+                ...data,
+                verify: true
+            }
+        },
+        {
+            new: true,
+            runValidators: true,
+        }
+    );
+
+
+    if (!updated) {
+        throw new Error("Academy not found");
+    }
+
+    return updated;
+}
+
+const afterLoginParentFormRepositories = async(data, id) =>{
+   console.log(data, "====");
+    console.log(id, "ID");
+
+    // ✅ Update
+    const updated = await Academy.findByIdAndUpdate(
+       { _id: id, role: "Parent" },
+        {
+            $set: {
+                ...data,
+                verify: true
+            }
+        },
+        {
+            new: true,
+            runValidators: true,
+        }
+    );
+
+
+    if (!updated) {
+        throw new Error("Academy not found");
+    }
+
+    return updated;
+}
+
+const afterLoginOfficialFormRepositories = async(data, id) =>{
+   console.log(data, "====");
+    console.log(id, "ID");
+
+    // ✅ Update
+    const updated = await Academy.findByIdAndUpdate(
+       { _id: id, role: "Official" },
+        {
+            $set: {
+                ...data,
+                verify: true
+            }
+        },
+        {
+            new: true,
+            runValidators: true,
+        }
+    );
+
+
+    if (!updated) {
+        throw new Error("Academy not found");
+    }
+
+    return updated;
+}
 
 const saveFirebaseToken = async (userData) => {
     const { userId, firebaseToken } = userData;
@@ -274,6 +317,9 @@ export {
     checkOtp,
     afterLoginSkaterFormRepositories,
     afterLoginClubFormRepositories,
+    afterLoginGuestFormRepositories,
+    afterLoginParentFormRepositories,
+    afterLoginOfficialFormRepositories,
     saveFirebaseToken,
     removeFirebaseTokenAndRefressToken,
     deleteAccount,

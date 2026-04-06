@@ -1,4 +1,4 @@
-import { isExistEmail, checkOtp, deleteAccount, generateOtp, GetDigitalIDCardDetaisl, getSupportContact, getUserProfile, registerUser, removeFirebaseTokenAndRefressToken, saveFirebaseToken, toggleNotification, removeOldEmailOtp, removeOldPhoneOtp, saveEmailOtp, savePhoneOTP, checkEmailOTP, checkPhoneOTP, isExistPhone, removeOldKRSAIdOtp, saveKRSAIdOTP, isExistKSRAId, isExist, afterLoginSkaterFormRepositories, afterLoginClubFormRepositories } from "./auth.repositories.js";
+import { isExistEmail, checkOtp, deleteAccount, generateOtp, GetDigitalIDCardDetaisl, getSupportContact, getUserProfile, registerUser, removeFirebaseTokenAndRefressToken, saveFirebaseToken, toggleNotification, removeOldEmailOtp, removeOldPhoneOtp, saveEmailOtp, savePhoneOTP, checkEmailOTP, checkPhoneOTP, isExistPhone, removeOldKRSAIdOtp, saveKRSAIdOTP, isExistKSRAId, isExist, afterLoginSkaterFormRepositories, afterLoginClubFormRepositories, afterLoginGuestFormRepositories, afterLoginParentFormRepositories } from "./auth.repositories.js";
 import { generateAccessToken, generateRandomNumber, generateRefreshToken } from "../../util/token/token.js";
 import { AppError } from "../../util/common/AppError.js";
 import { sendOTPToEmail } from "../../util/otp/emailOtp.js";
@@ -138,7 +138,7 @@ const VerifyOTPService = async (userData) => {
     console.log(userData);
     const user = await isExist(userData);
     console.log(user, "user")
-    return { userId: userData.userId, verifay:user.verifay, role: user.role, krsaId: user.krsaId, accessToken, refreshToken };
+    return { userId: userData.userId, verify: user.verify, role: user.role, krsaId: user.krsaId, accessToken, refreshToken };
 };
 
 const afterLoginFormSkaterService = async (data, id) => {
@@ -146,8 +146,21 @@ const afterLoginFormSkaterService = async (data, id) => {
 }
 
 const afterLoginFormClubService = async (data, id) => {
-    console.log(data, "---")
+    // console.log(data, "---")
     await afterLoginClubFormRepositories(data, id);
+}
+
+const afterLoginFormGuestService = async (data, id) => {
+    await afterLoginGuestFormRepositories(data, id);
+}
+
+const afterLoginFormParentService = async (data, id) => {
+    await afterLoginParentFormRepositories(data, id);
+
+}
+
+const afterLoginFormOfficialService = async (data, id) => {
+     await afterLoginOfficialFormRepositories(data, id); 
 }
 
 const RefreshTokenService = async (req, res) => { };
@@ -189,6 +202,9 @@ export {
     VerifyOTPService,
     afterLoginFormSkaterService,
     afterLoginFormClubService,
+    afterLoginFormGuestService,
+    afterLoginFormParentService,
+    afterLoginFormOfficialService,
     RefreshTokenService,
     LogoutUserService,
     UpdateUserProfileService,

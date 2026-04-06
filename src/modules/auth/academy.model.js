@@ -57,12 +57,11 @@ const academySchema = new mongoose.Schema({
 
 
 // ✅ AUTO GENERATE KRSA CLUB ID
-academySchema.pre("save", function (next) {
+academySchema.pre("save", function () {
   if (!this.krsaClubId) {
     const random = Math.floor(1000 + Math.random() * 9000);
     this.krsaClubId = `KRSA-${Date.now()}-${random}`;
   }
-  next();
 });
 
 export const Academy = BaseAuth.discriminator("Academy", academySchema);

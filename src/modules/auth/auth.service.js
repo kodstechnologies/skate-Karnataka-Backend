@@ -1,4 +1,4 @@
-import { isExistEmail, checkOtp, deleteAccount, generateOtp, GetDigitalIDCardDetaisl, getSupportContact, getUserProfile, registerUser, removeFirebaseTokenAndRefressToken, saveFirebaseToken, toggleNotification, removeOldEmailOtp, removeOldPhoneOtp, saveEmailOtp, savePhoneOTP, checkEmailOTP, checkPhoneOTP, isExistPhone, removeOldKRSAIdOtp, saveKRSAIdOTP, isExistKSRAId, isExist, afterLoginSkaterFormRepositories, afterLoginClubFormRepositories, afterLoginGuestFormRepositories, afterLoginParentFormRepositories } from "./auth.repositories.js";
+import { isExistEmail, checkOtp, deleteAccount, generateOtp, GetDigitalIDCardDetaisl, getSupportContact, getUserProfile, registerUser, removeFirebaseTokenAndRefressToken, saveFirebaseToken, toggleNotification, removeOldEmailOtp, removeOldPhoneOtp, saveEmailOtp, savePhoneOTP, checkEmailOTP, checkPhoneOTP, isExistPhone, removeOldKRSAIdOtp, saveKRSAIdOTP, isExistKSRAId, isExist, afterLoginSkaterFormRepositories, afterLoginClubFormRepositories, afterLoginGuestFormRepositories, afterLoginParentFormRepositories, afterLoginSchoolFormRepositories, afterLoginOfficialFormRepositories } from "./auth.repositories.js";
 import { generateAccessToken, generateRandomNumber, generateRefreshToken } from "../../util/token/token.js";
 import { AppError } from "../../util/common/AppError.js";
 import { sendOTPToEmail } from "../../util/otp/emailOtp.js";
@@ -159,6 +159,11 @@ const afterLoginFormParentService = async (data, id) => {
 
 }
 
+const afterLoginFormSchoolService = async (data, id) => {
+    await afterLoginSchoolFormRepositories(data, id);
+
+}
+
 const afterLoginFormOfficialService = async (data, id) => {
      await afterLoginOfficialFormRepositories(data, id); 
 }
@@ -204,6 +209,7 @@ export {
     afterLoginFormClubService,
     afterLoginFormGuestService,
     afterLoginFormParentService,
+    afterLoginFormSchoolService,
     afterLoginFormOfficialService,
     RefreshTokenService,
     LogoutUserService,

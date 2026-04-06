@@ -30,8 +30,12 @@ const BaseAuthSchema = new mongoose.Schema(
       maxlength: 200,
     },
 
-    // ❌ REMOVED district (important)
-
+     district: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "District",
+    // required: true,
+  },
+   
     gender: {
       type: String,
       enum: ["male", "female", "other"],

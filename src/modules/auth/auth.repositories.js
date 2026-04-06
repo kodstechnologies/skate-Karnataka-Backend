@@ -4,6 +4,9 @@ import { Academy } from "./academy.model.js";
 import { BaseAuth } from "./baseAuth.model.js";
 import { Otp } from "./otp.model.js";
 import { Skater } from "./skater.model.js";
+import {Guest} from "./guest.model.js";
+import {School} from "./school.model.js";
+import {Official} from "./official.model.js";
 
 const registerUser = async (userData) => {
     const user = await new BaseAuth(userData).save();
@@ -113,7 +116,7 @@ const checkOtp = async (userData) => {
 
 
 const afterLoginSkaterFormRepositories = async (data, id) => {
-
+console.log(data,"dddd")
     // update
     const updated = await Skater.findByIdAndUpdate(
          { _id: id, role: "Skater" },
@@ -140,7 +143,7 @@ const afterLoginClubFormRepositories = async (data, id) => {
 
     // ✅ Update
     const updated = await Academy.findByIdAndUpdate(
-       { _id: id, role: "Academy" },
+       { _id: id, role: "academy" },
         {
             $set: {
                 ...data,
@@ -161,33 +164,30 @@ const afterLoginClubFormRepositories = async (data, id) => {
     return updated;
 };
 
-const afterLoginGuestFormRepositories = async(data , id) =>{
-   console.log(data, "====");
-    console.log(id, "ID");
+const afterLoginGuestFormRepositories = async (data, id) => {
+  console.log(data, "====");
+  console.log(id, "ID");
 
-    // ✅ Update
-    const updated = await Academy.findByIdAndUpdate(
-       { _id: id, role: "Guest" },
-        {
-            $set: {
-                ...data,
-                verify: true
-            }
-        },
-        {
-            new: true,
-            runValidators: true,
-        }
-    );
-
-
-    if (!updated) {
-        throw new Error("Academy not found");
+  const updated = await Guest.findOneAndUpdate(
+    { _id: id, role: "Guest" }, // ✅ correct filtering
+    {
+      $set: {
+        ...data,
+        verify: true,
+      },
+    },
+    {
+      new: true,
+      runValidators: true,
     }
+  );
+console.log(updated,"updated")
+  if (!updated) {
+    throw new Error("Guest not found or role mismatch");
+  }
 
-    return updated;
-}
-
+  return updated;
+};
 const afterLoginParentFormRepositories = async(data, id) =>{
    console.log(data, "====");
     console.log(id, "ID");
@@ -220,8 +220,34 @@ const afterLoginOfficialFormRepositories = async(data, id) =>{
     console.log(id, "ID");
 
     // ✅ Update
-    const updated = await Academy.findByIdAndUpdate(
+    const updated = await Official.findByIdAndUpdate(
        { _id: id, role: "Official" },
+        {
+            $set: {
+                ...data,
+                verify: true
+            }
+        },
+        {
+            new: true,
+            runValidators: true,
+        }
+    );
+
+
+    if (!updated) {
+        throw new Error("Academy not found");
+    }
+
+    return updated;
+}
+const afterLoginSchoolFormRepositories = async(data, id) =>{
+   console.log(data, "====");
+    console.log(id, "ID");
+
+    // ✅ Update
+    const updated = await School.findByIdAndUpdate(
+       { _id: id, role: "School" },
         {
             $set: {
                 ...data,
@@ -320,6 +346,7 @@ export {
     afterLoginGuestFormRepositories,
     afterLoginParentFormRepositories,
     afterLoginOfficialFormRepositories,
+    afterLoginSchoolFormRepositories,
     saveFirebaseToken,
     removeFirebaseTokenAndRefressToken,
     deleteAccount,

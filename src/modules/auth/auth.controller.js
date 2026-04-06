@@ -1,6 +1,6 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { afterLoginFormClubService, afterLoginFormGuestService, afterLoginFormOfficialService, afterLoginFormParentService, afterLoginFormSkaterService, ContactSupportService, DeleteUserService, GetDigitalIDCardService, GetUserProfileService, LoginUserService, LogoutUserService, RegisterUserService, sendEmailOTPService, sendPhoneOTPService, ToggleNotificationsService, UpdateUserProfileService, verifyEmailOTPService, VerifyOTPService, verifyPhoneOTPService } from "./auth.service.js";
+import { afterLoginFormClubService, afterLoginFormGuestService, afterLoginFormOfficialService, afterLoginFormParentService, afterLoginFormSchoolService, afterLoginFormSkaterService, ContactSupportService, DeleteUserService, GetDigitalIDCardService, GetUserProfileService, LoginUserService, LogoutUserService, RegisterUserService, sendEmailOTPService, sendPhoneOTPService, ToggleNotificationsService, UpdateUserProfileService, verifyEmailOTPService, VerifyOTPService, verifyPhoneOTPService } from "./auth.service.js";
 
 const RegisterUser = asyncHandler(async (req, res) => {
     const result = await RegisterUserService(req.body);
@@ -123,6 +123,7 @@ const afterLoginClubForm = asyncHandler(async( req, res) =>{
 })
 
 const afterLoginGuestForm = asyncHandler(async(req, res) =>{
+    console.log(req.body,"jjj")
 const {id} = req.params;
 await afterLoginFormGuestService(req.body, id);
 return res
@@ -152,7 +153,7 @@ return res
 
 const afterLoginSchoolForm = asyncHandler(async(req, res) =>{
 const {id} = req.params;
-await afterLoginFormParentService(req.body, id);
+await afterLoginFormSchoolService(req.body, id);
 return res
 .status(200)
 .json(

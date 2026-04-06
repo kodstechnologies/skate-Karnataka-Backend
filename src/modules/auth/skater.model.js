@@ -37,16 +37,16 @@ const skaterSchema = new mongoose.Schema({
     trim: true,
   },
 
-  district: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "District",
-    required: true,
-  },
+  // district: {
+  //   type: mongoose.Schema.Types.ObjectId,
+  //   ref: "District",
+  //   // required: true,
+  // },
 
   club: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Club",
-    required: true,
+    // required: true,
   },
 
   parent: {
@@ -89,9 +89,5 @@ const skaterSchema = new mongoose.Schema({
   ],
 });
 
-// ✅ FORCE ROLE
-skaterSchema.pre("save", function () {
-  this.role = "Skater";
-});
 
 export const Skater = BaseAuth.discriminator("Skater", skaterSchema);

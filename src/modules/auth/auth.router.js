@@ -108,7 +108,7 @@ router.post(
     { name: "img", maxCount: 1 },
     { name: "document", maxCount: 1 }
   ]),
-  validateMultiple(afterLoginGuestFormValidation),
+  // validateMultiple(afterLoginGuestFormValidation),
   afterLoginGuestForm
 );
 

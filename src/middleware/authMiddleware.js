@@ -7,7 +7,7 @@ export const authenticate = (allowedRoles = []) => {
   return async (req, res, next) => {
     try {
       let token;
-
+      // console.log(toekn, "token")
       // 1️⃣ Check Authorization Header
       const authHeader = req.headers.authorization;
 
@@ -18,7 +18,7 @@ export const authenticate = (allowedRoles = []) => {
           token = authHeader; // raw token
         }
       }
-
+      console.log(authHeader, "authHeader")
       // 2️⃣ If not in header, check cookies
       if (!token && req.cookies?.access_token) {
         token = req.cookies.access_token;
@@ -30,9 +30,9 @@ export const authenticate = (allowedRoles = []) => {
 
       // 3️⃣ Verify
       const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
-
+      console.log(decoded, "decoded")
       const user = await BaseAuth.findById(decoded.id);
-
+      console.log(user, "user")
       if (!user) {
         return next(new AppError("User not found", 401));
       }

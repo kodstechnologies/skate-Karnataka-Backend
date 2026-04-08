@@ -1,5 +1,5 @@
 import { AppError } from "../../util/common/AppError.js";
-import { allClubsRepository, clubIdStoreinDestrict, createClubRepository, deleteClubDetails, displayFullDetailsOfClub, isExistClub, isThisClubExist, updateClubDetails } from "./club.repositories.js";
+import { allClubsRepository, clubIdStoreinDestrict, clubsByDistrictPaginatedRepository, createClubRepository, deleteClubDetails, displayFullDetailsOfClub, isExistClub, isThisClubExist, updateClubDetails } from "./club.repositories.js";
 
 const allClubService = async (id) => {
     return await allClubsRepository(id);
@@ -33,10 +33,19 @@ const updateClubDetailsService = async (data ,id) =>{
 const deleteClubSchema = async(id) =>{
     await deleteClubDetails(id);
 }
+
+const clubsByUserDistrictService = async (user, { page, limit }) => {
+    if (!user?.district) {
+        throw new AppError("User has no district assigned", 400);
+    }
+    return await clubsByDistrictPaginatedRepository(user.district, { page, limit });
+};
+
 export {
     allClubService,
     createClubService,
     displaySingleClubService,
     updateClubDetailsService,
-    deleteClubSchema
+    deleteClubSchema,
+    clubsByUserDistrictService,
 }

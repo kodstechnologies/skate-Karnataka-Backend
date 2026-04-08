@@ -1,3 +1,4 @@
+import { paginate } from "../../util/common/paginate.js";
 import { District } from "../district/district.model.js";
 import { Club } from "./club.model.js";
 
@@ -55,6 +56,29 @@ const deleteClubDetails = async (id) => {
     await Club.findByIdAndDelete(id);
 }
 
+const clubsByDistrictPaginatedRepository = async (districtId, { page, limit }) => {
+    const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+
+    const filter = { district: districtId };
+
+    const clubs = await Club.find(filter)
+        .select("_id name img")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(pageLimit)
+        .lean();
+
+    const total = await Club.countDocuments(filter);
+
+    return {
+        total,
+        page: currentPage,
+        limit: pageLimit,
+        totalPages: Math.ceil(total / pageLimit) || 0,
+        data: clubs,
+    };
+};
+
 export {
     allClubsRepository,
     isExistClub,
@@ -63,5 +87,6 @@ export {
     displayFullDetailsOfClub,
     isThisClubExist,
     updateClubDetails,
-    deleteClubDetails
+    deleteClubDetails,
+    clubsByDistrictPaginatedRepository,
 }

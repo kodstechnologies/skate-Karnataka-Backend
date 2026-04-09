@@ -2,10 +2,6 @@ import mongoose from "mongoose";
 import { BaseAuth } from "./baseAuth.model.js";
 
 const academySchema = new mongoose.Schema({
-  kRSAClubId: {
-    type: String,
-    unique: true,
-  },
 
   clubName: {
     type: String,
@@ -34,16 +30,16 @@ const academySchema = new mongoose.Schema({
   secretaryName: { type: String, default: "" },
   secretaryNumber: { type: String, default: "" },
 
-  tenacitySkaters: { type: Number, default: 0 },
-  recreationalSkaters: { type: Number, default: 0 },
-  QuadSkaters: { type: Number, default: 0 },
-  ProInlineSkaters: { type: Number, default: 0 },
+  tenacitySkaters: { type: String, default: 0 },
+  recreationalSkaters: { type: String, default: 0 },
+  QuadSkaters: { type: String, default: 0 },
+  ProInlineSkaters: { type: String, default: 0 },
 
   trackAddress: { type: String, default: "" },
   trackMeasurements: { type: String, default: "" },
-  numberOfTrainers: { type: Number, default: 0 },
+  // numberOfTrainers: { type: Number, default: 0 },
 
-  noOfTrainers: { type: Number, default: 0 },
+  noOfTrainers: { type: String, default: 0 },
   trainerCertification: { type: String, default: "" },
 
   documents: [
@@ -56,12 +52,5 @@ const academySchema = new mongoose.Schema({
 });
 
 
-// ✅ AUTO GENERATE KRSA CLUB ID
-academySchema.pre("save", function () {
-  if (!this.krsaClubId) {
-    const random = Math.floor(1000 + Math.random() * 9000);
-    this.krsaClubId = `KRSA-${Date.now()}-${random}`;
-  }
-});
 
 export const Academy = BaseAuth.discriminator("Academy", academySchema);

@@ -26,7 +26,6 @@ const skaterSchema = new mongoose.Schema({
 
   category: {
     type: String,
-    enum: ["junior", "senior", "sub-junior"],
     lowercase: true,
     trim: true,
   },

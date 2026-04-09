@@ -244,16 +244,16 @@ const afterLoginClubFormValidation = {
     secretaryName: Joi.string().trim(),
     secretaryNumber: Joi.string().pattern(/^[0-9]{10}$/),
 
-    tenacitySkaters: Joi.string().integer().min(0),
-    recreationalSkaters: Joi.string().integer().min(0),
-    QuadSkaters: Joi.string().integer().min(0),
-    ProInlineSkaters: Joi.string().integer().min(0),
+    tenacitySkaters: Joi.string(),
+    recreationalSkaters: Joi.string(),
+    QuadSkaters: Joi.string(),
+    ProInlineSkaters: Joi.string(),
 
     trackAddress: Joi.string().trim(),
     trackMeasurements: Joi.string().trim(),
     // numberOfTrainers: Joi.number().integer().min(0),
 
-    noOfTrainers: Joi.string().integer().min(0),
+    noOfTrainers: Joi.string(),
     trainerCertification: Joi.string().trim().allow(""),
 
     documents: Joi.array().items(

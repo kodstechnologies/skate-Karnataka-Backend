@@ -1,6 +1,8 @@
 import express from "express";
 import { authenticate } from "../../middleware/authMiddleware.js";
 import { create_event, delete_event, display_all_event_based_on_user, display_latest_event, displayAllEvents, displayEventById, edit_event } from "./event.controller.js";
+import { validateMultiple } from "../../middleware/validateMultiple.js";
+import { create_event_validation, update_event_validation } from "./event.validation.js";
 
 const USER_DISTRICT_CLUB_ROLES = [
     "skater",
@@ -42,9 +44,13 @@ router.get("/display/:id",
 
 
 //   create event 
-router.post("/", create_event);
+router.post("/",
+    validateMultiple(create_event_validation),
+     create_event);
 // edit event 
-router.patch("/:id", edit_event);
+router.patch("/:id",
+    validateMultiple(update_event_validation),
+    edit_event);
 // delete event 
 router.delete("/:id", delete_event);
 

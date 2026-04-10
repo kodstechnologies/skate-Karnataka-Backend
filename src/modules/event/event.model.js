@@ -50,8 +50,8 @@ const eventSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["active", "cancelled", "completed"],
-      default: "active"
+      enum: ["coming_soon", "active", "cancelled", "completed"],
+      default: "coming_soon"
     }
   },
   {

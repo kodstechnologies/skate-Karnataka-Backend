@@ -83,7 +83,7 @@ const BaseAuthSchema = new mongoose.Schema(
       index: true,
       immutable: true,
     },
-
+      
     verify: {
       type: Boolean,
       default: false,

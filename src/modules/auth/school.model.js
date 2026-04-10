@@ -30,9 +30,24 @@ const schoolSchema = new mongoose.Schema({
     match: [/^[6-9]\d{9}$/, "Invalid phone number"],
   },
 
+  // 🗓 Serving From
+  servingFrom: {
+    type: Date,
+  },
+
+  // 🎓 Certification Info
+  certificatesAvailable: {
+    type: String,
+  },
+
+  certifiedBy: {
+    type: String,
+    trim: true,
+  },
+
+  // 🛼 Skating Details
   skatingInfraAvailable: {
-    type: Boolean,
-    default: false,
+    type: String,
   },
 
   skatingInfraInfo: {
@@ -41,20 +56,30 @@ const schoolSchema = new mongoose.Schema({
   },
 
   lookingForSkatingService: {
-    type: Boolean,
-    default: false,
+    type: String,
   },
 
   lookingForSkatingCoach: {
-    type: Boolean,
-    default: false,
-  },
-
-  skatingCoachInfo: {
     type: String,
-    trim: true,
   },
 
+  coachName: {
+    type: String
+  },
+  coachGender: {
+    type: String
+  }
+  , coachContact: {
+    type: String
+  },
+  coachCertificates: {
+    type: String
+  },
+  certifiedBy: {
+    type: String
+  },
+
+  // 📂 Documents
   documents: [
     {
       url: {
@@ -70,6 +95,8 @@ const schoolSchema = new mongoose.Schema({
       },
     },
   ],
+}, {
+  timestamps: true
 });
 
 export const School = BaseAuth.discriminator("School", schoolSchema);

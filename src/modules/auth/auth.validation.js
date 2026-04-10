@@ -73,7 +73,6 @@ const RegisterValidation = {
     }),
 };
 
-
 const sendEmailOTPValidation = {
     body: Joi.object({
         email: Joi.string()
@@ -108,8 +107,6 @@ const verifyEmailOTPValidation = {
     }),
 };
 
-
-
 const sendPhoneOTPValidation = {
     body: Joi.object({
         phone: Joi.string()
@@ -141,7 +138,6 @@ const verifyPhoneOTPValidation = {
             }),
     }),
 };
-
 
 /**
  * LOGIN VALIDATION
@@ -191,7 +187,6 @@ const VerifyOTPValidation = {
         firebaseToken: Joi.string().allow("").optional()
     })
 };
-
 
 const afterLoginSkaterFormValidation = {
     body: Joi.object({
@@ -317,6 +312,19 @@ const afterLoginParentFormValidation = {
 
 const afterLoginOfficialFormValidation = {
     body: Joi.object({
+
+        fullName: Joi.string()
+            .trim()
+            .min(3)
+            .max(50)
+            .required()
+            .messages({
+                "string.empty": "Full name is required",
+                "string.min": "Full name must be at least 3 characters long",
+                "string.max": "Full name cannot exceed 50 characters",
+                "any.required": "Full name is required",
+            }),
+
         district: Joi.string()
             .pattern(/^[0-9a-fA-F]{24}$/)
             .required()
@@ -337,18 +345,22 @@ const afterLoginOfficialFormValidation = {
             "number.base": "Experience must be a number",
         }),
 
-        technicalTrainingCourse: Joi.boolean(),
+        technicalTrainingCourse: Joi.string(),
 
-        coachingExperience: Joi.boolean(),
+        coachingExperience: Joi.string(),
 
-        isSkater: Joi.boolean(),
+        isSkater: Joi.string(),
+        skaterDetails: Joi.string(),
+        isOfficiating: Joi.string(),
+        officiatingDetails: Joi.string(),
+        conductingClasses: Joi.string(),
+        conductingClassesDetails: Joi.string(),
 
-        officiatingDetails: Joi.boolean(),
+        coaching: Joi.string(),
+        officiating: Joi.string(),
 
-        conductingClasses: Joi.boolean(),
-
-        interestedIn: Joi.string().allow("").max(100),
-
+        officialContactNumber: Joi.string(),
+        officialEmail: Joi.string(),
 
     })
 

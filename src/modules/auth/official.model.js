@@ -2,10 +2,11 @@ import mongoose from "mongoose";
 import { BaseAuth } from "./baseAuth.model.js";
 
 const officialSchema = new mongoose.Schema({
+
   club: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Club",
-    required: true,
+    // required: true,
   },
 
   experience: {
@@ -14,33 +15,55 @@ const officialSchema = new mongoose.Schema({
   },
 
   technicalTrainingCourse: {
-    type: Boolean,
-    default: false,
+    type: String,
+
   },
 
   coachingExperience: {
-    type: Boolean,
-    default: false,
+    type: String,
+
   },
 
   isSkater: {
-    type: Boolean,
-    default: false,
+    type: String,
+
+  },
+  skaterDetails: {
+    type: String,
+
   },
 
+  isOfficiating: {
+    type: String,
+
+  },
   officiatingDetails: {
-    type: Boolean,
-    default: false,
+    type: String,
+
   },
 
   conductingClasses: {
-    type: Boolean,
-    default: false,
+    type: String,
+
+  },
+  conductingClassesDetails: {
+    type: String,
+
+  },
+  coaching: {
+    type: String,
+
+  },
+  officiating: {
+    type: String,
   },
 
-  interestedIn: {
+  officialContactNumber: {
     type: String,
-    trim: true,
+  },
+
+  officialEmail: {
+    type: String
   },
 
   documents: [

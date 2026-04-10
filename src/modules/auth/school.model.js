@@ -4,7 +4,7 @@ import { BaseAuth } from "./baseAuth.model.js";
 const schoolSchema = new mongoose.Schema({
   schoolName: {
     type: String,
-    required: true,
+  
     trim: true,
   },
 

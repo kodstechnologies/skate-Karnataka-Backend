@@ -128,7 +128,7 @@ router.post(
 // -========== login completed school =====================
 
 router.post(
-  "/v1/after-login-School-form/:id",
+  "/v1/after-login-school-form/:id",
   upload.fields([
     { name: "img", maxCount: 1 },
     { name: "document", maxCount: 1 }

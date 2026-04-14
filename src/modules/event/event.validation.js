@@ -32,8 +32,7 @@ import Joi from "joi";
 
         eventFor: Joi.string()
             .required(), // ObjectId (string format)
-        status: Joi.string()
-            .valid("coming_soon", "active", "cancelled", "completed"),
+   
     }),
 };
 

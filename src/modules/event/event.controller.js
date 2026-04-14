@@ -30,6 +30,7 @@ const display_all_event_based_on_user = asyncHandler(async (req, res) => {
     );
 });
 const create_event = asyncHandler(async (req, res) => {
+    console.log(req.body,"bnody")
     await create_event_schema(req.body);
 
     return res.status(200).json(
@@ -42,6 +43,7 @@ const create_event = asyncHandler(async (req, res) => {
 })
 
 const edit_event = asyncHandler(async (req, res) => {
+
     const { id } = req.params;
     await edit_event_schema(id, req.body);
 

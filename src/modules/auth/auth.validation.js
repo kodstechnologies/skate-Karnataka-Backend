@@ -317,7 +317,7 @@ const afterLoginOfficialFormValidation = {
             .trim()
             .min(3)
             .max(50)
-            .required()
+            
             .messages({
                 "string.empty": "Full name is required",
                 "string.min": "Full name must be at least 3 characters long",
@@ -327,7 +327,7 @@ const afterLoginOfficialFormValidation = {
 
         district: Joi.string()
             .pattern(/^[0-9a-fA-F]{24}$/)
-            .required()
+            
             .messages({
                 "string.pattern.base": "District must be a valid ObjectId",
                 "any.required": "District is required",
@@ -335,7 +335,7 @@ const afterLoginOfficialFormValidation = {
 
         club: Joi.string()
             .pattern(/^[0-9a-fA-F]{24}$/)
-            .required()
+            
             .messages({
                 "string.pattern.base": "Club must be a valid ObjectId",
                 "any.required": "Club is required",
@@ -345,22 +345,22 @@ const afterLoginOfficialFormValidation = {
             "number.base": "Experience must be a number",
         }),
 
-        technicalTrainingCourse: Joi.string(),
+        technicalTrainingCourse: Joi.string().allow(""),
 
-        coachingExperience: Joi.string(),
+        coachingExperience: Joi.string().allow(""),
 
-        isSkater: Joi.string(),
-        skaterDetails: Joi.string(),
-        isOfficiating: Joi.string(),
-        officiatingDetails: Joi.string(),
-        conductingClasses: Joi.string(),
-        conductingClassesDetails: Joi.string(),
+        isSkater: Joi.string().allow(""),
+        skaterDetails: Joi.string().allow(""),
+        isOfficiating: Joi.string().allow(""),
+        officiatingDetails: Joi.string().allow(""),
+        conductingClasses: Joi.string().allow(""),
+        conductingClassesDetails: Joi.string().allow(""),
 
-        coaching: Joi.string(),
-        officiating: Joi.string(),
+        coaching: Joi.string().allow(""),
+        officiating: Joi.string().allow(""),
 
-        officialContactNumber: Joi.string(),
-        officialEmail: Joi.string(),
+        officialContactNumber: Joi.string().allow(""),
+        officialEmail: Joi.string().allow(""),
 
     })
 

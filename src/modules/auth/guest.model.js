@@ -2,10 +2,13 @@ import mongoose from "mongoose";
 import { BaseAuth } from "./baseAuth.model.js";
 
 const guestSchema = new mongoose.Schema({
-  interestedIn: {
-    type: String,
-    trim: true,
-  },
+  interestedIn: [
+    {
+      type: String,
+      trim: true,
+      default:[]
+    }
+  ],
 });
 
 export const Guest = BaseAuth.discriminator("Guest", guestSchema);

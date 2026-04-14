@@ -302,7 +302,11 @@ const afterLoginGuestFormValidation = {
                 "string.pattern.base": "Phone must be a 10-digit number",
                 "any.required": "Phone is required"
             }),
-        interestedIn: Joi.string()
+        interestedIn: Joi.array()
+            .items(Joi.string())
+            .messages({
+                "array.base": "InterestedIn must be an array",
+            }),
     })
 };
 
@@ -317,7 +321,7 @@ const afterLoginOfficialFormValidation = {
             .trim()
             .min(3)
             .max(50)
-            
+
             .messages({
                 "string.empty": "Full name is required",
                 "string.min": "Full name must be at least 3 characters long",
@@ -327,7 +331,7 @@ const afterLoginOfficialFormValidation = {
 
         district: Joi.string()
             .pattern(/^[0-9a-fA-F]{24}$/)
-            
+
             .messages({
                 "string.pattern.base": "District must be a valid ObjectId",
                 "any.required": "District is required",
@@ -335,7 +339,7 @@ const afterLoginOfficialFormValidation = {
 
         club: Joi.string()
             .pattern(/^[0-9a-fA-F]{24}$/)
-            
+
             .messages({
                 "string.pattern.base": "Club must be a valid ObjectId",
                 "any.required": "Club is required",

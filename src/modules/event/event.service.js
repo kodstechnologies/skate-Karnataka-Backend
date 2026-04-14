@@ -38,8 +38,8 @@ const delete_event_schema = async (id) => {
     await delete_event_repositories(id);
 }
 
-const display_all_event_based_on_user_service = async (id) => {
-  return  await display_all_event_based_on_user_repositories(id);
+const display_all_event_based_on_user_service = async (id, query) => {
+  return await display_all_event_based_on_user_repositories(id, query);
 }
 
 export {

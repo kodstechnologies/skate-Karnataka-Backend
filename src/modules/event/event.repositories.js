@@ -59,48 +59,74 @@ const delete_event_repositories = async (id) => {
 }
 
 
-const display_all_event_based_on_user_repositories = async (userId) => {
+const display_all_event_based_on_user_repositories = async (userId, { page, limit }) => {
+  // ✅ Get user
+  const user = await BaseAuth.findById(userId)
+    .populate("district")
+    .lean();
 
-        // ✅ Get user with role data (Skater / Official etc.)
-        const user = await BaseAuth.findById(userId)
-            .populate("district")
-            .lean();
+  if (!user) {
+    throw new Error("User not found");
+  }
 
-        if (!user) {
-            throw new Error("User not found");
-        }
+  const userDistrict = user.district?._id || user.district;
+  const userClub = user.club;
 
-        // ✅ Extract IDs
-        const userDistrict = user.district?._id || user.district;
-        const userClub = user.club; // for Skater/Official (if exists)
+  // ✅ Query
+  const query = {
+    $or: [
+      { eventType: "State" },
+      ...(userDistrict
+        ? [{ eventType: "District", eventFor: userDistrict }]
+        : []),
+      ...(userClub
+        ? [{ eventType: "Club", eventFor: userClub }]
+        : []),
+    ],
+  };
 
-        // ✅ Build dynamic filter
-        const query = {
-            $or: [
-                // 🌍 State → visible to all
-                { eventType: "State" },
+  const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
 
-                // 📍 District → match district
-                {
-                    eventType: "District",
-                    eventFor: userDistrict,
-                },
+  // ✅ Fetch + Populate dynamic ref
+  const events = await Event.find(query)
+    .populate({
+      path: "eventFor",
+      select: "name districtName clubName", // based on your models
+    })
+    .sort({ date: 1 })
+    .skip(skip)
+    .limit(pageLimit)
+    .lean();
 
-                // 🏟 Club → match club
-                {
-                    eventType: "Club",
-                    eventFor: userClub,
-                },
-            ],
-        };
+  const total = await Event.countDocuments(query);
 
-        // ✅ Fetch events
-        const events = await Event.find(query)
-            .sort({ date: 1 }) // upcoming first
-            .lean();
-// console.log(events,"events===")
-        return events;
-  
+  // ✅ Format response (IMPORTANT 🔥)
+  const formattedEvents = events.map((event) => ({
+    id: event._id,
+    header: event.header,
+    image: event.image,
+    date: event.date,
+    address: event.address,
+    eventType: event.eventType,
+
+    // 👇 get name dynamically
+    eventForName:
+      event.eventType === "State"
+        ? "State"
+        : event.eventType === "District"
+        ? event.eventFor?.name || event.eventFor?.districtName || "N/A"
+        : event.eventType === "Club"
+        ? event.eventFor?.name || event.eventFor?.clubName || "N/A"
+        : "N/A",
+  }));
+
+  return {
+    total,
+    page: currentPage,
+    limit: pageLimit,
+    totalPages: Math.ceil(total / pageLimit),
+    data: formattedEvents,
+  };
 };
 export {
     displayAllEventRepository,

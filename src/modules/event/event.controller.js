@@ -19,8 +19,9 @@ const display_latest_event = asyncHandler(async (req, res) => {
 const display_all_event_based_on_user = asyncHandler(async (req, res) => {
 console.log("jjjj")
     const userId = req.user._id; // assuming auth middleware
+    const { page, limit } = req.query;
 
-    const userBasedEvents = await display_all_event_based_on_user_service(userId);
+    const userBasedEvents = await display_all_event_based_on_user_service(userId, { page, limit });
 
     return res.status(200).json(
         new ApiResponse(

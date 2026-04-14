@@ -36,15 +36,55 @@ const displaySingleEventRepository = async (id) => {
   return event;
 };
 
-const display_latest_event_repositories = async () => {
+const display_latest_event_repositories = async (userId) => {
+  // ✅ Get user
+  const user = await BaseAuth.findById(userId).lean();
 
-    const events = await Event.find({ status: "active" }) // only active
-        .sort({ createdAt: -1 }) // latest first
-        .limit(1); // optional: only top 5
+  if (!user) {
+    throw new Error("User not found");
+  }
 
-    return events;
+  const userDistrict = user.district;
+  const userClub = user.club;
+
+  // ✅ Build query
+  const query = {
+    $or: [
+      { eventType: "State" },
+      ...(userDistrict
+        ? [{ eventType: "District", eventFor: userDistrict }]
+        : []),
+      ...(userClub
+        ? [{ eventType: "Club", eventFor: userClub }]
+        : []),
+    ],
+  };
+
+  // ✅ Get latest event
+  const event = await Event.findOne(query)
+    .sort({ createdAt: -1 })
+    .populate("eventFor", "name")
+    .lean();
+
+  if (!event) return null;
+
+  // ✅ Return cleaned response directly
+  return {
+    id: event._id,
+    header: event.header,
+    image: event.image
+      ? `http://localhost:5000/${event.image}`
+      : "",
+    date: event.date,
+    address: event.address,
+    eventType: event.eventType,
+    eventForName:
+      event.eventType === "State"
+        ? "State"
+        : event.eventFor?.name || "N/A",
+    status: event.status,
+  };
 };
-
 const create_event_repositories = async (data) => {
     const event = await Event.create(data);
     console.log(event, "event details");

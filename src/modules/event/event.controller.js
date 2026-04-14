@@ -4,8 +4,10 @@ import { create_event_schema, delete_event_schema, display_all_event_based_on_us
 
 
 const display_latest_event = asyncHandler(async (req, res) => {
-    const result = await display_latest_event_server(req.query);
-
+    const userId = req.user._id;
+    console.log(userId, "userId")
+    const result = await display_latest_event_server(userId);
+    console.log(result, "result====")
     return res.status(200).json(
         new ApiResponse(
             200,
@@ -17,7 +19,7 @@ const display_latest_event = asyncHandler(async (req, res) => {
 
 
 const display_all_event_based_on_user = asyncHandler(async (req, res) => {
-console.log("jjjj")
+    console.log("jjjj")
     const userId = req.user._id; // assuming auth middleware
     const { page, limit } = req.query;
 
@@ -32,7 +34,7 @@ console.log("jjjj")
     );
 });
 const create_event = asyncHandler(async (req, res) => {
-    console.log(req.body,"bnody")
+    console.log(req.body, "bnody")
     await create_event_schema(req.body);
 
     return res.status(200).json(
@@ -59,7 +61,7 @@ const edit_event = asyncHandler(async (req, res) => {
 })
 
 const delete_event = asyncHandler(async (req, res) => {
-    const {id} = req.params();
+    const { id } = req.params();
     await delete_event_schema(id);
 
     return res.status(200).json(
@@ -83,7 +85,7 @@ const displayAllEvents = asyncHandler(async (req, res) => {
 });
 
 const displayEventById = asyncHandler(async (req, res) => {
-   const {id} = req.params;
+    const { id } = req.params;
     const event = await displaySingleEventDetailsServer(id);
     console.log("🚀 ~ result:", event)
     return res

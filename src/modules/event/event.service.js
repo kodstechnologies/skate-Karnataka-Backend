@@ -22,8 +22,8 @@ const displaySingleEventDetailsServer = async (id) => {
     return await displaySingleEventRepository(id);
 }
 
-const display_latest_event_server = async () => {
-    return await display_latest_event_repositories();
+const display_latest_event_server = async (id) => {
+    return await display_latest_event_repositories(id);
 }
 
 const create_event_schema = async (data) => {

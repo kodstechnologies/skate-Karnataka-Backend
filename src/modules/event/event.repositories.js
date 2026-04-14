@@ -24,11 +24,17 @@ const displayAllEventRepository = async ({ page, limit }) => {
     };
 };
 
-
 const displaySingleEventRepository = async (id) => {
+  const event = await Event.findById(id)
+    .populate("eventFor", "name")
+    .lean();
 
-    return await Event.findById(id).lean();
-}
+  if (event?.eventFor) {
+    event.eventFor = event.eventFor.name; // ✅ convert to name only
+  }
+
+  return event;
+};
 
 const display_latest_event_repositories = async () => {
 

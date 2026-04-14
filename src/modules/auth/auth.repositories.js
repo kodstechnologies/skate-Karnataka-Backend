@@ -117,6 +117,7 @@ const checkOtp = async (userData) => {
 
 
 const afterLoginSkaterFormRepositories = async (data, id) => {
+    console.log(data,",,,,")
     const updated = await Skater.findOneAndUpdate(
         { _id: id, role: "Skater" },
         {

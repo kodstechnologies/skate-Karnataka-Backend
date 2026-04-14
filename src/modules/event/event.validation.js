@@ -16,7 +16,7 @@ import Joi from "joi";
         date: Joi.date()
             .required(),
 
-        text: Joi.string()
+        about: Joi.string()
             .trim()
             .optional()
             .allow(""),
@@ -50,7 +50,7 @@ const update_event_validation = {
 
         date: Joi.date(),
 
-        text: Joi.string()
+        about: Joi.string()
             .trim()
             .allow(""),
 

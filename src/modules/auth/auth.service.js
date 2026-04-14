@@ -133,11 +133,16 @@ const VerifyOTPService = async (userData) => {
     // console.log("🚀 ~ VerifyOTPService ~ userData:", userData)
     await checkOtp(userData);
     await saveFirebaseToken(userData);
-    const accessToken = generateAccessToken(userData);
-    const refreshToken = generateRefreshToken(userData);
-    console.log(userData);
+
     const user = await isExist(userData);
-    console.log(user, "user")
+    if (!user) {
+        throw new AppError("User not found after OTP verification", 404);
+    }
+    
+    // console.log(user, "user")
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
+
     return { userId: userData.userId, verify: user.verify, role: user.role, krsaId: user.krsaId, accessToken, refreshToken };
 };
 

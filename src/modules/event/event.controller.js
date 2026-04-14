@@ -1,3 +1,4 @@
+import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
 import { create_event_schema, delete_event_schema, display_all_event_based_on_user_service, display_latest_event_server, displayEventServer, displaySingleEventDetailsServer, edit_event_schema } from "./event.service.js";
 
@@ -16,7 +17,7 @@ const display_latest_event = asyncHandler(async (req, res) => {
 
 
 const display_all_event_based_on_user = asyncHandler(async (req, res) => {
-
+console.log("jjjj")
     const userId = req.user._id; // assuming auth middleware
 
     const userBasedEvents = await display_all_event_based_on_user_service(userId);
@@ -81,7 +82,8 @@ const displayAllEvents = asyncHandler(async (req, res) => {
 });
 
 const displayEventById = asyncHandler(async (req, res) => {
-    const event = await displaySingleEventDetailsServer(req.body);
+   const {id} = req.params;
+    const event = await displaySingleEventDetailsServer(id);
     console.log("🚀 ~ result:", event)
     return res
         .status(200)

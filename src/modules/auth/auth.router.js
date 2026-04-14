@@ -159,7 +159,7 @@ router.post(
  * }
  */
 router.post("/refresh-token",
-    authenticate(["user", "admin"]),
+    authenticate([]),
     RefreshToken);
 
 /**
@@ -168,7 +168,7 @@ router.post("/refresh-token",
  * @access Private
  */
 router.post("/logout",
-    authenticate(["user", "admin"]),
+    authenticate([]),
     validateMultiple(LogoutValidation),
     LogoutUser);
 
@@ -185,7 +185,7 @@ router.post("/logout",
  * }
  */
 router.patch("/update-profile",
-    authenticate(["user", "admin"]),
+    authenticate([]),
     validateMultiple(UpdateProfileValidation),
     UpdateUserProfile);
 
@@ -195,7 +195,7 @@ router.patch("/update-profile",
  * @access Private
  */
 router.delete("/delete",
-    authenticate(["user", "admin"]),
+    authenticate([]),
     DeleteUser);
 
 /**
@@ -204,7 +204,7 @@ router.delete("/delete",
  * @access Private
  */
 router.get("/profile",
-    authenticate(["user", "admin"]),
+    authenticate([]),
     GetUserProfile);
 
 /**  
@@ -213,7 +213,7 @@ router.get("/profile",
  * @access Private
  */
 router.get("/digital-id-card",
-    authenticate(["user", "admin"]),
+    authenticate([]),
     GetDigitalIDCard);
 
 /**
@@ -222,7 +222,7 @@ router.get("/digital-id-card",
  * @access Private
  */
 router.get("/achievement",
-    authenticate(["user", "admin"]),
+    authenticate([]),
     GetAchievements);
 
 /**
@@ -231,7 +231,7 @@ router.get("/achievement",
  * @access Private
  */
 router.get("/rankings",
-    authenticate(["user", "admin"]),
+    authenticate([]),
     GetRankings);
 
 /**
@@ -240,7 +240,7 @@ router.get("/rankings",
  * @access Private
  */
 router.get("/toggle-notifications",
-    authenticate(["user", "admin"]),
+    authenticate([]),
     ToggleNotifications);
 
 /**
@@ -249,7 +249,7 @@ router.get("/toggle-notifications",
  * @access Private
  */
 router.get("/support",
-    authenticate(["user", "admin"]),
+    authenticate([]),
     ContactSupport);
 
 export default router;

@@ -265,7 +265,7 @@ const afterLoginGuestFormValidation = {
         fullName: Joi.string()
             .min(2)
             .max(100)
-            .required()
+          
             .messages({
                 "string.empty": "Full name is required",
                 "string.min": "Full name must be at least 2 characters",
@@ -281,7 +281,6 @@ const afterLoginGuestFormValidation = {
 
         gender: Joi.string()
             .valid("male", "female", "other")
-            .required()
             .messages({
                 "any.only": "Gender must be male, female, or other",
                 "any.required": "Gender is required"
@@ -289,7 +288,6 @@ const afterLoginGuestFormValidation = {
 
         email: Joi.string()
             .email()
-            .required()
             .messages({
                 "string.email": "Invalid email format",
                 "any.required": "Email is required"
@@ -297,7 +295,6 @@ const afterLoginGuestFormValidation = {
 
         phone: Joi.string()
             .pattern(/^[0-9]{10}$/)
-            .required()
             .messages({
                 "string.pattern.base": "Phone must be a 10-digit number",
                 "any.required": "Phone is required"

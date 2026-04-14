@@ -7,7 +7,7 @@ export const authenticate = (allowedRoles = []) => {
   return async (req, res, next) => {
     try {
       let token;
-      // console.log(toekn, "token")
+      // console.log(token, "token===")
       // 1️⃣ Check Authorization Header
       const authHeader = req.headers.authorization;
 
@@ -27,7 +27,7 @@ export const authenticate = (allowedRoles = []) => {
       if (!token) {
         return next(new AppError("Access token missing", 401));
       }
-
+      console.log(token, "/////")
       // 3️⃣ Verify
       const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
       console.log(decoded, "decoded")
@@ -38,8 +38,15 @@ export const authenticate = (allowedRoles = []) => {
       }
 
       // 4️⃣ Role check
-      if (allowedRoles.length && !allowedRoles.includes(user.role)) {
-        return next(new AppError("Forbidden: Insufficient permissions", 403));
+      if (allowedRoles.length) {
+        const userRole = (user.role || "").toLowerCase();
+        const isAllowed = allowedRoles.some(role => role.toLowerCase() === userRole);
+
+        console.log(`[Auth] Path: ${req.path}, User: ${user._id}, Allowed: [${allowedRoles}], Actual: ${user.role}`);
+
+        if (!isAllowed) {
+          return next(new AppError("Forbidden: Insufficient permissions", 403));
+        }
       }
 
       req.user = user;

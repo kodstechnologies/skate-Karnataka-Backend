@@ -23,7 +23,7 @@ const eventSchema = new mongoose.Schema(
     },
 
     // 📝 Description
-    text: {
+    about: {
       type: String,
       trim: true,
     },

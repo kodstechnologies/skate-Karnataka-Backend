@@ -1,5 +1,5 @@
 import { AppError } from "../../util/common/AppError.js";
-import { displaySingleEventRepository, displayAllEventRepository, create_event_repositories, edit_event_repositories, delete_event_repositories, display_latest_event_repositories } from "./event.repositories.js";
+import { displaySingleEventRepository, displayAllEventRepository, create_event_repositories, edit_event_repositories, delete_event_repositories, display_latest_event_repositories, display_all_event_based_on_user_repositories } from "./event.repositories.js";
 
 const displayEventServer = async (data) => {
 
@@ -18,12 +18,12 @@ const displayEventServer = async (data) => {
 };
 
 
-const displaySingleEventDetailsServer = async (data) => {
-    return await displaySingleEventRepository(data);
+const displaySingleEventDetailsServer = async (id) => {
+    return await displaySingleEventRepository(id);
 }
 
 const display_latest_event_server = async () => {
-return await display_latest_event_repositories();
+    return await display_latest_event_repositories();
 }
 
 const create_event_schema = async (data) => {
@@ -38,8 +38,8 @@ const delete_event_schema = async (id) => {
     await delete_event_repositories(id);
 }
 
-const display_all_event_based_on_user_service = async () => {
-
+const display_all_event_based_on_user_service = async (id) => {
+  return  await display_all_event_based_on_user_repositories(id);
 }
 
 export {

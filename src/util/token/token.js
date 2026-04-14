@@ -18,7 +18,8 @@ const generateAccessToken = (user) => {
     // console.log("🚀 ~ generateAccessToken ~ user:", user)
     return jwt.sign(
         {
-            id: user.userId,
+            id: user.id || user._id || user.userId,
+            role: user.role
         },
         JWT_ACCESS_SECRET,
         { expiresIn: JWT_ACCESS_EXPIRES } // short expiry
@@ -30,7 +31,8 @@ const generateAccessToken = (user) => {
 const generateRefreshToken = (user) => {
     return jwt.sign(
         {
-            id: user.userId
+            id: user.id || user._id || user.userId,
+            role: user.role
         },
         JWT_REFRESH_SECRET,
         { expiresIn: JWT_REFRESH_EXPIRES } // long expiry

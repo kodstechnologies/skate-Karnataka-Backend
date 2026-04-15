@@ -23,11 +23,15 @@ router.get("/v1/apply-join/:id",
     authenticate(["Skater"]),
     apply_club);
 
-// approve for join
-router.get("/v1/approve-join/:id", approve_join_club);
+// // approve for join
+// router.get("/v1/approve-join/:id",
+//     authenticate(["Skater"]),
+//     approve_join_club);
 
 // apply for leave
-router.get("/v1/apply-leave", apply_leave);
+router.get("/v1/apply-leave", 
+    authenticate(["Skater"]),
+    apply_leave);
 
 // approve for leave
 router.get("/v1/approve-leave/:id", approve_leave_club);

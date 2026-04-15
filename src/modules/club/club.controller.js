@@ -86,8 +86,8 @@ const display_all_Club_basedOn_user_district = asyncHandler(async (req, res) => 
 });
 
 const apply_club = asyncHandler(async (req, res) => {
-    const {id} = req.params;
-    const userID = req.user._id;  
+    const { id } = req.params;
+    const userID = req.user._id;
     await apply_club_service(id, userID);
     return res.status(200).json(
         new ApiResponse(200, null, "Club apply successfully")
@@ -95,12 +95,14 @@ const apply_club = asyncHandler(async (req, res) => {
 })
 
 const approve_join_club = asyncHandler(async (req, res) => {
-    await approve_join_club_service();
+    const userID = req.user._id;
+    await approve_join_club_service(userID);
     return res.status(200).json(new ApiResponse(200, null, "Club approve successfully"));
 })
 
 const apply_leave = asyncHandler(async (req, res) => {
-    await apply_leave_service();
+    const userId = req.user._id;
+    await apply_leave_service(userId);
     return res.status(200).json(new ApiResponse(200, null, "Club leave apply successfully"));
 })
 

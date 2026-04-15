@@ -1,5 +1,5 @@
 import { AppError } from "../../util/common/AppError.js";
-import { allClubsRepository, apply_club_repositories, clubIdStoreinDestrict, clubsByDistrictPaginatedRepository, createClubRepository, deleteClubDetails, displayFullDetailsOfClub, isExistClub, isThisClubExist, updateClubDetails } from "./club.repositories.js";
+import { allClubsRepository, apply_club_repositories, apply_leave_repository, approve_join_club_repositories, clubIdStoreinDestrict, clubsByDistrictPaginatedRepository, createClubRepository, deleteClubDetails, displayFullDetailsOfClub, isApplyRepository, isExistClub, isExistClubRepository, isThisClubExist, updateClubDetails } from "./club.repositories.js";
 
 const allClubService = async (id) => {
     return await allClubsRepository(id);
@@ -42,16 +42,51 @@ const clubsByUserDistrictService = async (user, { page, limit }) => {
 };
 
 const apply_club_service = async (clubId, userID) => {
+    const clubExists = await isExistClubRepository(userID);
+
+    if (clubExists) {
+        throw new AppError("Already applied");
+    }
+
     await apply_club_repositories(clubId, userID);
-}
+};
+const approve_join_club_service = async (userId) => {
+    const status = await isApplyRepository(userId);
+    console.log(status, "status");
+    const errorMap = {
+        join: "Already joined",
+        leave: "Apply first",
+    };
 
-const approve_join_club_service = async () => {
+    if (!status) {
+        throw new AppError("Application not found");
+    }
 
-}
+    if (errorMap[status]) {
+        throw new AppError(errorMap[status]);
+    }
 
-const apply_leave_service = async () => {
+    return await approve_join_club_repositories(userId);
+};
+const apply_leave_service = async (userId) => {
+    const status = await isApplyRepository(userId);
 
-}
+    if (!status) {
+        throw new AppError("Application not found");
+    }
+
+    const errorMap = {
+        apply: "First join the club, then apply for leave",
+        leave: "Already left the club",
+    };
+
+    if (errorMap[status]) {
+        throw new AppError(errorMap[status]);
+    }
+
+    // ✅ only "join" reaches here
+    return await apply_leave_repository(userId);
+};
 
 const approve_leave_club_service = async () => {
 

@@ -81,6 +81,12 @@ const clubsByDistrictPaginatedRepository = async (districtId, { page, limit }) =
     };
 };
 
+const isExistClubRepository = async (id) => {
+    const skater = await Skater.findById(id).select("club");
+    return !!skater?.club;
+};
+
+
 const apply_club_repositories = async (clubId, skaterId) => {
     const updatedSkater = await Skater.findByIdAndUpdate(
         skaterId,
@@ -89,10 +95,36 @@ const apply_club_repositories = async (clubId, skaterId) => {
             clubStatus: "apply",
         },
         { new: true }
-    ).populate("club");
+    )
     console.log(updatedSkater, "updatedSkater");
 }
 
+const isApplyRepository = async (id) => {
+    const skater = await Skater.findById(id)
+
+    return skater?.clubStatus;
+}
+
+const approve_join_club_repositories = async (skaterId) => {
+    await Skater.findByIdAndUpdate(
+        skaterId,
+        {
+            clubStatus: "join",
+        },
+        { new: true }
+    )
+}
+
+const apply_leave_repository = async (skaterId) => {
+    return await Skater.findOneAndUpdate(
+        { _id: skaterId, clubStatus: "join" }, // only if joined
+        {
+            clubStatus: "leave",
+            club: null,
+        },
+        { new: true }
+    );
+};
 export {
     allClubsRepository,
     isExistClub,
@@ -103,5 +135,9 @@ export {
     updateClubDetails,
     deleteClubDetails,
     clubsByDistrictPaginatedRepository,
-    apply_club_repositories
+    isExistClubRepository,
+    apply_club_repositories,
+    isApplyRepository,
+    approve_join_club_repositories,
+    apply_leave_repository
 }

@@ -1,0 +1,44 @@
+name: Deploy Skate-Karnataka-Backend
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🚀 Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_KEY }}
+          script: |
+            echo "🔗 Connected to EC2"
+
+            # Go to project folder
+            cd /home/ubuntu/skate-Karnataka-Backend
+
+            echo "📥 Pulling latest code..."
+            git pull origin main
+
+            echo "⚙️ Creating .env file..."
+            echo "${{ secrets.ENV_FILE }}" > .env
+
+            echo "📦 Installing dependencies..."
+            npm install
+
+            echo "🔄 Restarting PM2 app..."
+            pm2 restart backend || pm2 start index.js --name backend
+
+            echo "💾 Saving PM2 process..."
+            pm2 save
+
+            echo "🌐 Restarting Nginx..."
+            sudo systemctl restart nginx
+
+            echo "✅ Deployment successful!"

@@ -73,7 +73,7 @@ const display_latest_event_repositories = async (userId) => {
     id: event._id,
     header: event.header,
     image: event.image
-      ? `http://localhost:5000/${event.image}`
+      ? `${event.image}`
       : "",
     date: event.date,
     address: event.address,

@@ -1,5 +1,5 @@
 import { AppError } from "../../util/common/AppError.js";
-import { allClubsRepository, clubIdStoreinDestrict, clubsByDistrictPaginatedRepository, createClubRepository, deleteClubDetails, displayFullDetailsOfClub, isExistClub, isThisClubExist, updateClubDetails } from "./club.repositories.js";
+import { allClubsRepository, apply_club_repositories, clubIdStoreinDestrict, clubsByDistrictPaginatedRepository, createClubRepository, deleteClubDetails, displayFullDetailsOfClub, isExistClub, isThisClubExist, updateClubDetails } from "./club.repositories.js";
 
 const allClubService = async (id) => {
     return await allClubsRepository(id);
@@ -20,17 +20,17 @@ const createClubService = async (data) => {
 
 const displaySingleClubService = async (id) => {
     const isExistClub = await isThisClubExist(id)
-    if(!isExistClub){
-        throw new AppError("This Club is currently not available",404)
+    if (!isExistClub) {
+        throw new AppError("This Club is currently not available", 404)
     }
     return await displayFullDetailsOfClub(id);
 }
 
-const updateClubDetailsService = async (data ,id) =>{
-    await updateClubDetails(data , id);
+const updateClubDetailsService = async (data, id) => {
+    await updateClubDetails(data, id);
 }
 
-const deleteClubSchema = async(id) =>{
+const deleteClubSchema = async (id) => {
     await deleteClubDetails(id);
 }
 
@@ -41,6 +41,22 @@ const clubsByUserDistrictService = async (user, { page, limit }) => {
     return await clubsByDistrictPaginatedRepository(user.district, { page, limit });
 };
 
+const apply_club_service = async (clubId, userID) => {
+    await apply_club_repositories(clubId, userID);
+}
+
+const approve_join_club_service = async () => {
+
+}
+
+const apply_leave_service = async () => {
+
+}
+
+const approve_leave_club_service = async () => {
+
+}
+
 export {
     allClubService,
     createClubService,
@@ -48,4 +64,8 @@ export {
     updateClubDetailsService,
     deleteClubSchema,
     clubsByUserDistrictService,
+    apply_club_service,
+    approve_join_club_service,
+    apply_leave_service,
+    approve_leave_club_service,
 }

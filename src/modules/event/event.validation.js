@@ -1,6 +1,6 @@
 import Joi from "joi";
 
- const create_event_validation = {
+const create_event_validation = {
     body: Joi.object({
         header: Joi.string()
             .trim()
@@ -32,7 +32,8 @@ import Joi from "joi";
 
         eventFor: Joi.string()
             .required(), // ObjectId (string format)
-   
+        entryFee: Joi.string().allow(""),
+
     }),
 };
 
@@ -66,8 +67,10 @@ const update_event_validation = {
 
         status: Joi.string()
             .valid("coming_soon", "active", "cancelled", "completed"),
+        entryFee: Joi.string().allow(""),
     })
-        .min(1) // ✅ at least one field required
+
+
 };
 
 export {

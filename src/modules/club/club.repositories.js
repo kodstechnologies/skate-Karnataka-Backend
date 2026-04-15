@@ -1,4 +1,6 @@
 import { paginate } from "../../util/common/paginate.js";
+import { BaseAuth } from "../auth/baseAuth.model.js";
+import { Skater } from "../auth/skater.model.js";
 import { District } from "../district/district.model.js";
 import { Club } from "./club.model.js";
 
@@ -32,7 +34,7 @@ const clubIdStoreinDestrict = async (districtId, clubId) => {
     );
 }
 
-const isThisClubExist = async(id) =>{
+const isThisClubExist = async (id) => {
     return await Club.findById(id);
 }
 
@@ -79,6 +81,18 @@ const clubsByDistrictPaginatedRepository = async (districtId, { page, limit }) =
     };
 };
 
+const apply_club_repositories = async (clubId, skaterId) => {
+    const updatedSkater = await Skater.findByIdAndUpdate(
+        skaterId,
+        {
+            club: clubId,
+            clubStatus: "apply",
+        },
+        { new: true }
+    ).populate("club");
+    console.log(updatedSkater, "updatedSkater");
+}
+
 export {
     allClubsRepository,
     isExistClub,
@@ -89,4 +103,5 @@ export {
     updateClubDetails,
     deleteClubDetails,
     clubsByDistrictPaginatedRepository,
+    apply_club_repositories
 }

@@ -1,7 +1,7 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { AppError } from "../../util/common/AppError.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { allClubService, clubsByUserDistrictService, createClubService, deleteClubSchema, displaySingleClubService, updateClubDetailsService } from "./club.service.js";
+import { allClubService, apply_club_service, apply_leave_service, approve_join_club_service, approve_leave_club_service, clubsByUserDistrictService, createClubService, deleteClubSchema, displaySingleClubService, updateClubDetailsService } from "./club.service.js";
 
 const displayAllClubs = asyncHandler(async (req, res) => {
     const { id } = req.params;   // ✅ correct extraction
@@ -66,7 +66,6 @@ const deleteClub = asyncHandler(async (req, res) => {
 
 const display_all_Club_basedOn_user_district = asyncHandler(async (req, res) => {
     const user = req.user;
-    console.log(user,"--------")
     if (!user) {
         throw new AppError("User not authenticated", 401);
     }
@@ -86,11 +85,40 @@ const display_all_Club_basedOn_user_district = asyncHandler(async (req, res) => 
     );
 });
 
+const apply_club = asyncHandler(async (req, res) => {
+    const {id} = req.params;
+    const userID = req.user._id;  
+    await apply_club_service(id, userID);
+    return res.status(200).json(
+        new ApiResponse(200, null, "Club apply successfully")
+    )
+})
+
+const approve_join_club = asyncHandler(async (req, res) => {
+    await approve_join_club_service();
+    return res.status(200).json(new ApiResponse(200, null, "Club approve successfully"));
+})
+
+const apply_leave = asyncHandler(async (req, res) => {
+    await apply_leave_service();
+    return res.status(200).json(new ApiResponse(200, null, "Club leave apply successfully"));
+})
+
+const approve_leave_club = asyncHandler(async (req, res) => {
+    await approve_leave_club_service();
+    return res.status(200).json(new ApiResponse(200, null, "Club approve successfully"));
+})
+
+
 export {
     displayAllClubs,
     createNewClub,
     displaySingleClub,
     updateClub,
     deleteClub,
-    display_all_Club_basedOn_user_district
+    display_all_Club_basedOn_user_district,
+    apply_club,
+    approve_join_club,
+    apply_leave,
+    approve_leave_club
 }

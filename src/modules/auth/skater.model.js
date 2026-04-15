@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { BaseAuth } from "./baseAuth.model.js";
+import { type } from "node:os";
 
 const skaterSchema = new mongoose.Schema({
   photo: {
@@ -46,6 +47,11 @@ const skaterSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "Club",
     // required: true,
+  },
+  clubStatus: {
+    type: String,
+    enum: ["apply", "join", "leave"],
+    default: "apply"
   },
 
   parent: {

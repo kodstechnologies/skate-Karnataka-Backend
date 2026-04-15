@@ -52,6 +52,9 @@ const eventSchema = new mongoose.Schema(
       type: String,
       enum: ["coming_soon", "active", "cancelled", "completed"],
       default: "coming_soon"
+    }, 
+    entryFee :{
+      type: String,
     }
   },
   {

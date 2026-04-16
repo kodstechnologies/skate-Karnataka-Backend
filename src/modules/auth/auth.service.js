@@ -1,4 +1,4 @@
-import { isExistEmail, checkOtp, deleteAccount, generateOtp, GetDigitalIDCardDetaisl, getSupportContact, getUserProfile, registerUser, removeFirebaseTokenAndRefressToken, saveFirebaseToken, toggleNotification, removeOldEmailOtp, removeOldPhoneOtp, saveEmailOtp, savePhoneOTP, checkEmailOTP, checkPhoneOTP, isExistPhone, removeOldKRSAIdOtp, saveKRSAIdOTP, isExistKSRAId, isExist, afterLoginSkaterFormRepositories, afterLoginClubFormRepositories, afterLoginGuestFormRepositories, afterLoginParentFormRepositories, afterLoginSchoolFormRepositories, afterLoginOfficialFormRepositories, get_skater_profile_repositories } from "./auth.repositories.js";
+import { isExistEmail, checkOtp, deleteAccount, GetDigitalIDCardDetaisl, getSupportContact, getUserProfile, registerUser, removeFirebaseTokenAndRefressToken, saveFirebaseToken, toggleNotification, removeOldEmailOtp, removeOldPhoneOtp, saveEmailOtp, savePhoneOTP, checkEmailOTP, checkPhoneOTP, isExistPhone, removeOldKRSAIdOtp, saveKRSAIdOTP, isExistKSRAId, isExist, afterLoginSkaterFormRepositories, afterLoginClubFormRepositories, afterLoginGuestFormRepositories, afterLoginParentFormRepositories, afterLoginSchoolFormRepositories, afterLoginOfficialFormRepositories, get_skater_profile_repositories, get_skater_digital_id_card_repositories } from "./auth.repositories.js";
 import { generateAccessToken, generateRandomNumber, generateRefreshToken } from "../../util/token/token.js";
 import { AppError } from "../../util/common/AppError.js";
 import { sendOTPToEmail } from "../../util/otp/emailOtp.js";
@@ -153,6 +153,10 @@ const afterLoginFormSkaterService = async (data, id) => {
 const get_skater_profile_service = async(id) =>{
     return await get_skater_profile_repositories(id);
 }
+
+const get_skater_digital_id_card_service = async(id) =>{
+    return get_skater_digital_id_card_repositories(id);
+}
 // ==============================================
 const afterLoginFormClubService = async (data, id) => {
     // console.log(data, "---")
@@ -214,9 +218,10 @@ export {
     verifyPhoneOTPService,
     LoginUserService,
     VerifyOTPService,
-    // =====================================
+    // ===================================== skater 
     afterLoginFormSkaterService,
     get_skater_profile_service,
+    get_skater_digital_id_card_service,
     // ========================================
     afterLoginFormClubService,
     afterLoginFormGuestService,

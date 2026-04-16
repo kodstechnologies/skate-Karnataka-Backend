@@ -143,6 +143,12 @@ const get_skater_profile_repositories = async (id) => {
     console.log(profile, "profile ...");
     return profile;
 };
+
+const get_skater_digital_id_card_repositories = async (id) => {
+    const profile = await Skater.findById(id).select("createdAt photo fullName krsaId dob category club").populate("club", "name").lean();
+    console.log(profile, "profile ...");
+    return profile;
+}
 // ================================================================
 const afterLoginClubFormRepositories = async (data, id) => {
     const updated = await Academy.findOneAndUpdate(
@@ -316,6 +322,7 @@ export {
     // ====================================
     afterLoginSkaterFormRepositories,
     get_skater_profile_repositories,
+    get_skater_digital_id_card_repositories,
     // =========================================
     afterLoginClubFormRepositories,
     afterLoginGuestFormRepositories,

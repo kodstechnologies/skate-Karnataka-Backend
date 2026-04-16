@@ -1,6 +1,6 @@
 import express from "express";
 import { authenticate } from "../../middleware/authMiddleware.js";
-import { afterLoginClubForm, afterLoginGuestForm, afterLoginOfficialForm, afterLoginParentForm, afterLoginSchoolForm, afterLoginSkaterForm, ContactSupport, DeleteUser, GetAchievements, GetDigitalIDCard, GetRankings, GetSkaterProfile, GetUserProfile, LoginUser, LogoutUser, RefreshToken, RegisterUser, sendEmailOTP, sendPhoneOTP, ToggleNotifications, UpdateUserProfile, verifyEmailOTP, VerifyOTP, verifyPhoneOTP } from "./auth.controller.js";
+import { afterLoginClubForm, afterLoginGuestForm, afterLoginOfficialForm, afterLoginParentForm, afterLoginSchoolForm, afterLoginSkaterForm, ContactSupport, DeleteUser, GetAchievements, GetDigitalIDCard, GetRankings, GetSkaterDigitalIdCard, GetSkaterProfile, GetUserProfile, LoginUser, LogoutUser, RefreshToken, RegisterUser, sendEmailOTP, sendPhoneOTP, ToggleNotifications, UpdateUserProfile, verifyEmailOTP, VerifyOTP, verifyPhoneOTP } from "./auth.controller.js";
 import { afterLoginClubFormValidation, afterLoginGuestFormValidation, afterLoginOfficialFormValidation, afterLoginParentFormValidation, afterLoginSchoolFormValidation, afterLoginSkaterFormValidation, LoginValidation, LogoutValidation, RegisterValidation, sendEmailOTPValidation, sendPhoneOTPValidation, UpdateProfileValidation, verifyEmailOTPValidation, VerifyOTPValidation, verifyPhoneOTPValidation } from "./auth.validation.js";
 import { validateMultiple } from "../../middleware/validateMultiple.js";
 import { upload } from "../../middleware/multerMiddleware.js";
@@ -79,7 +79,7 @@ router.post("/verify-otp",
 // -========== login completed skater =====================
 
 router.post(
-  "/v1/after-login-skater-form/:id",
+  "/v1/skater/after-login-form/:id",
   upload.fields([
     { name: "img", maxCount: 1 },
     { name: "document", maxCount: 1 }
@@ -90,11 +90,15 @@ router.post(
 
 // profile ===
 
-
 router.get("/v1/skater/profile",
     authenticate(["Skater"]),
     GetSkaterProfile);
 
+// digital id card 
+
+router.get("/v1/skater/digital-id-card",
+    authenticate(["Skater"]),
+    GetSkaterDigitalIdCard);
 
 // -========== login completed club =====================
 

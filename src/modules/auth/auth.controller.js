@@ -1,6 +1,7 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { afterLoginFormClubService, afterLoginFormGuestService, afterLoginFormOfficialService, afterLoginFormParentService, afterLoginFormSchoolService, afterLoginFormSkaterService, ContactSupportService, DeleteUserService, get_skater_profile_service, GetDigitalIDCardService, GetUserProfileService, LoginUserService, LogoutUserService, RegisterUserService, sendEmailOTPService, sendPhoneOTPService, ToggleNotificationsService, UpdateUserProfileService, verifyEmailOTPService, VerifyOTPService, verifyPhoneOTPService } from "./auth.service.js";
+import { formatDate } from "../../util/time/timeUtil.js";
+import { afterLoginFormClubService, afterLoginFormGuestService, afterLoginFormOfficialService, afterLoginFormParentService, afterLoginFormSchoolService, afterLoginFormSkaterService, ContactSupportService, DeleteUserService, get_skater_digital_id_card_service, get_skater_profile_service, GetDigitalIDCardService, GetUserProfileService, LoginUserService, LogoutUserService, RegisterUserService, sendEmailOTPService, sendPhoneOTPService, ToggleNotificationsService, UpdateUserProfileService, verifyEmailOTPService, VerifyOTPService, verifyPhoneOTPService } from "./auth.service.js";
 
 const RegisterUser = asyncHandler(async (req, res) => {
     const result = await RegisterUserService(req.body);
@@ -113,15 +114,31 @@ const GetSkaterProfile = asyncHandler(async (req, res) => {
     console.log(id, "==id")
     const profile = await get_skater_profile_service(id);
     const response = {
-        name: profile?.fullName || "",
         img: profile?.photo || "",
+        name: profile?.fullName || "",
         krsaId: profile?.krsaId || "",
         discipline: profile?.discipline || "",
-        stateRank: profile?.stateRank || 0,     // 👈 if not in DB
-        goldMedals: profile?.goldMedals || 0,   // 👈 if not in DB
+        stateRank: profile?.stateRank || 0,     //working ...
+        goldMedals: profile?.goldMedals || 0,   //working ...
     };
 
     return res.status(200).json(new ApiResponse(200, response, "Skater profile display successfully"))
+})
+
+const GetSkaterDigitalIdCard = asyncHandler(async (req, res) => {
+    const id = req.user._id;
+    const profile = await get_skater_digital_id_card_service(id);
+    const response = {
+        img: profile?.photo || "",
+        name: profile?.fullName || "",
+        krsaId: profile?.krsaId || "",
+        dob: profile.dob ? formatDate(profile.dob) : "",
+        category: profile?.category || "",   
+        clubName: profile?.club?.name || "",
+        date : profile?.createdAt ? formatDate(profile.createdAt) : "", 
+    };
+
+    return res.status(200).json(new ApiResponse(200, response, "Skater digital ID generate successfully"))
 })
 
 // ====================== club ===================
@@ -303,7 +320,7 @@ export {
     // ============skater =============
     afterLoginSkaterForm,
     GetSkaterProfile,
-
+    GetSkaterDigitalIdCard,
     // =====================
     afterLoginClubForm,
     afterLoginGuestForm,

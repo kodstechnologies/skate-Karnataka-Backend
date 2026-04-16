@@ -83,6 +83,9 @@ const display_latest_event_repositories = async (userId) => {
         ? "State"
         : event.eventFor?.name || "N/A",
     status: event.status,
+    colorOne: event.colorOne,
+    colorTwo: event.colorTwo,
+    textColor: event.textColor,
   };
 };
 const create_event_repositories = async (data) => {
@@ -154,6 +157,9 @@ const display_all_event_based_on_user_repositories = async (userId, { page, limi
     date: event.date,
     address: event.address,
     eventType: event.eventType,
+    colorOne: event.colorOne,
+    colorTwo: event.colorTwo,
+    textColor: event.textColor,
 
     // 👇 get name dynamically
     eventForName:

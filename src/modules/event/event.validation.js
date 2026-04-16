@@ -33,6 +33,9 @@ const create_event_validation = {
         eventFor: Joi.string()
             .required(), // ObjectId (string format)
         entryFee: Joi.string().allow(""),
+        colorOne: Joi.string().allow(""),
+        colorTwo: Joi.string().allow(""),
+        textColor: Joi.string().allow(""),
 
     }),
 };
@@ -68,6 +71,9 @@ const update_event_validation = {
         status: Joi.string()
             .valid("coming_soon", "active", "cancelled", "completed"),
         entryFee: Joi.string().allow(""),
+        colorOne: Joi.string().allow(""),
+        colorTwo: Joi.string().allow(""),
+        textColor: Joi.string().allow(""),
     })
 
 

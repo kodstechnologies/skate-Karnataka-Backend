@@ -52,9 +52,22 @@ const eventSchema = new mongoose.Schema(
       type: String,
       enum: ["coming_soon", "active", "cancelled", "completed"],
       default: "coming_soon"
-    }, 
-    entryFee :{
+    },
+    entryFee: {
       type: String,
+    }
+    ,
+    colorOne: {
+      type: String,
+      default: "#6A11CB" // primary (purple)
+    },
+    colorTwo: {
+      type: String,
+      default: "#2575FC" // secondary (blue)
+    },
+    textColor: {
+      type: String,
+      default: "#FFFFFF" // white text (best for dark backgrounds)
     }
   },
   {

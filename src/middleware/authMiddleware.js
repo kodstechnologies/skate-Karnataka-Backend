@@ -18,7 +18,7 @@ export const authenticate = (allowedRoles = []) => {
           token = authHeader; // raw token
         }
       }
-      console.log(authHeader, "authHeader")
+      // console.log(authHeader, "authHeader")
       // 2️⃣ If not in header, check cookies
       if (!token && req.cookies?.access_token) {
         token = req.cookies.access_token;
@@ -27,12 +27,12 @@ export const authenticate = (allowedRoles = []) => {
       if (!token) {
         return next(new AppError("Access token missing", 401));
       }
-      console.log(token, "/////")
+      // console.log(token, "/////")
       // 3️⃣ Verify
       const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
-      console.log(decoded, "decoded")
+      // console.log(decoded, "decoded")
       const user = await BaseAuth.findById(decoded.id);
-      console.log(user, "user")
+      // console.log(user, "user")
       if (!user) {
         return next(new AppError("User not found", 401));
       }
@@ -42,7 +42,7 @@ export const authenticate = (allowedRoles = []) => {
         const userRole = (user.role || "").toLowerCase();
         const isAllowed = allowedRoles.some(role => role.toLowerCase() === userRole);
 
-        console.log(`[Auth] Path: ${req.path}, User: ${user._id}, Allowed: [${allowedRoles}], Actual: ${user.role}`);
+        // console.log(`[Auth] Path: ${req.path}, User: ${user._id}, Allowed: [${allowedRoles}], Actual: ${user.role}`);
 
         if (!isAllowed) {
           return next(new AppError("Forbidden: Insufficient permissions", 403));

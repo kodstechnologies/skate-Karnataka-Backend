@@ -115,9 +115,9 @@ const checkOtp = async (userData) => {
     return true;
 };
 
-
+// ======================================================================
 const afterLoginSkaterFormRepositories = async (data, id) => {
-    console.log(data,",,,,")
+    console.log(data, ",,,,")
     const updated = await Skater.findOneAndUpdate(
         { _id: id, role: "Skater" },
         {
@@ -138,6 +138,12 @@ const afterLoginSkaterFormRepositories = async (data, id) => {
     return updated;
 };
 
+const get_skater_profile_repositories = async (id) => {
+    const profile = await Skater.findById(id).select("photo fullName krsaId discipline").lean();
+    console.log(profile, "profile ...");
+    return profile;
+};
+// ================================================================
 const afterLoginClubFormRepositories = async (data, id) => {
     const updated = await Academy.findOneAndUpdate(
         { _id: id, role: "Academy" },
@@ -307,7 +313,10 @@ export {
     checkPhoneOTP,
     generateOtp,
     checkOtp,
+    // ====================================
     afterLoginSkaterFormRepositories,
+    get_skater_profile_repositories,
+    // =========================================
     afterLoginClubFormRepositories,
     afterLoginGuestFormRepositories,
     afterLoginParentFormRepositories,

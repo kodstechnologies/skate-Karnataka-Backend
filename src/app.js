@@ -18,7 +18,7 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use(cors({ origin: true, credentials: true }))
 
-app.get('/healthz', (req, res) => {
+app.get('/health', (req, res) => {
     res.send("Welcome to KRSA backend")
 })
 

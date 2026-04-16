@@ -1,6 +1,6 @@
 import express from "express";
 import { authenticate } from "../../middleware/authMiddleware.js";
-import { afterLoginClubForm, afterLoginGuestForm, afterLoginOfficialForm, afterLoginParentForm, afterLoginSchoolForm, afterLoginSkaterForm, ContactSupport, DeleteUser, GetAchievements, GetDigitalIDCard, GetRankings, GetUserProfile, LoginUser, LogoutUser, RefreshToken, RegisterUser, sendEmailOTP, sendPhoneOTP, ToggleNotifications, UpdateUserProfile, verifyEmailOTP, VerifyOTP, verifyPhoneOTP } from "./auth.controller.js";
+import { afterLoginClubForm, afterLoginGuestForm, afterLoginOfficialForm, afterLoginParentForm, afterLoginSchoolForm, afterLoginSkaterForm, ContactSupport, DeleteUser, GetAchievements, GetDigitalIDCard, GetRankings, GetSkaterProfile, GetUserProfile, LoginUser, LogoutUser, RefreshToken, RegisterUser, sendEmailOTP, sendPhoneOTP, ToggleNotifications, UpdateUserProfile, verifyEmailOTP, VerifyOTP, verifyPhoneOTP } from "./auth.controller.js";
 import { afterLoginClubFormValidation, afterLoginGuestFormValidation, afterLoginOfficialFormValidation, afterLoginParentFormValidation, afterLoginSchoolFormValidation, afterLoginSkaterFormValidation, LoginValidation, LogoutValidation, RegisterValidation, sendEmailOTPValidation, sendPhoneOTPValidation, UpdateProfileValidation, verifyEmailOTPValidation, VerifyOTPValidation, verifyPhoneOTPValidation } from "./auth.validation.js";
 import { validateMultiple } from "../../middleware/validateMultiple.js";
 import { upload } from "../../middleware/multerMiddleware.js";
@@ -87,6 +87,14 @@ router.post(
   validateMultiple(afterLoginSkaterFormValidation),
   afterLoginSkaterForm
 );
+
+// profile ===
+
+
+router.get("/v1/skater/profile",
+    authenticate(["Skater"]),
+    GetSkaterProfile);
+
 
 // -========== login completed club =====================
 
@@ -197,15 +205,6 @@ router.patch("/update-profile",
 router.delete("/delete",
     authenticate([]),
     DeleteUser);
-
-/**
- * @description Get user profile
- * @route GET /auth/profile
- * @access Private
- */
-router.get("/profile",
-    authenticate([]),
-    GetUserProfile);
 
 /**  
  * @description Get user digital ID card

@@ -1,6 +1,6 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { afterLoginFormClubService, afterLoginFormGuestService, afterLoginFormOfficialService, afterLoginFormParentService, afterLoginFormSchoolService, afterLoginFormSkaterService, ContactSupportService, DeleteUserService, GetDigitalIDCardService, GetUserProfileService, LoginUserService, LogoutUserService, RegisterUserService, sendEmailOTPService, sendPhoneOTPService, ToggleNotificationsService, UpdateUserProfileService, verifyEmailOTPService, VerifyOTPService, verifyPhoneOTPService } from "./auth.service.js";
+import { afterLoginFormClubService, afterLoginFormGuestService, afterLoginFormOfficialService, afterLoginFormParentService, afterLoginFormSchoolService, afterLoginFormSkaterService, ContactSupportService, DeleteUserService, get_skater_profile_service, GetDigitalIDCardService, GetUserProfileService, LoginUserService, LogoutUserService, RegisterUserService, sendEmailOTPService, sendPhoneOTPService, ToggleNotificationsService, UpdateUserProfileService, verifyEmailOTPService, VerifyOTPService, verifyPhoneOTPService } from "./auth.service.js";
 
 const RegisterUser = asyncHandler(async (req, res) => {
     const result = await RegisterUserService(req.body);
@@ -92,91 +92,109 @@ const VerifyOTP = asyncHandler(async (req, res) => {
             )
         );
 });
-
+// =================== skater =====================================
 const afterLoginSkaterForm = asyncHandler(async (req, res) => {
-    const {id}  = req.params;
-    await afterLoginFormSkaterService(req.body ,id);
+    const { id } = req.params;
+    await afterLoginFormSkaterService(req.body, id);
     return res
-    .status(200)
-    .json(
-        new ApiResponse(
-            200,
-            null,
-            "Skater form submitted successfully"
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                null,
+                "Skater form submitted successfully"
+            )
         )
-    )
 })
 
-const afterLoginClubForm = asyncHandler(async( req, res) =>{
+const GetSkaterProfile = asyncHandler(async (req, res) => {
+    console.log(req.user, "===========")
+    const id = req.user._id;
+    console.log(id, "==id")
+    const profile = await get_skater_profile_service(id);
+    const response = {
+        name: profile?.fullName || "",
+        img: profile?.photo || "",
+        krsaId: profile?.krsaId || "",
+        discipline: profile?.discipline || "",
+        stateRank: profile?.stateRank || 0,     // 👈 if not in DB
+        goldMedals: profile?.goldMedals || 0,   // 👈 if not in DB
+    };
+
+    return res.status(200).json(new ApiResponse(200, response, "Skater profile display successfully"))
+})
+
+// ====================== club ===================
+const afterLoginClubForm = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    console.log(req.body,"body");
+    console.log(req.body, "body");
     await afterLoginFormClubService(req.body, id);
     return res
-    .status(200)
-    .json(
-        new ApiResponse(
-            200,
-            null,
-            "Club from submitted successfully"
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                null,
+                "Club from submitted successfully"
+            )
         )
-    )
 })
 
-const afterLoginGuestForm = asyncHandler(async(req, res) =>{
-    console.log(req.body,"jjj")
-const {id} = req.params;
-await afterLoginFormGuestService(req.body, id);
-return res
-.status(200)
-.json(
-    new ApiResponse(
-        200,
-        null,
-        "Guest from submitted successfully"
-    )
-)
+const afterLoginGuestForm = asyncHandler(async (req, res) => {
+    console.log(req.body, "jjj")
+    const { id } = req.params;
+    await afterLoginFormGuestService(req.body, id);
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                null,
+                "Guest from submitted successfully"
+            )
+        )
 })
 
-const afterLoginParentForm = asyncHandler(async(req, res) =>{
-const {id} = req.params;
-await afterLoginFormParentService(req.body, id);
-return res
-.status(200)
-.json(
-    new ApiResponse(
-        200,
-        null,
-        "Parent from submitted successfully"
-    )
-)
+const afterLoginParentForm = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    await afterLoginFormParentService(req.body, id);
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                null,
+                "Parent from submitted successfully"
+            )
+        )
 })
 
-const afterLoginSchoolForm = asyncHandler(async(req, res) =>{
-const {id} = req.params;
-await afterLoginFormSchoolService(req.body, id);
-return res
-.status(200)
-.json(
-    new ApiResponse(
-        200,
-        null,
-        "Parent from submitted successfully"
-    )
-)
+const afterLoginSchoolForm = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    await afterLoginFormSchoolService(req.body, id);
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                null,
+                "Parent from submitted successfully"
+            )
+        )
 })
 
-const afterLoginOfficialForm = asyncHandler(async(req, res) =>{
-const {id} = req.params;
-await afterLoginFormOfficialService(req.body, id);
-return res
-.status(200)
-.json(
-    new ApiResponse(
-        200,
-        null,
-        "Official from submitted successfully"
-    )
-)
+const afterLoginOfficialForm = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    await afterLoginFormOfficialService(req.body, id);
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                null,
+                "Official from submitted successfully"
+            )
+        )
 })
 
 const RefreshToken = asyncHandler(async (req, res) => { });
@@ -269,6 +287,8 @@ const ContactSupport = asyncHandler(async (req, res) => {
         );
 });
 
+
+
 export {
     RegisterUser,
     sendEmailOTP,
@@ -279,7 +299,12 @@ export {
     VerifyOTP,
     RefreshToken,
     LogoutUser,
+
+    // ============skater =============
     afterLoginSkaterForm,
+    GetSkaterProfile,
+
+    // =====================
     afterLoginClubForm,
     afterLoginGuestForm,
     afterLoginParentForm,

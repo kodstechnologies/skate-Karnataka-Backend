@@ -125,6 +125,14 @@ const apply_leave_repository = async (skaterId) => {
         { new: true }
     );
 };
+
+const display_existing_club_repositories = async (id) => {
+    return await Skater.findById(id).select("club").populate(
+        "club",
+        "img name clubId districtName address about rank championships"
+    );
+};
+
 export {
     allClubsRepository,
     isExistClub,
@@ -139,5 +147,6 @@ export {
     apply_club_repositories,
     isApplyRepository,
     approve_join_club_repositories,
-    apply_leave_repository
+    apply_leave_repository,
+    display_existing_club_repositories
 }

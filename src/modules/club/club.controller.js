@@ -1,7 +1,7 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { AppError } from "../../util/common/AppError.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { allClubService, apply_club_service, apply_leave_service, approve_join_club_service, approve_leave_club_service, clubsByUserDistrictService, createClubService, deleteClubSchema, displaySingleClubService, updateClubDetailsService } from "./club.service.js";
+import { allClubService, apply_club_service, apply_leave_service, approve_join_club_service, approve_leave_club_service, clubsByUserDistrictService, createClubService, deleteClubSchema, display_existing_club_service, displaySingleClubService, updateClubDetailsService } from "./club.service.js";
 
 const displayAllClubs = asyncHandler(async (req, res) => {
     const { id } = req.params;   // ✅ correct extraction
@@ -111,6 +111,32 @@ const approve_leave_club = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, null, "Club approve successfully"));
 })
 
+const display_existing_club = asyncHandler(async (req, res) => {
+    const id = req.user._id;
+
+    const existingClub = await display_existing_club_service(id);
+
+    if (!existingClub) {
+        return res.status(404).json({
+            message: "Club not found",
+        });
+    }
+console.log(existingClub,"---")
+    const clubDetails = {
+        img: existingClub?.club?.img || "",
+        name: existingClub?.club?.name || "",
+        clubId: existingClub?.club?.clubId || "",
+        districtName: existingClub?.club?.districtName || "",
+        address: existingClub?.club?.address || "",
+        medals: existingClub?.club?.championships || "", // mapped
+        clubRank: existingClub?.club?.rank || "",        // mapped
+        about: existingClub?.club?.about || "",
+    };
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, clubDetails, "Club details fetched successfully"));
+});
 
 export {
     displayAllClubs,
@@ -122,5 +148,6 @@ export {
     apply_club,
     approve_join_club,
     apply_leave,
-    approve_leave_club
+    approve_leave_club,
+    display_existing_club,
 }

@@ -1,5 +1,5 @@
 import { AppError } from "../../util/common/AppError.js";
-import { allClubsRepository, apply_club_repositories, apply_leave_repository, approve_join_club_repositories, clubIdStoreinDestrict, clubsByDistrictPaginatedRepository, createClubRepository, deleteClubDetails, displayFullDetailsOfClub, isApplyRepository, isExistClub, isExistClubRepository, isThisClubExist, updateClubDetails } from "./club.repositories.js";
+import { allClubsRepository, apply_club_repositories, apply_leave_repository, approve_join_club_repositories, clubIdStoreinDestrict, clubsByDistrictPaginatedRepository, createClubRepository, deleteClubDetails, display_existing_club_repositories, displayFullDetailsOfClub, isApplyRepository, isExistClub, isExistClubRepository, isThisClubExist, updateClubDetails } from "./club.repositories.js";
 
 const allClubService = async (id) => {
     return await allClubsRepository(id);
@@ -92,6 +92,10 @@ const approve_leave_club_service = async () => {
 
 }
 
+const display_existing_club_service = async (id) =>{
+    return await display_existing_club_repositories(id);
+}
+
 export {
     allClubService,
     createClubService,
@@ -103,4 +107,5 @@ export {
     approve_join_club_service,
     apply_leave_service,
     approve_leave_club_service,
+    display_existing_club_service,
 }

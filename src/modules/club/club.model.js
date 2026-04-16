@@ -2,16 +2,23 @@ import mongoose from "mongoose";
 
 const clubSchema = new mongoose.Schema(
     {
+        clubId: {
+            type: String,
+            unique: true,
+        },
+
         district: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "District",
             required: [true, "District is required"],
             index: true,
         },
+
         districtName: {
             type: String,
-            trim: true
+            trim: true,
         },
+
         name: {
             type: String,
             required: [true, "Club name is required"],
@@ -47,9 +54,8 @@ const clubSchema = new mongoose.Schema(
             min: [0, "Skaters cannot be negative"],
         },
 
-        rank: {
-            type: Number,
-            min: [1, "Rank must be at least 1"],
+        medals: {
+             type: Number,
         },
 
         championships: {
@@ -60,5 +66,37 @@ const clubSchema = new mongoose.Schema(
     },
     { timestamps: true }
 );
+
+// ✅ Unique club name inside same district
 clubSchema.index({ name: 1, district: 1 }, { unique: true });
+
+
+// ✅ Pre-save hook for generating unique clubId
+clubSchema.pre("save", async function (next) {
+    try {
+        if (!this.clubId) {
+            let isUnique = false;
+            let generatedId;
+
+            while (!isUnique) {
+                const randomNumber = Math.floor(1000 + Math.random() * 9000); // 4 digit
+                generatedId = `KRSA-CLB-${randomNumber}`;
+
+                const existing = await mongoose.models.Club.findOne({ clubId: generatedId });
+
+                if (!existing) {
+                    isUnique = true;
+                }
+            }
+
+            this.clubId = generatedId;
+        }
+
+        next();
+    } catch (error) {
+        next(error);
+    }
+});
+
+
 export const Club = mongoose.model("Club", clubSchema);

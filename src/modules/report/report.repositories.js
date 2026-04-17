@@ -23,15 +23,16 @@ const create_report_repositories = async (skaterId, data, club) => {
     // console.log(report  ,"report====")
 }
 
-const solve_report_repositories = async (skaterID) => {
+
+
+const update_status_repositories = async (id, status) => {
     const solveReport = await Report.updateMany(
-        { skaterID },
+        { id },
         {
-            status: "solved"
+            status
         }
     );
 
-    return solveReport;
 };
 
 const get_skater_report_repositories = async (
@@ -70,4 +71,5 @@ export {
     get_club_id,
     create_report_repositories,
     get_skater_report_repositories,
+    update_status_repositories,
 }

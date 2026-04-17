@@ -13,6 +13,7 @@ const reportSchema = new mongoose.Schema(
     reportType: {
       type: String,
       required: true,
+      lowercase: true,
     },
 
     message: {
@@ -22,6 +23,12 @@ const reportSchema = new mongoose.Schema(
 
     clubName: {
       type: String,
+    },
+    skaterName: {
+      type: String,
+    },
+    districtName: {
+      type: String
     },
 
     krsaId: {
@@ -33,6 +40,18 @@ const reportSchema = new mongoose.Schema(
       enum: ["pending", "solved", "unsolved"],
       default: "pending",
     },
+    idClub: {
+      type: Boolean,
+      default: false
+    },
+    isDistrict: {
+      type: Boolean,
+      default: false
+    },
+    isState: {
+      type: Boolean,
+      default: false
+    }
   },
   {
     timestamps: true,

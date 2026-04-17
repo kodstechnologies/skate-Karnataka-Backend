@@ -5,6 +5,8 @@ const create_report_validation = {
         reportType: Joi.string().required(),
         message: Joi.string().required(),
         clubName: Joi.string().allow(""),
+        skaterName: Joi.string().allow(""),
+        districtName: Joi.string().allow(""),
         krsaId: Joi.string().allow(""),
     }),
 }

@@ -52,19 +52,19 @@ const clubSchema = new mongoose.Schema(
       min: 0,
     },
 
-    medals: {
+    Rank: {
       type: Number,
       default: 0,
       min: 0,
     },
 
-    events: {
+    Championship: {
       type: Number,
       default: 0,
       min: 0,
     },
   },
-  { timestamps: true }
+
 );
 
 
@@ -120,4 +120,5 @@ clubSchema.set("toJSON", { virtuals: true });
 clubSchema.set("toObject", { virtuals: true });
 
 
+// export const Skater = BaseAuth.discriminator("Skater", skaterSchema);
 export const Club = mongoose.model("Club", clubSchema);

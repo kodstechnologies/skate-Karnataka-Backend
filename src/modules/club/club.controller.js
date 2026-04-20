@@ -32,10 +32,25 @@ const createNewClub = asyncHandler(async (req, res) => {
 const displaySingleClub = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const clubDetails = await displaySingleClubService(id);
+
+    const formattedClubDetails = {
+        id: String(clubDetails._id),
+        district: clubDetails.district,
+        districtName: clubDetails.districtName,
+        name: clubDetails.name,
+        img: clubDetails.img || "",
+        address: clubDetails.address || "",
+        about: clubDetails.about || "",
+        skaters: clubDetails.skaters ?? 0,
+        rank: clubDetails.rank ?? 0,
+        championships: clubDetails.championships ?? 0,
+        clubId: clubDetails.clubId || "",
+    };
+
     return res.status(200).json(
         new ApiResponse(
             200,
-            clubDetails,
+            formattedClubDetails,
             "Display single club detail"
         )
     )

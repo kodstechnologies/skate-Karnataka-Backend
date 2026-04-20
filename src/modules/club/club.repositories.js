@@ -9,7 +9,7 @@ const allClubsRepository = async (id) => {
     return await District.findById(id)
         .populate({
             path: "club",
-            select: "name img" // ✅ only fetch club name
+            select: "name img address" // ✅ only fetch club name
         });
 };
 

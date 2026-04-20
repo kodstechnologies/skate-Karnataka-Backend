@@ -5,7 +5,7 @@ import {
     ADMIN_PHONE_NO,
     ADMIN_EMAIL,
 } from "../config/envConfig.js";
-import { Admin } from "../modules/auth/admin.model.js";
+import { Admin } from "../modules/admin/admin.model.js";
 
 
 async function checkAdmin() {

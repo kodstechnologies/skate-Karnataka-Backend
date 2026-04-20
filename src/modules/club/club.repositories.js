@@ -1,7 +1,8 @@
 import { paginate } from "../../util/common/paginate.js";
 import { BaseAuth } from "../auth/baseAuth.model.js";
-import { Skater } from "../auth/skater.model.js";
+// import { Skater } from "../auth/skater.model.js";
 import { District } from "../district/district.model.js";
+import { Skater } from "../skater/skater.model.js";
 import { Club } from "./club.model.js";
 
 const allClubsRepository = async (id) => {

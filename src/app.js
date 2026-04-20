@@ -1,11 +1,20 @@
 import express from "express";
 import cors from "cors";
-import authRouter from "./modules/auth/auth.router.js"
-import coachRouter from "./modules/coach/router/coach.router.js"
-import competitionsRouter from "./modules/competition/router/competition.router.js"
+import authRouter from "./modules/auth/auth.router.js";
+// === roles ===
+import skaterRouter from "./modules/skater/skater.router.js";
+import academyRouter from "./modules/academy/academy.router.js";
+import adminRouter from "./modules/admin/admin.router.js";
+import guestRouter from "./modules/guest/guest.router.js";
+import officialRouter from "./modules/official/official.router.js";
+import parentRouter from "./modules/parent/parent.router.js";
+import schoolRouter from "./modules/school/school.router.js";
+// ==
+// import coachRouter from "./modules/coach/coach.router.js"
+import competitionsRouter from "./modules/competition/competition.router.js";
 import eventsRouter from "./modules/event/event.router.js";
-import galleryRouter from "./modules/gallery/router/gallery.router.js"
-import notificationRouter from "./modules/notification/router/notefication.router.js"
+import galleryRouter from "./modules/gallery/gallery.router.js";
+import notificationRouter from "./modules/notification/notefication.router.js"
 import clubRouter from "./modules/club/club.router.js";
 import districtRouter from "./modules/district/district.router.js";
 import stateRouter from "./modules/state/state.router.js";
@@ -25,7 +34,15 @@ app.get('/health', (req, res) => {
 })
 
 app.use("/auth", authRouter);
-app.use("/coach", coachRouter);
+app.use("/skater", skaterRouter);
+app.use("/academy", academyRouter);
+app.use("/admin", adminRouter);
+app.use("/guest", guestRouter);
+app.use("/official", officialRouter);
+app.use("/parent", parentRouter);
+app.use("/school", schoolRouter);
+
+// app.use("/coach", coachRouter);
 app.use("/club", clubRouter);
 app.use("/district", districtRouter);
 app.use("/state",stateRouter);

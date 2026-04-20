@@ -1,8 +1,9 @@
-import { isExistEmail, checkOtp, deleteAccount, GetDigitalIDCardDetaisl, getSupportContact, getUserProfile, registerUser, removeFirebaseTokenAndRefressToken, saveFirebaseToken, toggleNotification, removeOldEmailOtp, removeOldPhoneOtp, saveEmailOtp, savePhoneOTP, checkEmailOTP, checkPhoneOTP, isExistPhone, removeOldKRSAIdOtp, saveKRSAIdOTP, isExistKSRAId, isExist, afterLoginSkaterFormRepositories, afterLoginClubFormRepositories, afterLoginGuestFormRepositories, afterLoginParentFormRepositories, afterLoginSchoolFormRepositories, afterLoginOfficialFormRepositories, get_skater_profile_repositories, get_skater_digital_id_card_repositories } from "./auth.repositories.js";
+
 import { generateAccessToken, generateRandomNumber, generateRefreshToken } from "../../util/token/token.js";
 import { AppError } from "../../util/common/AppError.js";
 import { sendOTPToEmail } from "../../util/otp/emailOtp.js";
 import { sendOTPToPhone } from "../../util/otp/phoneOtp.js";
+import {checkEmailOTP, isExistEmail, isExistPhone, registerUser_repositories, removeOldPhoneOtp, saveEmailOtp, savePhoneOTP} from "./auth.repositories.js";
 
 const RegisterUserService = async (userData) => {
     const { email, phone } = userData;
@@ -11,7 +12,7 @@ const RegisterUserService = async (userData) => {
     if ((isEmail !== null) || (idPhone !== null)) {
         throw new AppError("User already exists", 409);
     }
-    const user = await registerUser(userData);
+    const user = await registerUser_repositories(userData);
     return user._id;
 };
 
@@ -145,53 +146,18 @@ const VerifyOTPService = async (userData) => {
 
     return { userId: userData.userId, verify: user.verify, role: user.role, krsaId: user.krsaId, accessToken, refreshToken };
 };
-// ======================================
-const afterLoginFormSkaterService = async (data, id) => {
-    await afterLoginSkaterFormRepositories(data, id);
-}
 
-const get_skater_profile_service = async(id) =>{
-    return await get_skater_profile_repositories(id);
-}
 
-const get_skater_digital_id_card_service = async(id) =>{
-    return get_skater_digital_id_card_repositories(id);
-}
-// ==============================================
-const afterLoginFormClubService = async (data, id) => {
-    // console.log(data, "---")
-    await afterLoginClubFormRepositories(data, id);
-}
 
-const afterLoginFormGuestService = async (data, id) => {
-    await afterLoginGuestFormRepositories(data, id);
-}
 
-const afterLoginFormParentService = async (data, id) => {
-    await afterLoginParentFormRepositories(data, id);
 
-}
-
-const afterLoginFormSchoolService = async (data, id) => {
-    await afterLoginSchoolFormRepositories(data, id);
-
-}
-
-const afterLoginFormOfficialService = async (data, id) => {
-     await afterLoginOfficialFormRepositories(data, id); 
-}
 
 const RefreshTokenService = async (req, res) => { };
 const LogoutUserService = async (userData) => {
     console.log("🚀 ~ LogoutUserService ~ userData:", userData)
     await removeFirebaseTokenAndRefressToken({ ...userData, firebaseToken: null });
 };
-const UpdateUserProfileService = async (userData, updateData) => {
-};
-const DeleteUserService = async (userData) => {
-    console.log("🚀 ~ DeleteUserService ~ userData:", userData._id)
-    await deleteAccount(userData._id);
-};
+
 const GetUserProfileService = async (userData) => {
     const profile = await getUserProfile(userData._id);
     console.log("🚀 ~ GetUserProfileService ~ profile:", profile)
@@ -218,20 +184,15 @@ export {
     verifyPhoneOTPService,
     LoginUserService,
     VerifyOTPService,
-    // ===================================== skater 
-    afterLoginFormSkaterService,
-    get_skater_profile_service,
-    get_skater_digital_id_card_service,
-    // ========================================
-    afterLoginFormClubService,
-    afterLoginFormGuestService,
-    afterLoginFormParentService,
-    afterLoginFormSchoolService,
-    afterLoginFormOfficialService,
+
+    // afterLoginFormClubService,
+    // afterLoginFormGuestService,
+    // afterLoginFormParentService,
+    // afterLoginFormSchoolService,
+    // afterLoginFormOfficialService,
     RefreshTokenService,
     LogoutUserService,
-    UpdateUserProfileService,
-    DeleteUserService,
+ 
     GetUserProfileService,
     GetDigitalIDCardService,
     GetAchievementsService,

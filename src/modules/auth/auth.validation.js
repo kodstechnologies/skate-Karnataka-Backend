@@ -1,9 +1,6 @@
 import Joi from "joi";
 import mongoose from "mongoose";
 
-/**
- * REGISTER VALIDATION
- */
 const RegisterValidation = {
     body: Joi.object({
         fullName: Joi.string()
@@ -139,9 +136,6 @@ const verifyPhoneOTPValidation = {
     }),
 };
 
-/**
- * LOGIN VALIDATION
- */
 const LoginValidation = {
     body: Joi.object({
         identifier: Joi.string()
@@ -157,10 +151,6 @@ const LoginValidation = {
             }),
     })
 };
-/**
- * VERIFY OTP VALIDATION
- */
-
 const VerifyOTPValidation = {
     body: Joi.object({
         userId: Joi.string()
@@ -186,78 +176,6 @@ const VerifyOTPValidation = {
 
         firebaseToken: Joi.string().allow("").optional()
     })
-};
-
-const afterLoginSkaterFormValidation = {
-    body: Joi.object({
-        fullName: Joi.string().min(2).max(100),
-        phone: Joi.string(),
-        rsfiId: Joi.string().allow("").optional(),
-
-        dob: Joi.date(),
-
-        aadharNumber: Joi.string()
-            .pattern(/^[0-9]{12}$/)
-        ,
-
-        gender: Joi.string()
-            .valid("male", "female", "other")
-        ,
-
-        category: Joi.string(),
-        discipline: Joi.string(),
-
-        address: Joi.string().max(200),
-
-        district: Joi.string(), // ObjectId (string)
-        club: Joi.string(),     // ObjectId (string)
-
-        parent: Joi.string(),
-
-        bloodGroup: Joi.string()
-            .valid("A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-")
-        ,
-
-        school: Joi.string(),
-        grade: Joi.string(),
-
-        signature: Joi.string().allow("").optional()
-    })
-};
-
-const afterLoginClubFormValidation = {
-    body: Joi.object({
-
-        clubName: Joi.string().trim(),
-        ROSNumber: Joi.string().trim().allow(""),
-        district: Joi.string().trim(),
-        RegistrationAddress: Joi.string().trim(),
-
-        presidentName: Joi.string().trim(),
-        presidentNumber: Joi.string().pattern(/^[0-9]{10}$/),
-
-        secretaryName: Joi.string().trim(),
-        secretaryNumber: Joi.string().pattern(/^[0-9]{10}$/),
-
-        tenacitySkaters: Joi.string(),
-        recreationalSkaters: Joi.string(),
-        QuadSkaters: Joi.string(),
-        ProInlineSkaters: Joi.string(),
-
-        trackAddress: Joi.string().trim(),
-        trackMeasurements: Joi.string().trim(),
-        // numberOfTrainers: Joi.number().integer().min(0),
-
-        noOfTrainers: Joi.string(),
-        trainerCertification: Joi.string().trim().allow(""),
-
-        documents: Joi.array().items(
-            Joi.object({
-                url: Joi.string().uri().allow(""),
-                name: Joi.string().allow(""),
-            })
-        ),
-    }).min(1), // ✅ at least one field required
 };
 
 const afterLoginGuestFormValidation = {
@@ -307,116 +225,6 @@ const afterLoginGuestFormValidation = {
     })
 };
 
-const afterLoginParentFormValidation = {
-
-}
-
-const afterLoginOfficialFormValidation = {
-    body: Joi.object({
-
-        fullName: Joi.string()
-            .trim()
-            .min(3)
-            .max(50)
-
-            .messages({
-                "string.empty": "Full name is required",
-                "string.min": "Full name must be at least 3 characters long",
-                "string.max": "Full name cannot exceed 50 characters",
-                "any.required": "Full name is required",
-            }),
-
-        district: Joi.string()
-            .pattern(/^[0-9a-fA-F]{24}$/)
-
-            .messages({
-                "string.pattern.base": "District must be a valid ObjectId",
-                "any.required": "District is required",
-            }),
-
-        club: Joi.string()
-            .pattern(/^[0-9a-fA-F]{24}$/)
-
-            .messages({
-                "string.pattern.base": "Club must be a valid ObjectId",
-                "any.required": "Club is required",
-            }),
-
-        experience: Joi.number().min(0).max(50).messages({
-            "number.base": "Experience must be a number",
-        }),
-
-        technicalTrainingCourse: Joi.string().allow(""),
-
-        coachingExperience: Joi.string().allow(""),
-
-        isSkater: Joi.string().allow(""),
-        skaterDetails: Joi.string().allow(""),
-        isOfficiating: Joi.string().allow(""),
-        officiatingDetails: Joi.string().allow(""),
-        conductingClasses: Joi.string().allow(""),
-        conductingClassesDetails: Joi.string().allow(""),
-
-        coaching: Joi.string().allow(""),
-        officiating: Joi.string().allow(""),
-
-        officialContactNumber: Joi.string().allow(""),
-        officialEmail: Joi.string().allow(""),
-
-    })
-
-};
-
-const afterLoginSchoolFormValidation = {
-    body: Joi.object({
-        schoolName: Joi.string().min(3).max(100),
-
-        board: Joi.string().allow("").max(50),
-        // ✅ NEW district validation
-        district: Joi.string()
-            .pattern(/^[0-9a-fA-F]{24}$/)
-            .messages({
-                "string.pattern.base": "District must be a valid ObjectId",
-            }),
-
-        // ✅ NEW address validation
-        address: Joi.string().max(200).allow(""),
-
-        principalName: Joi.string().allow("").max(100),
-
-        schoolEmail: Joi.string().email().allow(""),
-
-        schoolContactNumber: Joi.string()
-            .pattern(/^[6-9]\d{9}$/)
-            .allow(""),
-
-
-        skatingInfraAvailable: Joi.string(),
-
-        skatingInfraInfo: Joi.string().allow("").max(200),
-
-        lookingForSkatingService: Joi.string(),
-
-        lookingForSkatingCoach: Joi.string(),
-
-        skatingCoachInfo: Joi.string().allow("").max(200),
-        coachName: Joi.string(),
-        coachGender: Joi.string(),
-        coachContact: Joi.string(),
-        coachCertificates: Joi.string(),
-        certifiedBy: Joi.string(),
-        documents: Joi.array().items(
-            Joi.object({
-                url: Joi.string().uri().required(),
-                name: Joi.string().allow(""),
-            })
-        ),
-
-    })
-};
-
-
-
 const LogoutValidation = {
     body: Joi.object({
         refreshTokens: Joi.string().required(),
@@ -424,43 +232,22 @@ const LogoutValidation = {
     })
 };
 
-/**
- * REFRESH TOKEN VALIDATION
- */
 const RefreshTokenValidation = {
     body: Joi.object({
         refreshToken: Joi.string().required()
     })
 };
 
-/**
- * UPDATE PROFILE VALIDATION
- */
-const UpdateProfileValidation = {
-    body: Joi.object({
-        fullName: Joi.string().min(3).max(50).optional(),
-        dob: Joi.date().iso().optional(),
-        district: Joi.string().optional(),
-        email: Joi.string().email().optional(),
-        photo: Joi.string().optional()
-    })
-};
 
 export {
-    RegisterValidation,
-    sendEmailOTPValidation,
-    verifyEmailOTPValidation,
-    sendPhoneOTPValidation,
-    verifyPhoneOTPValidation,
-    LoginValidation,
-    VerifyOTPValidation,
-    afterLoginSkaterFormValidation,
-    afterLoginClubFormValidation,
-    afterLoginGuestFormValidation,
-    afterLoginParentFormValidation,
-    afterLoginOfficialFormValidation,
-    afterLoginSchoolFormValidation,
-    LogoutValidation,
-    RefreshTokenValidation,
-    UpdateProfileValidation
+   RegisterValidation,
+   sendEmailOTPValidation,
+   verifyEmailOTPValidation,
+   sendPhoneOTPValidation,
+   verifyPhoneOTPValidation,
+   LoginValidation,
+   VerifyOTPValidation,
+   afterLoginGuestFormValidation,
+   LogoutValidation,
+   RefreshTokenValidation,
 }

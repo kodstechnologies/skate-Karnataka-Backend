@@ -3,7 +3,7 @@ import { generateAccessToken, generateRandomNumber, generateRefreshToken } from 
 import { AppError } from "../../util/common/AppError.js";
 import { sendOTPToEmail } from "../../util/otp/emailOtp.js";
 import { sendOTPToPhone } from "../../util/otp/phoneOtp.js";
-import {checkEmailOTP, isExistEmail, isExistPhone, registerUser_repositories, removeOldPhoneOtp, saveEmailOtp, savePhoneOTP} from "./auth.repositories.js";
+import {checkEmailOTP, checkOtp, isExist, isExistEmail, isExistPhone, registerUser_repositories, removeOldEmailOtp, removeOldPhoneOtp, saveEmailOtp, saveFirebaseToken, savePhoneOTP} from "./auth.repositories.js";
 
 const RegisterUserService = async (userData) => {
     const { email, phone } = userData;

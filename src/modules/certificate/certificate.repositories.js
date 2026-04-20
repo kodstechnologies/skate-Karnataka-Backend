@@ -25,7 +25,7 @@ const display_all_certificate_repositories = async (id, page, limit) => {
     const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
 
     const [data, total] = await Promise.all([
-        Certificate.find({ winnerKRSAId: id }).select("name certificateID division request clubAllow districtAllow stateAllow")
+        Certificate.find({ winnerKRSAId: id }).select("winnerKRSAId name certificateID division request clubAllow districtAllow stateAllow")
             .skip(skip)
             .sort({createdAt: -1})
             .limit(pageLimit),

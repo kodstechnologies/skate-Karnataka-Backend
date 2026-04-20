@@ -11,7 +11,7 @@ const clubSchema = new mongoose.Schema(
     district: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "District",
-      required: [true, "District is required"],
+      required: true,
       index: true,
     },
 
@@ -22,105 +22,104 @@ const clubSchema = new mongoose.Schema(
 
     name: {
       type: String,
-      required: [true, "Club name is required"],
+      required: true,
       trim: true,
-      minlength: [2, "Name must be at least 2 characters"],
-      maxlength: [100, "Name cannot exceed 100 characters"],
+      minlength: 2,
+      maxlength: 100,
     },
 
     img: {
       type: String,
       default: "",
-      match: [
-        /^(https?:\/\/.*\.(?:png|jpg|jpeg|webp))?$/,
-        "Please use a valid image URL",
-      ],
+      match: [/^(https?:\/\/.*\.(png|jpg|jpeg|webp))?$/, "Invalid image URL"],
     },
 
     address: {
       type: String,
       trim: true,
-      maxlength: [200, "Address too long"],
+      maxlength: 200,
     },
 
     about: {
       type: String,
       trim: true,
-      maxlength: [500, "About section max 500 characters"],
+      maxlength: 500,
     },
 
     skaters: {
       type: Number,
       default: 0,
-      min: [0, "Skaters cannot be negative"],
+      min: 0,
     },
 
     medals: {
       type: Number,
       default: 0,
+      min: 0,
     },
 
     events: {
       type: Number,
       default: 0,
-      min: [0, "Championships cannot be negative"],
+      min: 0,
     },
   },
   { timestamps: true }
 );
 
 
-// ✅ Unique club name inside same district
+// ✅ Unique club per district
 clubSchema.index({ name: 1, district: 1 }, { unique: true });
 
 
-// ✅ Auto set districtName
+// ✅ Auto set districtName (optimized)
 clubSchema.pre("save", async function (next) {
-  try {
-    if (this.district && !this.districtName) {
-      const district = await mongoose.models.District.findById(this.district);
-      if (district) {
-        this.districtName = district.name;
-      }
-    }
-    next();
-  } catch (err) {
-    next(err);
+  if (!this.isModified("district")) return next();
+
+  const district = await mongoose.models.District
+    .findById(this.district)
+    .select("name")
+    .lean();
+
+  if (district) {
+    this.districtName = district.name;
   }
+
+  next();
 });
 
 
-// ✅ Safe unique clubId generator
+// ✅ Generate unique clubId (optimized)
 clubSchema.pre("save", async function (next) {
-  try {
-    if (!this.clubId) {
-      let generatedId;
-      let exists = true;
+  if (this.clubId) return next();
 
-      while (exists) {
-        const random = Math.floor(1000 + Math.random() * 9000);
-        generatedId = `KRSA-CLB-${random}`;
+  let exists = true;
 
-        exists = await mongoose.models.Club.exists({ clubId: generatedId });
-      }
+  while (exists) {
+    const random = Math.floor(1000 + Math.random() * 9000);
+    const generatedId = `KRSA-CLB-${random}`;
 
+    exists = await mongoose.models.Club.exists({ clubId: generatedId });
+
+    if (!exists) {
       this.clubId = generatedId;
     }
-
-    next();
-  } catch (error) {
-    next(error);
   }
+
+  next();
 });
 
 
-// ✅ Virtual field (BEST PRACTICE instead of storing skaters)
+// ✅ Virtual (enable in JSON)
 clubSchema.virtual("skaterCount", {
   ref: "BaseAuth",
   localField: "_id",
   foreignField: "club",
   count: true,
 });
+
+clubSchema.set("toJSON", { virtuals: true });
+clubSchema.set("toObject", { virtuals: true });
 
 
 export const Club = mongoose.model("Club", clubSchema);

@@ -1,14 +1,13 @@
 import mongoose from "mongoose";
 import { generateRandomNumber } from "../../util/token/token.js";
-import { Academy } from "./academy.model.js";
 import { BaseAuth } from "./baseAuth.model.js";
 import { Otp } from "./otp.model.js";
-import { Skater } from "./skater.model.js";
-import { Guest } from "./guest.model.js";
-import { School } from "./school.model.js";
-import { Official } from "./official.model.js";
+// import { Skater } from "./skater.model.js";
+// import { Guest } from "./guest.model.js";
+// import { School } from "./school.model.js";
+// import { Official } from "./official.model.js";
 
-const registerUser = async (userData) => {
+const registerUser_repositories = async (userData) => {
     const user = await new BaseAuth(userData).save();
     return user;
 };
@@ -325,7 +324,7 @@ const getSupportContact = async (userData) => {
 }
 
 export {
-    registerUser,
+    registerUser_repositories,
     isExistEmail,
     isExistPhone,
     isExistKSRAId,

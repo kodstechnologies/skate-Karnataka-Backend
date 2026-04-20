@@ -1,10 +1,9 @@
 import express from "express";
-import { authenticate } from "../../middleware/authMiddleware.js";
-import { afterLoginClubForm, afterLoginGuestForm, afterLoginOfficialForm, afterLoginParentForm, afterLoginSchoolForm, afterLoginSkaterForm, ContactSupport, DeleteUser, GetAchievements, GetDigitalIDCard, GetRankings, GetUserProfile, LoginUser, LogoutUser, RefreshToken, RegisterUser, sendEmailOTP, sendPhoneOTP, ToggleNotifications, UpdateUserProfile, verifyEmailOTP, VerifyOTP, verifyPhoneOTP } from "./auth.controller.js";
-import { afterLoginClubFormValidation, afterLoginGuestFormValidation, afterLoginOfficialFormValidation, afterLoginParentFormValidation, afterLoginSchoolFormValidation, afterLoginSkaterFormValidation, LoginValidation, LogoutValidation, RegisterValidation, sendEmailOTPValidation, sendPhoneOTPValidation, UpdateProfileValidation, verifyEmailOTPValidation, VerifyOTPValidation, verifyPhoneOTPValidation } from "./auth.validation.js";
-import { validateMultiple } from "../../middleware/validateMultiple.js";
-import { upload } from "../../middleware/multerMiddleware.js";
-
+import { authenticate } from "../../middleware/auth.middleware.js";
+import {ContactSupport, GetAchievements, GetRankings, LoginUser, LogoutUser, RefreshToken, RegisterUser, sendEmailOTP, sendPhoneOTP, ToggleNotifications, verifyEmailOTP, VerifyOTP, verifyPhoneOTP} from "./auth.controller.js";
+import { validateMultiple } from "../../middleware/validate.multiple.js";
+import { upload } from "../../middleware/multer.middleware.js";
+import {LogoutValidation, RegisterValidation, sendEmailOTPValidation, sendPhoneOTPValidation, verifyEmailOTPValidation, VerifyOTPValidation, verifyPhoneOTPValidation} from "./auth.validation.js";
 
 const router = express.Router();
 
@@ -76,88 +75,81 @@ router.post("/verify-otp",
     validateMultiple(VerifyOTPValidation),
     VerifyOTP);
 
-// -========== login completed skater =====================
+// // -========== login completed skater =====================
 
-router.post(
-  "/v1/after-login-skater-form/:id",
-  upload.fields([
-    { name: "img", maxCount: 1 },
-    { name: "document", maxCount: 1 }
-  ]),
-  validateMultiple(afterLoginSkaterFormValidation),
-  afterLoginSkaterForm
-);
+// router.post(
+//   "/v1/after-login-skater-form/:id",
+//   upload.fields([
+//     { name: "img", maxCount: 1 },
+//     { name: "document", maxCount: 1 }
+//   ]),
+//   validateMultiple(afterLoginSkaterFormValidation),
+//   afterLoginSkaterForm
+// );
 
-// -========== login completed club =====================
+// // -========== login completed club =====================
 
-router.post(
-  "/v1/after-login-club-form/:id",
-  upload.fields([
-    { name: "img", maxCount: 1 },
-    { name: "document", maxCount: 1 }
-  ]),
-  validateMultiple(afterLoginClubFormValidation),
-  afterLoginClubForm
-);
+// router.post(
+//   "/v1/after-login-club-form/:id",
+//   upload.fields([
+//     { name: "img", maxCount: 1 },
+//     { name: "document", maxCount: 1 }
+//   ]),
+//   validateMultiple(afterLoginClubFormValidation),
+//   afterLoginClubForm
+// );
 
-// -========== login completed guest =====================
+// // -========== login completed guest =====================
 
-router.post(
-  "/v1/after-login-guest-form/:id",
-  upload.fields([
-    { name: "img", maxCount: 1 },
-    { name: "document", maxCount: 1 }
-  ]),
-  // validateMultiple(afterLoginGuestFormValidation),
-  afterLoginGuestForm
-);
+// router.post(
+//   "/v1/after-login-guest-form/:id",
+//   upload.fields([
+//     { name: "img", maxCount: 1 },
+//     { name: "document", maxCount: 1 }
+//   ]),
+//   // validateMultiple(afterLoginGuestFormValidation),
+//   afterLoginGuestForm
+// );
 
-// -========== login completed parent =====================
+// // -========== login completed parent =====================
 
-router.post(
-  "/v1/after-login-parent-form/:id",
-  upload.fields([
-    { name: "img", maxCount: 1 },
-    { name: "document", maxCount: 1 }
-  ]),
-  validateMultiple(afterLoginParentFormValidation),
-  afterLoginParentForm
-);
-
-
-// -========== login completed school =====================
-
-router.post(
-  "/v1/after-login-School-form/:id",
-  upload.fields([
-    { name: "img", maxCount: 1 },
-    { name: "document", maxCount: 1 }
-  ]),
-  validateMultiple(afterLoginSchoolFormValidation),
-  afterLoginSchoolForm
-);
+// router.post(
+//   "/v1/after-login-parent-form/:id",
+//   upload.fields([
+//     { name: "img", maxCount: 1 },
+//     { name: "document", maxCount: 1 }
+//   ]),
+//   validateMultiple(afterLoginParentFormValidation),
+//   afterLoginParentForm
+// );
 
 
-// -========== login completed official =====================
+// // -========== login completed school =====================
 
-router.post(
-  "/v1/after-login-official-form/:id",
-  upload.fields([
-    { name: "img", maxCount: 1 },
-    { name: "document", maxCount: 1 }
-  ]),
-  validateMultiple(afterLoginOfficialFormValidation),
-  afterLoginOfficialForm
-);
+// router.post(
+//   "/v1/after-login-school-form/:id",
+//   upload.fields([
+//     { name: "img", maxCount: 1 },
+//     { name: "document", maxCount: 1 }
+//   ]),
+//   validateMultiple(afterLoginSchoolFormValidation),
+//   afterLoginSchoolForm
+// );
 
-/**
- * @description Refresh access token
- * @route POST /auth/refresh-token
- * @access Public
- * @body {
- *   refreshToken: string
- * }
- */
+
+// // -========== login completed official =====================
+
+// router.post(
+//   "/v1/after-login-official-form/:id",
+//   upload.fields([
+//     { name: "img", maxCount: 1 },
+//     { name: "document", maxCount: 1 }
+//   ]),
+//   validateMultiple(afterLoginOfficialFormValidation),
+//   afterLoginOfficialForm
+// );
+
+
 router.post("/refresh-token",
     authenticate(["user", "admin"]),
     RefreshToken);
@@ -184,43 +176,43 @@ router.post("/logout",
  *  photo?: string (URL or filename)
  * }
  */
-router.patch("/update-profile",
-    authenticate(["user", "admin"]),
-    validateMultiple(UpdateProfileValidation),
-    UpdateUserProfile);
+// router.patch("/update-profile",
+//     authenticate(["user", "admin"]),
+//     validateMultiple(UpdateProfileValidation),
+//     UpdateUserProfile);
 
-/**
- * @description Delete user account
- * @route DELETE /auth/delete
- * @access Private
- */
-router.delete("/delete",
-    authenticate(["user", "admin"]),
-    DeleteUser);
+// /**
+//  * @description Delete user account
+//  * @route DELETE /auth/delete
+//  * @access Private
+//  */
+// router.delete("/delete",
+//     authenticate(["user", "admin"]),
+//     DeleteUser);
 
-/**
- * @description Get user profile
- * @route GET /auth/profile
- * @access Private
- */
-router.get("/profile",
-    authenticate(["user", "admin"]),
-    GetUserProfile);
+// /**
+//  * @description Get user profile
+//  * @route GET /auth/profile
+//  * @access Private
+//  */
+// router.get("/profile",
+//     authenticate(["user", "admin"]),
+//     GetUserProfile);
 
-/**  
- * @description Get user digital ID card
- * @route GET /auth/digital-id-card
- * @access Private
- */
-router.get("/digital-id-card",
-    authenticate(["user", "admin"]),
-    GetDigitalIDCard);
+// /**  
+//  * @description Get user digital ID card
+//  * @route GET /auth/digital-id-card
+//  * @access Private
+//  */
+// router.get("/digital-id-card",
+//     authenticate(["user", "admin"]),
+//     GetDigitalIDCard);
 
-/**
- * @description Get user achievements
- * @route GET /auth/achievement
- * @access Private
- */
+// /**
+//  * @description Get user achievements
+//  * @route GET /auth/achievement
+//  * @access Private
+//  */
 router.get("/achievement",
     authenticate(["user", "admin"]),
     GetAchievements);

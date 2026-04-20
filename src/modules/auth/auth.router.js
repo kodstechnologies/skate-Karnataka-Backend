@@ -1,9 +1,9 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import {ContactSupport, GetAchievements, GetRankings, LoginUser, LogoutUser, RefreshToken, RegisterUser, sendEmailOTP, sendPhoneOTP, ToggleNotifications, verifyEmailOTP, VerifyOTP, verifyPhoneOTP} from "./auth.controller.js";
-import { validateMultiple } from "../../middleware/validate.multiple.js";
+import { validate } from "../../middleware/validate.multiple.js";
 import { upload } from "../../middleware/multer.middleware.js";
-import {LogoutValidation, RegisterValidation, sendEmailOTPValidation, sendPhoneOTPValidation, verifyEmailOTPValidation, VerifyOTPValidation, verifyPhoneOTPValidation} from "./auth.validation.js";
+import {LoginValidation, LogoutValidation, RegisterValidation, sendEmailOTPValidation, sendPhoneOTPValidation, verifyEmailOTPValidation, VerifyOTPValidation, verifyPhoneOTPValidation} from "./auth.validation.js";
 
 const router = express.Router();
 
@@ -22,30 +22,30 @@ const router = express.Router();
  * }
  */
 router.post("/v1/register",
-    validateMultiple(RegisterValidation),
+    validate(RegisterValidation),
     RegisterUser);
 
 router.post(
     "/v1/send-email-otp",
-    validateMultiple(sendEmailOTPValidation),
+    validate(sendEmailOTPValidation),
     sendEmailOTP
 );
 
 router.post(
     "/v1/verify-email-otp",
-    validateMultiple(verifyEmailOTPValidation),
+    validate(verifyEmailOTPValidation),
     verifyEmailOTP
 );
 
 router.post(
     "/v1/send-phone-otp",
-    validateMultiple(sendPhoneOTPValidation),
+    validate(sendPhoneOTPValidation),
     sendPhoneOTP
 );
 
 router.post(
     "/v1/verify-phone-otp",
-    validateMultiple(verifyPhoneOTPValidation),
+    validate(verifyPhoneOTPValidation),
     verifyPhoneOTP
 );
 
@@ -59,7 +59,7 @@ router.post(
  * }
  */
 router.post("/v1/login",
-    validateMultiple(LoginValidation),
+    validate(LoginValidation),
     LoginUser);
 
 /**
@@ -72,7 +72,7 @@ router.post("/v1/login",
  * }
  */
 router.post("/verify-otp",
-    validateMultiple(VerifyOTPValidation),
+    validate(VerifyOTPValidation),
     VerifyOTP);
 
 // // -========== login completed skater =====================
@@ -161,7 +161,7 @@ router.post("/refresh-token",
  */
 router.post("/logout",
     authenticate(["user", "admin"]),
-    validateMultiple(LogoutValidation),
+    validate(LogoutValidation),
     LogoutUser);
 
 /**

@@ -1,6 +1,6 @@
 import { AppError } from "../util/common/AppError.js";
 
-export const validateMultiple = (schemas) => {
+export const validate = (schemas) => {
     return (req, res, next) => {
         try {
             let finalSchemas = {};

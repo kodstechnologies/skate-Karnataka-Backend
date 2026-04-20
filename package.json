@@ -2,7 +2,7 @@
   "name": "krsa_backend",
   "version": "1.0.0",
   "main": "index.js",
-  "type":"module",
+  "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node index.js",
@@ -12,6 +12,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1032.0",
     "chalk": "^5.6.2",
     "cors": "^2.8.6",
     "dotenv": "^17.2.4",
@@ -21,7 +22,8 @@
     "mongoose": "^9.1.6",
     "multer": "^2.0.2",
     "nodemon": "^3.1.11",
-    "seed-js": "^0.0.11"
+    "seed-js": "^0.0.11",
+    "uuid": "^14.0.0"
   },
   "devDependencies": {
     "@types/node": "^25.2.2",

@@ -9,7 +9,7 @@ router.get("/v1/all",
 
 // 🔹 Create new state
 router.post("/v1/",
-//   validateMultiple(createStateValidation),
+//   validate(createStateValidation),
   createNewState
 );
 
@@ -20,7 +20,7 @@ router.get("/v1/:id",
 
 // 🔹 Update state
 router.patch("/v1/:id",
-//   validateMultiple(editStateValidation),
+//   validate(editStateValidation),
   updateState
 );
 

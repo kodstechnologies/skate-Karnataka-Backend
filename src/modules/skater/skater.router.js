@@ -1,9 +1,9 @@
 import express from "express";
 import { afterLoginSkaterForm, DeleteSkater, GetSkaterDigitalIdCard, GetSkaterProfile, UpdateSkaterProfile } from "./skater.controller.js";
-import { validateMultiple } from "../../middleware/validateMultiple.js";
+import { validate } from "../../middleware/validate.multiple.js";
 import { afterLoginSkaterFormValidation, UpdateProfileValidation } from "./skater.validation.js";
-import { upload } from "../../middleware/multerMiddleware.js";
-import { authenticate } from "../../middleware/authMiddleware.js";
+import { upload } from "../../middleware/multer.middleware.js";
+import { authenticate } from "../../middleware/auth.middleware.js";
 
 const router = express.Router();
 
@@ -14,7 +14,7 @@ router.post(
     { name: "img", maxCount: 1 },
     { name: "document", maxCount: 1 }
   ]),
-  validateMultiple(afterLoginSkaterFormValidation),
+  validate(afterLoginSkaterFormValidation),
   afterLoginSkaterForm
 );
 
@@ -28,7 +28,7 @@ router.get("/v1/profile",
 
 router.patch("/v1/update-profile",
     authenticate([]),
-    validateMultiple(UpdateProfileValidation),
+    validate(UpdateProfileValidation),
     UpdateSkaterProfile);
 
 // delete profile ==

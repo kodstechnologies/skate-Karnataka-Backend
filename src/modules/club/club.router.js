@@ -1,9 +1,10 @@
 import express from "express";
-import { validateMultiple } from "../../middleware/validateMultiple.js";
+import { validate } from "../../middleware/validate.multiple.js";
 import { createClubValidation, editClubValidation } from "./club.validation.js";
 import { apply_club, apply_leave, approve_join_club, approve_leave_club, createNewClub, deleteClub, display_all_Club_basedOn_user_district, display_existing_club, displayAllClubs, displaySingleClub, updateClub } from "./club.controller.js";
-import { upload } from "../../middleware/multerMiddleware.js";
-import { authenticate } from "../../middleware/authMiddleware.js";
+import { upload } from "../../middleware/multer.middleware.js";
+import { authenticate } from "../../middleware/auth.middleware.js";
+import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
 
 /** Must match `role` on BaseAuth (discriminator values). Edit to restrict who can list district clubs. */
 const USER_DISTRICT_CLUB_ROLES = [
@@ -48,7 +49,8 @@ router.get("/v1/all/:id",
     displayAllClubs);
 router.post("/v1/",
     upload.single("img"),
-    validateMultiple(createClubValidation),
+    uploadToS3("clubs"),
+    validate(createClubValidation),
     createNewClub);
 // Static path must be registered before /v1/:id or Express will treat "user-district-clubs" as an id.
 router.get(
@@ -60,7 +62,7 @@ router.get("/v1/:id",
     displaySingleClub);
 router.patch("/v1/:id",
     upload.single("img"),
-    validateMultiple(editClubValidation),
+    validate(editClubValidation),
     updateClub);
 router.delete("/v1/:id",
     deleteClub);

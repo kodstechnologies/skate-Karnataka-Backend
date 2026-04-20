@@ -4,11 +4,9 @@ const createClubValidation = {
     body: Joi.object({
         district: Joi.string().required(),
         name: Joi.string().required(),
+        img: Joi.string().allow(""),
         address: Joi.string().required(),
         about: Joi.string().allow(""),
-        skaters: Joi.number().required(),
-        rank: Joi.number().required(),
-        championships: Joi.number().required(),
     })
 }
 
@@ -18,9 +16,6 @@ const editClubValidation = {
         name: Joi.string(),
         address: Joi.string(),
         about: Joi.string().allow(""),
-        skaters: Joi.number(),
-        rank: Joi.number(),
-        championships: Joi.number(),
     })
 }
 

@@ -1,6 +1,6 @@
 import express from "express";
-import { upload } from "../../middleware/multerMiddleware.js";
-import { validateMultiple } from "../../middleware/validateMultiple.js";
+import { upload } from "../../middleware/multer.middleware.js";
+import { validate } from "../../middleware/validate.multiple.js";
 import { afterLoginSchoolFormValidation } from "./school.validation.js";
 import { afterLoginSchoolForm } from "./school.controller.js";
 
@@ -12,7 +12,7 @@ router.post(
     { name: "img", maxCount: 1 },
     { name: "document", maxCount: 1 }
   ]),
-  validateMultiple(afterLoginSchoolFormValidation),
+  validate(afterLoginSchoolFormValidation),
   afterLoginSchoolForm
 );
 

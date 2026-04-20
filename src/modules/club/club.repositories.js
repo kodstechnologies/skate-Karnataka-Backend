@@ -18,11 +18,34 @@ const isExistClub = async (name) => {
 }
 
 const createClubRepository = async (data) => {
+    console.log(data, "====---");
+
     const { district, name, about, skaters, rank, championships } = data;
+
+    // ✅ validate district
     const districtData = await District.findById(district).select("name");
-    const districtName = districtData?.name;
-    return await Club.create({ district, districtName, name, about, skaters, rank, championships });
-}
+
+    if (!districtData) {
+        throw new Error("District not found");
+    }
+
+    const districtName = districtData.name;
+
+    // ✅ create club
+    const club = await Club.create({
+        district,
+        districtName,
+        name,
+        about,
+        skaters,
+        rank,
+        championships
+    });
+
+    console.log(club, "===/////");
+
+    return club; // ✅ VERY IMPORTANT
+};
 
 const clubIdStoreinDestrict = async (districtId, clubId) => {
     await District.findByIdAndUpdate(

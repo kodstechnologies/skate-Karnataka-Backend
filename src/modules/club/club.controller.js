@@ -18,6 +18,7 @@ const displayAllClubs = asyncHandler(async (req, res) => {
 });
 
 const createNewClub = asyncHandler(async (req, res) => {
+    console.log(req.body,"====")
     await createClubService(req.body);
     return res.status(200).json(
         new ApiResponse(

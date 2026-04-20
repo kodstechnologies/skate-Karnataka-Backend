@@ -40,7 +40,7 @@ const display_all_certificate_repositories = async (id, page, limit) => {
     };
 };
 
-const apply_request_repositories = async (id) => {
+const apply_request_repositories = async ( id) => {
     await Certificate.findByIdAndUpdate(
         id,
         { request: true },

@@ -8,7 +8,7 @@ const router = express.Router();
 
 
 router.get("/v1/all", authenticate(["Skater"]), displayAllCertificate);
-router.get("/v1/request", authenticate(["Skater"]), applyRequest);
+router.patch("/v1/request/:id", authenticate(["Skater"]), applyRequest);
 
 router.post("/v1", validateMultiple(createCertificateValidation), createCertificate);
 router.patch("/v1/:id", updateCertificates);

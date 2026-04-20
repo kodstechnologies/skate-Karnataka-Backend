@@ -37,8 +37,8 @@ const displayAllCertificate = asyncHandler(async (req, res) => {
 });
 
 const applyRequest = asyncHandler(async (req, res) => {
-    const id = req.user._id;
-    await apply_request_schema(id);
+    const {id} = req.params;
+    await apply_request_schema( id);
     return res.status(200).json(new ApiResponse(200, null, "Applied for certificate successfully"));
 })
 

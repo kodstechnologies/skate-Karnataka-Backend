@@ -10,6 +10,7 @@ import clubRouter from "./modules/club/club.router.js";
 import districtRouter from "./modules/district/district.router.js";
 import stateRouter from "./modules/state/state.router.js";
 import reportRouter from "./modules/report/report.router.js";
+import certificateRouter from "./modules/certificate/certificate.router.js";
 
 const app = express();
 
@@ -32,6 +33,7 @@ app.use("/competition", competitionsRouter);
 app.use("/event", eventsRouter);
 app.use("/gallery", galleryRouter);
 app.use("/report", reportRouter);
+app.use("/certificate", certificateRouter);
 app.use("/notification", notificationRouter);
 
 export default app;

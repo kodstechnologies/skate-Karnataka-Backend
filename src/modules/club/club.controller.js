@@ -5,8 +5,8 @@ import { allClubService, apply_club_service, apply_leave_service, approve_join_c
 
 const displayAllClubs = asyncHandler(async (req, res) => {
     const { id } = req.params;   // ✅ correct extraction
-
-    const clubs = await allClubService(id);
+    const { page, limit } = req.query;
+    const clubs = await allClubService(id, page, limit);
     console.log(clubs, "---")
     return res.status(200).json(
         new ApiResponse(
@@ -18,7 +18,7 @@ const displayAllClubs = asyncHandler(async (req, res) => {
 });
 
 const createNewClub = asyncHandler(async (req, res) => {
-    console.log(req.body,"====")
+    console.log(req.body, "====")
     await createClubService(req.body);
     return res.status(200).json(
         new ApiResponse(
@@ -122,7 +122,7 @@ const display_existing_club = asyncHandler(async (req, res) => {
             message: "Club not found",
         });
     }
-console.log(existingClub,"---")
+    console.log(existingClub, "---")
     const clubDetails = {
         img: existingClub?.club?.img || "",
         name: existingClub?.club?.name || "",

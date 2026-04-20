@@ -5,12 +5,26 @@ import { District } from "../district/district.model.js";
 import { Skater } from "../skater/skater.model.js";
 import { Club } from "./club.model.js";
 
-const allClubsRepository = async (id) => {
-    return await District.findById(id)
+const allClubsRepository = async (id, page, limit) => {
+    const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+
+    const district = await District.findById(id)
+        .select("name") // ✅ get district name
         .populate({
             path: "club",
-            select: "name img address" // ✅ only fetch club name
+            select: "name img address",
+            options: {
+                skip,
+                limit: pageLimit,
+                sort: { createdAt: -1 }
+            }
         });
+
+    return {
+        districtName: district?.name,   // ✅ added
+        data: district?.club || [],
+        page: currentPage
+    };
 };
 
 const isExistClub = async (name, district) => {

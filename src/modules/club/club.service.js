@@ -1,8 +1,8 @@
 import { AppError } from "../../util/common/AppError.js";
 import { allClubsRepository, apply_club_repositories, apply_leave_repository, approve_join_club_repositories, clubIdStoreinDestrict, clubsByDistrictPaginatedRepository, createClubRepository, deleteClubDetails, display_existing_club_repositories, displayFullDetailsOfClub, isApplyRepository, isExistClub, isExistClubRepository, isThisClubExist, updateClubDetails } from "./club.repositories.js";
 
-const allClubService = async (id) => {
-    return await allClubsRepository(id);
+const allClubService = async (id ,page, limit) => {
+    return await allClubsRepository(id ,page, limit);
 }
 
 const createClubService = async (data) => {

@@ -1,4 +1,5 @@
 import { BaseAuth } from "../auth/baseAuth.model.js";
+import { Skater } from "./skater.model.js";
 
 const after_login_skater_form_repositories = async (data, id) => {
     console.log(data, ",,,,")

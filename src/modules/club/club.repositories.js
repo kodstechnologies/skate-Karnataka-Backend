@@ -116,7 +116,7 @@ const clubsByDistrictPaginatedRepository = async (districtId, { page, limit }) =
     const filter = { district: districtId };
 
     const clubs = await Club.find(filter)
-        .select("_id name img")
+        .select("_id name img address")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(pageLimit)

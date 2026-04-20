@@ -8,25 +8,37 @@ import { Club } from "./club.model.js";
 const allClubsRepository = async (id, page, limit) => {
     const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
 
-    const district = await District.findById(id)
-        .select("name") // ✅ get district name
-        .populate({
-            path: "club",
-            select: "name img address",
-            options: {
-                skip,
-                limit: pageLimit,
-                sort: { createdAt: -1 }
-            }
-        });
+    const [data, total, district] = await Promise.all([
+        Club.find({ district: id })
+            .select("_id name img address")
+            .skip(skip)
+            .limit(pageLimit)
+            .sort({ createdAt: -1 })
+            .lean(),
+
+        Club.countDocuments({ district: id }),
+
+        District.findById(id).select("name")
+    ]);
+
+    const formattedData = data.map((club) => ({
+        id: String(club._id),
+        name: club.name,
+        img: club.img || "",
+        address: club.address || "",
+    }));
 
     return {
-        districtName: district?.name,   // ✅ added
-        data: district?.club || [],
-        page: currentPage
+        districtName: district?.name,
+        data: formattedData,
+        meta: {
+            total,
+            page: currentPage,
+            limit: pageLimit,
+            totalPages: Math.ceil(total / pageLimit)
+        }
     };
 };
-
 const isExistClub = async (name, district) => {
     return await Club.findOne({ name, district });
 }

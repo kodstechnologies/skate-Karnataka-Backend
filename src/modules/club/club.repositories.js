@@ -9,18 +9,18 @@ const allClubsRepository = async (id) => {
     return await District.findById(id)
         .populate({
             path: "club",
-            select: "name" // ✅ only fetch club name
+            select: "name img" // ✅ only fetch club name
         });
 };
 
-const isExistClub = async (name) => {
-    return await District.findOne({ name });
+const isExistClub = async (name, district) => {
+    return await Club.findOne({ name, district });
 }
 
 const createClubRepository = async (data) => {
     console.log(data, "====---");
 
-    const { district, name, about, skaters, rank, championships } = data;
+    const { district, name, img, address, about, skaters, rank, championships } = data;
 
     // ✅ validate district
     const districtData = await District.findById(district).select("name");
@@ -36,6 +36,8 @@ const createClubRepository = async (data) => {
         district,
         districtName,
         name,
+        img,
+        address,
         about,
         skaters,
         rank,

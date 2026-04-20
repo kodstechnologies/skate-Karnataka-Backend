@@ -73,8 +73,8 @@ clubSchema.index({ name: 1, district: 1 }, { unique: true });
 
 
 // ✅ Auto set districtName (optimized)
-clubSchema.pre("save", async function (next) {
-  if (!this.isModified("district")) return next();
+clubSchema.pre("save", async function () {
+  if (!this.isModified("district")) return;
 
   const district = await mongoose.models.District
     .findById(this.district)
@@ -85,13 +85,12 @@ clubSchema.pre("save", async function (next) {
     this.districtName = district.name;
   }
 
-  next();
 });
 
 
 // ✅ Generate unique clubId (optimized)
-clubSchema.pre("save", async function (next) {
-  if (this.clubId) return next();
+clubSchema.pre("save", async function () {
+  if (this.clubId) return;
 
   let exists = true;
 
@@ -106,7 +105,6 @@ clubSchema.pre("save", async function (next) {
     }
   }
 
-  next();
 });
 
 

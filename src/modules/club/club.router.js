@@ -8,7 +8,7 @@ import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
 
 /** Must match `role` on BaseAuth (discriminator values). Edit to restrict who can list district clubs. */
 const USER_DISTRICT_CLUB_ROLES = [
-    "Skater",
+    "skater",
     "Parent",
     "School",
     "Academy",
@@ -55,7 +55,7 @@ router.post("/v1/",
 // Static path must be registered before /v1/:id or Express will treat "user-district-clubs" as an id.
 router.get(
     "/v1/user-district-clubs",
-    authenticate(USER_DISTRICT_CLUB_ROLES),
+    authenticate(["Skater"]),
     display_all_Club_basedOn_user_district
 );
 router.get("/v1/:id",

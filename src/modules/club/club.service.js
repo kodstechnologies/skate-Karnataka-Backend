@@ -6,16 +6,24 @@ const allClubService = async (id) => {
 }
 
 const createClubService = async (data) => {
-    const { name } = data;
-    const isExist = await isExistClub(name);   // pass name
+    const { name, district } = data;
+    const isExist = await isExistClub(name, district);
     if (isExist) {
         throw new AppError(
-            "This name already taken, please give a new name",
+            "Club name already exists in this district",
             409
         );
     }
-    const clubData = await createClubRepository(data);   //  create
-    await clubIdStoreinDestrict(clubData.district, clubData._id)
+
+    try {
+        const clubData = await createClubRepository(data);   //  create
+        await clubIdStoreinDestrict(clubData.district, clubData._id);
+    } catch (error) {
+        if (error?.code === 11000) {
+            throw new AppError("Club name already exists in this district", 409);
+        }
+        throw error;
+    }
 };
 
 const displaySingleClubService = async (id) => {
@@ -27,7 +35,14 @@ const displaySingleClubService = async (id) => {
 }
 
 const updateClubDetailsService = async (data, id) => {
-    await updateClubDetails(data, id);
+    try {
+        await updateClubDetails(data, id);
+    } catch (error) {
+        if (error?.code === 11000) {
+            throw new AppError("Club name already exists in this district", 409);
+        }
+        throw error;
+    }
 }
 
 const deleteClubSchema = async (id) => {

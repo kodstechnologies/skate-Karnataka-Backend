@@ -147,8 +147,9 @@ const apply_club = asyncHandler(async (req, res) => {
 })
 
 const approve_join_club = asyncHandler(async (req, res) => {
-    const userID = req.user._id;
-    await approve_join_club_service(userID);
+    // const ClubId = req.user._id;
+    const {id} = req.params;
+    await approve_join_club_service(id);
     return res.status(200).json(new ApiResponse(200, null, "Club approve successfully"));
 })
 

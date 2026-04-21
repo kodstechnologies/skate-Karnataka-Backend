@@ -116,8 +116,8 @@ const apply_club_service = async (clubId, userID) => {
 
     await apply_club_repositories(clubId, userID);
 };
-const approve_join_club_service = async (userId) => {
-    const status = await isApplyRepository(userId);
+const approve_join_club_service = async (skaterId) => {
+    const status = await isApplyRepository(skaterId);
     console.log(status, "status");
     const errorMap = {
         join: "Already joined",
@@ -132,7 +132,7 @@ const approve_join_club_service = async (userId) => {
         throw new AppError(errorMap[status]);
     }
 
-    return await approve_join_club_repositories(userId);
+    return await approve_join_club_repositories(skaterId);
 };
 const apply_leave_service = async (userId) => {
     const status = await isApplyRepository(userId);

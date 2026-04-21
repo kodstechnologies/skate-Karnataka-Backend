@@ -43,9 +43,9 @@ router.get("/v1/apply-join/:id",
     apply_club);
 
 // // approve for join
-// router.get("/v1/approve-join/:id",
-//     authenticate(["Skater"]),
-//     approve_join_club);
+router.get("/v1/approve-join/:id",
+    authenticate(["Club"]),
+    approve_join_club);
 
 // apply for leave
 router.get("/v1/apply-leave",

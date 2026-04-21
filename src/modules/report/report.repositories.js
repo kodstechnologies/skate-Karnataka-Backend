@@ -69,23 +69,37 @@ const get_skater_report_repositories = async (
     };
 };
 
-export const getClubReportsRepositories = async (clubId) => {
+
+export const getClubReportsRepositories = async (clubId, page, limit ) => {
     console.log(clubId, "====");
 
-    const reports = await Report.find({
-        ownClub: new mongoose.Types.ObjectId(clubId), // ✅ FIX
-    })
-        .select(
-            "reportType message clubName skaterName districtName krsaId status complainedBy"
-        )
-        .populate({
-            path: "complainedBy",
-            select: "fullName",
-        })
+    const { skip, limit: perPage, page: currentPage } = paginate(page, limit);
+
+    const query = {
+        ownClub: new mongoose.Types.ObjectId(clubId),
+    };
+
+    // ✅ fetch paginated data
+    const data = await Report.find(query)
+        .select("reportType message clubName skaterName districtName krsaId status complainedBy")
+        .populate("complainedBy", "fullName")
         .sort({ createdAt: -1 })
+        .skip(skip)        // ✅ pagination applied
+        .limit(perPage)    // ✅ pagination applied
         .lean();
 
-    return reports;
+    // ✅ total count
+    const total = await Report.countDocuments(query);
+
+    return {
+        data,
+        pagination: {
+            total,
+            page: currentPage,
+            limit: perPage,
+            totalPages: Math.ceil(total / perPage),
+        },
+    };
 };
 
 export const getDistrictReportsRepositories = async(id) => {

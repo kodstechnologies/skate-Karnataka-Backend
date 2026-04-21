@@ -22,8 +22,8 @@ const get_skater_report_service = async (
         reportType)
 }
 
-export const getClubReportsSkater = async (id) => {
-    return await getClubReportsRepositories(id)
+export const getClubReportsSkater = async (id ,page ,limit) => {
+    return await getClubReportsRepositories(id ,page ,limit)
 }
 export const getDistrictReportsSkater = async (id) => {
     return await getDistrictReportsRepositories(id)

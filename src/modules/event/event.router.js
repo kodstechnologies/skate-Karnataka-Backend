@@ -7,6 +7,8 @@ import { upload } from "../../middleware/multer.middleware.js";
 
 const router = express.Router();
 
+// router.get("/v1/club")
+
 // display latest event 
 
 router.get("/v1/latest-event", authenticate(["Skater"]), display_latest_event);
@@ -15,11 +17,7 @@ router.get("/v1/latest-event", authenticate(["Skater"]), display_latest_event);
 
 router.get("/v1/user-all-events", authenticate(["Skater"]), display_all_event_based_on_user);
 
-/**
- * @description Display all events
- * @route GET /event/display
- * @access Private (user)
- */
+
 router.get("/v1/display",
     displayAllEvents);
 

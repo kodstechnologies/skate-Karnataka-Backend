@@ -45,28 +45,33 @@ const getSkaterReports = asyncHandler(async (req, res) => {
 
 const getClubReports = asyncHandler(async (req, res) => {
     const id = req.user._id;
+    const { page = 1, limit = 10 } = req.query;
 
-    const data = await getClubReportsSkater(id);
+    const result = await getClubReportsSkater(id, page, limit);
 
-    const item = data?.[0]; // ✅ get first report
-
-    const report = item
-        ? {
-            complainedBy: item.complainedBy?.fullName ?? "",
-            reportType: item.reportType ?? "",
-            message: item.message ?? "",
-            clubName: item.clubName ?? "",
-            skaterName: item.skaterName ?? "",
-            districtName: item.districtName ?? "",
-            krsaId: item.krsaId ?? "",
-            status: item.status ?? "",
-        }
-        : null;
+    const reports = result.data.map((item) => ({
+        complainedBy: item.complainedBy?.fullName ?? "",
+        reportType: item.reportType ?? "",
+        message: item.message ?? "",
+        clubName: item.clubName ?? "",
+        skaterName: item.skaterName ?? "",
+        districtName: item.districtName ?? "",
+        krsaId: item.krsaId ?? "",
+        status: item.status ?? "",
+    }));
 
     return res.status(200).json(
-        new ApiResponse(200, report, "Club report display successfully")
+        new ApiResponse(
+            200,
+            {
+                reports,
+                pagination: result.pagination, // ✅ include pagination
+            },
+            "Club report display successfully"
+        )
     );
 });
+
 const getDistrictReports = asyncHandler(async (req, res) => {
     const id = req.user._id;
 

@@ -1,5 +1,5 @@
 import { AppError } from "../../util/common/AppError.js";
-import { allClubsRepository, apply_club_repositories, apply_leave_repository, approve_join_club_repositories, clubIdStoreinDestrict, clubsByDistrictPaginatedRepository, createClubRepository, deleteClubDetails, display_existing_club_repositories, displayClubDashboardRepositories, displayFullDetailsOfClub, isApplyRepository, isExistClub, isExistClubRepository, isThisClubExist, updateClubDetails } from "./club.repositories.js";
+import { allClubsRepository, apply_club_repositories, apply_leave_repository, approve_join_club_repositories, clubIdStoreinDestrict, clubsByDistrictPaginatedRepository, createClubRepository, deleteClubDetails, display_existing_club_repositories, displayClubDashboardRepositories, displayFullDetailsOfClub, isApplyRepository, isExistClub, isExistClubRepository, isThisClubExist, pendingApprovalsRepositories, updateClubDetails } from "./club.repositories.js";
 
 
 const mapCreateClubError = (error) => {
@@ -41,6 +41,12 @@ export const displayClubDashboardService = async(clubId) => {
     return await displayClubDashboardRepositories({ clubId });
 }
 
+export const pendingApprovalsServices = async (clubId, { page, limit }) => {
+    return await pendingApprovalsRepositories(clubId, { page, limit });
+};
+export const reportServices = async(clubId) =>{
+return await reportRepositories({clubId})
+}
 
 const allClubService = async (id, page, limit) => {
     return await allClubsRepository(id, page, limit);

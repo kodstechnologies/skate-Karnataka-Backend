@@ -1,17 +1,36 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { AppError } from "../../util/common/AppError.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { allClubService, apply_club_service, apply_leave_service, approve_join_club_service, approve_leave_club_service, clubsByUserDistrictService, createClubService, deleteClubSchema, display_existing_club_service, displayClubDashboardService, displaySingleClubService, updateClubDetailsService } from "./club.service.js";
+import { allClubService, apply_club_service, apply_leave_service, approve_join_club_service, approve_leave_club_service, clubsByUserDistrictService, createClubService, deleteClubSchema, display_existing_club_service, displayClubDashboardService, displaySingleClubService, pendingApprovalsServices, reportServices, updateClubDetailsService } from "./club.service.js";
 
-const displayClubDashboard = asyncHandler(async(req, res) =>{
+const displayClubDashboard = asyncHandler(async (req, res) => {
     const id = req.user._id;
-    console.log(id,"[[[")
+    // console.log(id, "[[[")
     const club = await displayClubDashboardService(id);
-    
-return res.status(200).json(new ApiResponse(
-    200 , club , "CLub dashboard display successfully"
-))
 
+    return res.status(200).json(new ApiResponse(
+        200, club, "CLub dashboard display successfully"
+    ))
+
+})
+
+export const pendingApprovals = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 10 } = req.query; // ✅ FIX
+    const id = req.user._id;
+
+    const approver = await pendingApprovalsServices(id, { page, limit });
+
+    return res.status(200).json(
+        new ApiResponse(200, approver, "Display pending approver")
+    );
+});
+
+export const reports = asyncHandler(async (req, res) => {
+     const id = req.user._id;
+    const reports = await reportServices(id);
+    return res.status(200).json(new ApiResponse(
+        200, reports, "Display all reports"
+    ))
 })
 
 const displayAllClubs = asyncHandler(async (req, res) => {

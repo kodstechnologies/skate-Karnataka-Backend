@@ -3,12 +3,20 @@ import { Skater } from "./skater.model.js";
 
 const after_login_skater_form_repositories = async (data, id) => {
     console.log(data, ",,,,")
+    const setPayload = {
+        ...data,
+        verify: true,
+    };
+
+    if (data?.club) {
+        setPayload.clubStatus = "apply";
+    }
+
     const updated = await Skater.findOneAndUpdate(
         { _id: id, role: "Skater" },
         {
             $set: {
-                ...data,
-                verify: true,
+                ...setPayload,
             },
         },
         { new: true, runValidators: true }

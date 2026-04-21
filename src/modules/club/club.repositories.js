@@ -6,35 +6,66 @@ import { Skater } from "../skater/skater.model.js";
 import { Club } from "./club.model.js";
 
 export const displayClubDashboardRepositories = async ({ clubId }) => {
-  // 1️⃣ Get Club Details
-  const club = await Club.findById(clubId)
-    .select("name img championships rank")
-    .lean();
+    // 1️⃣ Get Club Details
+    const club = await Club.findById(clubId)
+        .select("name img championships rank")
+        .lean();
 
-  // 2️⃣ Total Skaters
-  const totalSkaters = await Skater.countDocuments({
-    club: clubId,
-    discipline: "join",
-  });
+    // 2️⃣ Total Skaters
+    const totalSkaters = await Skater.countDocuments({
+        club: clubId,
+        discipline: "join",
+    });
 
-  // 3️⃣ Latest Joined Skaters
-  const latestSkaters = await Skater.find({
-    club: clubId,
-    discipline:"join",
-  })
-    .select("fullName createdAt photo")
-    .sort({ createdAt: -1 })
-    .limit(5)
-    .lean();
+    // 3️⃣ Latest Joined Skaters
+    const latestSkaters = await Skater.find({
+        club: clubId,
+        discipline: "join",
+    })
+        .select("fullName createdAt photo")
+        .sort({ createdAt: -1 })
+        .limit(1)
+        .lean();
 
-  return {
-    clubName: club?.name || null,
-    clubImage: club?.img || null,
-    championships: club?.championships || 0,
-    rank: club?.rank || 0,
-    totalSkaters,
-    latestSkaters,
-  };
+    return {
+        clubName: club?.name || null,
+        clubImage: club?.img || null,
+        championships: club?.championships || 0,
+        rank: club?.rank || 0,
+        totalSkaters,
+        latestSkaters,
+    };
+};
+
+export const pendingApprovalsRepositories = async (clubId, { page, limit }) => {
+    const { skip, limit: perPage, page: currentPage } = paginate(page, limit);
+
+    const query = {
+        club: clubId,
+        clubStatus: "apply",
+        role: "Skater",
+    };
+
+    // ✅ Data
+    const data = await Skater.find(query)
+        .select("fullName createdAt photo")
+        .sort({ createdAt: -1 })
+        .skip(skip)           // ✅ pagination
+        .limit(perPage)       // ✅ pagination
+        .lean();
+
+    // ✅ Total count
+    const total = await Skater.countDocuments(query);
+
+    return {
+        data,
+        pagination: {
+            total,
+            page: currentPage,
+            limit: perPage,
+            totalPages: Math.ceil(total / perPage),
+        },
+    };
 };
 
 const allClubsRepository = async (id, page, limit) => {

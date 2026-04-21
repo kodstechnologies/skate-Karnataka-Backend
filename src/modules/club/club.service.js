@@ -1,5 +1,6 @@
 import { AppError } from "../../util/common/AppError.js";
-import { allClubsRepository, apply_club_repositories, apply_leave_repository, approve_join_club_repositories, clubIdStoreinDestrict, clubsByDistrictPaginatedRepository, createClubRepository, deleteClubDetails, display_existing_club_repositories, displayFullDetailsOfClub, isApplyRepository, isExistClub, isExistClubRepository, isThisClubExist, updateClubDetails } from "./club.repositories.js";
+import { allClubsRepository, apply_club_repositories, apply_leave_repository, approve_join_club_repositories, clubIdStoreinDestrict, clubsByDistrictPaginatedRepository, createClubRepository, deleteClubDetails, display_existing_club_repositories, displayClubDashboardRepositories, displayFullDetailsOfClub, isApplyRepository, isExistClub, isExistClubRepository, isThisClubExist, updateClubDetails } from "./club.repositories.js";
+
 
 const mapCreateClubError = (error) => {
     if (error instanceof AppError) {
@@ -36,8 +37,13 @@ const mapCreateClubError = (error) => {
     return new AppError(error?.message || "Failed to create club", 400);
 };
 
-const allClubService = async (id ,page, limit) => {
-    return await allClubsRepository(id ,page, limit);
+export const displayClubDashboardService = async(clubId) => {
+    return await displayClubDashboardRepositories(clubId);
+}
+
+
+const allClubService = async (id, page, limit) => {
+    return await allClubsRepository(id, page, limit);
 }
 
 const createClubService = async (data) => {
@@ -146,7 +152,7 @@ const approve_leave_club_service = async () => {
 
 }
 
-const display_existing_club_service = async (id) =>{
+const display_existing_club_service = async (id) => {
     return await display_existing_club_repositories(id);
 }
 

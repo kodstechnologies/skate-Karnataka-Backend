@@ -1,7 +1,7 @@
 import express from "express";
 import { validate } from "../../middleware/validate.multiple.js";
 import { createClubValidation, editClubValidation } from "./club.validation.js";
-import { apply_club, apply_leave, approve_join_club, approve_leave_club, createNewClub, deleteClub, display_all_Club_basedOn_user_district, display_existing_club, displayAllClubs, displaySingleClub, updateClub } from "./club.controller.js";
+import { apply_club, apply_leave, approve_join_club, approve_leave_club, createNewClub, deleteClub, display_all_Club_basedOn_user_district, display_existing_club, displayAllClubs, displayClubDashboard, displaySingleClub, updateClub } from "./club.controller.js";
 import { upload } from "../../middleware/multer.middleware.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
@@ -20,6 +20,11 @@ const USER_DISTRICT_CLUB_ROLES = [
 const router = express.Router();
 
 // ============ skater club ===================
+
+router.get("/v1/dashboard",
+    authenticate(["Club"]),
+    displayClubDashboard
+)
 
 router.get("/v1/skater/display-existing-club",
     authenticate(["Skater"]),

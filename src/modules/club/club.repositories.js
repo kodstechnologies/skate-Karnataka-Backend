@@ -5,6 +5,31 @@ import { District } from "../district/district.model.js";
 import { Skater } from "../skater/skater.model.js";
 import { Club } from "./club.model.js";
 
+export const displayClubDashboardRepositories = async ({clubId}) => {
+  // 1️⃣ Total Skaters
+  const totalSkaters = await Skater.countDocuments({
+    club: clubId,
+    // clubStatus: "join",
+  });
+
+  console.log(totalSkaters,"===")
+
+  // 2️⃣ Latest Joined Skaters (last 5)
+  const latestSkaters = await Skater.find({
+    club: clubId,
+    // clubStatus: "join",
+  })
+    .select("fullName createdAt photo") // from BaseAuth
+    .sort({ createdAt: -1 })
+    .limit(5)
+    .lean();
+
+  return {
+    totalSkaters,
+    latestSkaters,
+  };
+};
+
 const allClubsRepository = async (id, page, limit) => {
     const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
 
@@ -85,6 +110,7 @@ const createClubRepository = async (data) => {
         skaters,
         rank,
         championships,
+        verify: true,
     });
 
     console.log(club, "===/////");
@@ -196,8 +222,8 @@ const apply_leave_repository = async (skaterId) => {
 };
 
 const display_existing_club_repositories = async (id) => {
-    console.log(id,"----")
-    const r =  await Skater.findById(id).select("club").populate(
+    console.log(id, "----")
+    const r = await Skater.findById(id).select("club").populate(
         "club",
         "img name clubId districtName address about rank championships"
     );

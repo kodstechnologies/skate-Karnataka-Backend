@@ -1,7 +1,18 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { AppError } from "../../util/common/AppError.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { allClubService, apply_club_service, apply_leave_service, approve_join_club_service, approve_leave_club_service, clubsByUserDistrictService, createClubService, deleteClubSchema, display_existing_club_service, displaySingleClubService, updateClubDetailsService } from "./club.service.js";
+import { allClubService, apply_club_service, apply_leave_service, approve_join_club_service, approve_leave_club_service, clubsByUserDistrictService, createClubService, deleteClubSchema, display_existing_club_service, displayClubDashboardService, displaySingleClubService, updateClubDetailsService } from "./club.service.js";
+
+const displayClubDashboard = asyncHandler(async(req, res) =>{
+    const id = req.user._id;
+    console.log(id,"[[[")
+    const club = await displayClubDashboardService(id);
+    
+return res.status(200).json(new ApiResponse(
+    200 , club , "CLub dashboard display successfully"
+))
+
+})
 
 const displayAllClubs = asyncHandler(async (req, res) => {
     const { id } = req.params;   // ✅ correct extraction
@@ -161,6 +172,7 @@ const display_existing_club = asyncHandler(async (req, res) => {
 });
 
 export {
+    displayClubDashboard,
     displayAllClubs,
     createNewClub,
     displaySingleClub,

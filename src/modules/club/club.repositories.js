@@ -5,26 +5,31 @@ import { District } from "../district/district.model.js";
 import { Skater } from "../skater/skater.model.js";
 import { Club } from "./club.model.js";
 
-export const displayClubDashboardRepositories = async ({clubId}) => {
-  // 1️⃣ Total Skaters
+export const displayClubDashboardRepositories = async ({ clubId }) => {
+  // 1️⃣ Get Club Details
+  const club = await Club.findById(clubId)
+    .select("name img championships rank")
+    .lean();
+
+  // 2️⃣ Total Skaters
   const totalSkaters = await Skater.countDocuments({
     club: clubId,
-    // clubStatus: "join",
   });
 
-  console.log(totalSkaters,"===")
-
-  // 2️⃣ Latest Joined Skaters (last 5)
+  // 3️⃣ Latest Joined Skaters
   const latestSkaters = await Skater.find({
     club: clubId,
-    // clubStatus: "join",
   })
-    .select("fullName createdAt photo") // from BaseAuth
+    .select("fullName createdAt photo")
     .sort({ createdAt: -1 })
     .limit(5)
     .lean();
 
   return {
+    clubName: club?.name || null,
+    clubImage: club?.img || null,
+    championships: club?.championships || 0,
+    rank: club?.rank || 0,
     totalSkaters,
     latestSkaters,
   };

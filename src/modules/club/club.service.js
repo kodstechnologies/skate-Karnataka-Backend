@@ -38,7 +38,7 @@ const mapCreateClubError = (error) => {
 };
 
 export const displayClubDashboardService = async(clubId) => {
-    return await displayClubDashboardRepositories(clubId);
+    return await displayClubDashboardRepositories({ clubId });
 }
 
 

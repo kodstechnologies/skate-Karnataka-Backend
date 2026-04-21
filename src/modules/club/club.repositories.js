@@ -14,11 +14,13 @@ export const displayClubDashboardRepositories = async ({ clubId }) => {
   // 2️⃣ Total Skaters
   const totalSkaters = await Skater.countDocuments({
     club: clubId,
+    discipline: "join",
   });
 
   // 3️⃣ Latest Joined Skaters
   const latestSkaters = await Skater.find({
     club: clubId,
+    discipline:"join",
   })
     .select("fullName createdAt photo")
     .sort({ createdAt: -1 })

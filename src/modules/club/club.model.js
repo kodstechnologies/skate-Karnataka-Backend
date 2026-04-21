@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
+import { BaseAuth } from "../auth/baseAuth.model.js";
 
+/** Club role on BaseAuth (same pattern as Skater / Academy). */
 const clubSchema = new mongoose.Schema(
   {
     clubId: {
@@ -11,7 +13,7 @@ const clubSchema = new mongoose.Schema(
     district: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "District",
-      required: true,
+      // required: true,
       index: true,
     },
 
@@ -22,7 +24,7 @@ const clubSchema = new mongoose.Schema(
 
     name: {
       type: String,
-      required: true,
+      // required: true,
       trim: true,
       minlength: 2,
       maxlength: 100,
@@ -52,19 +54,18 @@ const clubSchema = new mongoose.Schema(
       min: 0,
     },
 
-    Rank: {
+    rank: {
       type: Number,
       default: 0,
       min: 0,
     },
 
-    Championship: {
+    championships: {
       type: Number,
       default: 0,
       min: 0,
     },
-  },
-
+  }
 );
 
 
@@ -107,8 +108,6 @@ clubSchema.pre("save", async function () {
 
 });
 
-
-// ✅ Virtual (enable in JSON)
 clubSchema.virtual("skaterCount", {
   ref: "BaseAuth",
   localField: "_id",
@@ -119,6 +118,4 @@ clubSchema.virtual("skaterCount", {
 clubSchema.set("toJSON", { virtuals: true });
 clubSchema.set("toObject", { virtuals: true });
 
-
-// export const Skater = BaseAuth.discriminator("Skater", skaterSchema);
-export const Club = mongoose.model("Club", clubSchema);
+export const Club = BaseAuth.discriminator("Club", clubSchema);

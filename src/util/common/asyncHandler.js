@@ -1,8 +1,10 @@
 export const asyncHandler = fn => (req, res, next) => {
     Promise.resolve(fn(req, res, next)).catch((error) => {
-        return res.status(error?.statusCode || 400).json({
+        const statusCode = error?.statusCode || 400;
+        return res.status(statusCode).json({
             success: false,
-            message: error.message || "Something went wrong"
+            statusCode,
+            message: error.message || "Something went wrong",
         });
     });
 };

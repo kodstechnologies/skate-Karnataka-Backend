@@ -1,5 +1,5 @@
 import { paginate } from "../../util/common/paginate.js";
-import { BaseAuth } from "../auth/baseAuth.model.js";
+import { AppError } from "../../util/common/AppError.js";
 // import { Skater } from "../auth/skater.model.js";
 import { District } from "../district/district.model.js";
 import { Skater } from "../skater/skater.model.js";
@@ -46,19 +46,36 @@ const isExistClub = async (name, district) => {
 const createClubRepository = async (data) => {
     console.log(data, "====---");
 
-    const { district, name, img, address, about, skaters, rank, championships } = data;
+    const {
+        fullName,
+        phone,
+        email,
+        gender,
+        district,
+        name,
+        img,
+        address,
+        about,
+        skaters,
+        rank,
+        championships,
+    } = data;
 
     // ✅ validate district
     const districtData = await District.findById(district).select("name");
 
     if (!districtData) {
-        throw new Error("District not found");
+        throw new AppError("District not found", 404);
     }
 
     const districtName = districtData.name;
 
     // ✅ create club
     const club = await Club.create({
+        fullName,
+        phone,
+        ...(email ? { email } : {}),
+        ...(gender ? { gender } : {}),
         district,
         districtName,
         name,
@@ -67,7 +84,7 @@ const createClubRepository = async (data) => {
         about,
         skaters,
         rank,
-        championships
+        championships,
     });
 
     console.log(club, "===/////");
@@ -102,7 +119,7 @@ const updateClubDetails = async (data, id) => {
     );
 
     if (!updatedClub) {
-        throw new Error("Club not found");
+        throw new AppError("Club not found", 404);
     }
 }
 
@@ -179,10 +196,12 @@ const apply_leave_repository = async (skaterId) => {
 };
 
 const display_existing_club_repositories = async (id) => {
-    return await Skater.findById(id).select("club").populate(
+    console.log(id,"----")
+    const r =  await Skater.findById(id).select("club").populate(
         "club",
         "img name clubId districtName address about rank championships"
     );
+    return r;
 };
 
 export {

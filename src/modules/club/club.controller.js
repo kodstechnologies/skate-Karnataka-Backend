@@ -35,6 +35,11 @@ const displaySingleClub = asyncHandler(async (req, res) => {
 
     const formattedClubDetails = {
         id: String(clubDetails._id),
+        role: clubDetails.role,
+        fullName: clubDetails.fullName,
+        phone: clubDetails.phone,
+        email: clubDetails.email || "",
+        gender: clubDetails.gender || "",
         district: clubDetails.district,
         districtName: clubDetails.districtName,
         name: clubDetails.name,
@@ -45,6 +50,7 @@ const displaySingleClub = asyncHandler(async (req, res) => {
         rank: clubDetails.rank ?? 0,
         championships: clubDetails.championships ?? 0,
         clubId: clubDetails.clubId || "",
+        krsaId: clubDetails.krsaId || "",
     };
 
     return res.status(200).json(

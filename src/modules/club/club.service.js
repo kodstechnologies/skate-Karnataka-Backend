@@ -1,6 +1,41 @@
 import { AppError } from "../../util/common/AppError.js";
 import { allClubsRepository, apply_club_repositories, apply_leave_repository, approve_join_club_repositories, clubIdStoreinDestrict, clubsByDistrictPaginatedRepository, createClubRepository, deleteClubDetails, display_existing_club_repositories, displayFullDetailsOfClub, isApplyRepository, isExistClub, isExistClubRepository, isThisClubExist, updateClubDetails } from "./club.repositories.js";
 
+const mapCreateClubError = (error) => {
+    if (error instanceof AppError) {
+        return error;
+    }
+
+    if (error?.code === 11000) {
+        const kp = error.keyPattern || {};
+        if (kp.phone) {
+            return new AppError("This phone number is already registered", 409);
+        }
+        if (kp.email) {
+            return new AppError("This email is already in use", 409);
+        }
+        if (kp.name && kp.district) {
+            return new AppError("Club name already exists in this district", 409);
+        }
+        if (kp.krsaId) {
+            return new AppError("Could not assign a unique KRSA ID, please try again", 409);
+        }
+        return new AppError("A record with these details already exists", 409);
+    }
+
+    if (error?.name === "ValidationError") {
+        const parts = Object.values(error.errors || {}).map((e) => e.message);
+        const msg = parts.length ? parts.join("; ") : "Invalid club data";
+        return new AppError(msg, 400);
+    }
+
+    if (error?.name === "CastError") {
+        return new AppError("Invalid district id or data format", 400);
+    }
+
+    return new AppError(error?.message || "Failed to create club", 400);
+};
+
 const allClubService = async (id ,page, limit) => {
     return await allClubsRepository(id ,page, limit);
 }
@@ -19,10 +54,7 @@ const createClubService = async (data) => {
         const clubData = await createClubRepository(data);   //  create
         await clubIdStoreinDestrict(clubData.district, clubData._id);
     } catch (error) {
-        if (error?.code === 11000) {
-            throw new AppError("Club name already exists in this district", 409);
-        }
-        throw error;
+        throw mapCreateClubError(error);
     }
 };
 
@@ -38,10 +70,17 @@ const updateClubDetailsService = async (data, id) => {
     try {
         await updateClubDetails(data, id);
     } catch (error) {
+        if (error instanceof AppError) {
+            throw error;
+        }
         if (error?.code === 11000) {
             throw new AppError("Club name already exists in this district", 409);
         }
-        throw error;
+        if (error?.name === "ValidationError") {
+            const parts = Object.values(error.errors || {}).map((e) => e.message);
+            throw new AppError(parts.length ? parts.join("; ") : "Invalid club data", 400);
+        }
+        throw new AppError(error?.message || "Failed to update club", 400);
     }
 }
 

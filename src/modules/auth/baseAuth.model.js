@@ -38,7 +38,7 @@ const BaseAuthSchema = new mongoose.Schema(
    
     gender: {
       type: String,
-      enum: ["male", "female", "other"],
+      // enum: ["male", "female", "other"],
       lowercase: true,
       trim: true,
     },
@@ -104,6 +104,7 @@ BaseAuthSchema.pre("save", async function () {
     Academy: "A",
     Officials: "O",
     Guest: "G",
+    Club: "CL",
   };
 
   const prefix = rolePrefixMap[this.role] || "U";

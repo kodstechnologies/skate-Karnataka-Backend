@@ -32,10 +32,7 @@ export const validate = (schemas) => {
                             .map((detail) => detail.message.replace(/"/g, ""))
                             .join(", ");
 
-                        return res.status(400).json({
-                            success: false,
-                            message: errorMessage
-                        });
+                        return next(new AppError(errorMessage, 400));
                     }
 
                     req[property] = value;

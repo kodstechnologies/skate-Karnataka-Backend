@@ -1,7 +1,7 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { AppError } from "../../util/common/AppError.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { allClubService, apply_club_service, apply_leave_service, approve_join_club_service, approve_leave_club_service, clubsByUserDistrictService, createClubService, deleteClubSchema, display_existing_club_service, displayClubDashboardService, displaySingleClubService, pendingApprovalsServices, reportServices, updateClubDetailsService } from "./club.service.js";
+import { allClubService, apply_club_service, apply_leave_service, approve_join_club_service, approve_leave_club_service, clubsByUserDistrictService, createClubService, deleteClubSchema, display_existing_club_service, displayClubDashboardService, displaySingleClubService, pendingApprovalsServices, reject_join_club_service, reportServices, updateClubDetailsService } from "./club.service.js";
 
 const displayClubDashboard = asyncHandler(async (req, res) => {
     const id = req.user._id;
@@ -146,11 +146,17 @@ const apply_club = asyncHandler(async (req, res) => {
     )
 })
 
-const approve_join_club = asyncHandler(async (req, res) => {
+ const approve_join_club = asyncHandler(async (req, res) => {
     // const ClubId = req.user._id;
     const {id} = req.params;
     await approve_join_club_service(id);
     return res.status(200).json(new ApiResponse(200, null, "Club approve successfully"));
+})
+export const reject_join_club = asyncHandler(async (req, res) => {
+    // const ClubId = req.user._id;
+    const {id} = req.params;
+    await reject_join_club_service(id);
+    return res.status(200).json(new ApiResponse(200, null, "Club reject successfully"));
 })
 
 const apply_leave = asyncHandler(async (req, res) => {

@@ -1,5 +1,5 @@
 import { AppError } from "../../util/common/AppError.js";
-import { allClubsRepository, apply_club_repositories, apply_leave_repository, approve_join_club_repositories, clubIdStoreinDestrict, clubsByDistrictPaginatedRepository, createClubRepository, deleteClubDetails, display_existing_club_repositories, displayClubDashboardRepositories, displayFullDetailsOfClub, isApplyRepository, isExistClub, isExistClubRepository, isThisClubExist, pendingApprovalsRepositories, updateClubDetails } from "./club.repositories.js";
+import { allClubsRepository, apply_club_repositories, apply_leave_repository, approve_join_club_repositories, clubIdStoreinDestrict, clubsByDistrictPaginatedRepository, createClubRepository, deleteClubDetails, display_existing_club_repositories, displayClubDashboardRepositories, displayFullDetailsOfClub, isApplyRepository, isExistClub, isExistClubRepository, isThisClubExist, pendingApprovalsRepositories, reject_join_club_repositories, updateClubDetails } from "./club.repositories.js";
 
 
 const mapCreateClubError = (error) => {
@@ -133,6 +133,30 @@ const approve_join_club_service = async (skaterId) => {
     }
 
     return await approve_join_club_repositories(skaterId);
+};
+export const reject_join_club_service = async (skaterId) => {
+    const status = await isApplyRepository(skaterId);
+
+    if (!status) {
+        throw new AppError("Application not found");
+    }
+
+    switch (status) {
+        case "join":
+            throw new AppError("User already joined the club");
+
+        case "leave":
+            throw new AppError("User must apply before rejection");
+
+        case "apply":
+            // ✅ valid case → proceed
+            break;
+
+        default:
+            throw new AppError("Invalid application status");
+    }
+
+    return await reject_join_club_repositories(skaterId);
 };
 const apply_leave_service = async (userId) => {
     const status = await isApplyRepository(userId);

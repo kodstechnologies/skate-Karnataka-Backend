@@ -1,7 +1,7 @@
 import express from "express";
 import { validate } from "../../middleware/validate.multiple.js";
 import { createClubValidation, editClubValidation } from "./club.validation.js";
-import { apply_club, apply_leave, approve_join_club, approve_leave_club, createNewClub, deleteClub, display_all_Club_basedOn_user_district, display_existing_club, displayAllClubs, displayClubDashboard, displaySingleClub, pendingApprovals, reports, updateClub } from "./club.controller.js";
+import { apply_club, apply_leave, approve_join_club, approve_leave_club, createNewClub, deleteClub, display_all_Club_basedOn_user_district, display_existing_club, displayAllClubs, displayClubDashboard, displaySingleClub, pendingApprovals, reject_join_club, reports, updateClub } from "./club.controller.js";
 import { upload } from "../../middleware/multer.middleware.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
@@ -34,8 +34,9 @@ router.get("/v1/reports" , authenticate(["Club"]), reports);
 router.get("/v1/skater/display-existing-club",
     authenticate(["Skater"]),
     display_existing_club
-
 )
+
+
 
 // apply for join
 router.get("/v1/apply-join/:id",
@@ -46,6 +47,11 @@ router.get("/v1/apply-join/:id",
 router.get("/v1/approve-join/:id",
     authenticate(["Club"]),
     approve_join_club);
+
+    // // approve for join
+router.get("/v1/reject-join/:id",
+    authenticate(["Club", "admin"]),
+    reject_join_club);
 
 // apply for leave
 router.get("/v1/apply-leave",

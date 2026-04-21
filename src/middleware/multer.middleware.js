@@ -1,4 +1,5 @@
 import multer from "multer";
+import { AppError } from "../util/common/AppError.js";
 
 export const upload = multer({
   storage: multer.memoryStorage(),
@@ -24,7 +25,7 @@ export const upload = multer({
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error("Only image and document files are allowed!"), false);
+      cb(new AppError("Only image and document files are allowed", 400), false);
     }
   },
 });

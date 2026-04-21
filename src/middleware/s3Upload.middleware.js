@@ -1,4 +1,5 @@
 import {putObject} from "../util/aws/putObject.js"
+import { AppError } from "../util/common/AppError.js";
 export const uploadToS3 = (folder = "uploads") => {
   return async (req, res, next) => {
     try {
@@ -9,10 +10,9 @@ export const uploadToS3 = (folder = "uploads") => {
       // attach to request
       req.body.img = url;
       req.body.imgKey = key;
-console.log("jjj")
       next();
     } catch (err) {
-      next(err);
+      next(new AppError(err?.message || "Failed to upload file", 500));
     }
   };
 };

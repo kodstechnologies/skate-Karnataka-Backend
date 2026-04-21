@@ -55,6 +55,10 @@ export const authenticate = (allowedRoles = []) => {
       next();
 
     } catch (error) {
+      if (error instanceof AppError) {
+        return next(error);
+      }
+
       if (error.name === "TokenExpiredError") {
         return next(new AppError("Access token expired", 401));
       }

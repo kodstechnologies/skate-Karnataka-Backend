@@ -48,7 +48,7 @@ export const pendingApprovalsRepositories = async (clubId, { page, limit }) => {
 
     // ✅ Data
     const data = await Skater.find(query)
-        .select("fullName createdAt photo")
+        .select("fullName createdAt photo krsaId")
         .sort({ createdAt: -1 })
         .skip(skip)           // ✅ pagination
         .limit(perPage)       // ✅ pagination
@@ -248,6 +248,16 @@ const approve_join_club_repositories = async (skaterId) => {
     )
 }
 
+export const reject_join_club_repositories = async (skaterId) => {
+    await Skater.findByIdAndUpdate(
+        skaterId,
+        {
+            clubStatus: "reject",
+            club: null,
+        },
+        { new: true }
+    )
+}
 const apply_leave_repository = async (skaterId) => {
     return await Skater.findOneAndUpdate(
         { _id: skaterId, clubStatus: "join" }, // only if joined

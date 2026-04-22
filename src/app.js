@@ -29,6 +29,27 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Lightweight cookie parsing so auth middleware can read cookie tokens.
+app.use((req, _res, next) => {
+    const rawCookies = req.headers.cookie;
+    req.cookies = {};
+
+    if (!rawCookies) {
+        return next();
+    }
+
+    rawCookies.split(";").forEach((cookie) => {
+        const [key, ...valueParts] = cookie.split("=");
+        if (!key) return;
+
+        const cookieKey = key.trim();
+        const cookieValue = decodeURIComponent(valueParts.join("=").trim() || "");
+        req.cookies[cookieKey] = cookieValue;
+    });
+
+    next();
+});
+
 app.use(cors())
 
 app.get('/health', (req, res) => {

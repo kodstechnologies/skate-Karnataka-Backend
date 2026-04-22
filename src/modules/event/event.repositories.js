@@ -1,27 +1,39 @@
 import { Event } from "./event.model.js";
 import { paginate } from "../../util/common/paginate.js";
 import { BaseAuth } from "../auth/baseAuth.model.js";
+import mongoose from "mongoose";
 
 const displayAllEventRepository = async ({ page, limit }) => {
 
-    const { skip, limit: pageLimit, page: currentPage } =
-        paginate(page, limit);
+  const { skip, limit: pageLimit, page: currentPage } =
+    paginate(page, limit);
 
-    const events = await Event.find()
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(pageLimit)
+  const events = await Event.find()
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(pageLimit)
+    .lean();
+
+  const total = await Event.countDocuments();
+
+  return {
+    total,
+    page: currentPage,
+    limit: pageLimit,
+    totalPages: Math.ceil(total / pageLimit),
+    data: events
+  };
+};
+
+export const clubRelatedEventDisplayRepositories = async (clubId) => {
+    const events = await Event.find({
+        eventType: "club", // ✅ string
+        eventFor: new mongoose.Types.ObjectId(clubId), // ✅ ensure ObjectId
+    })
+        .sort({ createdAt: -1 }) // latest first
         .lean();
 
-    const total = await Event.countDocuments();
-
-    return {
-        total,
-        page: currentPage,
-        limit: pageLimit,
-        totalPages: Math.ceil(total / pageLimit),
-        data: events
-    };
+    return events;
 };
 
 const displaySingleEventRepository = async (id) => {
@@ -89,22 +101,22 @@ const display_latest_event_repositories = async (userId) => {
   };
 };
 const create_event_repositories = async (data) => {
-    const event = await Event.create(data);
-    console.log(event, "event details");
+  const event = await Event.create(data);
+  console.log(event, "event details");
 }
 
 const edit_event_repositories = async (id, data) => {
-    const event = await Event.findByIdAndUpdate(
-        id,
-        data,
-        { new: true }
-    );
+  const event = await Event.findByIdAndUpdate(
+    id,
+    data,
+    { new: true }
+  );
 
-    return event;
+  return event;
 };
 
 const delete_event_repositories = async (id) => {
-    const event = await Event.findByIdAndDelete(id);
+  const event = await Event.findByIdAndDelete(id);
 }
 
 
@@ -166,10 +178,10 @@ const display_all_event_based_on_user_repositories = async (userId, { page, limi
       event.eventType === "State"
         ? "State"
         : event.eventType === "District"
-        ? event.eventFor?.name || event.eventFor?.districtName || "N/A"
-        : event.eventType === "Club"
-        ? event.eventFor?.name || event.eventFor?.clubName || "N/A"
-        : "N/A",
+          ? event.eventFor?.name || event.eventFor?.districtName || "N/A"
+          : event.eventType === "Club"
+            ? event.eventFor?.name || event.eventFor?.clubName || "N/A"
+            : "N/A",
   }));
 
   return {
@@ -181,12 +193,12 @@ const display_all_event_based_on_user_repositories = async (userId, { page, limi
   };
 };
 export {
-    displayAllEventRepository,
-    displaySingleEventRepository,
-    display_latest_event_repositories,
-    create_event_repositories,
-    edit_event_repositories,
-    delete_event_repositories,
-    display_all_event_based_on_user_repositories
+  displayAllEventRepository,
+  displaySingleEventRepository,
+  display_latest_event_repositories,
+  create_event_repositories,
+  edit_event_repositories,
+  delete_event_repositories,
+  display_all_event_based_on_user_repositories
 };
 

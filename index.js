@@ -12,10 +12,8 @@ app.use("/", AppRouter);
 async function startServer() {
     try {
         await connectDB()
-        // ⚠️ Seeder best practice
-        if (NODE_ENV == "production") {
-            await seeder()
-        }
+        // Ensure one admin exists on every startup.
+        await seeder()
         server.listen(PORT, () => {
             console.log(`Server running on port ${PORT}`);
         })

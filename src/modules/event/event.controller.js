@@ -1,6 +1,6 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { create_event_schema, delete_event_schema, display_all_event_based_on_user_service, display_latest_event_server, displayEventServer, displaySingleEventDetailsServer, edit_event_schema } from "./event.service.js";
+import { clubRelatedEventDisplayService, create_event_schema, delete_event_schema, display_all_event_based_on_user_service, display_latest_event_server, displayEventServer, displaySingleEventDetailsServer, edit_event_schema } from "./event.service.js";
 
 
 const display_latest_event = asyncHandler(async (req, res) => {
@@ -17,6 +17,15 @@ const display_latest_event = asyncHandler(async (req, res) => {
     );
 })
 
+export const clubRelatedEventDisplay = asyncHandler(async (req, res) => {
+    const clubId = req.user._id;
+    const events = await clubRelatedEventDisplayService(clubId);
+    return res.status(200).json(
+        new ApiResponse(
+            200, events, "In club related events display successfully"
+        )
+    )
+})
 
 const display_all_event_based_on_user = asyncHandler(async (req, res) => {
     console.log("jjjj")

@@ -1,13 +1,13 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
-import { create_event, delete_event, display_all_event_based_on_user, display_latest_event, displayAllEvents, displayEventById, edit_event } from "./event.controller.js";
+import { clubRelatedEventDisplay, create_event, delete_event, display_all_event_based_on_user, display_latest_event, displayAllEvents, displayEventById, edit_event } from "./event.controller.js";
 import { validate } from "../../middleware/validate.multiple.js";
 import { create_event_validation, update_event_validation } from "./event.validation.js";
 import { upload } from "../../middleware/multer.middleware.js";
 
 const router = express.Router();
 
-// router.get("/v1/club")
+router.get("/v1/club", authenticate(["Club"]), clubRelatedEventDisplay);
 
 // display latest event 
 

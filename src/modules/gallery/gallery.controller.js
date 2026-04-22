@@ -5,12 +5,11 @@ import { addMediaService, displayAllMediaBasedOnSkaterService } from "./gallery.
 const displayAllMediaBasedOnSkater = asyncHandler(async (req, res) => {
     const id = req.user._id;
     const media = await displayAllMediaBasedOnSkaterService(id);
-    return res.status(200).json(new ApiResponse(200 ,media , "Display all media successfully"));
+    return res.status(200).json(new ApiResponse(200, media, "Display all media successfully"));
  });
 
 const addMedia = asyncHandler(async (req, res) => {
-    console.log(req.user,"=====")
-    await addMediaService(req.body);
+    await addMediaService(req.body, req.user);
     return res.status(200).json(new ApiResponse(200, null, "Media added successfully"));
 });
 

@@ -1,6 +1,6 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { createNewDistrictService, districtDeletedService, getAllDistrictService, singleDistrictAllClubNameService, updateDistrictService } from "./district.service.js";
+import { acceptClubService, createNewDistrictService, districtDeletedService, getAllDistrictService, leaveClubService, rejectClubService, singleDistrictAllClubNameService, updateDistrictService } from "./district.service.js";
 
 const displayAllDistrict = asyncHandler(async (req, res) => {
   const districts = await getAllDistrictService();
@@ -60,10 +60,42 @@ const deleteDistrict = asyncHandler(async (req, res) => {
   )
 })
 
+const acceptClub = asyncHandler(async (req, res) => {
+  const { id: clubId } = req.params;
+  const districtId = req.user?._id;
+  const result = await acceptClubService({ clubId, districtId });
+
+  return res.status(200).json(
+    new ApiResponse(200, null, "Club district application accepted")
+  );
+});
+
+const leaveClub = asyncHandler(async (req, res) => {
+  const { id: clubId } = req.params;
+  const result = await leaveClubService({ clubId });
+
+  return res.status(200).json(
+    new ApiResponse(200, result, "Club leave application accepted")
+  );
+});
+
+const rejectClub = asyncHandler(async (req, res) => {
+  const { id: clubId } = req.params;
+  const districtId = req.user?._id;
+  const result = await rejectClubService({ clubId, districtId });
+
+  return res.status(200).json(
+    new ApiResponse(200, result, "Club district application rejected")
+  );
+});
+
 export {
   displayAllDistrict,
   createNewDistrict,
   displaySingleDistrictAllClubs,
   updateDistrict,
-  deleteDistrict
+  deleteDistrict,
+  acceptClub,
+  leaveClub,
+  rejectClub
 }

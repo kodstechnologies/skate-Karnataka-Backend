@@ -197,15 +197,16 @@ const apply_club = asyncHandler(async (req, res) => {
 })
 
  const approve_join_club = asyncHandler(async (req, res) => {
-    // const ClubId = req.user._id;
+    const ClubId = req.user._id;
     const {id} = req.params;
-    await approve_join_club_service(id);
+    await approve_join_club_service(id,ClubId);
     return res.status(200).json(new ApiResponse(200, null, "Club approve successfully"));
 })
 export const reject_join_club = asyncHandler(async (req, res) => {
-    // const ClubId = req.user._id;
+    const ClubId = req.user._id;
+    console.log(ClubId,"ClubId===")
     const {id} = req.params;
-    await reject_join_club_service(id);
+    await reject_join_club_service(id,ClubId);
     return res.status(200).json(new ApiResponse(200, null, "Club reject successfully"));
 })
 
@@ -216,8 +217,9 @@ const apply_leave = asyncHandler(async (req, res) => {
 })
 
 const approve_leave_club = asyncHandler(async (req, res) => {
-    await approve_leave_club_service();
-    return res.status(200).json(new ApiResponse(200, null, "Club approve successfully"));
+    const { id } = req.params;
+    await approve_leave_club_service(id);
+    return res.status(200).json(new ApiResponse(200, null, "Club leave approved successfully"));
 })
 
 const display_existing_club = asyncHandler(async (req, res) => {

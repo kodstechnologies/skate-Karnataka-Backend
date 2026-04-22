@@ -42,7 +42,12 @@ const skaterSchema = new mongoose.Schema({
   //   ref: "District",
   //   // required: true,
   // },
-
+  applyClub: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Club",
+    },
+  ],
   club: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Club",
@@ -50,7 +55,7 @@ const skaterSchema = new mongoose.Schema({
   },
   clubStatus: {
     type: String,
-    enum: ["apply", "join","apply-leave", "leave","reject"],
+    enum: ["apply", "join", "apply-leave", "leave", "reject"],
     default: "apply"
   },
 

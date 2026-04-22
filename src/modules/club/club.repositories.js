@@ -342,6 +342,7 @@ const clubsByDistrictPaginatedRepository = async (districtId, { page, limit }) =
 
 const isExistClubRepository = async (id) => {
     const skater = await Skater.findById(id).select("club");
+    console.log(skater,"skater==")
     return !!skater?.club;
 };
 
@@ -350,8 +351,8 @@ const apply_club_repositories = async (clubId, skaterId) => {
     const updatedSkater = await Skater.findByIdAndUpdate(
         skaterId,
         {
-            club: clubId,
             clubStatus: "apply",
+            $addToSet: { applyClub: clubId },
         },
         { new: true }
     )
@@ -364,29 +365,44 @@ const isApplyRepository = async (id) => {
     return skater?.clubStatus;
 }
 
-const approve_join_club_repositories = async (skaterId) => {
+const approve_join_club_repositories = async (skaterId,ClubId) => {
     await Skater.findByIdAndUpdate(
         skaterId,
         {
+            club :ClubId,
             clubStatus: "join",
+            applyClub: [],
         },
         { new: true }
     )
 }
 
-export const reject_join_club_repositories = async (skaterId) => {
-    await Skater.findByIdAndUpdate(
-        skaterId,
-        {
-            clubStatus: "reject",
-            club: null,
-        },
-        { new: true }
-    )
-}
+export const reject_join_club_repositories = async (skaterId, clubId) => {
+  const skater = await Skater.findByIdAndUpdate(
+    skaterId,
+    {
+      $pull: {
+        applyClub: clubId
+      }
+    },
+    { new: true }
+  );
+
+  return skater;
+};
 const apply_leave_repository = async (skaterId) => {
     return await Skater.findOneAndUpdate(
         { _id: skaterId, clubStatus: "join" }, // only if joined
+        {
+            clubStatus: "apply-leave",
+        },
+        { new: true }
+    );
+};
+
+const approve_leave_club_repositories = async (skaterId) => {
+    return await Skater.findByIdAndUpdate(
+        skaterId,
         {
             clubStatus: "leave",
             club: null,
@@ -419,5 +435,6 @@ export {
     isApplyRepository,
     approve_join_club_repositories,
     apply_leave_repository,
+    approve_leave_club_repositories,
     display_existing_club_repositories
 }

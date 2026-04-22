@@ -1,5 +1,5 @@
 import { AppError } from "../../util/common/AppError.js";
-import { createDistrict, districtDeletedRepository, districtUpdateRepository, getAllDistrict, isDistrictAvailable, isDistrictExist, singleDistrictRepository } from "./district.repositories.js";
+import { acceptClubJoinRepository, acceptClubLeaveRepository, createDistrict, districtDeletedRepository, districtUpdateRepository, getAllDistrict, isDistrictAvailable, isDistrictExist, rejectClubJoinRepository, singleDistrictRepository } from "./district.repositories.js";
 
 const getAllDistrictService = async () => {
     return await getAllDistrict();
@@ -38,10 +38,34 @@ const districtDeletedService = async (id) => {
     await districtDeletedRepository(id);
 }
 
+const acceptClubService = async ({ clubId, districtId }) => {
+    if (!clubId || !districtId) {
+        throw new AppError("clubId and districtId are required", 400);
+    }
+    return await acceptClubJoinRepository({ clubId, districtId });
+};
+
+const leaveClubService = async ({ clubId }) => {
+    if (!clubId) {
+        throw new AppError("clubId is required", 400);
+    }
+    return await acceptClubLeaveRepository({ clubId });
+};
+
+const rejectClubService = async ({ clubId, districtId }) => {
+    if (!clubId || !districtId) {
+        throw new AppError("clubId and districtId are required", 400);
+    }
+    return await rejectClubJoinRepository({ clubId, districtId });
+};
+
 export {
     getAllDistrictService,
     createNewDistrictService,
     singleDistrictAllClubNameService,
     updateDistrictService,
-    districtDeletedService
+    districtDeletedService,
+    acceptClubService,
+    leaveClubService,
+    rejectClubService
 }

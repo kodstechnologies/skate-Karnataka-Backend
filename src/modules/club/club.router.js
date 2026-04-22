@@ -45,23 +45,25 @@ router.get("/v1/apply-join/:id",
     authenticate(["Skater"]),
     apply_club);
 
-// // approve for join
-router.get("/v1/approve-join/:id",
-    authenticate(["Club"]),
-    approve_join_club);
-
-// // approve for join
-router.get("/v1/reject-join/:id",
-    authenticate(["Club", "admin"]),
-    reject_join_club);
-
 // apply for leave
 router.get("/v1/apply-leave",
     authenticate(["Skater"]),
     apply_leave);
 
+// approve for join
+router.get("/v1/approve-join/:id",
+    authenticate(["Club"]),
+    approve_join_club);
+
+// approve for join
+router.get("/v1/reject-join/:id",
+    authenticate(["Club"]),
+    reject_join_club);
+
+    
+
 // approve for leave
-router.get("/v1/approve-leave/:id", approve_leave_club);
+router.get("/v1/approve-leave/:id", authenticate(["Club"]), approve_leave_club);
 
 router.get("/v1/all/:id",
     displayAllClubs);

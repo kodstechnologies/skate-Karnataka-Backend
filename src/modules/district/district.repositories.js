@@ -1,5 +1,6 @@
 import { District } from "./district.model.js"
 import { Club } from "../club/club.model.js";
+import { AppError } from "../../util/common/AppError.js";
 
 const getAllDistrict = async () => {
     const districts = await District.find().select(
@@ -79,6 +80,88 @@ const districtDeletedRepository = async (id) => {
   // 3️⃣ Delete district
   await District.findByIdAndDelete(id);
 };
+
+const acceptClubJoinRepository = async ({ clubId, districtId }) => {
+  const district = await District.findById(districtId).select("name").lean();
+  if (!district) {
+    throw new AppError("District not found", 404);
+  }
+
+  const clubBeforeUpdate = await Club.findById(clubId).select("applyDistrict").lean();
+  if (!clubBeforeUpdate) {
+    throw new AppError("Club not found", 404);
+  }
+
+  const requestedDistrict = (clubBeforeUpdate.applyDistrict || []).some(
+    (id) => String(id) === String(districtId)
+  );
+  if (!requestedDistrict) {
+    throw new AppError("Club did not apply for this district", 400);
+  }
+
+  const updatedClub = await Club.findByIdAndUpdate(
+    clubId,
+    {
+      $set: {
+        district: districtId,
+        districtName: district.name,
+        districtStatus: "join",
+      },
+    },
+    { new: true }
+  );
+
+  if (!updatedClub) {
+    throw new AppError("Club not found", 404);
+  }
+
+  updatedClub.applyDistrict = [];
+  await updatedClub.save();
+  return updatedClub;
+};
+
+const acceptClubLeaveRepository = async ({ clubId }) => {
+  const updatedClub = await Club.findByIdAndUpdate(
+    clubId,
+    {
+      $set: {
+        districtStatus: "leave",
+        districtName: "",
+      },
+      $unset: {
+        district: "",
+      },
+    },
+    { new: true }
+  ).lean();
+
+  if (!updatedClub) {
+    throw new AppError("Club not found", 404);
+  }
+
+  return updatedClub;
+};
+
+const rejectClubJoinRepository = async ({ clubId, districtId }) => {
+  const updatedClub = await Club.findByIdAndUpdate(
+    clubId,
+    {
+      $set: {
+        districtStatus: "reject",
+      },
+      $pull: {
+        applyDistrict: districtId,
+      },
+    },
+    { new: true }
+  ).lean();
+
+  if (!updatedClub) {
+    throw new AppError("Club not found", 404);
+  }
+
+  return updatedClub;
+};
 export {
     getAllDistrict,
     isDistrictExist,
@@ -86,5 +169,8 @@ export {
     isDistrictAvailable,
     singleDistrictRepository,
     districtUpdateRepository,
-    districtDeletedRepository
+    districtDeletedRepository,
+    acceptClubJoinRepository,
+    acceptClubLeaveRepository,
+    rejectClubJoinRepository
 }

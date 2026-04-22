@@ -1,14 +1,20 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
-import { clubRelatedEventDisplay, create_event, delete_event, display_all_event_based_on_user, display_latest_event, displayAllEvents, displayEventById, edit_event } from "./event.controller.js";
+import { clubRelatedEventDisplay, createClubEvent, create_event, delete_event, display_all_event_based_on_user, display_latest_event, displayAllEvents, displayEventById, edit_event } from "./event.controller.js";
 import { validate } from "../../middleware/validate.multiple.js";
-import { create_event_validation, update_event_validation } from "./event.validation.js";
+import { create_club_event_validation, create_event_validation, update_event_validation } from "./event.validation.js";
 import { upload } from "../../middleware/multer.middleware.js";
 
 const router = express.Router();
 
 router.get("/v1/club", authenticate(["Club"]), clubRelatedEventDisplay);
-
+router.post(
+    "/v1/club",
+    authenticate(["Club"]),
+    upload.single("image"),
+    validate(create_club_event_validation),
+    createClubEvent
+);
 // display latest event 
 
 router.get("/v1/latest-event", authenticate(["Skater"]), display_latest_event);
@@ -21,11 +27,7 @@ router.get("/v1/user-all-events", authenticate(["Skater"]), display_all_event_ba
 router.get("/v1/display",
     displayAllEvents);
 
-/**
- * @description Display event by ID
- * @route GET /event/display/:id
- * @access Private (user)
- */
+
 router.get("/v1/full-display/:id",
      authenticate(["Skater"]),
     displayEventById);

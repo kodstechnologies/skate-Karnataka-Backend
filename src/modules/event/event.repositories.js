@@ -27,13 +27,23 @@ const displayAllEventRepository = async ({ page, limit }) => {
 
 export const clubRelatedEventDisplayRepositories = async (clubId) => {
     const events = await Event.find({
-        eventType: "club", // ✅ string
+        eventType: "Club",
         eventFor: new mongoose.Types.ObjectId(clubId), // ✅ ensure ObjectId
     })
         .sort({ createdAt: -1 }) // latest first
         .lean();
 
     return events;
+};
+
+export const createClubEventRepositories = async (clubId, data) => {
+  const payload = {
+    ...data,
+    eventType: "Club",
+    eventFor: new mongoose.Types.ObjectId(clubId),
+  };
+
+  return Event.create(payload);
 };
 
 const displaySingleEventRepository = async (id) => {

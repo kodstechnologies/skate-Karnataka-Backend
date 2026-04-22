@@ -40,6 +40,46 @@ const create_event_validation = {
     }),
 };
 
+const create_club_event_validation = {
+    body: Joi.object({
+        header: Joi.string()
+            .trim()
+            .min(2)
+            .max(50)
+            .required(),
+
+        image: Joi.string()
+            .uri()
+            .optional()
+            .allow(""),
+
+        date: Joi.date()
+            .required(),
+
+        about: Joi.string()
+            .trim()
+            .optional()
+            .allow(""),
+
+        address: Joi.string()
+            .trim()
+            .optional()
+            .allow(""),
+
+        // club event type and club id are forced from authenticated token in service layer
+        eventType: Joi.forbidden(),
+        eventFor: Joi.forbidden(),
+
+        entryFee: Joi.string().allow(""),
+        colorOne: Joi.string().allow(""),
+        colorTwo: Joi.string().allow(""),
+        textColor: Joi.string().allow(""),
+        status: Joi.string()
+            .valid("coming_soon", "active", "cancelled", "completed")
+            .optional(),
+    }),
+};
+
 
 const update_event_validation = {
     body: Joi.object({
@@ -81,5 +121,6 @@ const update_event_validation = {
 
 export {
     create_event_validation,
+    create_club_event_validation,
     update_event_validation
 }

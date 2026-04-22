@@ -1,6 +1,6 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { clubRelatedEventDisplayService, create_event_schema, delete_event_schema, display_all_event_based_on_user_service, display_latest_event_server, displayEventServer, displaySingleEventDetailsServer, edit_event_schema } from "./event.service.js";
+import { clubRelatedEventDisplayService, createClubEventService, create_event_schema, delete_event_schema, display_all_event_based_on_user_service, display_latest_event_server, displayEventServer, displaySingleEventDetailsServer, edit_event_schema } from "./event.service.js";
 
 
 const display_latest_event = asyncHandler(async (req, res) => {
@@ -26,6 +26,20 @@ export const clubRelatedEventDisplay = asyncHandler(async (req, res) => {
         )
     )
 })
+
+export const createClubEvent = asyncHandler(async (req, res) => {
+    console.log(req.body ,"=====")
+    const clubId = req.user._id;
+    const event = await createClubEventService(clubId, req.body);
+
+    return res.status(201).json(
+        new ApiResponse(
+            201,
+            event,
+            "Club event created successfully"
+        )
+    );
+});
 
 const display_all_event_based_on_user = asyncHandler(async (req, res) => {
     console.log("jjjj")

@@ -7,20 +7,7 @@ import {LoginValidation, LogoutValidation, RegisterValidation, sendEmailOTPValid
 
 const router = express.Router();
 
-/**
- * @description User registration
- * @route POST /auth/v1/register
- * @access Public
- * @body {
- *   fullName: string,
- *   address: string,
- *   district: string,
- *   gender: string,
- *   email: string,
- *   phone: string,
- *   role: string
- * }
- */
+
 router.post("/v1/register",
     validate(RegisterValidation),
     RegisterUser);
@@ -50,104 +37,15 @@ router.post(
 );
 
 
-/**
- * @description User login
- * @route POST /auth/login
- * @access Public
- * @body {
- *   phone: string
- * }
- */
 router.post("/v1/login",
     validate(LoginValidation),
     LoginUser);
 
-/**
- * @description User password verification
- * @route POST /auth/verify-otp
- * @access Public
- * @body {
- *   phone: string,
- *  otp: string
- * }
- */
+
 router.post("/verify-otp",
     validate(VerifyOTPValidation),
     VerifyOTP);
 
-// // -========== login completed skater =====================
-
-// router.post(
-//   "/v1/after-login-skater-form/:id",
-//   upload.fields([
-//     { name: "img", maxCount: 1 },
-//     { name: "document", maxCount: 1 }
-//   ]),
-//   validateMultiple(afterLoginSkaterFormValidation),
-//   afterLoginSkaterForm
-// );
-
-// // -========== login completed club =====================
-
-// router.post(
-//   "/v1/after-login-club-form/:id",
-//   upload.fields([
-//     { name: "img", maxCount: 1 },
-//     { name: "document", maxCount: 1 }
-//   ]),
-//   validateMultiple(afterLoginClubFormValidation),
-//   afterLoginClubForm
-// );
-
-// // -========== login completed guest =====================
-
-// router.post(
-//   "/v1/after-login-guest-form/:id",
-//   upload.fields([
-//     { name: "img", maxCount: 1 },
-//     { name: "document", maxCount: 1 }
-//   ]),
-//   // validateMultiple(afterLoginGuestFormValidation),
-//   afterLoginGuestForm
-// );
-
-// // -========== login completed parent =====================
-
-// router.post(
-//   "/v1/after-login-parent-form/:id",
-//   upload.fields([
-//     { name: "img", maxCount: 1 },
-//     { name: "document", maxCount: 1 }
-//   ]),
-//   validateMultiple(afterLoginParentFormValidation),
-//   afterLoginParentForm
-// );
-
-
-// // -========== login completed school =====================
-
-// router.post(
-//   "/v1/after-login-school-form/:id",
-//   upload.fields([
-//     { name: "img", maxCount: 1 },
-//     { name: "document", maxCount: 1 }
-//   ]),
-//   validateMultiple(afterLoginSchoolFormValidation),
-//   afterLoginSchoolForm
-// );
-
-
-// // -========== login completed official =====================
-
-// router.post(
-//   "/v1/after-login-official-form/:id",
-//   upload.fields([
-//     { name: "img", maxCount: 1 },
-//     { name: "document", maxCount: 1 }
-//   ]),
-//   validateMultiple(afterLoginOfficialFormValidation),
-//   afterLoginOfficialForm
-// );
 
 
 router.post("/refresh-token",

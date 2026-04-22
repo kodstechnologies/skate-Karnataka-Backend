@@ -1,5 +1,5 @@
 import { AppError } from "../../util/common/AppError.js";
-import { allClubsRepository, apply_club_repositories, apply_leave_repository, approve_join_club_repositories, clubIdStoreinDestrict, clubsByDistrictPaginatedRepository, createClubRepository, deleteClubDetails, display_existing_club_repositories, displayClubDashboardRepositories, displayFullDetailsOfClub, isApplyRepository, isExistClub, isExistClubRepository, isThisClubExist, pendingApprovalsRepositories, reject_join_club_repositories, updateClubDetails } from "./club.repositories.js";
+import { allClubsRepository, apply_club_repositories, apply_leave_repository, approve_join_club_repositories, clubIdStoreinDestrict, clubsByDistrictPaginatedRepository, createClubRepository, deleteClubDetails, display_existing_club_repositories, displayClubDashboardRepositories, displayClubProfileRepositories, displayFullDetailsOfClub, isApplyRepository, isExistClub, isExistClubRepository, isThisClubExist, pendingApprovalsRepositories, reject_join_club_repositories, updateClubDetails } from "./club.repositories.js";
 
 
 const mapCreateClubError = (error) => {
@@ -40,6 +40,16 @@ const mapCreateClubError = (error) => {
 export const displayClubDashboardService = async(clubId) => {
     return await displayClubDashboardRepositories({ clubId });
 }
+
+export const displayClubProfileService = async (clubId) => {
+    const profile = await displayClubProfileRepositories(clubId);
+
+    if (!profile) {
+        throw new AppError("Club profile not found", 404);
+    }
+
+    return profile;
+};
 
 export const pendingApprovalsServices = async (clubId, { page, limit }) => {
     return await pendingApprovalsRepositories(clubId, { page, limit });

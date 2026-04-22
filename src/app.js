@@ -20,6 +20,7 @@ import districtRouter from "./modules/district/district.router.js";
 import stateRouter from "./modules/state/state.router.js";
 import reportRouter from "./modules/report/report.router.js";
 import certificateRouter from "./modules/certificate/certificate.router.js";
+import { CORS_ORIGIN } from "./config/envConfig.js";
 import { AppError } from "./util/common/AppError.js";
 import { globalErrorHandler } from "./util/globalErrorHandler.js";
 
@@ -50,7 +51,15 @@ app.use((req, _res, next) => {
     next();
 });
 
-app.use(cors())
+const allowedOrigins = (CORS_ORIGIN || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+app.use(cors({
+    origin: allowedOrigins.length ? allowedOrigins : true,
+    credentials: true,
+}));
 
 app.get('/health', (req, res) => {
     res.send("Welcome to KRSA backend")

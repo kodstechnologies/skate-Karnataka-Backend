@@ -29,7 +29,7 @@ router.get("/v1/display",
 
 
 router.get("/v1/full-display/:id",
-     authenticate(["Skater"]),
+    authenticate(["Skater"]),
     displayEventById);
 
 

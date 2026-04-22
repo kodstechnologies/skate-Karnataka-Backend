@@ -279,6 +279,18 @@ const saveFirebaseToken = async (userData) => {
     );
 }
 
+const saveRefreshToken = async (userId, refreshToken) => {
+    if (!refreshToken) return;
+
+    await BaseAuth.findByIdAndUpdate(
+        userId,
+        {
+            $addToSet: { refreshTokens: refreshToken }
+        },
+        { new: true }
+    );
+}
+
 const removeFirebaseTokenAndRefressToken = async (userData) => {
     const { userId, firebaseToken } = userData;
     if (!firebaseToken) return; // if not provided, skip    
@@ -346,6 +358,7 @@ export {
     afterLoginOfficialFormRepositories,
     afterLoginSchoolFormRepositories,
     saveFirebaseToken,
+    saveRefreshToken,
     removeFirebaseTokenAndRefressToken,
     deleteAccount,
     getUserProfile,

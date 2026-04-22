@@ -37,6 +37,32 @@ export const displayClubDashboardRepositories = async ({ clubId }) => {
     };
 };
 
+export const displayClubProfileRepositories = async (clubId) => {
+    const club = await Club.findById(clubId)
+        .select("name img address district districtName about rank championships")
+        .populate("district", "name")
+        .lean();
+
+    if (!club) return null;
+
+    const totalSkater = await Skater.countDocuments({
+        club: clubId,
+        clubStatus: "join",
+        role: "Skater",
+    });
+
+    return {
+        name: club.name || "",
+        image: club.img || "",
+        totalSkater,
+        address: club.address || "",
+        districtName: club.district?.name || club.districtName || "",
+        about: club.about || "",
+        rank: club.rank ?? 0,
+        championships: club.championships ?? 0,
+    };
+};
+
 export const pendingApprovalsRepositories = async (clubId, { page, limit }) => {
     const { skip, limit: perPage, page: currentPage } = paginate(page, limit);
 

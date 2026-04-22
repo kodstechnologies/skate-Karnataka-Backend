@@ -26,6 +26,13 @@ export const putObject = async (file, folder = "uploads") => {
             throw new Error("File buffer is missing or empty");
         }
 
+        if (!process.env.AWS_S3_BUCKET) {
+            throw new Error("AWS_S3_BUCKET is missing in environment configuration");
+        }
+        if (!process.env.AWS_REGION) {
+            throw new Error("AWS_REGION is missing in environment configuration");
+        }
+
         const extension = getExtension(file);
         const baseName = sanitizeName((file.originalname || "file").replace(/\.[^/.]+$/, ""));
         const key = `${folder}/${Date.now()}-${baseName}.${extension}`;
@@ -37,7 +44,7 @@ export const putObject = async (file, folder = "uploads") => {
             ContentType: file.mimetype || "application/octet-stream",
         };
 
-        console.log("Uploading file with params:", params);
+        console.log("Uploading file to S3:", { Bucket: params.Bucket, Key: params.Key });
 
         const command = new PutObjectCommand(params);
         const data = await s3Client.send(command);

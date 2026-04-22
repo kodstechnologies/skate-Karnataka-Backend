@@ -22,6 +22,8 @@ const normalizeFormBody = (req, _res, next) => {
   next();
 };
 
+// router.get()
+
 router.get("/v1/all",
     displayAllDistrict);
 router.post("/v1/",

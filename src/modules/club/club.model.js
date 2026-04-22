@@ -17,6 +17,19 @@ const clubSchema = new mongoose.Schema(
       index: true,
     },
 
+    applyDistrict: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "District",
+      },
+    ],
+
+    districtStatus: {
+      type: String,
+      enum: ["apply", "join", "apply-leave","leave", "reject"],
+      default: "apply"
+    },
+    
     districtName: {
       type: String,
       trim: true,

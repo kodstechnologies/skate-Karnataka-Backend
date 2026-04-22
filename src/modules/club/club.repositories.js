@@ -92,6 +92,77 @@ export const affiliatedDistrictRepository = async (clubId) => {
     };
 };
 
+export const exceptOwnDistrictDisplayAllDistrictRepository = async (clubId) => {
+    const club = await Club.findById(clubId).select("district").lean();
+    if (!club) {
+        return null;
+    }
+
+    const filter = club.district ? { _id: { $ne: club.district } } : {};
+
+    const districts = await District.find(filter)
+        .select("_id name img")
+        .sort({ name: 1 })
+        .lean();
+
+    return districts;
+};
+
+export const applyForDistrictRepository = async (clubId, districtId) => {
+    const [club, district] = await Promise.all([
+        Club.findById(clubId).select("district districtStatus applyDistrict").lean(),
+        District.findById(districtId).select("_id name").lean(),
+    ]);
+
+    if (!club) return null;
+    if (!district) {
+        throw new AppError("District not found", 404);
+    }
+
+    if (club.district && club.districtStatus === "join") {
+        throw new AppError("Already affiliated with a district", 400);
+    }
+
+    const updatedClub = await Club.findByIdAndUpdate(
+        clubId,
+        {
+            $addToSet: { applyDistrict: district._id },
+            $set: { districtStatus: "apply" },
+        },
+        { new: true }
+    )
+        .select("applyDistrict districtStatus")
+        .lean();
+
+    return {
+        appliedDistrictCount: updatedClub?.applyDistrict?.length || 0,
+        districtStatus: updatedClub?.districtStatus || "apply",
+    };
+};
+
+export const removeAffiliationRepository = async (clubId) => {
+    const club = await Club.findById(clubId).select("district districtStatus").lean();
+    if (!club) return null;
+
+    if (!club.district) {
+        throw new AppError("No district affiliation found", 400);
+    }
+
+    if (club.districtStatus !== "join") {
+        throw new AppError("Only joined clubs can request affiliation removal", 400);
+    }
+
+    const updated = await Club.findByIdAndUpdate(
+        clubId,
+        { $set: { districtStatus: "apply-leave" } },
+        { new: true }
+    )
+        .select("district districtStatus")
+        .lean();
+
+    return updated;
+};
+
 export const pendingApprovalsRepositories = async (clubId, { page, limit }) => {
     const { skip, limit: perPage, page: currentPage } = paginate(page, limit);
 

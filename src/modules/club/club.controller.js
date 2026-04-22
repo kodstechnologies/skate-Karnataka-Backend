@@ -1,7 +1,7 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { AppError } from "../../util/common/AppError.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { affiliatedDistrictService, allClubService, apply_club_service, apply_leave_service, approve_join_club_service, approve_leave_club_service, clubsByUserDistrictService, createClubService, deleteClubSchema, display_existing_club_service, displayClubDashboardService, displayClubProfileService, displaySingleClubService, pendingApprovalsServices, reject_join_club_service, reportServices, updateClubDetailsService } from "./club.service.js";
+import { affiliatedDistrictService, allClubService, apply_club_service, apply_leave_service, applyForDistrictService, approve_join_club_service, approve_leave_club_service, clubsByUserDistrictService, createClubService, deleteClubSchema, display_existing_club_service, displayClubDashboardService, displayClubProfileService, displaySingleClubService, exceptOwnDistrictDisplayAllDistrictService, pendingApprovalsServices, reject_join_club_service, removeAffiliationService, reportServices, updateClubDetailsService } from "./club.service.js";
 
 const displayClubDashboard = asyncHandler(async (req, res) => {
     const id = req.user._id;
@@ -33,6 +33,34 @@ const affiliatedDistrict = asyncHandler(async (req, res) => {
 
     return res.status(200).json(
         new ApiResponse(200, district, "Affiliated district fetched successfully")
+    );
+});
+
+const exceptOwnDistrictDisplayAllDistrict = asyncHandler(async (req, res) => {
+    const clubId = req.user._id;
+    const districts = await exceptOwnDistrictDisplayAllDistrictService(clubId);
+
+    return res.status(200).json(
+        new ApiResponse(200, districts, "All districts except own district fetched successfully")
+    );
+});
+
+const applyForDistrict = asyncHandler(async (req, res) => {
+    const clubId = req.user._id;
+    const { id } = req.params;
+    const result = await applyForDistrictService(clubId, id);
+
+    return res.status(200).json(
+        new ApiResponse(200, result, "District application submitted successfully")
+    );
+});
+
+const removeAffiliation = asyncHandler(async (req, res) => {
+    const clubId = req.user._id;
+    const result = await removeAffiliationService(clubId);
+
+    return res.status(200).json(
+        new ApiResponse(200, result, "District affiliation removal requested")
     );
 });
 
@@ -223,6 +251,9 @@ export {
     displayClubDashboard,
     displayClubProfile,
     affiliatedDistrict,
+    exceptOwnDistrictDisplayAllDistrict,
+    applyForDistrict,
+    removeAffiliation,
     displayAllClubs,
     createNewClub,
     displaySingleClub,

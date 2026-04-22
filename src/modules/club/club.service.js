@@ -1,5 +1,5 @@
 import { AppError } from "../../util/common/AppError.js";
-import { affiliatedDistrictRepository, allClubsRepository, apply_club_repositories, apply_leave_repository, approve_join_club_repositories, clubIdStoreinDestrict, clubsByDistrictPaginatedRepository, createClubRepository, deleteClubDetails, display_existing_club_repositories, displayClubDashboardRepositories, displayClubProfileRepositories, displayFullDetailsOfClub, isApplyRepository, isExistClub, isExistClubRepository, isThisClubExist, pendingApprovalsRepositories, reject_join_club_repositories, updateClubDetails } from "./club.repositories.js";
+import { affiliatedDistrictRepository, allClubsRepository, apply_club_repositories, apply_leave_repository, applyForDistrictRepository, approve_join_club_repositories, clubIdStoreinDestrict, clubsByDistrictPaginatedRepository, createClubRepository, deleteClubDetails, display_existing_club_repositories, displayClubDashboardRepositories, displayClubProfileRepositories, displayFullDetailsOfClub, exceptOwnDistrictDisplayAllDistrictRepository, isApplyRepository, isExistClub, isExistClubRepository, isThisClubExist, pendingApprovalsRepositories, reject_join_club_repositories, removeAffiliationRepository, updateClubDetails } from "./club.repositories.js";
 
 
 const mapCreateClubError = (error) => {
@@ -57,6 +57,33 @@ export const affiliatedDistrictService = async (clubId) => {
         throw new AppError("Affiliated district not found", 404);
     }
     return district;
+};
+
+export const exceptOwnDistrictDisplayAllDistrictService = async (clubId) => {
+    const districts = await exceptOwnDistrictDisplayAllDistrictRepository(clubId);
+    if (districts === null) {
+        throw new AppError("Club not found", 404);
+    }
+    return districts;
+};
+
+export const applyForDistrictService = async (clubId, districtId) => {
+    if (!districtId) {
+        throw new AppError("districtId is required", 400);
+    }
+    const result = await applyForDistrictRepository(clubId, districtId);
+    if (!result) {
+        throw new AppError("Club not found", 404);
+    }
+    return result;
+};
+
+export const removeAffiliationService = async (clubId) => {
+    const result = await removeAffiliationRepository(clubId);
+    if (!result) {
+        throw new AppError("Club not found", 404);
+    }
+    return result;
 };
 
 export const pendingApprovalsServices = async (clubId, { page, limit }) => {

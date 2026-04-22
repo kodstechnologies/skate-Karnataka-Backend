@@ -1,8 +1,12 @@
 import { District } from "./district.model.js"
+import { Club } from "../club/club.model.js";
 
 const getAllDistrict = async () => {
-    const Districts = await District.find().select("_id name img about");
-    return Districts;
+    const districts = await District.find().select(
+      "_id name -role"
+    ).lean();
+
+    return districts.map(({ role, ...rest }) => rest);
 }
 const isDistrictExist = async (name) => {
     return await District.findOne({ name });
@@ -12,13 +16,25 @@ const createDistrict = async (data) => {
 }
 
 const isDistrictAvailable = async(id) =>{
-    return await District.findById(id);
+    return await District.findById(id).select("name");
 }
 
 const singleDistrictRepository = async(id) =>{
-    return await District.findById(id)
-      .select("_id name img about club")
-      .populate("club", "_id name img address");
+    const district = await District.findById(id).select("_id name -role").lean();
+
+    if (!district) return null;
+
+    const clubs = await Club.find({ district: id }).select("_id name").lean();
+
+    return {
+      _id: district._id,
+      name: district.name,
+      totalClubs: clubs.length,
+      clubs: clubs.map((club) => ({
+        _id: club._id,
+        name: club.name,
+      })),
+    };
 }
 
 const districtUpdateRepository = async (id, data) => {

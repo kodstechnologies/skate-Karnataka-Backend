@@ -18,6 +18,16 @@ const districtSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    rank: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    championships: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
 
     club: [
       {

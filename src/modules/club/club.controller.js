@@ -1,7 +1,7 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { AppError } from "../../util/common/AppError.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { allClubService, apply_club_service, apply_leave_service, approve_join_club_service, approve_leave_club_service, clubsByUserDistrictService, createClubService, deleteClubSchema, display_existing_club_service, displayClubDashboardService, displayClubProfileService, displaySingleClubService, pendingApprovalsServices, reject_join_club_service, reportServices, updateClubDetailsService } from "./club.service.js";
+import { affiliatedDistrictService, allClubService, apply_club_service, apply_leave_service, approve_join_club_service, approve_leave_club_service, clubsByUserDistrictService, createClubService, deleteClubSchema, display_existing_club_service, displayClubDashboardService, displayClubProfileService, displaySingleClubService, pendingApprovalsServices, reject_join_club_service, reportServices, updateClubDetailsService } from "./club.service.js";
 
 const displayClubDashboard = asyncHandler(async (req, res) => {
     const id = req.user._id;
@@ -24,6 +24,15 @@ const displayClubProfile = asyncHandler(async (req, res) => {
             profile,
             "Club profile displayed successfully"
         )
+    );
+});
+
+const affiliatedDistrict = asyncHandler(async (req, res) => {
+    const clubId = req.user._id;
+    const district = await affiliatedDistrictService(clubId);
+
+    return res.status(200).json(
+        new ApiResponse(200, district, "Affiliated district fetched successfully")
     );
 });
 
@@ -213,6 +222,7 @@ const display_existing_club = asyncHandler(async (req, res) => {
 export {
     displayClubDashboard,
     displayClubProfile,
+    affiliatedDistrict,
     displayAllClubs,
     createNewClub,
     displaySingleClub,

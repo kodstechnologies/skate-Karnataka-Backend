@@ -63,6 +63,35 @@ export const displayClubProfileRepositories = async (clubId) => {
     };
 };
 
+export const affiliatedDistrictRepository = async (clubId) => {
+    const club = await Club.findById(clubId).select("district").lean();
+    if (!club?.district) {
+        return null;
+    }
+
+    const [district, totalClubs] = await Promise.all([
+        District.findById(club.district)
+            .select("name address img about rank championships")
+            .lean(),
+        Club.countDocuments({ district: club.district }),
+    ]);
+
+    if (!district) {
+        return null;
+    }
+
+    return {
+        districtId: district._id,
+        districtName: district.name || "",
+        address: district.address || "",
+        img: district.img || "",
+        about: district.about || "",
+        rank: district.rank ?? 0,
+        championships: district.championships ?? 0,
+        totalClubs,
+    };
+};
+
 export const pendingApprovalsRepositories = async (clubId, { page, limit }) => {
     const { skip, limit: perPage, page: currentPage } = paginate(page, limit);
 

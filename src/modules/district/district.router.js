@@ -7,11 +7,27 @@ import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
 
 const router = express.Router()
 
+const normalizeFormBody = (req, _res, next) => {
+  if (!req.body || typeof req.body !== "object") {
+    return next();
+  }
+
+  req.body = Object.fromEntries(
+    Object.entries(req.body).map(([key, value]) => [
+      key.trim(),
+      typeof value === "string" ? value.trim() : value,
+    ])
+  );
+
+  next();
+};
+
 router.get("/v1/all",
     displayAllDistrict);
 router.post("/v1/",
         upload.single("img"),
         uploadToS3("districts"),
+    normalizeFormBody,
     validate(createDistrictValidation),
     createNewDistrict);
 router.get("/v1/:id",
@@ -19,6 +35,7 @@ router.get("/v1/:id",
 router.patch("/v1/:id",
     upload.single("img"),
     uploadToS3("districts"),
+    normalizeFormBody,
     validate(editDistrictValidation),
     updateDistrict);
 router.delete("/v1/:id",

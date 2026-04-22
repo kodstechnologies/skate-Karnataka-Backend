@@ -12,7 +12,7 @@ import {
 
 const getCookieOptions = (maxAge) => ({
   httpOnly: true,
-  secure: NODE_ENV === "production",
+  secure: false, //NODE_ENV === "production"
   sameSite: "lax",
   maxAge,
 });
@@ -43,8 +43,9 @@ export const adminLogout = asyncHandler(async (req, res) => {
 
   const clearOptions = {
     httpOnly: true,
-    secure: NODE_ENV === "production",
-    sameSite: "lax",
+    secure: false, //NODE_ENV === "production'
+    sameSite: "lax", //none
+    
   };
 
   res.clearCookie("access_token", clearOptions);

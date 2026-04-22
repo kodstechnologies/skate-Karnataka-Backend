@@ -3,10 +3,13 @@ import { generateAccessToken, generateRefreshToken } from "../../util/token/toke
 import {
   addRefreshTokenToAdmin,
   deleteAdminPasswordResetOtp,
+  findDistrictNameById,
+  findAdminProfileById,
   findAdminByEmail,
   getAdminPasswordResetOtp,
   markAdminPasswordOtpVerified,
   removeRefreshTokenFromAdmin,
+  updateAdminProfileById,
   updateAdminPasswordByEmail,
   upsertAdminPasswordResetOtp,
 } from "./admin.repositories.js";
@@ -140,5 +143,35 @@ export const adminResetPasswordService = async ({
   return {
     email: admin.email,
     passwordReset: true,
+  };
+};
+
+export const getAdminProfileService = async (adminId) => {
+  const profile = await findAdminProfileById(adminId);
+
+  if (!profile) {
+    throw new AppError("Admin profile not found", 404);
+  }
+
+ 
+  return {
+    ...profile,
+    img: profile?.img || "",
+
+  };
+};
+
+export const editAdminProfileService = async (adminId, payload) => {
+  const updatedProfile = await updateAdminProfileById(adminId, payload);
+
+  if (!updatedProfile) {
+    throw new AppError("Admin profile not found", 404);
+  }
+
+
+  return {
+    ...updatedProfile,
+    img: updatedProfile?.img || "",
+  
   };
 };

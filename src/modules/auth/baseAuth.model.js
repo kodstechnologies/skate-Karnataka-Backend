@@ -30,11 +30,6 @@ const BaseAuthSchema = new mongoose.Schema(
       maxlength: 200,
     },
 
-     district: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "District",
-    // required: true,
-  },
    
     gender: {
       type: String,
@@ -105,6 +100,7 @@ BaseAuthSchema.pre("save", async function () {
     Officials: "O",
     Guest: "G",
     Club: "CL",
+    District: "D",
   };
 
   const prefix = rolePrefixMap[this.role] || "U";

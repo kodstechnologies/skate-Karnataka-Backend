@@ -1,5 +1,6 @@
 import { Admin } from "./admin.model.js";
 import { AdminPasswordReset } from "./admin.passwordReset.model.js";
+import { District } from "../district/district.model.js";
 
 export const findAdminByEmail = async (email) => {
   return Admin.findOne({ email: email.toLowerCase().trim(), role: "admin" });
@@ -62,4 +63,26 @@ export const updateAdminPasswordByEmail = async (email, password) => {
     { $set: { password } },
     { new: true }
   );
+};
+
+export const findAdminProfileById = async (adminId) => {
+  return Admin.findOne({ _id: adminId, role: "admin" })
+    .select("fullName phone email img gender address countryCode krsaId role")
+    .lean();
+};
+
+export const updateAdminProfileById = async (adminId, payload) => {
+  return Admin.findOneAndUpdate(
+    { _id: adminId, role: "admin" },
+    { $set: payload },
+    { new: true, runValidators: true }
+  )
+    .select("fullName phone email img gender address countryCode krsaId role")
+    .lean();
+};
+
+export const findDistrictNameById = async (districtId) => {
+  if (!districtId) return "";
+  const district = await District.findById(districtId).select("name").lean();
+  return district?.name || "";
 };

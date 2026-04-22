@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { BaseAuth } from "../auth/baseAuth.model.js";
 
 const districtSchema = new mongoose.Schema(
   {
@@ -7,6 +8,15 @@ const districtSchema = new mongoose.Schema(
       required: [true, "District name is required"],
       trim: true,
       minlength: [2, "Name must be at least 2 characters"],
+    },
+    img: {
+      type: String,
+      default: "",
+      match: [/^(https?:\/\/.*\.(png|jpg|jpeg|webp))?$/, "Invalid image URL"],
+    },
+    about: {
+      type: String,
+      trim: true,
     },
 
     club: [
@@ -19,4 +29,4 @@ const districtSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export const District = mongoose.model("District", districtSchema);
+export const District = BaseAuth.discriminator("District", districtSchema);

@@ -7,6 +7,8 @@ import {
   adminLogoutService,
   adminResetPasswordService,
   adminSendOtpForPasswordService,
+  editAdminProfileService,
+  getAdminProfileService,
   adminVerifyOtpForPasswordService,
 } from "./admin.service.js";
 
@@ -84,4 +86,20 @@ export const adminResetPassword = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, result, "Password reset successfully"));
+});
+
+export const adminProfile = asyncHandler(async (req, res) => {
+  const result = await getAdminProfileService(req.user?._id);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, result, "Admin profile fetched successfully"));
+});
+
+export const editAdminProfile = asyncHandler(async (req, res) => {
+  const result = await editAdminProfileService(req.user?._id, req.body);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, result, "Admin profile updated successfully"));
 });

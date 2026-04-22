@@ -26,7 +26,7 @@ router.get("/v1/dashboard",
     displayClubDashboard
 )
 router.get("/v1/profile", authenticate(["Club"]), displayClubProfile);
-
+// router.get("/v1/affiliated-district", )
 router.get("/v1/pending-approvals" , authenticate(["Club"]), pendingApprovals);
 
 router.get("/v1/reports" , authenticate(["Club"]), reports);

@@ -1,14 +1,14 @@
 import { District } from "./district.model.js"
 
 const getAllDistrict = async () => {
-    const Districts = await District.find().select("_id name");;
+    const Districts = await District.find().select("_id name img about");
     return Districts;
 }
 const isDistrictExist = async (name) => {
     return await District.findOne({ name });
 }
-const createDistrict = async (name) => {
-    await District.create(name);
+const createDistrict = async (data) => {
+    await District.create(data);
 }
 
 const isDistrictAvailable = async(id) =>{
@@ -16,7 +16,9 @@ const isDistrictAvailable = async(id) =>{
 }
 
 const singleDistrictRepository = async(id) =>{
-    return await District.findById(id).populate("club")
+    return await District.findById(id)
+      .select("_id name img about club")
+      .populate("club", "_id name img address");
 }
 
 const districtUpdateRepository = async (id, data) => {

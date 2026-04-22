@@ -97,6 +97,7 @@ BaseAuthSchema.pre("save", async function () {
     Parent: "P",
     School: "SC",
     Academy: "A",
+    State: "ST",
     Officials: "O",
     Guest: "G",
     Club: "CL",

@@ -1,15 +1,24 @@
 import mongoose from "mongoose";
+import { BaseAuth } from "../auth/baseAuth.model.js";
 
 const stateSchema = new mongoose.Schema(
   {
-    name: {
+  name: {
+  type: String,
+  default: "Karnataka",
+  enum: ["Karnataka"]
+},
+    img: {
       type: String,
-      required: [true, "State name is required"],
+      default: "",
+      match: [/^(https?:\/\/.*\.(png|jpg|jpeg|webp))?$/, "Invalid image URL"],
+    },
+    about: {
+      type: String,
       trim: true,
-      minlength: [2, "Name must be at least 2 characters"],
     },
   },
   { timestamps: true }
 );
 
-export const State = mongoose.model("State", stateSchema);
+export const State = BaseAuth.discriminator("State", stateSchema);

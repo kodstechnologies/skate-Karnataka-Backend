@@ -1,5 +1,9 @@
 import express from "express";
+import { validate } from "../../middleware/validate.multiple.js";
 import {createNewState, deleteState, displayAllState, displaySingleStateAllDistricts, updateState} from "./state.controller.js";
+import { createStateValidation, editStateValidation } from "./state.validation.js";
+import { upload } from "../../middleware/multer.middleware.js";
+import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
 const router = express.Router();
 
 // 🔹 Get all states
@@ -9,7 +13,9 @@ router.get("/v1/all",
 
 // 🔹 Create new state
 router.post("/v1/",
-//   validate(createStateValidation),
+    upload.single("img"),
+      uploadToS3("img"),
+  validate(createStateValidation),
   createNewState
 );
 
@@ -20,7 +26,9 @@ router.get("/v1/:id",
 
 // 🔹 Update state
 router.patch("/v1/:id",
-//   validate(editStateValidation),
+   upload.single("img"),
+      uploadToS3("img"),
+  validate(editStateValidation),
   updateState
 );
 

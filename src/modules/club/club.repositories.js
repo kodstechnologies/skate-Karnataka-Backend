@@ -45,21 +45,21 @@ export const displayClubProfileRepositories = async (clubId) => {
 
     if (!club) return null;
 
-    const totalSkater = await Skater.countDocuments({
-        club: clubId,
-        clubStatus: "join",
-        role: "Skater",
-    });
+    // const totalSkater = await Skater.countDocuments({
+    //     club: clubId,
+    //     clubStatus: "join",
+    //     role: "Skater",
+    // });
 
     return {
         name: club.name || "",
         image: club.img || "",
-        totalSkater,
+        // totalSkater,
         address: club.address || "",
         districtName: club.district?.name || club.districtName || "",
-        about: club.about || "",
+        // about: club.about || "",
         rank: club.rank ?? 0,
-        championships: club.championships ?? 0,
+        // championships: club.championships ?? 0,
     };
 };
 

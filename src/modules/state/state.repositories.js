@@ -14,7 +14,10 @@ export const isStateExistByNameRepository = async (name) => {
 };
 
 export const createStateRepository = async (payload) => {
-  return State.create(payload);
+  return State.create({
+    ...payload,
+    verify: true,
+  });
 };
 
 export const getSingleStateWithDistrictsRepository = async (stateId) => {

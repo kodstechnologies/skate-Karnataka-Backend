@@ -13,7 +13,10 @@ const isDistrictExist = async (name) => {
     return await District.findOne({ name });
 }
 const createDistrict = async (data) => {
-    await District.create(data);
+    await District.create({
+      ...data,
+      verify: true,
+    });
 }
 
 const isDistrictAvailable = async(id) =>{

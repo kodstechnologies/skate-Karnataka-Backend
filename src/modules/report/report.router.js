@@ -12,8 +12,9 @@ router.get("/v1/skater-reports", authenticate(["Skater"]), getSkaterReports);
 router.patch("/v1/:id", authenticate(["Skater"]), updateStatus);
 
 // ==============================
+router.get("/v1/club-inprogress/:id", authenticate(["Club","District","State","Admin"]), inProgressClubReports);
+
 router.get("/v1/club", authenticate(["Club"]), getClubReports);
-router.get("/v1/club-inprogress/:id", authenticate(["Club"]), inProgressClubReports);
 router.get("/v1/club-resolved/:id", authenticate(["Club"]), resolveClubReports);
 
 

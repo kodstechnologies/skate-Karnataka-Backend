@@ -80,15 +80,16 @@ const verifyPhoneOTPService = async (data) => {
 const LoginUserService = async (identifier) => {
     const otp = generateRandomNumber();
     const createLoginResult = async (user) => {
+        console.log(user,"====")
         const accessToken = generateAccessToken(user);
         const refreshToken = generateRefreshToken(user);
         await saveRefreshToken(user._id, refreshToken);
 
         return {
-            userId: user._id,
-            verify: user.verify,
-            role: user.role,
-            krsaId: user.krsaId,
+            id: user._id,
+            // verify: user.verify,
+            type: user.role,
+            identifier: identifier,
             // accessToken,
             // refreshToken,
         };

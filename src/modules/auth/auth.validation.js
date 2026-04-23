@@ -27,14 +27,6 @@ const RegisterValidation = {
                 "any.required": "Address is required",
             }),
 
-        district: Joi.string()
-            .trim()
-            .required()
-            .messages({
-                "string.empty": "District is required",
-                "any.required": "District is required",
-            }),
-
         gender: Joi.string()
             .valid("male", "female", "other")
             .optional()

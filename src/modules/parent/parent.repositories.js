@@ -20,13 +20,29 @@ const afterLoginParentFormRepositories = async (data, id) => {
     return updated;
 };
 
-const displayAllParentRepositories = async ({ page, limit, search }) => {
+const displayAllParentRepositories = async ({ page, limit, search, fullName, phone, gender, email }) => {
     const { skip, limit: perPage, page: currentPage } = paginate(page, limit);
 
     const query = { role: "Parent" };
 
+    if (fullName) {
+        query.fullName = new RegExp(fullName.trim(), "i");
+    }
+
+    if (phone) {
+        query.phone = new RegExp(String(phone).trim(), "i");
+    }
+
+    if (gender) {
+        query.gender = new RegExp(String(gender).trim(), "i");
+    }
+
+    if (email) {
+        query.email = new RegExp(String(email).trim(), "i");
+    }
+
     if (search) {
-        const regex = new RegExp(search, "i");
+        const regex = new RegExp(String(search).trim(), "i");
         query.$or = [
             { fullName: regex },
             { phone: regex },

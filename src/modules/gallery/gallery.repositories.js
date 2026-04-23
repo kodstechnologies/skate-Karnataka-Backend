@@ -52,7 +52,11 @@ export const displayAllMediaRepositories = async (type = {}, page, limit) => {
 
   const requestedOwnerType = type?.ownerType || type?.type;
 
-  if (requestedOwnerType === "both") {
+  if (
+    requestedOwnerType === "both" ||
+    requestedOwnerType === "admin" ||
+    requestedOwnerType === "state"
+  ) {
     filter.ownerType = { $in: ["state", "admin"] };
   } else if (requestedOwnerType) {
     filter.ownerType = requestedOwnerType;
@@ -115,4 +119,16 @@ export const addMediaREpositories = async (data) => {
     ownerType: data.ownerType,
     ownerId: data.ownerId,
   });
+};
+
+export const updateMediaRepositories = async (id, payload, accessFilter = {}) => {
+  return Gallery.findOneAndUpdate(
+    { _id: id, ...accessFilter },
+    payload,
+    { new: true, runValidators: true }
+  ).lean();
+};
+
+export const deleteMediaRepositories = async (id, accessFilter = {}) => {
+  return Gallery.findOneAndDelete({ _id: id, ...accessFilter }).lean();
 };

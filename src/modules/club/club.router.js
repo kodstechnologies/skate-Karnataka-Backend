@@ -1,7 +1,7 @@
 import express from "express";
 import { validate } from "../../middleware/validate.multiple.js";
 import { createClubValidation, editClubValidation } from "./club.validation.js";
-import { affiliatedDistrict, apply_club, apply_leave, applyForDistrict, approve_join_club, approve_leave_club, createNewClub, deleteClub, display_all_Club_basedOn_user_district, display_existing_club, displayAllClubs, displayClubDashboard, displayClubProfile, displaySingleClub, exceptOwnDistrictDisplayAllDistrict, pendingApprovals, reject_join_club, removeAffiliation, reports, updateClub } from "./club.controller.js";
+import { affiliatedDistrict, apply_club, apply_leave, applyForDistrict, approve_join_club, approve_leave_club, createNewClub, deleteClub, display_all_Club_basedOn_user_district, displayDistrictFullDetails, display_existing_club, displayAllClubs, displayClubDashboard, displayClubProfile, displaySingleClub, exceptOwnDistrictDisplayAllDistrict, pendingApprovals, reject_join_club, removeAffiliation, reports, updateClub } from "./club.controller.js";
 import { upload } from "../../middleware/multer.middleware.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
@@ -22,6 +22,7 @@ const router = express.Router();
 // ============ skater club ===================
 
 router.get("/v1/display-all-district", authenticate(["Club"]), exceptOwnDistrictDisplayAllDistrict);
+router.get("/v1/display-district-full-details/:id", displayDistrictFullDetails);
 router.get("/v1/apply-for-district/:id", authenticate(["Club"]), applyForDistrict);
 router.get("/v1/remove-affiliation", authenticate(["Club"]), removeAffiliation);
 router.get("/v1/dashboard",

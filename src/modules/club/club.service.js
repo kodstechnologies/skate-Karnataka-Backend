@@ -1,5 +1,5 @@
 import { AppError } from "../../util/common/AppError.js";
-import { affiliatedDistrictRepository, allClubsRepository, apply_club_repositories, apply_leave_repository, applyForDistrictRepository, approve_join_club_repositories, approve_leave_club_repositories, clubIdStoreinDestrict, clubsByDistrictPaginatedRepository, createClubRepository, deleteClubDetails, display_existing_club_repositories, displayClubDashboardRepositories, displayClubProfileRepositories, displayFullDetailsOfClub, exceptOwnDistrictDisplayAllDistrictRepository, isApplyRepository, isExistClub, isThisClubExist, pendingApprovalsRepositories, reject_join_club_repositories, removeAffiliationRepository, updateClubDetails } from "./club.repositories.js";
+import { affiliatedDistrictRepository, allClubsRepository, apply_club_repositories, apply_leave_repository, applyForDistrictRepository, approve_join_club_repositories, approve_leave_club_repositories, clubIdStoreinDestrict, clubsByDistrictPaginatedRepository, createClubRepository, deleteClubDetails, display_existing_club_repositories, displayClubDashboardRepositories, displayClubProfileRepositories, displayDistrictFullDetailsRepository, displayFullDetailsOfClub, exceptOwnDistrictDisplayAllDistrictRepository, isApplyRepository, isExistClub, isThisClubExist, pendingApprovalsRepositories, reject_join_club_repositories, removeAffiliationRepository, updateClubDetails } from "./club.repositories.js";
 
 
 const mapCreateClubError = (error) => {
@@ -62,6 +62,14 @@ export const exceptOwnDistrictDisplayAllDistrictService = async (clubId) => {
         throw new AppError("Club not found", 404);
     }
     return districts;
+};
+
+export const displayDistrictFullDetailsService = async (districtId) => {
+    const district = await displayDistrictFullDetailsRepository(districtId);
+    if (!district) {
+        throw new AppError("District not found", 404);
+    }
+    return district;
 };
 
 export const applyForDistrictService = async (clubId, districtId) => {

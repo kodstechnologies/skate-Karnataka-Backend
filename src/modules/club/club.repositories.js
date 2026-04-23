@@ -3,6 +3,7 @@ import { AppError } from "../../util/common/AppError.js";
 // import { Skater } from "../auth/skater.model.js";
 import { District } from "../district/district.model.js";
 import { Skater } from "../skater/skater.model.js";
+import { Event } from "../event/event.model.js";
 import { Club } from "./club.model.js";
 
 export const displayClubDashboardRepositories = async ({ clubId }) => {
@@ -113,6 +114,32 @@ export const exceptOwnDistrictDisplayAllDistrictRepository = async (clubId) => {
         .lean();
 
     return districts;
+};
+
+export const displayDistrictFullDetailsRepository = async (districtId) => {
+    const district = await District.findById(districtId)
+        .select("name img about presidentName")
+        .lean();
+
+    if (!district) {
+        return null;
+    }
+
+    const [clubsCount, totalSkaters, events] = await Promise.all([
+        Club.countDocuments({ district: districtId }),
+        Skater.countDocuments({ district: districtId, role: "Skater" }),
+        Event.countDocuments({ eventType: "District", eventFor: districtId }),
+    ]);
+
+    return {
+        name: district.name || "",
+        img: district.img || "",
+        about: district.about || "",
+        presidentName: district.presidentName || "",
+        clubsCount,
+        totalSkaters,
+        events,
+    };
 };
 
 export const applyForDistrictRepository = async (clubId, districtId) => {
@@ -430,6 +457,7 @@ const display_existing_club_repositories = async (id) => {
 
 export {
     allClubsRepository,
+    // displayDistrictFullDetailsRepository,
     isExistClub,
     createClubRepository,
     clubIdStoreinDestrict,

@@ -16,6 +16,11 @@ export const upload = multer({
       "image/png",
       "image/webp",
 
+      // videos
+      "video/mp4",
+      "video/webm",
+      "video/quicktime",
+
       // documents
       "application/pdf",
       "application/msword",
@@ -25,7 +30,7 @@ export const upload = multer({
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new AppError("Only image and document files are allowed", 400), false);
+      cb(new AppError("Only image, video, and document files are allowed", 400), false);
     }
   },
 });

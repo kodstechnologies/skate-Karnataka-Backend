@@ -14,15 +14,28 @@ const gallerySchema = new mongoose.Schema(
 
     ownerType: {
       type: String,
-      enum: ["club", "district", "state"],
+      enum: ["admin", "club", "district", "state"],
       required: true,
     },
 
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
       required: true,
-      refPath: "ownerType",
+      ref: "BaseAuth",
     },
+    // onlyStat:{
+    //   type: boolean,
+    //   default: false
+    // },
+    // onlyDistrict:{
+    //   type: Boolean
+    // }
+    // onlyClub:{
+
+    // },
+    // onlySkater:{
+
+    // }
   },
   { timestamps: true }
 );

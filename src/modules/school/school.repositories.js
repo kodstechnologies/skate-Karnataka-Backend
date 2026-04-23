@@ -86,14 +86,21 @@ const displayAllSchoolRepositories = async ({
         School.countDocuments(query),
         School.find(query)
             .select("_id schoolName fullName phone address district gender countryCode email")
+            .populate("district", "name")
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(perPage)
             .lean(),
     ]);
 
+    const formattedData = data.map((item) => ({
+        ...item,
+        district: item?.district?._id || item?.district || null,
+        districtName: item?.district?.name || "",
+    }));
+
     return {
-        data,
+        data: formattedData,
         pagination: {
             total,
             page: currentPage,

@@ -30,6 +30,12 @@ const BaseAuthSchema = new mongoose.Schema(
       maxlength: 200,
     },
 
+    district: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "District",
+      index: true,
+    },
+
    
     gender: {
       type: String,

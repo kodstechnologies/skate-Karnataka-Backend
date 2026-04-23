@@ -27,6 +27,19 @@ const RegisterValidation = {
                 "any.required": "Address is required",
             }),
 
+        district: Joi.string()
+            .custom((value, helpers) => {
+                if (!mongoose.Types.ObjectId.isValid(value)) {
+                    return helpers.error("any.invalid");
+                }
+                return value;
+            })
+            .required()
+            .messages({
+                "any.invalid": "Invalid district ID",
+                "any.required": "District is required",
+            }),
+
         gender: Joi.string()
             .valid("male", "female", "other")
             .optional()

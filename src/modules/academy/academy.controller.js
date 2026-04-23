@@ -1,6 +1,6 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { afterLoginFormClubService } from "./academy.service.js";
+import { afterLoginFormClubService, displayAllAcademyService } from "./academy.service.js";
 
 const afterLoginClubForm = asyncHandler(async (req, res) => {
     const { id } = req.params;
@@ -17,6 +17,20 @@ const afterLoginClubForm = asyncHandler(async (req, res) => {
         )
 })
 
+const displayAllAcademy = asyncHandler(async (req, res) => {
+    const result = await displayAllAcademyService(req.query);
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                result,
+                "Academies fetched successfully"
+            )
+        );
+});
+
 export {
     afterLoginClubForm,
+    displayAllAcademy,
 }

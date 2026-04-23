@@ -89,8 +89,8 @@ const LoginUserService = async (identifier) => {
             verify: user.verify,
             role: user.role,
             krsaId: user.krsaId,
-            accessToken,
-            refreshToken,
+            // accessToken,
+            // refreshToken,
         };
     };
 

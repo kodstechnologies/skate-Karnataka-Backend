@@ -30,6 +30,11 @@ const displayAllAcademy = asyncHandler(async (req, res) => {
         );
 });
 
+export const displayFullDetailsOfAcademy = asyncHandler(async(req,res)=> {
+
+    // const result = await displayFullDetailsOfAcademyService()
+});
+
 export {
     afterLoginClubForm,
     displayAllAcademy,

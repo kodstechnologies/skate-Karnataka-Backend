@@ -167,14 +167,14 @@ export const pendingApprovalsRepositories = async (clubId, { page, limit }) => {
     const { skip, limit: perPage, page: currentPage } = paginate(page, limit);
 
     const query = {
-        club: clubId,
+        applyClub: clubId,
         clubStatus: "apply",
         role: "Skater",
     };
 
     // ✅ Data
     const data = await Skater.find(query)
-        .select("fullName createdAt photo krsaId")
+        .select("fullName phone gender createdAt photo krsaId")
         .sort({ createdAt: -1 })
         .skip(skip)           // ✅ pagination
         .limit(perPage)       // ✅ pagination
@@ -342,7 +342,7 @@ const clubsByDistrictPaginatedRepository = async (districtId, { page, limit }) =
 
 const isExistClubRepository = async (id) => {
     const skater = await Skater.findById(id).select("club");
-    console.log(skater,"skater==")
+    console.log(skater, "skater==")
     return !!skater?.club;
 };
 
@@ -365,11 +365,11 @@ const isApplyRepository = async (id) => {
     return skater?.clubStatus;
 }
 
-const approve_join_club_repositories = async (skaterId,ClubId) => {
+const approve_join_club_repositories = async (skaterId, ClubId) => {
     await Skater.findByIdAndUpdate(
         skaterId,
         {
-            club :ClubId,
+            club: ClubId,
             clubStatus: "join",
             applyClub: [],
         },
@@ -378,17 +378,17 @@ const approve_join_club_repositories = async (skaterId,ClubId) => {
 }
 
 export const reject_join_club_repositories = async (skaterId, clubId) => {
-  const skater = await Skater.findByIdAndUpdate(
-    skaterId,
-    {
-      $pull: {
-        applyClub: clubId
-      }
-    },
-    { new: true }
-  );
+    const skater = await Skater.findByIdAndUpdate(
+        skaterId,
+        {
+            $pull: {
+                applyClub: clubId
+            }
+        },
+        { new: true }
+    );
 
-  return skater;
+    return skater;
 };
 const apply_leave_repository = async (skaterId) => {
     return await Skater.findOneAndUpdate(

@@ -1,5 +1,7 @@
 import { Official } from "./official.model.js";
 import { paginate } from "../../util/common/paginate.js";
+import mongoose from "mongoose";
+import { District } from "../district/district.model.js";
 
 const afterLoginOfficialFormRepositories = async (data, id) => {
     const updated = await Official.findOneAndUpdate(
@@ -57,7 +59,15 @@ const displayAllOfficialRepositories = async ({
         query.address = new RegExp(String(normalizeQueryValue(address)).trim(), "i");
     }
     if (hasValue(district)) {
-        query.district = normalizeQueryValue(district);
+        const districtValue = String(normalizeQueryValue(district)).trim();
+        if (mongoose.Types.ObjectId.isValid(districtValue)) {
+            query.district = districtValue;
+        } else {
+            const matchingDistricts = await District.find({
+                name: new RegExp(districtValue, "i"),
+            }).select("_id").lean();
+            query.district = { $in: matchingDistricts.map((item) => item._id) };
+        }
     }
     if (hasValue(gender)) {
         query.gender = new RegExp(String(normalizeQueryValue(gender)).trim(), "i");
@@ -81,14 +91,21 @@ const displayAllOfficialRepositories = async ({
         Official.countDocuments(query),
         Official.find(query)
             .select("_id fullName phone address district gender email")
+            .populate("district", "name")
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(perPage)
             .lean(),
     ]);
 
+    const formattedData = data.map((item) => ({
+        ...item,
+        district: item?.district?._id || item?.district || null,
+        districtName: item?.district?.name || "",
+    }));
+
     return {
-        data,
+        data: formattedData,
         pagination: {
             total,
             page: currentPage,

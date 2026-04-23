@@ -1,4 +1,10 @@
-import { afterLoginClubFormRepositories, displayAllAcademyRepositories } from "./academy.repositories.js";
+import { AppError } from "../../util/common/AppError.js";
+import {
+    afterLoginClubFormRepositories,
+    displayAllAcademyRepositories,
+    displayFullDetailsOfAcademyRepositories,
+} from "./academy.repositories.js";
+import mongoose from "mongoose";
 
 // ==============================================
 const afterLoginFormClubService = async (data, id) => {
@@ -31,7 +37,20 @@ const displayAllAcademyService = async (query) => {
     });
 }
 
+const displayFullDetailsOfAcademyService = async (id) => {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new AppError("Invalid academy id", 400);
+    }
+
+    const academy = await displayFullDetailsOfAcademyRepositories(id);
+    if (!academy) {
+        throw new AppError("Academy not found", 404);
+    }
+    return academy;
+}
+
 export {
 afterLoginFormClubService,
 displayAllAcademyService,
+displayFullDetailsOfAcademyService,
 }

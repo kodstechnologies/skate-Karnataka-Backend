@@ -130,8 +130,31 @@ const displayAllAcademyRepositories = async ({
     };
 };
 
+const displayFullDetailsOfAcademyRepositories = async (id) => {
+    const academy = await Academy.findOne({ _id: id, role: "Academy" })
+        .select("-refreshTokens -firebaseTokens")
+        .lean();
+    if (!academy) {
+        return null;
+    }
+
+    const districtId = academy?.district;
+    let districtName = "";
+    if (districtId && mongoose.Types.ObjectId.isValid(String(districtId))) {
+        const district = await District.findById(districtId).select("name").lean();
+        districtName = district?.name || "";
+    }
+
+    return {
+        ...academy,
+        district: districtId || null,
+        districtName,
+    };
+};
+
 
 export{
     afterLoginClubFormRepositories,
     displayAllAcademyRepositories,
+    displayFullDetailsOfAcademyRepositories,
 }

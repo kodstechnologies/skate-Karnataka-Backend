@@ -1,4 +1,3 @@
-import { NODE_ENV } from "../../config/envConfig.js";
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
 import {
@@ -12,24 +11,16 @@ import {
   adminVerifyOtpForPasswordService,
 } from "./admin.service.js";
 
-const getCookieOptions = (maxAge) => ({
-  httpOnly: true,
-  secure: false, //NODE_ENV === "production"
-  sameSite: "lax",
-  maxAge,
-});
-
 export const adminLogin = asyncHandler(async (req, res) => {
   const result = await adminLoginService(req.body);
-
-  res.cookie("access_token", result.accessToken, getCookieOptions(15 * 60 * 1000));
-  res.cookie("refresh_token", result.refreshToken, getCookieOptions(7 * 24 * 60 * 60 * 1000));
 
   return res.status(200).json(
     new ApiResponse(
       200,
       {
         admin: result.admin,
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
       },
       "Admin logged in successfully"
     )
@@ -37,21 +28,11 @@ export const adminLogin = asyncHandler(async (req, res) => {
 });
 
 export const adminLogout = asyncHandler(async (req, res) => {
-  const refreshToken = req.cookies?.refresh_token || req.body?.refreshToken;
+  const refreshToken = req.body?.refreshToken;
   const result = await adminLogoutService({
     adminId: req.user?._id,
     refreshToken,
   });
-
-  const clearOptions = {
-    httpOnly: true,
-    secure: false, //NODE_ENV === "production'
-    sameSite: "lax", //none
-    
-  };
-
-  res.clearCookie("access_token", clearOptions);
-  res.clearCookie("refresh_token", clearOptions);
 
   return res.status(200).json(new ApiResponse(200, result, "Admin logged out successfully"));
 });

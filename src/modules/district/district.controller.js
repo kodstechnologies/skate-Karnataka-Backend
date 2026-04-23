@@ -75,7 +75,7 @@ const leaveClub = asyncHandler(async (req, res) => {
   const result = await leaveClubService({ clubId });
 
   return res.status(200).json(
-    new ApiResponse(200, result, "Club leave application accepted")
+    new ApiResponse(200, null, "Club leave application accepted")
   );
 });
 

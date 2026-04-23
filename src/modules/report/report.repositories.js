@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { paginate } from "../../util/common/paginate.js";
+import { AppError } from "../../util/common/AppError.js";
 import { BaseAuth } from "../auth/baseAuth.model.js"
 import { Report } from "./report.model.js"
 
@@ -10,7 +11,7 @@ const get_club_id = async (skaterId) => {
 }
 
 const create_report_repositories = async (skaterId, data, club) => {
-    console.log(skaterId, data , club,"===========================")
+    console.log(skaterId, data, club, "===========================")
     const report = await Report.create({
         complainedBy: skaterId,
         ownClub: club.club,
@@ -70,7 +71,7 @@ const get_skater_report_repositories = async (
 };
 
 
-export const getClubReportsRepositories = async (clubId, page, limit ) => {
+export const getClubReportsRepositories = async (clubId, page, limit) => {
     console.log(clubId, "====");
 
     const { skip, limit: perPage, page: currentPage } = paginate(page, limit);
@@ -102,11 +103,59 @@ export const getClubReportsRepositories = async (clubId, page, limit ) => {
     };
 };
 
-export const getDistrictReportsRepositories = async(id) => {
+export const getDistrictReportsRepositories = async (id) => {
 
 }
 
-export const getStateReportsRepositories = async(id) => {
+export const getStateReportsRepositories = async (id) => {
+
+}
+
+export const resolveClubReportsRepositories = async (id, clubId) => {
+    const updated = await Report.findOneAndUpdate(
+        { _id: id, ownClub: clubId },
+        {
+            $set: {
+                status: "solved",
+                idClub: true,
+                statusUpdatedAt: new Date(),
+            },
+        },
+        { new: true }
+    ).lean();
+
+    if (!updated) {
+        throw new AppError("Report not found for this club", 404);
+    }
+
+    return updated;
+}
+
+export const inProgressClubReportsRepositories = async (id, clubId) => {
+    const updated = await Report.findOneAndUpdate(
+        { _id: id, ownClub: clubId },
+        {
+            $set: {
+                status: "inprogress",
+                idClub: true,
+                statusUpdatedAt: new Date(),
+            },
+        },
+        { new: true }
+    ).lean();
+
+    if (!updated) {
+        throw new AppError("Report not found for this club", 404);
+    }
+
+    return updated;
+}
+
+export const resolveDistrictReportsRepositories = async (id) => {
+
+}
+
+export const resolveStateReportsRepositories = async (id) => {
 
 }
 
@@ -115,4 +164,5 @@ export {
     create_report_repositories,
     get_skater_report_repositories,
     update_status_repositories,
+    // inProgressClubReportsRepositories,
 }

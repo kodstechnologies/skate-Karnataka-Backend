@@ -53,9 +53,6 @@ export const displayClubProfileService = async (clubId) => {
 
 export const affiliatedDistrictService = async (clubId) => {
     const district = await affiliatedDistrictRepository(clubId);
-    if (!district) {
-        throw new AppError("Affiliated district not found", 404);
-    }
     return district;
 };
 

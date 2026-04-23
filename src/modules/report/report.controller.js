@@ -1,6 +1,6 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js"
-import { create_report_service, get_skater_report_service, getClubReportsSkater, getDistrictReportsSkater, getStateReportsSkater, update_status_service } from "./report.service.js";
+import { create_report_service, get_skater_report_service, getClubReportsSkater, getDistrictReportsSkater, getStateReportsSkater, inProgressClubReportsServices, resolveClubReportsServices, resolveDistrictReportsServices, update_status_service } from "./report.service.js";
 
 const createReport = asyncHandler(async (req, res) => {
     const id = req.user._id;
@@ -92,6 +92,37 @@ const getStateReports = asyncHandler(async (req, res) => {
     );
 })
 
+export const resolveClubReports = asyncHandler(async (req, res) => {
+    const clubId = req.user._id;
+    const {id} = req.params;
+    await resolveClubReportsServices(id, clubId)
+    return res.status(200).json(
+        new ApiResponse(200, null, "Resolve club successfully")
+    )
+})
+
+export const inProgressClubReports = asyncHandler(async (req, res) => {
+    const clubId = req.user._id;
+    const { id } = req.params;
+    await inProgressClubReportsServices(id, clubId);
+    return res.status(200).json(
+        new ApiResponse(200, null, "Club report moved to inprogress successfully")
+    );
+});
+export const resolveDistrictReports = asyncHandler(async (req, res) => {
+      const id = req.user._id;
+    await resolveDistrictReportsServices(id)
+    return res.status(200).json(
+        new ApiResponse(200, null, "Resolve district successfully")
+    )
+})
+export const resolveStateReports = asyncHandler(async (req, res) => {
+      const id = req.user._id;
+    await resolveStateReportsServices(id)
+    return res.status(200).json(
+        new ApiResponse(200, null, "Resolve state successfully")
+    )
+})
 
 export {
     createReport,

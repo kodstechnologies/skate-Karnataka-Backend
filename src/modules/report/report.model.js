@@ -52,6 +52,10 @@ const reportSchema = new mongoose.Schema(
     isState: {
       type: Boolean,
       default: false
+    },
+    statusUpdatedAt: {
+      type: Date,
+      default: null,
     }
   },
   {

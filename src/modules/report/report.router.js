@@ -1,6 +1,6 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
-import { createReport, getClubReports, getDistrictReports, getSkaterReports, getStateReports, updateStatus } from "./report.controller.js";
+import { createReport, getClubReports, getDistrictReports, getSkaterReports, getStateReports, inProgressClubReports, resolveClubReports, resolveDistrictReports, resolveStateReports, updateStatus } from "./report.controller.js";
 import { validate } from "../../middleware/validate.multiple.js";
 import { create_report_validation } from "./report.validation.js";
 
@@ -13,13 +13,15 @@ router.patch("/v1/:id", authenticate(["Skater"]), updateStatus);
 
 // ==============================
 router.get("/v1/club", authenticate(["Club"]), getClubReports);
-router.get("/v1/club-resolved", authenticate(["Club"]), getClubReports);
+router.get("/v1/club-inprogress/:id", authenticate(["Club"]), inProgressClubReports);
+router.get("/v1/club-resolved/:id", authenticate(["Club"]), resolveClubReports);
+
 
 router.get("/v1/district", authenticate(["District"]), getDistrictReports);
-router.get("/v1/district-resolved", authenticate(["District"]), getDistrictReports);
+router.get("/v1/district-resolved/:id", authenticate(["District"]), resolveDistrictReports);
 
 router.get("/v1/state", authenticate(["State","Admin"]), getStateReports);
-router.get("/v1/state-resolved", authenticate(["State","Admin"]), getStateReports);
+router.get("/v1/state-resolved/:id", authenticate(["State","Admin"]), resolveStateReports);
 
 
 // router.patch("/:" , edit_report);

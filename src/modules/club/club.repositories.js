@@ -39,7 +39,7 @@ export const displayClubDashboardRepositories = async ({ clubId }) => {
 
 export const displayClubProfileRepositories = async (clubId) => {
     const club = await Club.findById(clubId)
-        .select("name img address district districtName about rank championships")
+        .select("name img address district districtName districtStatus about rank championships")
         .populate("district", "name")
         .lean();
 
@@ -57,14 +57,17 @@ export const displayClubProfileRepositories = async (clubId) => {
         // totalSkater,
         address: club.address || "",
         districtName: club.district?.name || club.districtName || "",
+        districtStatus: club.districtStatus || "",
         // about: club.about || "",
         rank: club.rank ?? 0,
         // championships: club.championships ?? 0,
     };
 };
-
 export const affiliatedDistrictRepository = async (clubId) => {
-    const club = await Club.findById(clubId).select("district").lean();
+    const club = await Club.findById(clubId)
+        .select("district districtStatus")
+        .lean();
+
     if (!club?.district) {
         return null;
     }
@@ -73,7 +76,10 @@ export const affiliatedDistrictRepository = async (clubId) => {
         District.findById(club.district)
             .select("name address img about rank championships")
             .lean(),
-        Club.countDocuments({ district: club.district }),
+
+        Club.countDocuments({
+            district: club.district
+        }),
     ]);
 
     if (!district) {
@@ -89,6 +95,7 @@ export const affiliatedDistrictRepository = async (clubId) => {
         rank: district.rank ?? 0,
         championships: district.championships ?? 0,
         totalClubs,
+        districtStatus: club.districtStatus || "" // added
     };
 };
 
@@ -199,7 +206,7 @@ const allClubsRepository = async (id, page, limit) => {
 
     const [data, total, district] = await Promise.all([
         Club.find({ district: id })
-            .select("_id name img address")
+            .select("_id name img address districtStatus")
             .skip(skip)
             .limit(pageLimit)
             .sort({ createdAt: -1 })
@@ -215,6 +222,7 @@ const allClubsRepository = async (id, page, limit) => {
         name: club.name,
         img: club.img || "",
         address: club.address || "",
+        districtStatus: club.districtStatus || "",
     }));
 
     return {
@@ -323,7 +331,7 @@ const clubsByDistrictPaginatedRepository = async (districtId, { page, limit }) =
     const filter = { district: districtId };
 
     const clubs = await Club.find(filter)
-        .select("_id name img address")
+        .select("_id name img address districtStatus")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(pageLimit)

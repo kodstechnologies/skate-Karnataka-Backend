@@ -13,8 +13,14 @@ router.patch("/v1/:id", authenticate(["Skater"]), updateStatus);
 
 // ==============================
 router.get("/v1/club", authenticate(["Club"]), getClubReports);
+router.get("/v1/club-resolved", authenticate(["Club"]), getClubReports);
+
 router.get("/v1/district", authenticate(["District"]), getDistrictReports);
-router.get("/v1/state", authenticate(["State"]), getStateReports);
+router.get("/v1/district-resolved", authenticate(["District"]), getDistrictReports);
+
+router.get("/v1/state", authenticate(["State","Admin"]), getStateReports);
+router.get("/v1/state-resolved", authenticate(["State","Admin"]), getStateReports);
+
 
 // router.patch("/:" , edit_report);
 // router.delete("/:id", delete_report);

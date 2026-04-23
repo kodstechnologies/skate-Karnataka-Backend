@@ -37,7 +37,7 @@ const reportSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["pending", "solved", "unsolved"],
+      enum: ["pending", "solved", "inprogress"],
       default: "pending",
     },
     idClub: {
@@ -45,6 +45,7 @@ const reportSchema = new mongoose.Schema(
       default: false
     },
     isDistrict: {
+
       type: Boolean,
       default: false
     },

@@ -5,12 +5,12 @@ import {
 } from "./gallery.repositories.js";
 import { AppError } from "../../util/common/AppError.js";
 
-export const displayAllMediaBasedOnSkaterService = async (skaterId) => {
-    return await displayAllMediaBasedOnSkaterRepositories(skaterId);
+export const displayAllMediaBasedOnSkaterService = async (skaterId, page, limit) => {
+    return await displayAllMediaBasedOnSkaterRepositories(skaterId, page, limit);
 }
 
-export const displayAllMediaServices = async (type) => {
-    return await displayAllMediaRepositories(type);
+export const displayAllMediaServices = async (type, page, limit) => {
+    return await displayAllMediaRepositories(type, page, limit);
 }
 
 export const addMediaService = async (data, user) => {

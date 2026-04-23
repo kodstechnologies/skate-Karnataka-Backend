@@ -1,9 +1,10 @@
 import { AppError } from "../../util/common/AppError.js";
+import { paginate } from "../../util/common/paginate.js";
 import { Club } from "../club/club.model.js";
 import { Skater } from "../skater/skater.model.js";
 import { Gallery } from "./gallery.model.js";
 
-export const displayAllMediaBasedOnSkaterRepositories = async (skaterId) => {
+export const displayAllMediaBasedOnSkaterRepositories = async (skaterId, page, limit) => {
   const skater = await Skater.findById(skaterId).select("club").lean();
   if (!skater) {
     throw new AppError("Skater not found", 404);
@@ -23,10 +24,30 @@ export const displayAllMediaBasedOnSkaterRepositories = async (skaterId) => {
     filters.push({ ownerType: "district", ownerId: club.district });
   }
 
-  return Gallery.find({ $or: filters }).sort({ createdAt: -1 }).lean();
+  const { skip, limit: perPage, page: currentPage } = paginate(page, limit);
+  const query = { $or: filters };
+
+  const [total, data] = await Promise.all([
+    Gallery.countDocuments(query),
+    Gallery.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(perPage)
+      .lean(),
+  ]);
+
+  return {
+    data,
+    pagination: {
+      total,
+      page: currentPage,
+      limit: perPage,
+      totalPages: Math.ceil(total / perPage),
+    },
+  };
 };
 
-export const displayAllMediaRepositories = async (type = {}) => {
+export const displayAllMediaRepositories = async (type = {}, page, limit) => {
   const filter = {};
 
   const requestedOwnerType = type?.ownerType || type?.type;
@@ -47,12 +68,19 @@ export const displayAllMediaRepositories = async (type = {}) => {
     filter.videoUrl = { $ne: null };
   }
 
-  const media = await Gallery.find(filter)
-    .populate("ownerId", "fullName name  role")
-    .sort({ createdAt: -1 })
-    .lean();
+  const { skip, limit: perPage, page: currentPage } = paginate(page, limit);
 
-  return media.map((item) => ({
+  const [total, media] = await Promise.all([
+    Gallery.countDocuments(filter),
+    Gallery.find(filter)
+      .populate("ownerId", "fullName name role")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(perPage)
+      .lean(),
+  ]);
+
+  const data = media.map((item) => ({
     ...item,
     ownerId: item?.ownerId
       ? {
@@ -69,6 +97,16 @@ export const displayAllMediaRepositories = async (type = {}) => {
         },
     ownerName: item?.ownerId?.name || item?.ownerId?.fullName || "",
   }));
+
+  return {
+    data,
+    pagination: {
+      total,
+      page: currentPage,
+      limit: perPage,
+      totalPages: Math.ceil(total / perPage),
+    },
+  };
 };
 export const addMediaREpositories = async (data) => {
   return Gallery.create({

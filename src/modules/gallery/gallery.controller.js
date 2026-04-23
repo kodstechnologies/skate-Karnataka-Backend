@@ -4,18 +4,19 @@ import { addMediaService, displayAllMediaBasedOnSkaterService, displayAllMediaSe
 
 export const displayAllMediaBasedOnSkater = asyncHandler(async (req, res) => {
     const id = req.user._id;
-    const media = await displayAllMediaBasedOnSkaterService(id);
+    const { page = 1, limit = 10 } = req.query;
+    const media = await displayAllMediaBasedOnSkaterService(id, page, limit);
     return res.status(200).json(new ApiResponse(200, media, "Display all media successfully"));
  });
 
 export const displayAllMedia = asyncHandler(async (req, res) => {
-  const { ownerType, ownerId, mediaType, type } = req.query;
+  const { ownerType, ownerId, mediaType, type, page = 1, limit = 10 } = req.query;
 
   const media = await displayAllMediaServices({
     ownerType: ownerType || type,
     ownerId,
     mediaType
-  });
+  }, page, limit);
 
   return res
     .status(200)

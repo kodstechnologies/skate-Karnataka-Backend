@@ -85,7 +85,7 @@ const displayAllSchoolRepositories = async ({
     const [total, data] = await Promise.all([
         School.countDocuments(query),
         School.find(query)
-            .select("_id fullName phone address district gender countryCode email")
+            .select("_id schoolName fullName phone address district gender countryCode email")
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(perPage)

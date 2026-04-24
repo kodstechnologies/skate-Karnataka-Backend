@@ -61,8 +61,6 @@ router.get("/v1/reject-join/:id",
     authenticate(["Club"]),
     reject_join_club);
 
-    
-
 // approve for leave
 router.get("/v1/approve-leave/:id", authenticate(["Club"]), approve_leave_club);
 router.get("/v1/display-all", authenticate(["Admin", "State"]), displayAllClubsInDb);

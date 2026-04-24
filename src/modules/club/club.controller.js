@@ -110,13 +110,13 @@ const displayAllClubsInDb = asyncHandler(async (req, res) => {
     const { page, limit, search = "" } = req.query;
     const clubs = await allClubsInDbService({ page, limit, search });
 
-    return res.status(200).json(
-        new ApiResponse(
-            200,
-            clubs,
-            "All clubs fetched successfully"
-        )
-    );
+    return res.status(200).json({
+        statusCode: 200,
+        data: clubs.data,
+        pagination: clubs.pagination,
+        message: "All clubs fetched successfully",
+        success: true,
+    });
 });
 
 const createNewClub = asyncHandler(async (req, res) => {

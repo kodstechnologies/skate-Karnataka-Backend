@@ -30,7 +30,7 @@ const RegisterUserService = async (userData) => {
         }
     }
 
-    if (String(userData.role || "").toLowerCase() === "club" && userData.club) {
+    if (userData.club) {
         const clubExists = await Club.findById(userData.club).select("_id").lean();
         if (!clubExists) {
             throw new AppError("Club not found", 404);
@@ -54,7 +54,7 @@ const RegisterUserService = async (userData) => {
         );
     }
 
-    if (String(user.role || "").toLowerCase() === "club" && selectedClubId) {
+    if (selectedClubId) {
         await Club.findByIdAndUpdate(
             selectedClubId,
             { $addToSet: { members: user._id } },

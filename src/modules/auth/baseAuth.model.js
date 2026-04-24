@@ -133,3 +133,32 @@ BaseAuthSchema.pre("save", async function () {
 });
 
 export const BaseAuth = mongoose.model("BaseAuth", BaseAuthSchema);
+
+// Remove legacy unique index created when Club fields were on BaseAuth.
+// That index makes registration fail with:
+// E11000 duplicate key error ... index: clubId_1 dup key: { clubId: null }
+BaseAuth.on("index", async () => {
+  try {
+    const indexes = await BaseAuth.collection.indexes();
+    const legacyIndexNames = indexes
+      .filter((idx) => {
+        const key = idx.key || {};
+        const isClubIdIndex = idx.name === "clubId_1" || Object.keys(key).join(",") === "clubId";
+        const isNameDistrictIndex =
+          idx.name === "name_1_district_1" ||
+          idx.name === "district_1_name_1" ||
+          (Object.prototype.hasOwnProperty.call(key, "name") &&
+            Object.prototype.hasOwnProperty.call(key, "district"));
+
+        return isClubIdIndex || isNameDistrictIndex;
+      })
+      .map((idx) => idx.name)
+      .filter(Boolean);
+
+    for (const indexName of legacyIndexNames) {
+      await BaseAuth.collection.dropIndex(indexName);
+    }
+  } catch {
+    // Ignore cleanup errors to avoid blocking app startup.
+  }
+});

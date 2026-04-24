@@ -1,12 +1,29 @@
 import { AppError } from "../../util/common/AppError.js";
+import { paginate } from "../../util/common/paginate.js";
 import { District } from "../district/district.model.js";
 import { State } from "./state.model.js";
 
-export const getAllStateRepository = async () => {
-  return State.find()
-    .select("_id fullName phone email name img about krsaId verify")
-    .sort({ createdAt: -1 })
-    .lean();
+export const getAllStateRepository = async ({ page, limit }) => {
+  const pagination = paginate(page, limit);
+  const [states, total] = await Promise.all([
+    State.find()
+      .select("_id fullName phone email img about krsaId stateu")
+      .sort({ createdAt: -1 })
+      .skip(pagination.skip)
+      .limit(pagination.limit)
+      .lean(),
+    State.countDocuments(),
+  ]);
+
+  return {
+    states,
+    pagination: {
+      page: pagination.page,
+      limit: pagination.limit,
+      total,
+      totalPages: Math.ceil(total / pagination.limit) || 1,
+    },
+  };
 };
 
 export const isStateExistByNameRepository = async (name) => {
@@ -22,23 +39,16 @@ export const createStateRepository = async (payload) => {
 
 export const getSingleStateWithDistrictsRepository = async (stateId) => {
   const state = await State.findById(stateId)
-    .select("_id fullName phone email name img about krsaId verify")
+    .select("_id fullName phone email name img about krsaId stateu")
     .lean();
 
   if (!state) {
     return null;
   }
 
-  // Current district schema has no state reference, so return all districts.
-  const districts = await District.find()
-    .select("_id name img")
-    .sort({ createdAt: -1 })
-    .lean();
-
   return {
     ...state,
-    totalDistricts: districts.length,
-    districts,
+ 
   };
 };
 

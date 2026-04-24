@@ -8,8 +8,8 @@ import {
   updateStateRepository,
 } from "./state.repositories.js";
 
-export const displayAllStateService = async () => {
-  return getAllStateRepository();
+export const displayAllStateService = async ({ page, limit }) => {
+  return getAllStateRepository({ page, limit });
 };
 
 export const createStateService = async (payload) => {

@@ -9,8 +9,18 @@ import {
 } from "./state.service.js";
 
 const displayAllState = asyncHandler(async(req , res) =>{
-    const states = await displayAllStateService();
-    return res.status(200).json(new ApiResponse(200, states, "All states fetched successfully"));
+    const { page, limit } = req.query;
+    const result = await displayAllStateService({
+      page: Number(page ?? 1),
+      limit: Number(limit ?? 10),
+    });
+    return res.status(200).json({
+      statusCode: 200,
+      data: result.states,
+      pagination: result.pagination,
+      message: "All states fetched successfully",
+      success: true,
+    });
 });
 
 const createNewState = asyncHandler(async(req , res) =>{

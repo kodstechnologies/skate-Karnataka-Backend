@@ -1,7 +1,7 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { AppError } from "../../util/common/AppError.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { affiliatedDistrictService, allClubService, apply_club_service, apply_leave_service, applyForDistrictService, approve_join_club_service, approve_leave_club_service, clubsByUserDistrictService, createClubService, deleteClubSchema, displayDistrictFullDetailsService, display_existing_club_service, displayClubDashboardService, displayClubProfileService, displaySingleClubService, exceptOwnDistrictDisplayAllDistrictService, pendingApprovalsServices, reject_join_club_service, removeAffiliationService, reportServices, updateClubDetailsService } from "./club.service.js";
+import { affiliatedDistrictService, allClubService, allClubsInDbService, apply_club_service, apply_leave_service, applyForDistrictService, approve_join_club_service, approve_leave_club_service, clubsByUserDistrictService, createClubService, deleteClubSchema, displayDistrictFullDetailsService, display_existing_club_service, displayClubDashboardService, displayClubProfileService, displaySingleClubService, exceptOwnDistrictDisplayAllDistrictService, pendingApprovalsServices, reject_join_club_service, removeAffiliationService, reportServices, updateClubDetailsService } from "./club.service.js";
 
 const displayClubDashboard = asyncHandler(async (req, res) => {
     const id = req.user._id;
@@ -97,6 +97,19 @@ const displayAllClubs = asyncHandler(async (req, res) => {
     const { page, limit } = req.query;
     const clubs = await allClubService(id, page, limit);
     console.log(clubs, "---")
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            clubs,
+            "All clubs fetched successfully"
+        )
+    );
+});
+
+const displayAllClubsInDb = asyncHandler(async (req, res) => {
+    const { page, limit, search = "" } = req.query;
+    const clubs = await allClubsInDbService({ page, limit, search });
+
     return res.status(200).json(
         new ApiResponse(
             200,
@@ -267,6 +280,7 @@ export {
     applyForDistrict,
     removeAffiliation,
     displayAllClubs,
+    displayAllClubsInDb,
     createNewClub,
     displaySingleClub,
     updateClub,

@@ -263,6 +263,73 @@ const allClubsRepository = async (id, page, limit) => {
         }
     };
 };
+
+const allClubsInDbRepository = async ({ page, limit, search }) => {
+    const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+    const normalizedSearch = String(search || "").trim();
+
+    const query = {};
+    if (normalizedSearch) {
+        const regex = new RegExp(normalizedSearch, "i");
+        query.$or = [
+            { name: regex },
+            { districtName: regex },
+            { krsaId: regex },
+        ];
+    }
+
+    const [clubs, total] = await Promise.all([
+        Club.find(query)
+            .select("_id name districtName img krsaId clubId")
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(pageLimit)
+            .lean(),
+        Club.countDocuments(query),
+    ]);
+
+    const clubIds = clubs.map((club) => club._id);
+    const skaterCounts = clubIds.length
+        ? await Skater.aggregate([
+            {
+                $match: {
+                    role: "Skater",
+                    club: { $in: clubIds },
+                },
+            },
+            {
+                $group: {
+                    _id: "$club",
+                    totalSkaters: { $sum: 1 },
+                },
+            },
+        ])
+        : [];
+
+    const skaterCountMap = new Map(
+        skaterCounts.map((item) => [String(item._id), item.totalSkaters || 0])
+    );
+
+    const data = clubs.map((club) => ({
+        id: String(club._id),
+        name: club.name || "",
+        clubId: club.clubId || "",
+        districtName: club.districtName || "",
+        img: club.img || "",
+        krsaId: club.krsaId || "",
+        totalSkaters: skaterCountMap.get(String(club._id)) || 0,
+    }));
+
+    return {
+        data,
+        pagination: {
+            total,
+            page: currentPage,
+            limit: pageLimit,
+            totalPages: Math.ceil(total / pageLimit),
+        },
+    };
+};
 const isExistClub = async (name, district) => {
     return await Club.findOne({ name, district });
 }
@@ -456,6 +523,7 @@ const display_existing_club_repositories = async (id) => {
 };
 
 export {
+    allClubsInDbRepository,
     allClubsRepository,
     // displayDistrictFullDetailsRepository,
     isExistClub,

@@ -1,7 +1,7 @@
 import express from "express";
 import { validate } from "../../middleware/validate.multiple.js";
 import { createClubValidation, editClubValidation } from "./club.validation.js";
-import { affiliatedDistrict, apply_club, apply_leave, applyForDistrict, approve_join_club, approve_leave_club, createNewClub, deleteClub, display_all_Club_basedOn_user_district, displayDistrictFullDetails, display_existing_club, displayAllClubs, displayClubDashboard, displayClubProfile, displaySingleClub, exceptOwnDistrictDisplayAllDistrict, pendingApprovals, reject_join_club, removeAffiliation, reports, updateClub } from "./club.controller.js";
+import { affiliatedDistrict, apply_club, apply_leave, applyForDistrict, approve_join_club, approve_leave_club, createNewClub, deleteClub, display_all_Club_basedOn_user_district, displayDistrictFullDetails, display_existing_club, displayAllClubs, displayAllClubsInDb, displayClubDashboard, displayClubProfile, displaySingleClub, exceptOwnDistrictDisplayAllDistrict, pendingApprovals, reject_join_club, removeAffiliation, reports, updateClub } from "./club.controller.js";
 import { upload } from "../../middleware/multer.middleware.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
@@ -65,12 +65,13 @@ router.get("/v1/reject-join/:id",
 
 // approve for leave
 router.get("/v1/approve-leave/:id", authenticate(["Club"]), approve_leave_club);
-
+router.get("/v1/display-all", authenticate(["Admin", "State"]), displayAllClubsInDb);
 router.get("/v1/all/:id",
     displayAllClubs);
 router.post("/v1/",
     upload.single("img"),
     uploadToS3("clubs"),
+    authenticate(["Admin","State"]),
     validate(createClubValidation),
     createNewClub);
 // Static path must be registered before /v1/:id or Express will treat "user-district-clubs" as an id.
@@ -83,9 +84,11 @@ router.get("/v1/:id",
     displaySingleClub);
 router.patch("/v1/:id",
     upload.single("img"),
+     authenticate(["Admin","State"]),
     validate(editClubValidation),
     updateClub);
 router.delete("/v1/:id",
+     authenticate(["Admin","State"]),
     deleteClub);
 
 

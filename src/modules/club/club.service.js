@@ -1,5 +1,5 @@
 import { AppError } from "../../util/common/AppError.js";
-import { affiliatedDistrictRepository, allClubsRepository, apply_club_repositories, apply_leave_repository, applyForDistrictRepository, approve_join_club_repositories, approve_leave_club_repositories, clubIdStoreinDestrict, clubsByDistrictPaginatedRepository, createClubRepository, deleteClubDetails, display_existing_club_repositories, displayClubDashboardRepositories, displayClubProfileRepositories, displayDistrictFullDetailsRepository, displayFullDetailsOfClub, exceptOwnDistrictDisplayAllDistrictRepository, isApplyRepository, isExistClub, isThisClubExist, pendingApprovalsRepositories, reject_join_club_repositories, removeAffiliationRepository, updateClubDetails } from "./club.repositories.js";
+import { affiliatedDistrictRepository, allClubsInDbRepository, allClubsRepository, apply_club_repositories, apply_leave_repository, applyForDistrictRepository, approve_join_club_repositories, approve_leave_club_repositories, clubIdStoreinDestrict, clubsByDistrictPaginatedRepository, createClubRepository, deleteClubDetails, display_existing_club_repositories, displayClubDashboardRepositories, displayClubProfileRepositories, displayDistrictFullDetailsRepository, displayFullDetailsOfClub, exceptOwnDistrictDisplayAllDistrictRepository, isApplyRepository, isExistClub, isThisClubExist, pendingApprovalsRepositories, reject_join_club_repositories, removeAffiliationRepository, updateClubDetails } from "./club.repositories.js";
 
 
 const mapCreateClubError = (error) => {
@@ -100,6 +100,10 @@ return await reportRepositories({clubId})
 
 const allClubService = async (id, page, limit) => {
     return await allClubsRepository(id, page, limit);
+}
+
+const allClubsInDbService = async ({ page, limit, search }) => {
+    return await allClubsInDbRepository({ page, limit, search });
 }
 
 const createClubService = async (data) => {
@@ -256,6 +260,7 @@ const display_existing_club_service = async (id) => {
 
 export {
     allClubService,
+    allClubsInDbService,
     createClubService,
     displaySingleClubService,
     updateClubDetailsService,

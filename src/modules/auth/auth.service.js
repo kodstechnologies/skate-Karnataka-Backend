@@ -4,9 +4,12 @@ import { AppError } from "../../util/common/AppError.js";
 import { sendOTPToEmail } from "../../util/otp/emailOtp.js";
 import { sendOTPToPhone } from "../../util/otp/phoneOtp.js";
 import { District } from "../district/district.model.js";
+import { Club } from "../club/club.model.js";
 import {checkEmailOTP, checkOtp, checkPhoneOTP, isExist, isExistEmail, isExistPhone, registerUser_repositories, removeOldEmailOtp, removeOldPhoneOtp, saveEmailOtp, saveFirebaseToken, savePhoneOTP, saveRefreshToken} from "./auth.repositories.js";
 
 const RegisterUserService = async (userData) => {
+    const selectedClubId = userData.club;
+
     if (String(userData.role || "").toLowerCase() === "district") {
         const districtName = String(userData.districtName || "").trim();
 
@@ -27,6 +30,13 @@ const RegisterUserService = async (userData) => {
         }
     }
 
+    if (String(userData.role || "").toLowerCase() === "club" && userData.club) {
+        const clubExists = await Club.findById(userData.club).select("_id").lean();
+        if (!clubExists) {
+            throw new AppError("Club not found", 404);
+        }
+    }
+
     const { email, phone } = userData;
     const isEmail = await isExistEmail(email);
     const idPhone = await isExistPhone(phone);
@@ -39,6 +49,14 @@ const RegisterUserService = async (userData) => {
     if (String(user.role || "").toLowerCase() === "district" && user.district) {
         await District.findByIdAndUpdate(
             user.district,
+            { $addToSet: { members: user._id } },
+            { new: false }
+        );
+    }
+
+    if (String(user.role || "").toLowerCase() === "club" && selectedClubId) {
+        await Club.findByIdAndUpdate(
+            selectedClubId,
             { $addToSet: { members: user._id } },
             { new: false }
         );

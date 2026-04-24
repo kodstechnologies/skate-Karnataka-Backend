@@ -26,10 +26,10 @@ const clubSchema = new mongoose.Schema(
 
     districtStatus: {
       type: String,
-      enum: ["apply", "join", "apply-leave","leave", "reject"],
+      enum: ["apply", "join", "apply-leave", "leave", "reject"],
       default: "apply"
     },
-    
+
     districtName: {
       type: String,
       trim: true,
@@ -78,12 +78,20 @@ const clubSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+
+    members: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "BaseAuth",
+      },
+    ],
   }
 );
 
 
 // ✅ Unique club per district
 clubSchema.index({ name: 1, district: 1 }, { unique: true });
+clubSchema.path("members").default(() => []);
 
 
 // ✅ Auto set districtName (optimized)
@@ -131,4 +139,4 @@ clubSchema.virtual("skaterCount", {
 clubSchema.set("toJSON", { virtuals: true });
 clubSchema.set("toObject", { virtuals: true });
 
-export const Club = BaseAuth.discriminator("Club", clubSchema);
+export const Club = mongoose.model("Club", clubSchema);

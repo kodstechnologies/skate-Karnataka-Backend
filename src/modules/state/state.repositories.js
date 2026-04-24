@@ -3,6 +3,41 @@ import { paginate } from "../../util/common/paginate.js";
 import { District } from "../district/district.model.js";
 import { State } from "./state.model.js";
 
+const normalizeAllowedModule = (allowedModule = []) => {
+  const normalized = [];
+
+  for (const moduleValue of allowedModule) {
+    if (typeof moduleValue !== "string") {
+      continue;
+    }
+
+    const trimmed = moduleValue.trim();
+    if (!trimmed) {
+      continue;
+    }
+
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          for (const parsedValue of parsed) {
+            if (typeof parsedValue === "string" && parsedValue.trim()) {
+              normalized.push(parsedValue.trim());
+            }
+          }
+          continue;
+        }
+      } catch {
+        // Keep original value when not valid JSON.
+      }
+    }
+
+    normalized.push(trimmed);
+  }
+
+  return [...new Set(normalized)];
+};
+
 export const getAllStateRepository = async ({ page, limit }) => {
   const pagination = paginate(page, limit);
   const [states, total] = await Promise.all([
@@ -39,7 +74,7 @@ export const createStateRepository = async (payload) => {
 
 export const getSingleStateWithDistrictsRepository = async (stateId) => {
   const state = await State.findById(stateId)
-    .select("_id fullName phone email name img about krsaId status")
+    .select("_id fullName phone email name img about krsaId status allowedModule")
     .lean();
 
   if (!state) {
@@ -48,7 +83,7 @@ export const getSingleStateWithDistrictsRepository = async (stateId) => {
 
   return {
     ...state,
- 
+    allowedModule: normalizeAllowedModule(state.allowedModule),
   };
 };
 

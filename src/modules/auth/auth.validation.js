@@ -45,6 +45,18 @@ const RegisterValidation = {
             .max(50)
             .optional(),
 
+        club: Joi.string()
+            .custom((value, helpers) => {
+                if (!mongoose.Types.ObjectId.isValid(value)) {
+                    return helpers.error("any.invalid");
+                }
+                return value;
+            })
+            .optional()
+            .messages({
+                "any.invalid": "Invalid club ID",
+            }),
+
         gender: Joi.string()
             .valid("male", "female", "other")
             .optional()
@@ -69,8 +81,8 @@ const RegisterValidation = {
                 "string.empty": "Phone number is required",
                 "any.required": "Phone number is required",
             }),
-
-        role: Joi.string()
+        club: Joi.string().optional().allow(""),
+        role: Joi.string(),
         // .valid("skater", "parent", "school", "academy", "officials", "guest", "admin")
         // .default("guest")
         // .messages({
@@ -205,7 +217,7 @@ const afterLoginGuestFormValidation = {
         fullName: Joi.string()
             .min(2)
             .max(100)
-          
+
             .messages({
                 "string.empty": "Full name is required",
                 "string.min": "Full name must be at least 2 characters",
@@ -262,14 +274,14 @@ const RefreshTokenValidation = {
 
 
 export {
-   RegisterValidation,
-   sendEmailOTPValidation,
-   verifyEmailOTPValidation,
-   sendPhoneOTPValidation,
-   verifyPhoneOTPValidation,
-   LoginValidation,
-   VerifyOTPValidation,
-   afterLoginGuestFormValidation,
-   LogoutValidation,
-   RefreshTokenValidation,
+    RegisterValidation,
+    sendEmailOTPValidation,
+    verifyEmailOTPValidation,
+    sendPhoneOTPValidation,
+    verifyPhoneOTPValidation,
+    LoginValidation,
+    VerifyOTPValidation,
+    afterLoginGuestFormValidation,
+    LogoutValidation,
+    RefreshTokenValidation,
 }

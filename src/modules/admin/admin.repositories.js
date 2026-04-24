@@ -58,11 +58,18 @@ export const deleteAdminPasswordResetOtp = async (email) => {
 };
 
 export const updateAdminPasswordByEmail = async (email, password) => {
-  return Admin.findOneAndUpdate(
-    { email: email.toLowerCase().trim(), role: "admin" },
-    { $set: { password } },
-    { new: true }
-  );
+  const admin = await Admin.findOne({
+    email: email.toLowerCase().trim(),
+    role: "admin",
+  });
+
+  if (!admin) {
+    return null;
+  }
+
+  admin.password = password;
+  await admin.save();
+  return admin;
 };
 
 export const findAdminProfileById = async (adminId) => {

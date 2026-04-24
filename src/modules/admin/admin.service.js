@@ -21,7 +21,11 @@ export const adminLoginService = async ({ email, password }) => {
     throw new AppError("Admin not found", 404);
   }
 
-  if (!admin.password || admin.password !== password) {
+  const isPasswordValid = admin?.password?.includes(":")
+    ? await admin.isPasswordCorrect(password)
+    : admin.password === password;
+
+  if (!isPasswordValid) {
     throw new AppError("Invalid email or password", 401);
   }
 

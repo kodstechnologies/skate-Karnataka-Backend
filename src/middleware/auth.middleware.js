@@ -31,7 +31,8 @@ export const authenticate = (allowedRoles = []) => {
       // 3️⃣ Verify
       const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
       // console.log(decoded, "decoded")
-      const user = await BaseAuth.findById(decoded.id);
+      const decodedUserId = decoded?.id || decoded?._id || decoded?.userId;
+      const user = decodedUserId ? await BaseAuth.findById(decodedUserId) : null;
       // console.log(user, "user")
       if (!user) {
         return next(new AppError("User not found", 401));

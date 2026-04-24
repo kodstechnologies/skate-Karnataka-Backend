@@ -66,10 +66,10 @@ router.get("/v1/approve-leave/:id", authenticate(["Club"]), approve_leave_club);
 router.get("/v1/display-all", authenticate(["Admin", "State"]), displayAllClubsInDb);
 router.get("/v1/all/:id",
     displayAllClubs);
-router.post("/v1/",
+router.post("/v1",
+    authenticate(["Admin","State"]),
     upload.single("img"),
     uploadToS3("clubs"),
-    authenticate(["Admin","State"]),
     validate(createClubValidation),
     createNewClub);
 // Static path must be registered before /v1/:id or Express will treat "user-district-clubs" as an id.

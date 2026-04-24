@@ -7,13 +7,14 @@ const createClubValidation = {
         img: Joi.string().allow(""),
         address: Joi.string().required(),
         about: Joi.string().allow(""),
-        fullName: Joi.string().trim().min(3).max(50).required(),
+        fullName: Joi.string().trim().min(3).max(50).optional().allow(""),
         phone: Joi.string()
             .trim()
             .pattern(/^[6-9]\d{9}$/)
-            .required(),
-        gender: Joi.string().valid("male", "female", "other").lowercase(),
-        email: Joi.string().trim().email().lowercase(),
+            .optional()
+            .allow(""),
+        gender: Joi.string().valid("male", "female", "other").lowercase().optional().allow(""),
+        email: Joi.string().trim().email().lowercase().optional().allow(""),
     })
 }
 

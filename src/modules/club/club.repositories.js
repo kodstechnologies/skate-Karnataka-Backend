@@ -338,10 +338,6 @@ const createClubRepository = async (data) => {
     console.log(data, "====---");
 
     const {
-        fullName,
-        phone,
-        email,
-        gender,
         district,
         name,
         img,
@@ -363,10 +359,6 @@ const createClubRepository = async (data) => {
 
     // ✅ create club
     const club = await Club.create({
-        fullName,
-        phone,
-        ...(email ? { email } : {}),
-        ...(gender ? { gender } : {}),
         district,
         districtName,
         name,
@@ -376,7 +368,6 @@ const createClubRepository = async (data) => {
         skaters,
         rank,
         championships,
-        verify: true,
     });
 
     console.log(club, "===/////");

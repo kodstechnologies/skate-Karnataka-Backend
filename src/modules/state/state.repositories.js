@@ -42,7 +42,7 @@ export const getAllStateRepository = async ({ page, limit }) => {
   const pagination = paginate(page, limit);
   const [states, total] = await Promise.all([
     State.find()
-      .select("_id fullName phone email img about krsaId status")
+      .select("_id fullName phone email img about krsaId status allowedModule")
       .sort({ createdAt: -1 })
       .skip(pagination.skip)
       .limit(pagination.limit)
@@ -51,7 +51,10 @@ export const getAllStateRepository = async ({ page, limit }) => {
   ]);
 
   return {
-    states,
+    states: states.map((state) => ({
+      ...state,
+      allowedModule: normalizeAllowedModule(state.allowedModule),
+    })),
     pagination: {
       page: pagination.page,
       limit: pagination.limit,

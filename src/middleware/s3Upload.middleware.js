@@ -20,6 +20,19 @@ export const uploadToS3 = (folder = "uploads", fieldMap = { img: "img" }) => {
       for (const file of files) {
         const { url, key } = await putObject(file, folder);
         const targetField = fieldMap[file.fieldname] || file.fieldname;
+
+        if (targetField === "documents") {
+          if (!Array.isArray(req.body.documents)) {
+            req.body.documents = [];
+          }
+          req.body.documents.push({
+            url,
+            name: file.originalname || "document",
+            uploadedAt: new Date(),
+          });
+          continue;
+        }
+
         req.body[targetField] = url;
         req.body[`${targetField}Key`] = key;
       }

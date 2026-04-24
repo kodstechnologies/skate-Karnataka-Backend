@@ -1,6 +1,7 @@
 import { Event } from "./event.model.js";
 import { paginate } from "../../util/common/paginate.js";
 import { BaseAuth } from "../auth/baseAuth.model.js";
+import { Skater } from "../skater/skater.model.js";
 import mongoose from "mongoose";
 
 const displayAllEventRepository = async ({ page, limit }) => {
@@ -59,8 +60,9 @@ const displaySingleEventRepository = async (id) => {
 };
 
 const display_latest_event_repositories = async (userId) => {
-  // ✅ Get user
-  const user = await BaseAuth.findById(userId).lean();
+  // ✅ Get skater profile first (contains club), fallback to BaseAuth
+  const user = (await Skater.findById(userId).select("district club").lean())
+    || (await BaseAuth.findById(userId).select("district").lean());
 
   if (!user) {
     throw new Error("User not found");
@@ -131,16 +133,16 @@ const delete_event_repositories = async (id) => {
 
 
 const display_all_event_based_on_user_repositories = async (userId, { page, limit }) => {
-  // ✅ Get user
-  const user = await BaseAuth.findById(userId)
-    .populate("district")
-    .lean();
+  console.log(userId,"userId===")
+  // ✅ Get skater profile first (contains club), fallback to BaseAuth
+  const user = (await Skater.findById(userId).select("district club").lean())
+    || (await BaseAuth.findById(userId).select("district").lean());
 
   if (!user) {
     throw new Error("User not found");
   }
 
-  const userDistrict = user.district?._id || user.district;
+  const userDistrict = user.district;
   const userClub = user.club;
 
   // ✅ Query

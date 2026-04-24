@@ -33,7 +33,17 @@ const afterLoginSkaterFormValidation = {
         school: Joi.string(),
         grade: Joi.string(),
 
-        signature: Joi.string().allow("").optional()
+        signature: Joi.string().allow("").optional(),
+        photo: Joi.string().uri().optional().allow(""),
+        documents: Joi.array()
+            .items(
+                Joi.object({
+                    url: Joi.string().uri().required(),
+                    name: Joi.string().optional().allow(""),
+                    uploadedAt: Joi.date().optional(),
+                })
+            )
+            .optional(),
     })
 };
 

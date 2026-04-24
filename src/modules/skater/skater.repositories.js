@@ -2,9 +2,24 @@ import { BaseAuth } from "../auth/baseAuth.model.js";
 import { Skater } from "./skater.model.js";
 
 const after_login_skater_form_repositories = async (data, id) => {
-    console.log(data, ",,,,")
+    console.log(data, ",,,,",id)
+    const baseUser = await BaseAuth.findById(id).select("_id role").lean();
+    console.log(baseUser,"baseUser")
+    if (!baseUser) {
+        throw new Error("Skater not found");
+    }
+
+    if (String(baseUser.role || "").toLowerCase() !== "skater") {
+        throw new Error("User is not a skater");
+    }
+
+    if (baseUser.role !== "Skater") {
+        await BaseAuth.findByIdAndUpdate(id, { $set: { role: "Skater" } });
+    }
+
+    const { documents, ...restData } = data;
     const setPayload = {
-        ...data,
+        ...restData,
         verify: true,
     };
 
@@ -12,20 +27,28 @@ const after_login_skater_form_repositories = async (data, id) => {
         setPayload.clubStatus = "apply";
     }
 
-    const updated = await Skater.findOneAndUpdate(
-        { _id: id, role: "Skater" },
-        {
-            $set: {
-                ...setPayload,
-            },
+    const updateOperation = {
+        $set: {
+            ...setPayload,
         },
-        { new: true, runValidators: true }
+    };
+
+    if (Array.isArray(documents) && documents.length > 0) {
+        updateOperation.$push = {
+            documents: { $each: documents },
+        };
+    }
+
+    const updated = await Skater.findOneAndUpdate(
+        { _id: id },
+        updateOperation,
+        { returnDocument: "after", runValidators: true }
     )
         .populate("district")
         .populate("club");
 
     if (!updated) {
-        throw new Error("Skater not found or role mismatch");
+        throw new Error("Skater not found");
     }
 
     return updated;

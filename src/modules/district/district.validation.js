@@ -2,47 +2,6 @@ import Joi from "joi";
 
 const createDistrictValidation = {
   body: Joi.object({
-    fullName: Joi.string()
-      .trim()
-      .min(3)
-      .max(50)
-      .required()
-      .messages({
-        "any.required": "Full name is required",
-        "string.min": "Minimum 3 characters",
-        "string.max": "Maximum 50 characters",
-      }),
-    phone: Joi.string()
-      .trim()
-      .pattern(/^[6-9]\d{9}$/)
-      .required()
-      .messages({
-        "any.required": "Phone is required",
-        "string.pattern.base": "Invalid Indian phone number",
-      }),
-    address: Joi.string()
-      .trim()
-      .max(200)
-      .optional()
-      .allow(""),
-    gender: Joi.string()
-      .trim()
-      .lowercase()
-      .optional()
-      .allow(""),
-    countryCode: Joi.string()
-      .trim()
-      .optional()
-      .allow(""),
-    email: Joi.string()
-      .trim()
-      .email()
-      .lowercase()
-      .optional()
-      .allow("")
-      .messages({
-        "string.email": "Invalid email",
-      }),
     name: Joi.string()
       .trim()
       .min(2)
@@ -74,35 +33,6 @@ const createDistrictValidation = {
 
 const editDistrictValidation = {
   body: Joi.object({
-    fullName: Joi.string()
-      .trim()
-      .min(3)
-      .max(50)
-      .optional(),
-    phone: Joi.string()
-      .trim()
-      .pattern(/^[6-9]\d{9}$/)
-      .optional(),
-    address: Joi.string()
-      .trim()
-      .max(200)
-      .optional()
-      .allow(""),
-    gender: Joi.string()
-      .trim()
-      .lowercase()
-      .optional()
-      .allow(""),
-    countryCode: Joi.string()
-      .trim()
-      .optional()
-      .allow(""),
-    email: Joi.string()
-      .trim()
-      .email()
-      .lowercase()
-      .optional()
-      .allow(""),
     name: Joi.string()
       .trim()
       .min(2)

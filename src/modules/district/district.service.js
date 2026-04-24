@@ -1,5 +1,5 @@
 import { AppError } from "../../util/common/AppError.js";
-import { acceptClubJoinRepository, acceptClubLeaveRepository, createDistrict, districtDeletedRepository, districtUpdateRepository, getAllDistrict, isDistrictAvailable, isDistrictExist, rejectClubJoinRepository, singleDistrictRepository } from "./district.repositories.js";
+import { acceptClubJoinRepository, acceptClubLeaveRepository, createDistrict, districtDeletedRepository, districtUpdateRepository, getAllDistrict, isDistrictAvailable, isDistrictExist, rejectClubJoinRepository, singleDistrictRepository, singleDistrictSkatersRepository } from "./district.repositories.js";
 
 const getAllDistrictService = async () => {
     return await getAllDistrict();
@@ -59,6 +59,15 @@ const rejectClubService = async ({ clubId, districtId }) => {
     return await rejectClubJoinRepository({ clubId, districtId });
 };
 
+const singleDistrictSkatersService = async (id) => {
+    const isExist = await isDistrictAvailable(id);
+    if (!isExist) {
+        throw new AppError("District not available", 404);
+    }
+
+    return await singleDistrictSkatersRepository(id);
+};
+
 export {
     getAllDistrictService,
     createNewDistrictService,
@@ -67,5 +76,6 @@ export {
     districtDeletedService,
     acceptClubService,
     leaveClubService,
-    rejectClubService
+    rejectClubService,
+    singleDistrictSkatersService
 }

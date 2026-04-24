@@ -1,6 +1,6 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { acceptClubService, createNewDistrictService, districtDeletedService, getAllDistrictService, leaveClubService, rejectClubService, singleDistrictAllClubNameService, updateDistrictService } from "./district.service.js";
+import { acceptClubService, createNewDistrictService, districtDeletedService, getAllDistrictService, leaveClubService, rejectClubService, singleDistrictAllClubNameService, singleDistrictSkatersService, updateDistrictService } from "./district.service.js";
 
 const displayAllDistrict = asyncHandler(async (req, res) => {
   const districts = await getAllDistrictService();
@@ -89,6 +89,15 @@ const rejectClub = asyncHandler(async (req, res) => {
   );
 });
 
+const displaySingleDistrictMembers = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const districtMembers = await singleDistrictSkatersService(id);
+
+  return res.status(200).json(
+    new ApiResponse(200, districtMembers, "District skater members fetched successfully")
+  );
+});
+
 export {
   displayAllDistrict,
   createNewDistrict,
@@ -97,5 +106,6 @@ export {
   deleteDistrict,
   acceptClub,
   leaveClub,
-  rejectClub
+  rejectClub,
+  displaySingleDistrictMembers
 }

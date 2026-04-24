@@ -10,7 +10,7 @@ const stateSchema = new mongoose.Schema(
     },
 
     // true = active, false = inactive
-    stateu: {
+    status: {
         type: Boolean,
         default: true
     },

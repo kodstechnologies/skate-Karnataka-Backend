@@ -34,11 +34,16 @@ const RegisterValidation = {
                 }
                 return value;
             })
-            .required()
+            .optional()
             .messages({
                 "any.invalid": "Invalid district ID",
-                "any.required": "District is required",
             }),
+
+        districtName: Joi.string()
+            .trim()
+            .min(2)
+            .max(50)
+            .optional(),
 
         gender: Joi.string()
             .valid("male", "female", "other")
@@ -72,6 +77,18 @@ const RegisterValidation = {
         //     "any.only":
         //         "Role must be one of: skater, parent, school, academy, officials, guest, admin",
         // }),
+    }).custom((value, helpers) => {
+        const isDistrictRole = String(value.role || "").toLowerCase() === "district";
+
+        if (!isDistrictRole && !value.district) {
+            return helpers.error("any.custom", {
+                message: "District is required",
+            });
+        }
+
+        return value;
+    }).messages({
+        "any.custom": "{{#message}}",
     }),
 };
 

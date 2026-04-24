@@ -7,7 +7,7 @@ export const getAllStateRepository = async ({ page, limit }) => {
   const pagination = paginate(page, limit);
   const [states, total] = await Promise.all([
     State.find()
-      .select("_id fullName phone email img about krsaId stateu")
+      .select("_id fullName phone email img about krsaId status")
       .sort({ createdAt: -1 })
       .skip(pagination.skip)
       .limit(pagination.limit)
@@ -39,7 +39,7 @@ export const createStateRepository = async (payload) => {
 
 export const getSingleStateWithDistrictsRepository = async (stateId) => {
   const state = await State.findById(stateId)
-    .select("_id fullName phone email name img about krsaId stateu")
+    .select("_id fullName phone email name img about krsaId status")
     .lean();
 
   if (!state) {
@@ -58,7 +58,7 @@ export const updateStateRepository = async (stateId, payload) => {
     { $set: payload },
     { new: true, runValidators: true }
   )
-    .select("_id fullName phone email name img about krsaId verify")
+    .select("_id fullName phone email name img about krsaId status")
     .lean();
 
   if (!updated) {

@@ -9,7 +9,7 @@ export const createStateValidation = {
     email: Joi.string().trim().email().lowercase().optional().allow(""),
     img: Joi.string().uri().optional().allow(""),
     about: Joi.string().trim().max(500).optional().allow(""),
-    stateu: Joi.string().trim().max(500).optional().allow(""),
+    status: Joi.string().trim().max(500).optional().allow(""),
     allowedModule: Joi.string().trim().max(500).optional().allow(""),
   }),
 };
@@ -23,7 +23,7 @@ export const editStateValidation = {
     email: Joi.string().trim().email().lowercase().optional().allow(""),
     img: Joi.string().uri().optional().allow(""),
     about: Joi.string().trim().max(500).optional().allow(""),
-    stateu: Joi.string().trim().max(500).optional().allow(""),
+    status: Joi.string().trim().max(500).optional().allow(""),
     allowedModule: Joi.string().trim().max(500).optional().allow(""),
   }).min(1),
 };

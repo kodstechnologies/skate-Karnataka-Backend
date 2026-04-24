@@ -1,22 +1,16 @@
 import { District } from "./district.model.js"
 import { Club } from "../club/club.model.js";
+import { BaseAuth } from "../auth/baseAuth.model.js";
 import { AppError } from "../../util/common/AppError.js";
 
 const getAllDistrict = async () => {
-    const districts = await District.find().select(
-      "_id name -role"
-    ).lean();
-
-    return districts.map(({ role, ...rest }) => rest);
+    return await District.find().select("_id name").lean();
 }
 const isDistrictExist = async (name) => {
     return await District.findOne({ name });
 }
 const createDistrict = async (data) => {
-    await District.create({
-      ...data,
-      verify: true,
-    });
+    await District.create(data);
 }
 
 const isDistrictAvailable = async(id) =>{
@@ -24,7 +18,10 @@ const isDistrictAvailable = async(id) =>{
 }
 
 const singleDistrictRepository = async(id) =>{
-    const district = await District.findById(id).select("_id name -role").lean();
+    const district = await District.findById(id)
+      .select("_id name members")
+      .populate("members", "_id fullName phone email role krsaId gender address")
+      .lean();
 
     if (!district) return null;
 
@@ -33,6 +30,8 @@ const singleDistrictRepository = async(id) =>{
     return {
       _id: district._id,
       name: district.name,
+      totalUsers: (district.members || []).length,
+      members: district.members || [],
       totalClubs: clubs.length,
       clubs: clubs.map((club) => ({
         _id: club._id,
@@ -65,13 +64,18 @@ const districtUpdateRepository = async (id, data) => {
 
 const districtDeletedRepository = async (id) => {
   // 1️⃣ Check district exists
-  const district = await District.findById(id);
+  const district = await District.findById(id).select("members");
 
   if (!district) {
-    throw new Error("District not found");
+    throw new AppError("District not found", 404);
   }
 
-  // 2️⃣ Update all related clubs
+  // 2️⃣ Prevent delete while district has members
+  if ((district.members || []).length > 0) {
+    throw new AppError("District has members, cannot delete", 400);
+  }
+
+  // 3️⃣ Update all related clubs
   await Club.updateMany(
     { district: id },
     {
@@ -80,7 +84,7 @@ const districtDeletedRepository = async (id) => {
     }
   );
 
-  // 3️⃣ Delete district
+  // 4️⃣ Delete district
   await District.findByIdAndDelete(id);
 };
 
@@ -165,6 +169,32 @@ const rejectClubJoinRepository = async ({ clubId, districtId }) => {
 
   return updatedClub;
 };
+
+const singleDistrictSkatersRepository = async (id) => {
+  const district = await District.findById(id)
+    .select("_id name members")
+    .populate("members", "_id fullName phone email role krsaId")
+    .lean();
+  if (!district) {
+    return null;
+  }
+
+  const skaters = await BaseAuth.find({
+    district: id,
+    role: "Skater",
+  })
+    .select("_id fullName phone email gender krsaId district role")
+    .sort({ createdAt: -1 })
+    .lean();
+
+  return {
+    district,
+    districtMembers: district.members || [],
+    totalMembers: skaters.length,
+    skaters,
+  };
+};
+
 export {
     getAllDistrict,
     isDistrictExist,
@@ -175,5 +205,6 @@ export {
     districtDeletedRepository,
     acceptClubJoinRepository,
     acceptClubLeaveRepository,
-    rejectClubJoinRepository
+    rejectClubJoinRepository,
+    singleDistrictSkatersRepository
 }

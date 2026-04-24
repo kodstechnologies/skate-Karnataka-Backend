@@ -3,16 +3,47 @@ import { generateAccessToken, generateRandomNumber, generateRefreshToken } from 
 import { AppError } from "../../util/common/AppError.js";
 import { sendOTPToEmail } from "../../util/otp/emailOtp.js";
 import { sendOTPToPhone } from "../../util/otp/phoneOtp.js";
+import { District } from "../district/district.model.js";
 import {checkEmailOTP, checkOtp, checkPhoneOTP, isExist, isExistEmail, isExistPhone, registerUser_repositories, removeOldEmailOtp, removeOldPhoneOtp, saveEmailOtp, saveFirebaseToken, savePhoneOTP, saveRefreshToken} from "./auth.repositories.js";
 
 const RegisterUserService = async (userData) => {
+    if (String(userData.role || "").toLowerCase() === "district") {
+        const districtName = String(userData.districtName || "").trim();
+
+        if (!userData.district && districtName) {
+            const existingDistrict = await District.findOne({ name: districtName }).select("_id").lean();
+
+            if (existingDistrict) {
+                userData.district = existingDistrict._id;
+            } else {
+                const newDistrict = await District.create({ name: districtName });
+                userData.district = newDistrict._id;
+            }
+        } else if (userData.district) {
+            const districtExists = await District.findById(userData.district).select("_id").lean();
+            if (!districtExists) {
+                throw new AppError("District not found", 404);
+            }
+        }
+    }
+
     const { email, phone } = userData;
     const isEmail = await isExistEmail(email);
     const idPhone = await isExistPhone(phone);
     if ((isEmail !== null) || (idPhone !== null)) {
         throw new AppError("User already exists", 409);
     }
+    delete userData.districtName;
     const user = await registerUser_repositories(userData);
+
+    if (String(user.role || "").toLowerCase() === "district" && user.district) {
+        await District.findByIdAndUpdate(
+            user.district,
+            { $addToSet: { members: user._id } },
+            { new: false }
+        );
+    }
+
     return user._id;
 };
 

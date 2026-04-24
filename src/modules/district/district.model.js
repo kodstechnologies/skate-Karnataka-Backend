@@ -1,5 +1,4 @@
 import mongoose from "mongoose";
-import { BaseAuth } from "../auth/baseAuth.model.js";
 
 const districtSchema = new mongoose.Schema(
   {
@@ -38,8 +37,17 @@ const districtSchema = new mongoose.Schema(
         ref: "Club",
       },
     ],
+    members: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "BaseAuth",
+      },
+    ],
   },
   { timestamps: true }
 );
 
-export const District = BaseAuth.discriminator("District", districtSchema);
+districtSchema.index({ name: 1 }, { unique: true });
+districtSchema.path("members").default(() => []);
+
+export const District = mongoose.model("District", districtSchema);

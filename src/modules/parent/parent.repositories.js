@@ -72,7 +72,14 @@ const displayAllParentRepositories = async ({ page, limit, search, fullName, pho
     };
 };
 
+const displayParentFullDetailsRepositories = async (id) => {
+    return await Parent.findOne({ _id: id, role: "Parent" })
+        .select("-refreshTokens -firebaseTokens")
+        .lean();
+};
+
 export {
     afterLoginParentFormRepositories,
     displayAllParentRepositories,
+    displayParentFullDetailsRepositories,
 }

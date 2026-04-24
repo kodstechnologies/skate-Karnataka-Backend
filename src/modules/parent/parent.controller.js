@@ -1,6 +1,6 @@
 import { asyncHandler } from "../../util/common/asyncHandler.js";
 import { ApiResponse } from "../../util/common/ApiResponse.js";
-import { afterLoginFormParentService, displayAllParentService } from "./parent.services.js";
+import { afterLoginFormParentService, displayAllParentService, displayParentFullDetailsService } from "./parent.services.js";
 
 const afterLoginParentForm = asyncHandler(async (req, res) => {
     const { id } = req.params;
@@ -29,7 +29,22 @@ const displayAllParent = asyncHandler(async (req, res) => {
         )
 });
 
+const displayParentFullDetails = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const parent = await displayParentFullDetailsService(id);
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                parent,
+                "Parent full details fetched successfully"
+            )
+        );
+});
+
 export {
     afterLoginParentForm,
     displayAllParent,
+    displayParentFullDetails,
 }

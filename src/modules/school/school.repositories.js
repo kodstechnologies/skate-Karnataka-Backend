@@ -1,5 +1,7 @@
 import { School } from "./school.model.js";
 import { paginate } from "../../util/common/paginate.js";
+import mongoose from "mongoose";
+import { District } from "../district/district.model.js";
 
 const afterLoginSchoolFormRepositories = async (data, id) => {
     const updated = await School.findOneAndUpdate(
@@ -110,7 +112,30 @@ const displayAllSchoolRepositories = async ({
     };
 };
 
+const displaySchoolFullDetailsRepositories = async (id) => {
+    const school = await School.findOne({ _id: id, role: "School" })
+        .select("-refreshTokens -firebaseTokens")
+        .lean();
+    if (!school) {
+        return null;
+    }
+
+    const districtId = school?.district;
+    let districtName = "";
+    if (districtId && mongoose.Types.ObjectId.isValid(String(districtId))) {
+        const district = await District.findById(districtId).select("name").lean();
+        districtName = district?.name || "";
+    }
+
+    return {
+        ...school,
+        district: districtId || null,
+        districtName,
+    };
+};
+
 export {
     afterLoginSchoolFormRepositories,
     displayAllSchoolRepositories,
+    displaySchoolFullDetailsRepositories,
 }

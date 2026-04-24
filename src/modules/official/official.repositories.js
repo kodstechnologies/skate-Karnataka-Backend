@@ -2,6 +2,7 @@ import { Official } from "./official.model.js";
 import { paginate } from "../../util/common/paginate.js";
 import mongoose from "mongoose";
 import { District } from "../district/district.model.js";
+import { Club } from "../club/club.model.js";
 
 const afterLoginOfficialFormRepositories = async (data, id) => {
     const updated = await Official.findOneAndUpdate(
@@ -115,7 +116,40 @@ const displayAllOfficialRepositories = async ({
     };
 };
 
+const displayOfficialfullDetailsRepositories = async (id) => {
+    const official = await Official.findOne({ _id: id, role: "Official" })
+        .select("-refreshTokens -firebaseTokens")
+        .lean();
+    if (!official) {
+        return null;
+    }
+
+    const districtId = official?.district;
+    const clubId = official?.club;
+
+    let districtName = "";
+    if (districtId && mongoose.Types.ObjectId.isValid(String(districtId))) {
+        const district = await District.findById(districtId).select("name").lean();
+        districtName = district?.name || "";
+    }
+
+    let clubName = "";
+    if (clubId && mongoose.Types.ObjectId.isValid(String(clubId))) {
+        const club = await Club.findById(clubId).select("name").lean();
+        clubName = club?.name || "";
+    }
+
+    return {
+        ...official,
+        district: districtId || null,
+        districtName,
+        club: clubId || null,
+        clubName,
+    };
+};
+
 export {
     afterLoginOfficialFormRepositories,
     displayAllOfficialRepositories,
+    displayOfficialfullDetailsRepositories,
 }

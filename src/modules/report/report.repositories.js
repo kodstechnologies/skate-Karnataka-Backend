@@ -78,18 +78,17 @@ export const getClubReportsRepositories = async (clubId, page, limit) => {
 
     const query = {
         ownClub: new mongoose.Types.ObjectId(clubId),
+        status: { $ne: "solved" } // Exclude solved reports
     };
 
-    // ✅ fetch paginated data
     const data = await Report.find(query)
         .select("reportType message clubName skaterName districtName krsaId status complainedBy")
         .populate("complainedBy", "fullName")
         .sort({ createdAt: -1 })
-        .skip(skip)        // ✅ pagination applied
-        .limit(perPage)    // ✅ pagination applied
+        .skip(skip)
+        .limit(perPage)
         .lean();
 
-    // ✅ total count
     const total = await Report.countDocuments(query);
 
     return {
@@ -102,7 +101,6 @@ export const getClubReportsRepositories = async (clubId, page, limit) => {
         },
     };
 };
-
 export const getDistrictReportsRepositories = async (id) => {
 
 }
@@ -137,7 +135,6 @@ export const inProgressClubReportsRepositories = async (id, clubId) => {
         {
             $set: {
                 status: "inprogress",
-                idClub: true,
                 statusUpdatedAt: new Date(),
             },
         },

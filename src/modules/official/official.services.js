@@ -1,5 +1,6 @@
-
-import { afterLoginOfficialFormRepositories, displayAllOfficialRepositories } from "./official.repositories.js";
+import mongoose from "mongoose";
+import { AppError } from "../../util/common/AppError.js";
+import { afterLoginOfficialFormRepositories, displayAllOfficialRepositories, displayOfficialfullDetailsRepositories } from "./official.repositories.js";
 
 const afterLoginFormOfficialService = async (data, id) => {
      await afterLoginOfficialFormRepositories(data, id); 
@@ -30,7 +31,20 @@ const displayAllOfficialService = async (query) => {
     });
 }
 
+const displayOfficialfullDetailsService = async (id) => {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new AppError("Invalid official id", 400);
+    }
+
+    const official = await displayOfficialfullDetailsRepositories(id);
+    if (!official) {
+        throw new AppError("Official not found", 404);
+    }
+    return official;
+}
+
 export {
     afterLoginFormOfficialService,
     displayAllOfficialService,
+    displayOfficialfullDetailsService,
 }

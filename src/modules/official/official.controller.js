@@ -1,6 +1,6 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { afterLoginFormOfficialService, displayAllOfficialService } from "./official.services.js";
+import { afterLoginFormOfficialService, displayAllOfficialService, displayOfficialfullDetailsService } from "./official.services.js";
 
 const afterLoginOfficialForm = asyncHandler(async (req, res) => {
     const { id } = req.params;
@@ -29,7 +29,22 @@ const displayAllOfficial = asyncHandler(async (req, res) => {
         )
 });
 
+const displayOfficialfullDetails = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const result = await displayOfficialfullDetailsService(id);
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                result,
+                "Official full details fetched successfully"
+            )
+        );
+});
+
 export {
     afterLoginOfficialForm,
     displayAllOfficial,
+    displayOfficialfullDetails,
 }

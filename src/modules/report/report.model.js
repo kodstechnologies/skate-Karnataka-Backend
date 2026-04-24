@@ -37,7 +37,7 @@ const reportSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["pending", "solved", "inprogress"],
+      enum: ["pending", "solved", "inprogress","notSolved"],
       default: "pending",
     },
     idClub: {
@@ -53,10 +53,6 @@ const reportSchema = new mongoose.Schema(
       type: Boolean,
       default: false
     },
-    statusUpdatedAt: {
-      type: Date,
-      default: null,
-    }
   },
   {
     timestamps: true,

@@ -9,12 +9,7 @@ const eventSchema = new mongoose.Schema(
       trim: true,
     },
 
-    // 🖼 Image
-    image: {
-      type: String,
-      default: "",
-      trim: true,
-    },
+
 
     // 📅 Date
     date: {

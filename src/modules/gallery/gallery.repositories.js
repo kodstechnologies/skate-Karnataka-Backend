@@ -112,6 +112,30 @@ export const displayAllMediaRepositories = async (type = {}, page, limit) => {
     },
   };
 };
+
+export const basedOnRoleDisplayRepositories = async ({ ownerType, ownerId }, page, limit) => {
+  const filter = { ownerType, ownerId };
+  const { skip, limit: perPage, page: currentPage } = paginate(page, limit);
+
+  const [total, media] = await Promise.all([
+    Gallery.countDocuments(filter),
+    Gallery.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(perPage)
+      .lean(),
+  ]);
+
+  return {
+    data: media,
+    pagination: {
+      total,
+      page: currentPage,
+      limit: perPage,
+      totalPages: Math.ceil(total / perPage),
+    },
+  };
+};
 export const addMediaREpositories = async (data) => {
   return Gallery.create({
     imageUrl: data?.img || data?.imageUrl || null,

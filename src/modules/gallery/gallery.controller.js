@@ -2,6 +2,7 @@ import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
 import {
   addMediaService,
+  basedOnRoleDisplayService,
   deleteMediaService,
   displayAllMediaBasedOnSkaterService,
   displayAllMediaServices,
@@ -28,6 +29,15 @@ export const displayAllMedia = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, media, "Display media"));
 });
+
+export const basedOnRoleDisplay = asyncHandler(async(req, res) =>{
+  const { page = 1, limit = 10 } = req.query;
+  const media = await basedOnRoleDisplayService(req.user, page, limit);
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200, media, "Display media"));
+})
 
 export const addMedia = asyncHandler(async (req, res) => {
     await addMediaService(req.body, req.user);

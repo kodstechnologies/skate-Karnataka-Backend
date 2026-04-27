@@ -1,5 +1,6 @@
 import {
     addMediaREpositories,
+    basedOnRoleDisplayRepositories,
     deleteMediaRepositories,
     displayAllMediaBasedOnSkaterRepositories,
     displayAllMediaRepositories,
@@ -28,6 +29,11 @@ export const displayAllMediaBasedOnSkaterService = async (skaterId, page, limit)
 
 export const displayAllMediaServices = async (type, page, limit) => {
     return await displayAllMediaRepositories(type, page, limit);
+}
+
+export const basedOnRoleDisplayService = async (user, page, limit) => {
+    const { ownerType, ownerId } = getOwnerContext(user);
+    return await basedOnRoleDisplayRepositories({ ownerType, ownerId }, page, limit);
 }
 
 export const addMediaService = async (data, user) => {

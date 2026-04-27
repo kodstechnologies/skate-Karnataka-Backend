@@ -23,6 +23,12 @@ const stateSchema = new mongoose.Schema(
     img:{
       type:String ,
       default:""
+    },
+    officialAddress: {
+      type: String,
+      trim: true,
+      maxlength: 200,
+      default: "",
     }
 
 },

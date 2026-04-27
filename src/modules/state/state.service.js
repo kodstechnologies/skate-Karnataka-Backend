@@ -5,6 +5,8 @@ import {
   getAllStateRepository,
   getSingleStateWithDistrictsRepository,
   isStateExistByNameRepository,
+  stateDashboardRepository,
+  stateProfileRepository,
   updateStateRepository,
 } from "./state.repositories.js";
 
@@ -34,4 +36,12 @@ export const updateStateService = async (stateId, payload) => {
 
 export const deleteStateService = async (stateId) => {
   return deleteStateRepository(stateId);
+};
+
+export const displayDashboardService = async () => {
+  return stateDashboardRepository();
+};
+
+export const displayProfileService = async (stateId) => {
+  return stateProfileRepository(stateId);
 };

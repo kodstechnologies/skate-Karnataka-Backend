@@ -1,6 +1,9 @@
 import { AppError } from "../../util/common/AppError.js";
 import { paginate } from "../../util/common/paginate.js";
 import { District } from "../district/district.model.js";
+import { Club } from "../club/club.model.js";
+import { Skater } from "../skater/skater.model.js";
+import { Report } from "../report/report.model.js";
 import { State } from "./state.model.js";
 
 const normalizeAllowedModule = (allowedModule = []) => {
@@ -112,4 +115,42 @@ export const deleteStateRepository = async (stateId) => {
     throw new AppError("State not found", 404);
   }
   return deleted;
+};
+
+export const stateDashboardRepository = async () => {
+  const [totalDistrict, totalClubs, totalSkaters, pendingApprovals, latestReport] = await Promise.all([
+    District.countDocuments(),
+    Club.countDocuments(),
+    Skater.countDocuments(),
+    Club.countDocuments({ districtStatus: "apply" }),
+    Report.findOne()
+      .sort({ createdAt: -1 })
+      .select("_id ownClub reportType message clubName skaterName districtName krsaId status createdAt")
+      .lean(),
+  ]);
+
+  return {
+    totalDistrict,
+    totalClubs,
+    totalSkaters,
+    pendingApprovals,
+    latestReport: latestReport || null,
+  };
+};
+
+export const stateProfileRepository = async (stateId) => {
+  const state = await State.findById(stateId)
+    .select("name officialAddress img krsaId")
+    .lean();
+
+  if (!state) {
+    throw new AppError("State not found", 404);
+  }
+
+  return {
+    name: state.name || "",
+    officialAddress: state.officialAddress || "",
+    img: state.img || "",
+    krsaId: state.krsaId || "",
+  };
 };

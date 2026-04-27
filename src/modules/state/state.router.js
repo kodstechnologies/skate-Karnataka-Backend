@@ -1,11 +1,22 @@
 import express from "express";
 import { validate } from "../../middleware/validate.multiple.js";
-import { createNewState, deleteState, displayAllState, displaySingleStateAllDistricts, updateState } from "./state.controller.js";
+import { createNewState, deleteState, displayAllState, displayDashboard, displayProfile, displaySingleStateAllDistricts, updateState } from "./state.controller.js";
 import { createStateValidation, editStateValidation, getAllStateValidation } from "./state.validation.js";
 import { upload } from "../../middleware/multer.middleware.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 const router = express.Router();
+
+router.get("/v1/dashboard", 
+     authenticate(["State"]),
+     displayDashboard
+)
+
+router.get("/v1/profile", 
+     authenticate(["State"]),
+     displayProfile
+)
+
 
 // 🔹 Get all states
 router.get("/v1/all",

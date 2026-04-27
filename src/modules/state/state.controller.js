@@ -3,10 +3,23 @@ import { ApiResponse } from "../../util/common/ApiResponse.js";
 import {
   createStateService,
   deleteStateService,
+  displayDashboardService,
+  displayProfileService,
   displayAllStateService,
   displaySingleStateAllDistrictsService,
   updateStateService,
 } from "./state.service.js";
+
+export const displayDashboard = asyncHandler(async(req,res) =>{
+     const dashboardData = await displayDashboardService();
+     return res.status(200).json(new ApiResponse(200, dashboardData, "Display dashboard successfully"));
+})
+
+export const displayProfile = asyncHandler(async (req, res) => {
+    const stateId = req.user?._id;
+    const profileData = await displayProfileService(stateId);
+    return res.status(200).json(new ApiResponse(200, profileData, "Display profile details successfully"));
+});
 
 const displayAllState = asyncHandler(async(req , res) =>{
     const { page, limit } = req.query;

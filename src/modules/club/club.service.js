@@ -41,8 +41,8 @@ export const displayClubDashboardService = async(clubId) => {
     return await displayClubDashboardRepositories({ clubId });
 }
 
-export const displayClubProfileService = async (clubId) => {
-    const profile = await displayClubProfileRepositories(clubId);
+export const displayClubProfileService = async (userId) => {
+    const profile = await displayClubProfileRepositories(userId);
 
     if (!profile) {
         throw new AppError("Club profile not found", 404);

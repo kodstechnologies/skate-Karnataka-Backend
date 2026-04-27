@@ -195,6 +195,37 @@ const singleDistrictSkatersRepository = async (id) => {
   };
 };
 
+const districtTotalClubsRepository = async (id) => {
+  console.log(id, "///////////");
+
+  const districtUser = await BaseAuth.findById(id).select("district");
+  console.log(districtUser, "=++++++++++++");
+
+  if (!districtUser || !districtUser.district) {
+    throw new AppError("District Id not found in user", 404);
+  }
+
+  const district = await District.findById(districtUser.district)
+    .select("_id name club")
+    .populate("club", "_id name address img")
+    .lean();
+
+  console.log(district, "===");
+
+  if (!district) {
+    throw new AppError("District not found", 404);
+  }
+
+  const clubs = district.club || [];
+
+  return {
+    districtId: district._id,
+    districtName: district.name,
+    totalClubs: clubs.length,
+    clubs,
+  };
+};
+
 export {
     getAllDistrict,
     isDistrictExist,
@@ -206,5 +237,6 @@ export {
     acceptClubJoinRepository,
     acceptClubLeaveRepository,
     rejectClubJoinRepository,
-    singleDistrictSkatersRepository
+    singleDistrictSkatersRepository,
+    districtTotalClubsRepository
 }

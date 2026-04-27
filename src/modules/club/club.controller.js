@@ -15,8 +15,8 @@ const displayClubDashboard = asyncHandler(async (req, res) => {
 })
 
 const displayClubProfile = asyncHandler(async (req, res) => {
-    const clubId = req.user._id;
-    const profile = await displayClubProfileService(clubId);
+    const userId = req.user._id;
+    const profile = await displayClubProfileService(userId);
 
     return res.status(200).json(
         new ApiResponse(

@@ -38,10 +38,11 @@ export const displayClubDashboardRepositories = async ({ clubId }) => {
     };
 };
 
-export const displayClubProfileRepositories = async (clubId) => {
-    const club = await Club.findById(clubId)
-        .select("name img address district districtName districtStatus about rank championships")
+export const displayClubProfileRepositories = async (userId) => {
+    const club = await Club.findOne({ members: userId })
+        .select("name img address district districtName districtStatus about rank championships clubId members")
         .populate("district", "name")
+        .populate("members", "_id fullName phone email role krsaId")
         .lean();
 
     if (!club) return null;
@@ -53,15 +54,18 @@ export const displayClubProfileRepositories = async (clubId) => {
     // });
 
     return {
+        id: String(club._id),
         name: club.name || "",
         image: club.img || "",
-        // totalSkater,
         address: club.address || "",
         districtName: club.district?.name || club.districtName || "",
         districtStatus: club.districtStatus || "",
-        // about: club.about || "",
+        about: club.about || "",
         rank: club.rank ?? 0,
-        // championships: club.championships ?? 0,
+        championships: club.championships ?? 0,
+        clubId: club.clubId || "",
+        totalMembers: (club.members || []).length,
+        members: club.members || [],
     };
 };
 export const affiliatedDistrictRepository = async (clubId) => {

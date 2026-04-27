@@ -1,5 +1,5 @@
 import { AppError } from "../../util/common/AppError.js";
-import { acceptClubJoinRepository, acceptClubLeaveRepository, createDistrict, districtDeletedRepository, districtUpdateRepository, getAllDistrict, isDistrictAvailable, isDistrictExist, rejectClubJoinRepository, singleDistrictRepository, singleDistrictSkatersRepository } from "./district.repositories.js";
+import { acceptClubJoinRepository, acceptClubLeaveRepository, createDistrict, districtDeletedRepository, districtTotalClubsRepository, districtUpdateRepository, getAllDistrict, isDistrictAvailable, isDistrictExist, rejectClubJoinRepository, singleDistrictRepository, singleDistrictSkatersRepository } from "./district.repositories.js";
 
 const getAllDistrictService = async () => {
     return await getAllDistrict();
@@ -68,6 +68,14 @@ const singleDistrictSkatersService = async (id) => {
     return await singleDistrictSkatersRepository(id);
 };
 
+const displayTotalClubsService = async (districtId) => {
+    if (!districtId) {
+        throw new AppError("districtId is required", 400);
+    }
+
+    return await districtTotalClubsRepository(districtId);
+};
+
 export {
     getAllDistrictService,
     createNewDistrictService,
@@ -77,5 +85,6 @@ export {
     acceptClubService,
     leaveClubService,
     rejectClubService,
-    singleDistrictSkatersService
+    singleDistrictSkatersService,
+    displayTotalClubsService
 }

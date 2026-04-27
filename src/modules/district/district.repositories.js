@@ -2,6 +2,9 @@ import { District } from "./district.model.js"
 import { Club } from "../club/club.model.js";
 import { BaseAuth } from "../auth/baseAuth.model.js";
 import { AppError } from "../../util/common/AppError.js";
+import { Skater } from "../skater/skater.model.js";
+import { Report } from "../report/report.model.js";
+import { Event } from "../event/event.model.js";
 
 const getAllDistrict = async () => {
     return await District.find().select("_id name").lean();
@@ -223,6 +226,98 @@ const districtTotalClubsRepository = async (id) => {
     districtName: district.name,
     totalClubs: clubs.length,
     clubs,
+  };
+};
+
+export const displayDashboardDataRepository = async (id) => {
+
+  const districtUser = await BaseAuth.findById(id).select("district");
+
+  if (!districtUser || !districtUser.district) {
+    throw new AppError("District Id not found",404);
+  }
+
+  const districtId = districtUser.district;
+
+  const district = await District.findById(districtId)
+    .select("name club")
+    .lean();
+
+  if (!district) {
+    throw new AppError("District not found",404);
+  }
+
+  const clubIds = district.club || [];
+
+  // Approved clubs
+  const totalClubs = clubIds.length;
+
+  // Skaters
+  const totalSkaters = await Skater.countDocuments({
+    club: { $in: clubIds }
+  });
+
+  // Pending club approvals (applied to this district)
+  const pendingApprovals = await Club.countDocuments({
+    applyDistrict: districtId,
+    districtStatus: "apply"
+  });
+
+  // Reports status count
+  const reportStats = await Report.aggregate([
+    {
+      $match: {
+        ownClub: { $in: clubIds },
+        status: {
+          $in: ["pending","inprogress","notSolved"]
+        }
+      }
+    },
+    {
+      $group:{
+        _id:"$status",
+        count:{ $sum:1 }
+      }
+    }
+  ]);
+
+  let pending=0;
+  let inprogress=0;
+  let notSolved=0;
+
+  reportStats.forEach(item=>{
+    if(item._id==="pending") pending=item.count;
+    if(item._id==="inprogress") inprogress=item.count;
+    if(item._id==="notSolved") notSolved=item.count;
+  });
+
+  // Latest event
+  const latestEvent = await Event.findOne({
+    eventType:"District",
+    eventFor:districtId
+  })
+  .sort({createdAt:-1})
+  .lean();
+
+  return {
+    districtId,
+    districtName: district.name,
+
+    dashboard:{
+      totalClubs,
+      totalSkaters,
+      pendingApprovals, // 🔥 new count
+
+      reports:{
+        pending,
+        inprogress,
+        notSolved,
+        totalReports:
+          pending + inprogress + notSolved
+      }
+    },
+
+    latestEvent : latestEvent || ""
   };
 };
 

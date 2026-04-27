@@ -395,6 +395,42 @@ export const displayDashboardDataRepository = async (id) => {
   };
 };
 
+
+export const displayDistrictProfileRepository = async (id) => {
+
+  const districtUser = await BaseAuth.findById(id)
+    .select("district , krsaId")
+    .lean();
+
+  if (!districtUser || !districtUser.district) {
+    throw new AppError("District Id not found in user",404);
+  }
+
+  const district = await District.findById(
+      districtUser.district
+    )
+    .select(
+      "_id name img officeAddress about presidentName rank championships"
+    )
+    .lean();
+
+  if (!district) {
+    throw new AppError("District not found",404);
+  }
+
+  return {
+    districtId: district._id || "",
+    krsaId: districtUser.krsaId || "",
+    districtName: district.name || "",
+    img: district.img || "",
+    officeAddress: district.officeAddress || "",
+    about: district.about || "",
+    presidentName: district.presidentName || "",
+    // rank: district.rank || 0,
+    // championships: district.championships || 0
+  };
+};
+
 export {
     getAllDistrict,
     isDistrictExist,

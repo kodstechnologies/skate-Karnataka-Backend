@@ -17,6 +17,12 @@ const districtSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    officeAddress: {
+      type: String,
+      trim: true,
+      maxlength: 200,
+      default: "",
+    },
     rank: {
       type: Number,
       default: 0,

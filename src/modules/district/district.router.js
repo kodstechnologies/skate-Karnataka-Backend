@@ -1,7 +1,7 @@
 import express from "express";
 import { validate } from "../../middleware/validate.multiple.js";
 import { createDistrictValidation, editDistrictValidation } from "./district.validation.js";
-import { acceptClub, createNewDistrict, deleteDistrict, displayAllDistrict, displayDistrictDashboard, displaySingleDistrictAllClubs, displaySingleDistrictMembers, displayTotalClubs, displayTotalSkater, leaveClub, rejectClub, updateDistrict } from "./district.controller.js";
+import { acceptClub, createNewDistrict, deleteDistrict, displayAllDistrict, displayDistrictDashboard, displayDistrictProfile, displaySingleDistrictAllClubs, displaySingleDistrictMembers, displayTotalClubs, displayTotalSkater, leaveClub, rejectClub, updateDistrict } from "./district.controller.js";
 import { upload } from "../../middleware/multer.middleware.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
@@ -23,6 +23,8 @@ const normalizeFormBody = (req, _res, next) => {
   next();
 };
 
+
+router.get("/v1/profile", authenticate(["District"]) ,displayDistrictProfile);
 router.get("/v1/dashboard",authenticate(["District"]) ,displayDistrictDashboard);
 
 // router.get()

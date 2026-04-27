@@ -9,8 +9,13 @@ import {checkEmailOTP, checkOtp, checkPhoneOTP, isExist, isExistEmail, isExistPh
 
 const RegisterUserService = async (userData) => {
     const selectedClubId = userData.club;
+    const normalizedRole = String(userData.role || "").toLowerCase();
 
-    if (String(userData.role || "").toLowerCase() === "district") {
+    if (["district", "club", "state"].includes(normalizedRole)) {
+        userData.verify = true;
+    }
+
+    if (normalizedRole === "district") {
         const districtName = String(userData.districtName || "").trim();
 
         if (!userData.district && districtName) {

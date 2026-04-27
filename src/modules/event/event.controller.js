@@ -1,6 +1,6 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { clubRelatedEventDisplayService, createClubEventService, create_event_schema, delete_event_schema, display_all_event_based_on_user_service, display_latest_event_server, displayEventServer, displaySingleEventDetailsServer, edit_event_schema } from "./event.service.js";
+import { clubRelatedEventDisplayService, createClubEventService, createDistrictEventService, createStateEventService, create_event_schema, delete_event_schema, display_all_event_based_on_user_service, display_latest_event_server, displayEventServer, displaySingleEventDetailsServer, districtRelatedEventDisplayService, edit_event_schema, stateRelatedEventDisplayService } from "./event.service.js";
 
 
 const display_latest_event = asyncHandler(async (req, res) => {
@@ -17,12 +17,25 @@ const display_latest_event = asyncHandler(async (req, res) => {
     );
 })
 
+// =============================== club  
+
 export const clubRelatedEventDisplay = asyncHandler(async (req, res) => {
     const clubId = req.user._id;
-    const events = await clubRelatedEventDisplayService(clubId);
+    const { page = 1, limit = 10 } = req.query;
+    const events = await clubRelatedEventDisplayService(clubId, { page, limit });
     return res.status(200).json(
         new ApiResponse(
-            200, events, "In club related events display successfully"
+            200,
+            {
+                data: events.data || [],
+                pagination: {
+                    total: events.total || 0,
+                    page: events.page || Number(page) || 1,
+                    limit: events.limit || Number(limit) || 10,
+                    totalPages: events.totalPages || 0,
+                },
+            },
+            "Display pending approver"
         )
     )
 })
@@ -41,6 +54,81 @@ export const createClubEvent = asyncHandler(async (req, res) => {
     );
 });
 
+// district ================================
+
+export const districtRelatedEventDisplay = asyncHandler(async (req, res) => {
+    const districtUserId = req.user._id;
+    const { page = 1, limit = 10 } = req.query;
+    const events = await districtRelatedEventDisplayService(districtUserId, { page, limit });
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                data: events.data || [],
+                pagination: {
+                    total: events.total || 0,
+                    page: events.page || Number(page) || 1,
+                    limit: events.limit || Number(limit) || 10,
+                    totalPages: events.totalPages || 0,
+                },
+            },
+            "Display pending approver"
+        )
+    )
+})
+
+export const createDistrictEvent = asyncHandler(async (req, res) => {
+    console.log(req.body ,"=====")
+    const districtUserId = req.user._id;
+    const event = await createDistrictEventService(districtUserId, req.body);
+
+    return res.status(201).json(
+        new ApiResponse(
+            201,
+            event,
+            "District event created successfully"
+        )
+    );
+});
+
+// ===================================== state 
+
+export const stateRelatedEventDisplay = asyncHandler(async (req, res) => {
+    const stateId = req.user._id;
+    const { page = 1, limit = 10 } = req.query;
+    const events = await stateRelatedEventDisplayService(stateId, { page, limit });
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                data: events.data || [],
+                pagination: {
+                    total: events.total || 0,
+                    page: events.page || Number(page) || 1,
+                    limit: events.limit || Number(limit) || 10,
+                    totalPages: events.totalPages || 0,
+                },
+            },
+            "Display pending approver"
+        )
+    )
+});
+
+export const createStateEvent = asyncHandler(async (req, res) => {
+    const stateId = req.user._id;
+    const event = await createStateEventService(stateId, req.body);
+
+    return res.status(201).json(
+        new ApiResponse(
+            201,
+            event,
+            "State event created successfully"
+        )
+    );
+});
+
+
+// =====================================
 const display_all_event_based_on_user = asyncHandler(async (req, res) => {
     console.log("jjjj")
     const userId = req.user._id; // assuming auth middleware

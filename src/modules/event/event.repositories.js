@@ -26,15 +26,29 @@ const displayAllEventRepository = async ({ page, limit }) => {
   };
 };
 
-export const clubRelatedEventDisplayRepositories = async (clubId) => {
-    const events = await Event.find({
-        eventType: "Club",
-        eventFor: new mongoose.Types.ObjectId(clubId), // ✅ ensure ObjectId
-    })
-        .sort({ createdAt: -1 }) // latest first
-        .lean();
+export const clubRelatedEventDisplayRepositories = async (clubId, { page, limit }) => {
+  const query = {
+    eventType: "Club",
+    eventFor: new mongoose.Types.ObjectId(clubId),
+  };
 
-    return events;
+  const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+
+  const events = await Event.find(query)
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(pageLimit)
+    .lean();
+
+  const total = await Event.countDocuments(query);
+
+  return {
+    total,
+    page: currentPage,
+    limit: pageLimit,
+    totalPages: Math.ceil(total / pageLimit),
+    data: events,
+  };
 };
 
 export const createClubEventRepositories = async (clubId, data) => {
@@ -42,6 +56,82 @@ export const createClubEventRepositories = async (clubId, data) => {
     ...data,
     eventType: "Club",
     eventFor: new mongoose.Types.ObjectId(clubId),
+  };
+
+  return Event.create(payload);
+};
+
+export const districtRelatedEventDisplayRepositories = async (districtUserId, { page, limit }) => {
+  const districtUser = await BaseAuth.findById(districtUserId).select("district").lean();
+  const districtId = districtUser?.district || districtUserId;
+
+  const query = {
+    eventType: "District",
+    eventFor: new mongoose.Types.ObjectId(districtId),
+  };
+
+  const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+
+  const events = await Event.find(query)
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(pageLimit)
+    .lean();
+
+  const total = await Event.countDocuments(query);
+
+  return {
+    total,
+    page: currentPage,
+    limit: pageLimit,
+    totalPages: Math.ceil(total / pageLimit),
+    data: events,
+  };
+};
+
+export const createDistrictEventRepositories = async (districtUserId, data) => {
+  const districtUser = await BaseAuth.findById(districtUserId).select("district").lean();
+  const districtId = districtUser?.district || districtUserId;
+
+  const payload = {
+    ...data,
+    eventType: "District",
+    eventFor: new mongoose.Types.ObjectId(districtId),
+  };
+
+  return Event.create(payload);
+};
+
+export const stateRelatedEventDisplayRepositories = async (stateId, { page, limit }) => {
+  const query = {
+    eventType: "State",
+    eventFor: new mongoose.Types.ObjectId(stateId),
+  };
+
+  const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+
+  const events = await Event.find(query)
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(pageLimit)
+    .lean();
+
+  const total = await Event.countDocuments(query);
+
+  return {
+    total,
+    page: currentPage,
+    limit: pageLimit,
+    totalPages: Math.ceil(total / pageLimit),
+    data: events,
+  };
+};
+
+export const createStateEventRepositories = async (stateId, data) => {
+  const payload = {
+    ...data,
+    eventType: "State",
+    eventFor: new mongoose.Types.ObjectId(stateId),
   };
 
   return Event.create(payload);

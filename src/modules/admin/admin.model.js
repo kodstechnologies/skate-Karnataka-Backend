@@ -33,7 +33,7 @@ const AdminSchema = new mongoose.Schema({
           img: {
       type: String,
       default: null,
-      match: [/^(https?:\/\/.*\.(png|jpg|jpeg|webp))?$/, "Invalid image URL"],
+      match: [/^(https?:\/\/\S+)?$/, "Invalid image URL"],
     },
 });
 

@@ -26,16 +26,25 @@ const displayAllEventRepository = async ({ page, limit }) => {
   };
 };
 
-export const clubRelatedEventDisplayRepositories = async (clubId, { page, limit }) => {
+
+export const clubRelatedEventDisplayRepositories = async (
+  clubId,
+  { page, limit }
+) => {
+console.log("pppppppppppp")
   const query = {
     eventType: "Club",
     eventFor: new mongoose.Types.ObjectId(clubId),
   };
 
-  const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+  const {
+    skip,
+    limit: pageLimit,
+    page: currentPage
+  } = paginate(page,limit);
 
   const events = await Event.find(query)
-    .sort({ createdAt: -1 })
+    .sort({ createdAt:-1 })
     .skip(skip)
     .limit(pageLimit)
     .lean();
@@ -43,11 +52,13 @@ export const clubRelatedEventDisplayRepositories = async (clubId, { page, limit 
   const total = await Event.countDocuments(query);
 
   return {
-    total,
-    page: currentPage,
-    limit: pageLimit,
-    totalPages: Math.ceil(total / pageLimit),
     data: events,
+    pagination: {
+      total,
+      page: currentPage,
+      limit: pageLimit,
+      totalPages: Math.ceil(total / pageLimit)
+    }
   };
 };
 

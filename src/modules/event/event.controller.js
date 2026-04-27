@@ -23,21 +23,18 @@ export const clubRelatedEventDisplay = asyncHandler(async (req, res) => {
     const clubId = req.user._id;
     const { page = 1, limit = 10 } = req.query;
     const events = await clubRelatedEventDisplayService(clubId, { page, limit });
-    return res.status(200).json(
-        new ApiResponse(
-            200,
-            {
-                data: events.data || [],
-                pagination: {
-                    total: events.total || 0,
-                    page: events.page || Number(page) || 1,
-                    limit: events.limit || Number(limit) || 10,
-                    totalPages: events.totalPages || 0,
-                },
-            },
-            "Display pending approver"
-        )
-    )
+    return res.status(200).json({
+        statusCode: 200,
+        data: events.data || [],
+        pagination: {
+            total: events.pagination?.total || 0,
+            page: events.pagination?.page || Number(page) || 1,
+            limit: events.pagination?.limit || Number(limit) || 10,
+            totalPages: events.pagination?.totalPages || 0,
+        },
+        message: "Display pending approver",
+        success: true,
+    });
 })
 
 export const createClubEvent = asyncHandler(async (req, res) => {

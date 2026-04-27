@@ -1,5 +1,5 @@
 import { AppError } from "../../util/common/AppError.js";
-import { acceptClubJoinRepository, acceptClubLeaveRepository, createDistrict, displayDashboardDataRepository, districtDeletedRepository, districtTotalClubsRepository, districtUpdateRepository, getAllDistrict, isDistrictAvailable, isDistrictExist, rejectClubJoinRepository, singleDistrictRepository, singleDistrictSkatersRepository } from "./district.repositories.js";
+import { acceptClubJoinRepository, acceptClubLeaveRepository, createDistrict, displayDashboardDataRepository, districtDeletedRepository, districtTotalClubsRepository, districtTotalSkatersRepository, districtUpdateRepository, getAllDistrict, isDistrictAvailable, isDistrictExist, rejectClubJoinRepository, singleDistrictRepository, singleDistrictSkatersRepository } from "./district.repositories.js";
 
 const getAllDistrictService = async () => {
     return await getAllDistrict();
@@ -68,12 +68,20 @@ const singleDistrictSkatersService = async (id) => {
     return await singleDistrictSkatersRepository(id);
 };
 
-const displayTotalClubsService = async (districtId) => {
+const displayTotalClubsService = async (districtId, { page, limit }) => {
     if (!districtId) {
         throw new AppError("districtId is required", 400);
     }
 
-    return await districtTotalClubsRepository(districtId);
+    return await districtTotalClubsRepository(districtId, { page, limit });
+};
+
+const displayTotalSkatersService = async (districtId, { page, limit }) => {
+    if (!districtId) {
+        throw new AppError("districtId is required", 400);
+    }
+
+    return await districtTotalSkatersRepository(districtId, { page, limit });
 };
 
 export const displayDashboardData = async (districtId) => {
@@ -95,5 +103,6 @@ export {
     leaveClubService,
     rejectClubService,
     singleDistrictSkatersService,
-    displayTotalClubsService
+    displayTotalClubsService,
+    displayTotalSkatersService
 }

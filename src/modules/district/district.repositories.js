@@ -5,6 +5,7 @@ import { AppError } from "../../util/common/AppError.js";
 import { Skater } from "../skater/skater.model.js";
 import { Report } from "../report/report.model.js";
 import { Event } from "../event/event.model.js";
+import { paginate } from "../../util/common/paginate.js";
 
 const getAllDistrict = async () => {
     return await District.find().select("_id name").lean();
@@ -198,34 +199,107 @@ const singleDistrictSkatersRepository = async (id) => {
   };
 };
 
-const districtTotalClubsRepository = async (id) => {
-  console.log(id, "///////////");
+const districtTotalClubsRepository = async (id,{ page, limit }) => {
 
   const districtUser = await BaseAuth.findById(id).select("district");
-  console.log(districtUser, "=++++++++++++");
 
   if (!districtUser || !districtUser.district) {
-    throw new AppError("District Id not found in user", 404);
+    throw new AppError("District Id not found in user",404);
   }
 
   const district = await District.findById(districtUser.district)
     .select("_id name club")
-    .populate("club", "_id name address img")
     .lean();
 
-  console.log(district, "===");
-
   if (!district) {
-    throw new AppError("District not found", 404);
+    throw new AppError("District not found",404);
   }
 
-  const clubs = district.club || [];
+  const clubIds = district.club || [];
+  const totalClubs = clubIds.length;
+
+  const {
+    skip,
+    limit: pageLimit,
+    page: currentPage
+  } = paginate(page,limit);
+
+  const clubs = await Club.find({
+      _id: { $in: clubIds }
+    })
+    .select("_id name address img skaters")
+    .sort({ createdAt:-1 })
+    .skip(skip)
+    .limit(pageLimit)
+    .lean();
 
   return {
-    districtId: district._id,
-    districtName: district.name,
-    totalClubs: clubs.length,
-    clubs,
+    data: clubs,
+
+    pagination: {
+      total: totalClubs,
+      page: currentPage,
+      limit: pageLimit,
+      totalPages: Math.ceil(totalClubs / pageLimit)
+    }
+  };
+};
+
+const districtTotalSkatersRepository = async (id,{ page, limit }) => {
+
+  const districtUser = await BaseAuth.findById(id)
+    .select("district")
+    .lean();
+
+  if (!districtUser || !districtUser.district) {
+    throw new AppError("District Id not found in user",404);
+  }
+
+  const district = await District.findById(districtUser.district)
+    .select("_id name club")
+    .lean();
+
+  if (!district) {
+    throw new AppError("District not found",404);
+  }
+
+  const clubIds = district.club || [];
+
+  const query = {
+    club: { $in: clubIds }
+  };
+
+  const {
+    skip,
+    limit: pageLimit,
+    page: currentPage
+  } = paginate(page,limit);
+
+  const skaters = await Skater.find(query)
+    .select("_id krsaId fullName address photo club")
+    .populate("club","_id name")
+    .sort({ createdAt:-1 })
+    .skip(skip)
+    .limit(pageLimit)
+    .lean();
+
+  const totalSkaters = await Skater.countDocuments(query);
+
+  return {
+    data: skaters.map((skater)=>({
+      skaterId: skater.krsaId || skater._id,
+      img: skater.photo || "",
+      name: skater.fullName || "",
+      address: skater.address || "",
+      clubName: skater.club?.name || ""
+    })),
+
+    pagination:{
+      total: totalSkaters,
+      page: currentPage,
+      limit: pageLimit,
+      totalPages: Math.ceil(totalSkaters / pageLimit)
+    }
   };
 };
 
@@ -333,5 +407,6 @@ export {
     acceptClubLeaveRepository,
     rejectClubJoinRepository,
     singleDistrictSkatersRepository,
-    districtTotalClubsRepository
+    districtTotalClubsRepository,
+    districtTotalSkatersRepository
 }

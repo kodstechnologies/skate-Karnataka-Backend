@@ -32,7 +32,7 @@ export const clubRelatedEventDisplay = asyncHandler(async (req, res) => {
             limit: events.pagination?.limit || Number(limit) || 10,
             totalPages: events.pagination?.totalPages || 0,
         },
-        message: "Display pending approver",
+        message: "Display club event display.",
         success: true,
     });
 })

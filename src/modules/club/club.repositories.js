@@ -5,22 +5,29 @@ import { District } from "../district/district.model.js";
 import { Skater } from "../skater/skater.model.js";
 import { Event } from "../event/event.model.js";
 import { Club } from "./club.model.js";
+import { BaseAuth } from "../auth/baseAuth.model.js";
 
 export const displayClubDashboardRepositories = async ({ clubId }) => {
-    // 1️⃣ Get Club Details
-    const club = await Club.findById(clubId)
+    // Support both Club document id and BaseAuth id from auth token.
+    const club = await Club.findOne({
+        $or: [{ _id: clubId }, { members: clubId }],
+    })
         .select("name img championships rank")
         .lean();
 
+    if (!club) {
+        throw new AppError("Club not found", 404);
+    }
+
     // 2️⃣ Total Skaters
     const totalSkaters = await Skater.countDocuments({
-        club: clubId,
+        club: club._id,
         discipline: "join",
     });
 
     // 3️⃣ Latest Joined Skaters
     const latestSkaters = await Skater.find({
-        club: clubId,
+        club: club._id,
         discipline: "join",
     })
         .select("fullName createdAt photo")
@@ -104,8 +111,14 @@ export const affiliatedDistrictRepository = async (clubId) => {
     };
 };
 
-export const exceptOwnDistrictDisplayAllDistrictRepository = async (clubId) => {
-    const club = await Club.findById(clubId).select("district").lean();
+export const exceptOwnDistrictDisplayAllDistrictRepository = async (id) => {
+    // Accept either Club document _id or authenticated BaseAuth _id.
+    const club = await Club.findOne({
+        $or: [{ _id: id }, { members: id }],
+    })
+        .select("district")
+        .lean();
+
     if (!club) {
         return null;
     }

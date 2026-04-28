@@ -14,7 +14,7 @@ import schoolRouter from "./modules/school/school.router.js";
 import competitionsRouter from "./modules/competition/competition.router.js";
 import eventsRouter from "./modules/event/event.router.js";
 import galleryRouter from "./modules/gallery/gallery.router.js";
-import notificationRouter from "./modules/notification/notefication.router.js"
+import notificationRouter from "./modules/notification/notification.router.js"
 import clubRouter from "./modules/club/club.router.js";
 import districtRouter from "./modules/district/district.router.js";
 import stateRouter from "./modules/state/state.router.js";

@@ -267,13 +267,22 @@ const updated = await School.findOneAndUpdate(
 
 
 const saveFirebaseToken = async (userData) => {
-    const { userId, firebaseToken } = userData;
-    if (!firebaseToken) return; // if not provided, skip
+    const { userId, firebaseToken, firebaseTokens } = userData;
+
+    const normalizedTokens = [
+        firebaseToken,
+        ...(Array.isArray(firebaseTokens) ? firebaseTokens : [firebaseTokens]),
+    ]
+        .filter((token) => typeof token === "string")
+        .map((token) => token.trim())
+        .filter(Boolean);
+
+    if (!normalizedTokens.length) return;
 
     await BaseAuth.findByIdAndUpdate(
         userId,
         {
-            $addToSet: { firebaseTokens: firebaseToken }
+            $addToSet: { firebaseTokens: { $each: normalizedTokens } }
         },
         { new: true }
     );

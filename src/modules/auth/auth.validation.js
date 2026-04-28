@@ -208,7 +208,12 @@ const VerifyOTPValidation = {
                 "any.required": "OTP is required"
             }),
 
-        firebaseToken: Joi.string().allow("").optional()
+        firebaseTokens: Joi.alternatives()
+            .try(
+                Joi.string().allow(""),
+                Joi.array().items(Joi.string().allow(""))
+            )
+            .optional()
     })
 };
 

@@ -102,7 +102,7 @@ BaseAuthSchema.pre("save", async function () {
     Skater: "S",
     Parent: "P",
     School: "SC",
-    Scademy: "A",
+    Academy: "A",
     State: "ST",
     Official: "O",
     Admin: "AD",

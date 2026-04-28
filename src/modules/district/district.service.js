@@ -1,5 +1,5 @@
 import { AppError } from "../../util/common/AppError.js";
-import { acceptClubJoinRepository, acceptClubLeaveRepository, createDistrict, displayAllApplyRepository, displayDashboardDataRepository, displayDistrictProfileRepository, districtDeletedRepository, districtTotalClubsRepository, districtTotalSkatersRepository, districtUpdateRepository, getAllDistrict, isDistrictAvailable, isDistrictExist, rejectClubJoinRepository, singleDistrictRepository, singleDistrictSkatersRepository } from "./district.repositories.js";
+import { acceptClubJoinRepository, acceptClubLeaveRepository, createDistrict, displayAllApplyRepository, displayDashboardDataRepository, displayDistrictProfileRepository, displaySkaterDetailsRepository, districtClubDetailsRepository, districtDeletedRepository, districtTotalClubsRepository, districtTotalSkatersRepository, districtUnLinkClubRepository, districtUpdateRepository, getAllDistrict, isDistrictAvailable, isDistrictExist, rejectClubJoinRepository, singleDistrictRepository, singleDistrictSkatersRepository } from "./district.repositories.js";
 
 const getAllDistrictService = async () => {
     return await getAllDistrict();
@@ -92,6 +92,30 @@ const displayAllApplyService = async (districtMemberId, { page, limit }) => {
     return await displayAllApplyRepository(districtMemberId, { page, limit });
 };
 
+const districtUnLinkClubService = async ({ districtMemberId, clubId }) => {
+    if (!districtMemberId || !clubId) {
+        throw new AppError("district member id and club id are required", 400);
+    }
+
+    return await districtUnLinkClubRepository({ districtMemberId, clubId });
+};
+
+const districtClubDetailsService = async ({ clubId }) => {
+    if (!clubId) {
+        throw new AppError("district member id and club id are required", 400);
+    }
+
+    return await districtClubDetailsRepository({ clubId });
+};
+
+const displaySkaterDetailsService = async (skaterId) => {
+    if (!skaterId) {
+        throw new AppError("skater id is required", 400);
+    }
+    console.log(skaterId, "skaterId====")
+    return await displaySkaterDetailsRepository(skaterId);
+};
+
 export const displayDashboardData = async (districtId) => {
     if (!districtId) {
         throw new AppError("districtId is required", 400);
@@ -100,11 +124,11 @@ export const displayDashboardData = async (districtId) => {
     return await displayDashboardDataRepository(districtId);
 };
 
-export const displayDistrictProfileServices = async (districtId) =>{
-       if (!districtId) {
+export const displayDistrictProfileServices = async (districtId) => {
+    if (!districtId) {
         throw new AppError("districtId is required", 400);
     }
-      return await displayDistrictProfileRepository(districtId);
+    return await displayDistrictProfileRepository(districtId);
 }
 
 export {
@@ -119,5 +143,8 @@ export {
     singleDistrictSkatersService,
     displayTotalClubsService,
     displayTotalSkatersService,
-    displayAllApplyService
+    displayAllApplyService,
+    districtUnLinkClubService,
+    districtClubDetailsService,
+    displaySkaterDetailsService
 }

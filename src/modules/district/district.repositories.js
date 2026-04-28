@@ -359,6 +359,117 @@ const displayAllApplyRepository = async (districtMemberId, { page, limit }) => {
   };
 };
 
+const districtUnLinkClubRepository = async ({ districtMemberId, clubId }) => {
+  const district = await District.findOne({
+    $or: [{ _id: districtMemberId }, { members: districtMemberId }],
+  })
+    .select("_id name club")
+    .lean();
+
+  if (!district) {
+    throw new AppError("District not found", 404);
+  }
+
+  const club = await Club.findById(clubId)
+    .select("_id district")
+    .lean();
+
+  if (!club) {
+    throw new AppError("Club not found", 404);
+  }
+
+  const belongsToDistrict =
+    String(club?.district || "") === String(district._id) ||
+    (district.club || []).some((id) => String(id) === String(clubId));
+
+  if (!belongsToDistrict) {
+    throw new AppError("Club is not linked with this district", 400);
+  }
+
+  await Promise.all([
+    District.findByIdAndUpdate(
+      district._id,
+      { $pull: { club: clubId } },
+      { new: false }
+    ),
+    Club.findByIdAndUpdate(
+      clubId,
+      {
+        $unset: { district: "" },
+        $set: { districtName: "", districtStatus: "leave" },
+      },
+      { new: false }
+    ),
+  ]);
+
+  return {
+    districtId: district._id,
+    clubId,
+    unlinked: true,
+  };
+};
+
+const districtClubDetailsRepository = async ({ clubId }) => {
+
+  const club = await Club.findById(clubId)
+    .select(
+      "_id clubId name address about districtStatus"
+    )
+    .lean();
+
+  if (!club) {
+    throw new AppError(
+      "Club not found",
+      404
+    );
+  }
+
+  const totalSkaters = await Skater.countDocuments({
+      club: club._id,
+      clubStatus: "join"
+  });
+
+  return {
+    clubId: club.clubId || String(club._id),
+    name: club.name || "",
+    officeAddress: club.address || "",
+    about: club.about || "",
+    totalSkaters,
+    districtStatus: club.districtStatus || ""
+  };
+};
+
+const displaySkaterDetailsRepository = async (skaterId) => {
+
+  const skater = await BaseAuth.findById(skaterId)
+    .select(
+      "_id fullName photo address krsaId"
+    )
+    .lean();
+
+  if (!skater) {
+    throw new AppError(
+      "Skater not found",
+      404
+    );
+  }
+
+  return {
+    name: skater.fullName || "",
+    img: skater.photo || "",
+    krsaId: skater.krsaId || "",
+
+    address: skater.address || "Address not available",
+
+    districtRank: 0,
+    stateRank: 0,
+
+    gold: 0,
+    silver: 0,
+    bronze: 0
+  };
+};
+
 export const displayDashboardDataRepository = async (id) => {
 
   const districtUser = await BaseAuth.findById(id).select("district");
@@ -501,5 +612,8 @@ export {
     singleDistrictSkatersRepository,
     districtTotalClubsRepository,
     districtTotalSkatersRepository,
-    displayAllApplyRepository
+    displayAllApplyRepository,
+    districtUnLinkClubRepository,
+    districtClubDetailsRepository,
+    displaySkaterDetailsRepository
 }

@@ -1,7 +1,7 @@
 import express from "express";
 import { validate } from "../../middleware/validate.multiple.js";
 import { createDistrictValidation, editDistrictValidation } from "./district.validation.js";
-import { acceptClub, createNewDistrict, deleteDistrict, displayAllApply, displayAllDistrict, displayDistrictDashboard, displayDistrictProfile, displaySingleDistrictAllClubs, displaySingleDistrictMembers, displayTotalClubs, displayTotalSkater, leaveClub, rejectClub, updateDistrict } from "./district.controller.js";
+import { acceptClub, createNewDistrict, deleteDistrict, displayAllApply, displayAllDistrict, displayDistrictDashboard, displayDistrictProfile, displaySingleDistrictAllClubs, displaySingleDistrictMembers, displaySkaterDetails, displayTotalClubs, displayTotalSkater, districtClubDetails, districtUnLinkClub, leaveClub, rejectClub, updateDistrict } from "./district.controller.js";
 import { upload } from "../../middleware/multer.middleware.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
@@ -23,6 +23,9 @@ const normalizeFormBody = (req, _res, next) => {
   next();
 };
 
+router.get("/v1/club-details/:id" , authenticate(["District"]) , districtClubDetails);
+
+router.get("/v1/unlink-club/:id" , authenticate(["District"]) , districtUnLinkClub);
 
 router.get("/v1/profile", authenticate(["District"]) ,displayDistrictProfile);
 router.get("/v1/dashboard",authenticate(["District"]) ,displayDistrictDashboard);
@@ -30,6 +33,8 @@ router.get("/v1/dashboard",authenticate(["District"]) ,displayDistrictDashboard)
 // router.get()
 router.get("/v1/total-club",authenticate(["District"]) ,displayTotalClubs);
 router.get("/v1/total-skater",authenticate(["District"]) ,displayTotalSkater);
+router.get("/v1/skater/:id",authenticate(["District"]) ,displaySkaterDetails);
+
 
 router.get("/v1/display-all-apply", authenticate(["District"]) ,displayAllApply)
 router.get("/v1/accept-join-club/:id", authenticate(["District"]), acceptClub);

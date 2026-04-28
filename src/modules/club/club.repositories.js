@@ -327,7 +327,7 @@ const allClubsRepository = async (id) => {
             { members: id }
         ]
     })
-    .select("_id name")
+    .select("_id name createdAt updatedAt __v")
     .lean();
 
     if (!district) {
@@ -337,27 +337,28 @@ const allClubsRepository = async (id) => {
         );
     }
 
-    const data = await Club.find({
+    const clubs = await Club.find({
         district: district._id
     })
-    .select("_id name img address districtStatus")
+    .select("_id name")
     .sort({ createdAt: -1 })
     .lean();
 
-    const formattedData = data.map((club) => ({
-        id: String(club._id),
-        name: club.name || "",
-        img: club.img || "",
-        address: club.address || "",
-        districtStatus: club.districtStatus || ""
-    }));
-
     return {
-        districtName: district.name || "",
-        data: formattedData
+        _id: String(district._id),
+        name: district.name || "",
+
+        // keep same old key for flutter
+        club: clubs.map((item)=>({
+            _id: String(item._id),
+            name: item.name || ""
+        })),
+
+        createdAt: district.createdAt,
+        updatedAt: district.updatedAt,
+        __v: district.__v || 0
     };
 };
-
 const allClubsInDbRepository = async ({ page, limit, search }) => {
     const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
     const normalizedSearch = String(search || "").trim();

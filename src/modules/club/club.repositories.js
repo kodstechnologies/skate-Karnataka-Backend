@@ -274,47 +274,87 @@ export const pendingApprovalsRepositories = async (clubId, { page, limit }) => {
     };
 };
 
-const allClubsRepository = async (id, page, limit) => {
-    const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+// const allClubsRepository = async (id, page, limit) => {
+//     console.log(id,"id=====");
+//     const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+
+//     const district = await District.findOne({
+//         $or: [{ _id: id }, { members: id }],
+//     })
+//         .select("_id name")
+//         .lean();
+
+//     if (!district) {
+//         throw new AppError("District not found", 404);
+//     }
+
+//     const [data, total] = await Promise.all([
+//         Club.find({ district: district._id })
+//             .select("_id name img address districtStatus")
+//             .skip(skip)
+//             .limit(pageLimit)
+//             .sort({ createdAt: -1 })
+//             .lean(),
+
+//         Club.countDocuments({ district: district._id }),
+//     ]);
+
+//     const formattedData = data.map((club) => ({
+//         id: String(club._id),
+//         name: club.name,
+//         img: club.img || "",
+//         address: club.address || "",
+//         districtStatus: club.districtStatus || "",
+//     }));
+
+//     return {
+//         districtName: district.name || "",
+//         data: formattedData,
+//         meta: {
+//             total,
+//             page: currentPage,
+//             limit: pageLimit,
+//             totalPages: Math.ceil(total / pageLimit)
+//         }
+//     };
+// };
+
+const allClubsRepository = async (id) => {
 
     const district = await District.findOne({
-        $or: [{ _id: id }, { members: id }],
+        $or: [
+            { _id: id },
+            { members: id }
+        ]
     })
-        .select("_id name")
-        .lean();
+    .select("_id name")
+    .lean();
 
     if (!district) {
-        throw new AppError("District not found", 404);
+        throw new AppError(
+            "District not found",
+            404
+        );
     }
 
-    const [data, total] = await Promise.all([
-        Club.find({ district: district._id })
-            .select("_id name img address districtStatus")
-            .skip(skip)
-            .limit(pageLimit)
-            .sort({ createdAt: -1 })
-            .lean(),
-
-        Club.countDocuments({ district: district._id }),
-    ]);
+    const data = await Club.find({
+        district: district._id
+    })
+    .select("_id name img address districtStatus")
+    .sort({ createdAt: -1 })
+    .lean();
 
     const formattedData = data.map((club) => ({
         id: String(club._id),
-        name: club.name,
+        name: club.name || "",
         img: club.img || "",
         address: club.address || "",
-        districtStatus: club.districtStatus || "",
+        districtStatus: club.districtStatus || ""
     }));
 
     return {
         districtName: district.name || "",
-        data: formattedData,
-        meta: {
-            total,
-            page: currentPage,
-            limit: pageLimit,
-            totalPages: Math.ceil(total / pageLimit)
-        }
+        data: formattedData
     };
 };
 

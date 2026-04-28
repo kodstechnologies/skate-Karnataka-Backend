@@ -45,6 +45,7 @@ export const displayClubDashboardRepositories = async ({ clubId }) => {
     };
 };
 
+
 export const displayClubProfileRepositories = async (userId) => {
     const club = await Club.findOne({ members: userId })
         .select("name img address district districtName districtStatus about rank championships clubId members")

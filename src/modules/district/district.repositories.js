@@ -93,7 +93,12 @@ const districtDeletedRepository = async (id) => {
 };
 
 const acceptClubJoinRepository = async ({ clubId, districtId }) => {
-  const district = await District.findById(districtId).select("name").lean();
+  
+  const district = await District.findOne({
+    $or: [{ _id: districtId }, { members: districtId }],
+  })
+    .select("_id name")
+    .lean();
   if (!district) {
     throw new AppError("District not found", 404);
   }
@@ -104,7 +109,7 @@ const acceptClubJoinRepository = async ({ clubId, districtId }) => {
   }
 
   const requestedDistrict = (clubBeforeUpdate.applyDistrict || []).some(
-    (id) => String(id) === String(districtId)
+    (id) => String(id) === String(district._id)
   );
   if (!requestedDistrict) {
     throw new AppError("Club did not apply for this district", 400);
@@ -114,7 +119,7 @@ const acceptClubJoinRepository = async ({ clubId, districtId }) => {
     clubId,
     {
       $set: {
-        district: districtId,
+        district: district._id,
         districtName: district.name,
         districtStatus: "join",
       },
@@ -154,6 +159,16 @@ const acceptClubLeaveRepository = async ({ clubId }) => {
 };
 
 const rejectClubJoinRepository = async ({ clubId, districtId }) => {
+  const district = await District.findOne({
+    $or: [{ _id: districtId }, { members: districtId }],
+  })
+    .select("_id")
+    .lean();
+
+  if (!district) {
+    throw new AppError("District not found", 404);
+  }
+
   const updatedClub = await Club.findByIdAndUpdate(
     clubId,
     {
@@ -161,7 +176,7 @@ const rejectClubJoinRepository = async ({ clubId, districtId }) => {
         districtStatus: "reject",
       },
       $pull: {
-        applyDistrict: districtId,
+        applyDistrict: district._id,
       },
     },
     { new: true }
@@ -300,6 +315,47 @@ const districtTotalSkatersRepository = async (id,{ page, limit }) => {
       limit: pageLimit,
       totalPages: Math.ceil(totalSkaters / pageLimit)
     }
+  };
+};
+
+const displayAllApplyRepository = async (districtMemberId, { page, limit }) => {
+  const district = await District.findOne({ members: districtMemberId })
+    .select("_id name")
+    .lean();
+
+  if (!district) {
+    throw new AppError("District not found for this member", 404);
+  }
+
+  const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+
+  const query = {
+    applyDistrict: district._id,
+    districtStatus: "apply",
+  };
+
+  const [total, data] = await Promise.all([
+    Club.countDocuments(query),
+    Club.find(query)
+      .select("_id clubId name img address districtStatus applyDistrict createdAt")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(pageLimit)
+      .lean(),
+  ]);
+
+  return {
+    district: {
+      id: district._id,
+      name: district.name || "",
+    },
+    data,
+    pagination: {
+      total,
+      page: currentPage,
+      limit: pageLimit,
+      totalPages: Math.ceil(total / pageLimit),
+    },
   };
 };
 
@@ -444,5 +500,6 @@ export {
     rejectClubJoinRepository,
     singleDistrictSkatersRepository,
     districtTotalClubsRepository,
-    districtTotalSkatersRepository
+    districtTotalSkatersRepository,
+    displayAllApplyRepository
 }

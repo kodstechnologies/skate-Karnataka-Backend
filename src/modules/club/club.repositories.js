@@ -159,36 +159,65 @@ export const displayDistrictFullDetailsRepository = async (districtId) => {
     };
 };
 
-export const applyForDistrictRepository = async (clubId, districtId) => {
-    const [club, district] = await Promise.all([
-        Club.findById(clubId).select("district districtStatus applyDistrict").lean(),
-        District.findById(districtId).select("_id name").lean(),
-    ]);
+export const applyForDistrictRepository = async (
+   memberOrClubId,
+   districtId
+) => {
 
-    if (!club) return null;
-    if (!district) {
-        throw new AppError("District not found", 404);
-    }
+ const district = await District.findById(districtId)
+   .select("_id name");
 
-    if (club.district && club.districtStatus === "join") {
-        throw new AppError("Already affiliated with a district", 400);
-    }
+ if(!district){
+   throw new AppError("District not found",404);
+ }
 
-    const updatedClub = await Club.findByIdAndUpdate(
-        clubId,
-        {
-            $addToSet: { applyDistrict: district._id },
-            $set: { districtStatus: "apply" },
-        },
-        { new: true }
-    )
-        .select("applyDistrict districtStatus")
-        .lean();
+ // find club either by club id OR member id
+ const club = await Club.findOne({
+    $or:[
+      {_id: memberOrClubId},
+      {members: memberOrClubId}
+    ]
+ });
+console.log(club,"club")
+ if(!club){
+   throw new AppError(
+     "Club or club membership not found",
+     404
+   );
+ }
 
-    return {
-        appliedDistrictCount: updatedClub?.applyDistrict?.length || 0,
-        districtStatus: updatedClub?.districtStatus || "apply",
-    };
+ if (
+   club.district &&
+   club.districtStatus === "join"
+ ){
+   throw new AppError(
+      "Already affiliated",
+      400
+   );
+ }
+
+ const updatedClub =
+ await Club.findByIdAndUpdate(
+   club._id,
+   {
+     $addToSet:{
+       applyDistrict: district._id
+     },
+     $set:{
+       districtStatus:"apply"
+     }
+   },
+   {new:true}
+ );
+
+ return {
+   clubId: updatedClub._id,
+   appliedDistrictCount:
+      updatedClub.applyDistrict.length,
+   districtStatus:
+      updatedClub.districtStatus
+ };
+
 };
 
 export const removeAffiliationRepository = async (clubId) => {
@@ -248,17 +277,25 @@ export const pendingApprovalsRepositories = async (clubId, { page, limit }) => {
 const allClubsRepository = async (id, page, limit) => {
     const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
 
-    const [data, total, district] = await Promise.all([
-        Club.find({ district: id })
+    const district = await District.findOne({
+        $or: [{ _id: id }, { members: id }],
+    })
+        .select("_id name")
+        .lean();
+
+    if (!district) {
+        throw new AppError("District not found", 404);
+    }
+
+    const [data, total] = await Promise.all([
+        Club.find({ district: district._id })
             .select("_id name img address districtStatus")
             .skip(skip)
             .limit(pageLimit)
             .sort({ createdAt: -1 })
             .lean(),
 
-        Club.countDocuments({ district: id }),
-
-        District.findById(id).select("name")
+        Club.countDocuments({ district: district._id }),
     ]);
 
     const formattedData = data.map((club) => ({
@@ -270,7 +307,7 @@ const allClubsRepository = async (id, page, limit) => {
     }));
 
     return {
-        districtName: district?.name,
+        districtName: district.name || "",
         data: formattedData,
         meta: {
             total,

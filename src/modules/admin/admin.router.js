@@ -15,6 +15,7 @@ import {
   deleteDistrictMemberByAdmin,
   deleteDistrictByAdmin,
   getAllDistrictMembersByAdmin,
+  getDistrictMembersByDistrictIdByAdmin,
   getAllDistrictsByAdmin,
   updateDistrictMemberByAdmin,
   updateDistrictByAdmin,
@@ -26,6 +27,7 @@ import {
   adminResetPasswordValidation,
   adminSendOtpForPasswordValidation,
   adminVerifyOtpForPasswordValidation,
+  createDistrictMemberByAdminValidation,
   createDistrictByAdminValidation,
   districtByAdminIdValidation,
   updateDistrictByAdminValidation,
@@ -87,15 +89,16 @@ router.delete(
 
 // district member ===================================
 router.get(
-  "/v1/district-member",
+  "/v1/district-member/:id",
   authenticate(["State", "admin"]),
-  getAllDistrictMembersByAdmin
+  getDistrictMembersByDistrictIdByAdmin
 );
 router.post(
-  "/v1/district-member",
+  "/v1/district-member/:id",
   authenticate(["State", "admin"]),
   upload.single("profile"),
   uploadToS3("profile"),
+  validate(createDistrictMemberByAdminValidation),
   createDistrictMemberByAdmin
 );
 router.patch(

@@ -15,6 +15,7 @@ import {
   findDistrictNameById,
   findAdminProfileById,
   getAllDistrictMembers,
+  getDistrictMembersByDistrictId,
   getAllDistrictsForAdmin,
   findAdminByEmail,
   getAdminPasswordResetOtp,
@@ -171,7 +172,7 @@ export const getAdminProfileService = async (adminId) => {
     throw new AppError("Admin profile not found", 404);
   }
 
- 
+
   return {
     ...profile,
     img: profile?.img || "",
@@ -190,7 +191,7 @@ export const editAdminProfileService = async (adminId, payload) => {
   return {
     ...updatedProfile,
     img: updatedProfile?.img || "",
-  
+
   };
 };
 
@@ -246,7 +247,17 @@ export const getAllDistrictMembersByAdminService = async () => {
   return getAllDistrictMembers();
 };
 
+export const getDistrictMembersByDistrictIdByAdminService = async (districtId) => {
+  const district = await findDistrictById(districtId);
+  if (!district) {
+    throw new AppError("District not found", 404);
+  }
+
+  return getDistrictMembersByDistrictId(districtId);
+};
+
 export const createDistrictMemberByAdminService = async (payload) => {
+  console.log(payload, "payload====")
   if (!payload?.district) {
     throw new AppError("District id is required", 400);
   }
@@ -255,11 +266,12 @@ export const createDistrictMemberByAdminService = async (payload) => {
   if (!district) {
     throw new AppError("District not found", 404);
   }
-
+  console.log(district, "district")
   const existingMember = await findDistrictMemberByPhoneOrEmail({
     phone: payload.phone,
     email: payload.email,
   });
+  console.log(existingMember, "===existingMember")
   if (existingMember) {
     throw new AppError("District member already exists with phone or email", 409);
   }

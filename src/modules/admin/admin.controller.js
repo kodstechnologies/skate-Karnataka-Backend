@@ -12,6 +12,7 @@ import {
   deleteDistrictByAdminService,
   editAdminProfileService,
   getAllDistrictMembersByAdminService,
+  getDistrictMembersByDistrictIdByAdminService,
   getAllDistrictsByAdminService,
   getAdminProfileService,
   updateDistrictMemberByAdminService,
@@ -133,8 +134,19 @@ export const getAllDistrictMembersByAdmin = asyncHandler(async (_req, res) => {
     .json(new ApiResponse(200, result, "District members fetched successfully"));
 });
 
+export const getDistrictMembersByDistrictIdByAdmin = asyncHandler(async (req, res) => {
+  const result = await getDistrictMembersByDistrictIdByAdminService(req.params.id);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, result, "District members fetched successfully"));
+});
+
 export const createDistrictMemberByAdmin = asyncHandler(async (req, res) => {
-  const result = await createDistrictMemberByAdminService(req.body);
+  const result = await createDistrictMemberByAdminService({
+    ...req.body,
+    district: req.params.id,
+  });
 
   return res
     .status(201)

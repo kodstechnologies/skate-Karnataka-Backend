@@ -2,6 +2,7 @@ import { Admin } from "./admin.model.js";
 import { AdminPasswordReset } from "./admin.passwordReset.model.js";
 import { District } from "../district/district.model.js";
 import { BaseAuth } from "../auth/baseAuth.model.js";
+import { DistrictMember } from "../district/districtMember.model.js";
 
 export const findAdminByEmail = async (email) => {
   return Admin.findOne({ email: email.toLowerCase().trim(), role: "admin" });
@@ -151,6 +152,14 @@ export const getAllDistrictMembers = async () => {
     .lean();
 };
 
+export const getDistrictMembersByDistrictId = async (districtId) => {
+  return BaseAuth.find({ role: "District", district: districtId })
+    .select("_id fullName profile phone countryCode email gender address district role isActive")
+    .populate("district", "_id name")
+    .sort({ createdAt: -1 })
+    .lean();
+};
+
 export const createDistrictMember = async (payload) => {
   const normalizedPayload = {
     ...payload,
@@ -161,7 +170,7 @@ export const createDistrictMember = async (payload) => {
     normalizedPayload.email = normalizedPayload.email.toLowerCase().trim();
   }
 
-  return BaseAuth.create(normalizedPayload);
+  return DistrictMember.create(normalizedPayload);
 };
 
 export const findDistrictMemberById = async (districtMemberId) => {

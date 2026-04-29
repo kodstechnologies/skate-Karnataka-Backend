@@ -117,3 +117,29 @@ export const districtByAdminIdValidation = {
     }),
   }),
 };
+
+export const createDistrictMemberByAdminValidation = {
+  params: Joi.object({
+    id: Joi.string().trim().required().messages({
+      "any.required": "District id is required",
+      "string.empty": "District id is required",
+    }),
+  }),
+  body: Joi.object({
+    fullName: Joi.string().trim().min(3).max(50).required().messages({
+      "any.required": "Full name is required",
+      "string.empty": "Full name is required",
+    }),
+    phone: Joi.string().trim().pattern(/^[6-9]\d{9}$/).required().messages({
+      "any.required": "Phone is required",
+      "string.pattern.base": "Invalid Indian phone number",
+    }),
+    email: Joi.string().trim().email().lowercase().allow("").optional(),
+    gender: Joi.string().trim().lowercase().allow("").optional(),
+    address: Joi.string().trim().max(200).allow("").optional(),
+    countryCode: Joi.string().trim().allow("").optional(),
+    profile: Joi.string().uri().allow("").optional().messages({
+      "string.uri": "Profile must be a valid URL",
+    }),
+  }),
+};

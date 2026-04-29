@@ -4,6 +4,7 @@ import { BaseAuth } from "../auth/baseAuth.model.js";
 import { Skater } from "../skater/skater.model.js";
 import { Club } from "../club/club.model.js";
 import { District } from "../district/district.model.js";
+import { State } from "../state/state.model.js";
 import mongoose from "mongoose";
 import { sendNotification } from "../../util/firebase/sendNotification.js";
 
@@ -241,7 +242,46 @@ export const createStateEventRepositories = async (stateId, data) => {
     eventFor: new mongoose.Types.ObjectId(stateId),
   };
 
-  return Event.create(payload);
+  const event = await Event.create(payload);
+
+  const state = await State.findById(stateId)
+    .select("name")
+    .lean();
+
+  const [stateUsers, districts, clubs, skaters] = await Promise.all([
+    BaseAuth.find({ role: "State" }).select("_id").lean(),
+    District.find().select("members").lean(),
+    Club.find().select("members").lean(),
+    Skater.find().select("_id").lean(),
+  ]);
+
+  const targetUserIds = [
+    ...stateUsers.map((user) => user._id.toString()),
+    ...districts.flatMap((district) => (district.members || []).map((id) => id.toString())),
+    ...clubs.flatMap((club) => (club.members || []).map((id) => id.toString())),
+    ...skaters.map((skater) => skater._id.toString()),
+  ];
+
+  const uniqueUserIds = [...new Set(targetUserIds)];
+
+  await Promise.all(
+    uniqueUserIds.map((receiverId) =>
+      sendNotification({
+        receiverId,
+        title: "New State Event",
+        body: `${state?.name || "State"} created a new event: ${event.header}`,
+        notificationType: "event",
+        sentBy: stateId,
+        data: {
+          eventId: event._id,
+          stateId,
+          eventType: "State",
+        },
+      })
+    )
+  );
+
+  return event;
 };
 
 const displaySingleEventRepository = async (id) => {

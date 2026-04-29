@@ -1,6 +1,7 @@
+import { ContactUS } from "./contactUs.model.js";
 import { Guest } from "./guest.model.js";
 
-const afterLoginGuestFormRepositories = async (data, id) => {
+export const afterLoginGuestFormRepositories = async (data, id) => {
     const updated = await Guest.findOneAndUpdate(
         { _id: id, role: "Guest" },
         {
@@ -19,6 +20,16 @@ const afterLoginGuestFormRepositories = async (data, id) => {
     return updated;
 };
 
-export {
-    afterLoginGuestFormRepositories
-}
+export const displayContactUsRepositories = async () => {
+
+    const data = await ContactUS.findOne()
+        .sort({ createdAt: -1 })
+        .lean();
+
+    return data;
+};
+
+export const addContactUsRepositories = async (data) => {
+    console.log(data,"=====")
+    const contact = await ContactUS.create(data);
+};

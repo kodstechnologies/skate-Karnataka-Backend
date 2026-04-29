@@ -3,6 +3,7 @@ import { paginate } from "../../util/common/paginate.js";
 import { BaseAuth } from "../auth/baseAuth.model.js";
 import { Skater } from "../skater/skater.model.js";
 import { Club } from "../club/club.model.js";
+import { District } from "../district/district.model.js";
 import mongoose from "mongoose";
 import { sendNotification } from "../../util/firebase/sendNotification.js";
 
@@ -160,7 +161,52 @@ export const createDistrictEventRepositories = async (districtUserId, data) => {
     eventFor: new mongoose.Types.ObjectId(districtId),
   };
 
-  return Event.create(payload);
+  const event = await Event.create(payload);
+
+  const district = await District.findById(districtId)
+    .select("name members")
+    .lean();
+
+  if (!district) return event;
+
+  const clubs = await Club.find({ district: districtId })
+    .select("_id members")
+    .lean();
+
+  const clubIds = clubs.map((club) => club._id);
+
+  const skaters = clubIds.length
+    ? await Skater.find({ club: { $in: clubIds } })
+      .select("_id")
+      .lean()
+    : [];
+
+  const targetUserIds = [
+    ...(district.members || []).map((id) => id.toString()),
+    ...clubs.flatMap((club) => (club.members || []).map((id) => id.toString())),
+    ...skaters.map((skater) => skater._id.toString()),
+  ];
+
+  const uniqueUserIds = [...new Set(targetUserIds)];
+
+  await Promise.all(
+    uniqueUserIds.map((receiverId) =>
+      sendNotification({
+        receiverId,
+        title: "New District Event",
+        body: `${district.name} created a new event: ${event.header}`,
+        notificationType: "event",
+        sentBy: districtId,
+        data: {
+          eventId: event._id,
+          districtId,
+          eventType: "District",
+        },
+      })
+    )
+  );
+
+  return event;
 };
 
 export const stateRelatedEventDisplayRepositories = async (stateId, { page, limit }) => {

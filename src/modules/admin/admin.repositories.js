@@ -3,6 +3,7 @@ import { AdminPasswordReset } from "./admin.passwordReset.model.js";
 import { District } from "../district/district.model.js";
 import { BaseAuth } from "../auth/baseAuth.model.js";
 import { DistrictMember } from "../district/districtMember.model.js";
+import { Club } from "../club/club.model.js";
 
 export const findAdminByEmail = async (email) => {
   return Admin.findOne({ email: email.toLowerCase().trim(), role: "admin" });
@@ -213,6 +214,55 @@ export const removeMemberFromDistrict = async ({ districtId, memberId }) => {
   return District.findByIdAndUpdate(
     districtId,
     { $pull: { members: memberId } },
+    { new: false }
+  ).lean();
+};
+
+export const getAllClubsForAdmin = async () => {
+  return Club.find()
+    .select("_id clubId name img officeAddress about district districtName districtStatus members")
+    .populate("district", "_id name")
+    .sort({ createdAt: -1 })
+    .lean();
+};
+
+export const findClubByIdForAdmin = async (clubId) => {
+  return Club.findById(clubId).select("_id name district members").lean();
+};
+
+export const findClubByNameAndDistrict = async ({ name, district }) => {
+  return Club.findOne({ name: name.trim(), district }).select("_id").lean();
+};
+
+export const createClubByAdmin = async (payload) => {
+  return Club.create(payload);
+};
+
+export const updateClubByIdForAdmin = async (clubId, payload) => {
+  return Club.findByIdAndUpdate(clubId, { $set: payload }, { new: true, runValidators: true })
+    .select("_id clubId name img officeAddress about district districtName districtStatus members")
+    .populate("district", "_id name")
+    .lean();
+};
+
+export const deleteClubByIdForAdmin = async (clubId) => {
+  return Club.findByIdAndDelete(clubId).lean();
+};
+
+export const addClubToDistrict = async ({ districtId, clubId }) => {
+  if (!districtId) return null;
+  return District.findByIdAndUpdate(
+    districtId,
+    { $addToSet: { club: clubId } },
+    { new: false }
+  ).lean();
+};
+
+export const removeClubFromDistrict = async ({ districtId, clubId }) => {
+  if (!districtId) return null;
+  return District.findByIdAndUpdate(
+    districtId,
+    { $pull: { club: clubId } },
     { new: false }
   ).lean();
 };

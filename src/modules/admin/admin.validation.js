@@ -143,3 +143,48 @@ export const createDistrictMemberByAdminValidation = {
     }),
   }),
 };
+
+export const createClubByAdminValidation = {
+  body: Joi.object({
+    name: Joi.string().trim().min(2).max(100).required().messages({
+      "any.required": "Club name is required",
+      "string.empty": "Club name is required",
+    }),
+    district: Joi.string().trim().required().messages({
+      "any.required": "District id is required",
+      "string.empty": "District id is required",
+    }),
+    img: Joi.string().uri().allow("").optional().messages({
+      "string.uri": "Club image must be a valid URL",
+    }),
+    officeAddress: Joi.string().trim().max(200).allow("").optional(),
+    about: Joi.string().trim().max(500).allow("").optional(),
+  }),
+};
+
+export const updateClubByAdminValidation = {
+  params: Joi.object({
+    id: Joi.string().trim().required().messages({
+      "any.required": "Club id is required",
+      "string.empty": "Club id is required",
+    }),
+  }),
+  body: Joi.object({
+    name: Joi.string().trim().min(2).max(100).optional(),
+    district: Joi.string().trim().optional(),
+    img: Joi.string().uri().allow("").optional().messages({
+      "string.uri": "Club image must be a valid URL",
+    }),
+    officeAddress: Joi.string().trim().max(200).allow("").optional(),
+    about: Joi.string().trim().max(500).allow("").optional(),
+  }).min(1),
+};
+
+export const ClubByAdminIdValidation = {
+  params: Joi.object({
+    id: Joi.string().trim().required().messages({
+      "any.required": "Club id is required",
+      "string.empty": "Club id is required",
+    }),
+  }),
+};

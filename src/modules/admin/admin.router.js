@@ -11,12 +11,16 @@ import {
   adminSendOtpForPassword,
   adminVerifyOtpForPassword,
   createDistrictByAdmin,
+  createClubByAdmin,
   createDistrictMemberByAdmin,
+  deleteClubByAdmin,
   deleteDistrictMemberByAdmin,
   deleteDistrictByAdmin,
+  getAllClubByAdmin,
   getAllDistrictMembersByAdmin,
   getDistrictMembersByDistrictIdByAdmin,
   getAllDistrictsByAdmin,
+  updateClubByAdmin,
   updateDistrictMemberByAdmin,
   updateDistrictByAdmin,
 } from "./admin.controller.js";
@@ -27,9 +31,12 @@ import {
   adminResetPasswordValidation,
   adminSendOtpForPasswordValidation,
   adminVerifyOtpForPasswordValidation,
+  ClubByAdminIdValidation,
+  createClubByAdminValidation,
   createDistrictMemberByAdminValidation,
   createDistrictByAdminValidation,
   districtByAdminIdValidation,
+  updateClubByAdminValidation,
   updateDistrictByAdminValidation,
 } from "./admin.validation.js";
 import { upload } from "../../middleware/multer.middleware.js";
@@ -112,6 +119,32 @@ router.delete(
   "/v1/district-member/:id",
   authenticate(["State", "admin"]),
   deleteDistrictMemberByAdmin
+);
+
+// =============================  club 
+
+router.get("/v1/club", authenticate(["State", "admin"]), getAllClubByAdmin);
+router.post(
+  "/v1/club",
+  authenticate(["State", "admin"]),
+  upload.single("img"),
+  uploadToS3("img"),
+  validate(createClubByAdminValidation),
+  createClubByAdmin
+);
+router.patch(
+  "/v1/club/:id",
+  authenticate(["State", "admin"]),
+  upload.single("img"),
+  uploadToS3("img"),
+  validate(updateClubByAdminValidation),
+  updateClubByAdmin
+);
+router.delete(
+  "/v1/club/:id",
+  authenticate(["State", "admin"]),
+  validate(ClubByAdminIdValidation),
+  deleteClubByAdmin
 );
 
 export default router;

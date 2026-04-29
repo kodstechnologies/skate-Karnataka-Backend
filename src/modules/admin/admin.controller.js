@@ -7,15 +7,19 @@ import {
   adminResetPasswordService,
   adminSendOtpForPasswordService,
   createDistrictByAdminService,
+  createClubByAdminService,
   createDistrictMemberByAdminService,
+  deleteClubByAdminService,
   deleteDistrictMemberByAdminService,
   deleteDistrictByAdminService,
   editAdminProfileService,
   getAllDistrictMembersByAdminService,
+  getAllClubByAdminService,
   getDistrictMembersByDistrictIdByAdminService,
   getAllDistrictsByAdminService,
   getAdminProfileService,
   updateDistrictMemberByAdminService,
+  updateClubByAdminService,
   updateDistrictByAdminService,
   adminVerifyOtpForPasswordService,
 } from "./admin.service.js";
@@ -167,4 +171,36 @@ export const deleteDistrictMemberByAdmin = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, result, "District member deleted successfully"));
+});
+
+export const getAllClubByAdmin = asyncHandler(async (_req, res) => {
+  const result = await getAllClubByAdminService();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, result, "Clubs fetched successfully"));
+});
+
+export const createClubByAdmin = asyncHandler(async (req, res) => {
+  const result = await createClubByAdminService(req.body);
+
+  return res
+    .status(201)
+    .json(new ApiResponse(201, result, "Club created successfully"));
+});
+
+export const updateClubByAdmin = asyncHandler(async (req, res) => {
+  const result = await updateClubByAdminService(req.params.id, req.body);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, result, "Club updated successfully"));
+});
+
+export const deleteClubByAdmin = asyncHandler(async (req, res) => {
+  const result = await deleteClubByAdminService(req.params.id);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, result, "Club deleted successfully"));
 });

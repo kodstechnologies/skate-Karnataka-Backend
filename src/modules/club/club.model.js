@@ -49,7 +49,7 @@ const clubSchema = new mongoose.Schema(
       match: [/^(https?:\/\/.*\.(png|jpg|jpeg|webp))?$/, "Invalid image URL"],
     },
 
-    address: {
+    officeAddress: {
       type: String,
       trim: true,
       maxlength: 200,

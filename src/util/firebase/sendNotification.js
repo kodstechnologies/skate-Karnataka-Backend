@@ -18,7 +18,7 @@ export const sendNotification = async ({
     // Find receiver
     const auth = await BaseAuth.findById(receiverId)
       .select("firebaseTokens role");
-
+console.log(auth,"00000000000000000000000")
     if (!auth) {
       console.log(`Receiver not found: ${receiverId}`);
       return;
@@ -49,7 +49,7 @@ export const sendNotification = async ({
 
     // Send push notification
     const messaging = admin.messaging();
-
+    console.log(messaging, "messaging===")
     const response = await messaging.sendEachForMulticast({
       tokens: auth.firebaseTokens,
 
@@ -61,7 +61,7 @@ export const sendNotification = async ({
       data: {
         ...Object.fromEntries(
           Object.entries(data).map(
-            ([k,v]) => [k,String(v)]
+            ([k, v]) => [k, String(v)]
           )
         ),
         receiverId: receiverId.toString(),
@@ -73,8 +73,8 @@ export const sendNotification = async ({
       `Notification sent to ${receiverId}`,
       response.successCount
     );
-
-  } catch(error) {
+    console.log(response, "=============")
+  } catch (error) {
     console.error(
       "sendNotification error:",
       error.message

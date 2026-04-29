@@ -86,6 +86,7 @@ export const createDistrictByAdminValidation = {
     about: Joi.string().trim().max(500).allow("").optional().messages({
       "string.max": "About cannot exceed 500 characters",
     }),
+    officeAddress: Joi.string().allow(""),
   }),
 };
 
@@ -98,6 +99,7 @@ export const updateDistrictByAdminValidation = {
     about: Joi.string().trim().max(500).allow("").optional().messages({
       "string.max": "About cannot exceed 500 characters",
     }),
+    officeAddress: Joi.string().allow(""),
   }).min(1),
   params: Joi.object({
     id: Joi.string().trim().required().messages({

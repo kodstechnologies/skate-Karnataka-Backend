@@ -14,7 +14,9 @@ const BaseAuthSchema = new mongoose.Schema(
       minlength: [3, "Minimum 3 characters"],
       maxlength: [50, "Maximum 50 characters"],
     },
-
+    profile: {
+      type: String,
+    },
     phone: {
       type: String,
       required: true,
@@ -36,7 +38,7 @@ const BaseAuthSchema = new mongoose.Schema(
       index: true,
     },
 
-   
+
     gender: {
       type: String,
       // enum: ["male", "female", "other"],
@@ -84,7 +86,7 @@ const BaseAuthSchema = new mongoose.Schema(
       index: true,
       immutable: true,
     },
-      
+
     verify: {
       type: Boolean,
       default: false,

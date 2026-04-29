@@ -1,6 +1,7 @@
 import { Admin } from "./admin.model.js";
 import { AdminPasswordReset } from "./admin.passwordReset.model.js";
 import { District } from "../district/district.model.js";
+import { BaseAuth } from "../auth/baseAuth.model.js";
 
 export const findAdminByEmail = async (email) => {
   return Admin.findOne({ email: email.toLowerCase().trim(), role: "admin" });
@@ -125,4 +126,84 @@ export const updateDistrictByIdForAdmin = async (districtId, payload) => {
 
 export const deleteDistrictByIdForAdmin = async (districtId) => {
   return District.findByIdAndDelete(districtId).lean();
+};
+
+export const findDistrictMemberByPhoneOrEmail = async ({ phone, email }) => {
+  const orConditions = [];
+  if (phone) {
+    orConditions.push({ phone });
+  }
+  if (email) {
+    orConditions.push({ email: email.toLowerCase().trim() });
+  }
+  if (!orConditions.length) return null;
+
+  return BaseAuth.findOne({ $or: orConditions })
+    .select("_id")
+    .lean();
+};
+
+export const getAllDistrictMembers = async () => {
+  return BaseAuth.find({ role: "District" })
+    .select("_id fullName profile phone countryCode email gender address district role isActive")
+    .populate("district", "_id name")
+    .sort({ createdAt: -1 })
+    .lean();
+};
+
+export const createDistrictMember = async (payload) => {
+  const normalizedPayload = {
+    ...payload,
+    role: "District",
+  };
+
+  if (normalizedPayload.email) {
+    normalizedPayload.email = normalizedPayload.email.toLowerCase().trim();
+  }
+
+  return BaseAuth.create(normalizedPayload);
+};
+
+export const findDistrictMemberById = async (districtMemberId) => {
+  return BaseAuth.findOne({ _id: districtMemberId, role: "District" })
+    .select("_id fullName district")
+    .lean();
+};
+
+export const updateDistrictMemberById = async (districtMemberId, payload) => {
+  const normalizedPayload = { ...payload };
+  if (normalizedPayload.email) {
+    normalizedPayload.email = normalizedPayload.email.toLowerCase().trim();
+  }
+
+  return BaseAuth.findOneAndUpdate(
+    { _id: districtMemberId, role: "District" },
+    { $set: normalizedPayload },
+    { new: true, runValidators: true }
+  )
+    .select("_id fullName profile phone countryCode email gender address district role isActive")
+    .populate("district", "_id name")
+    .lean();
+};
+
+export const deleteDistrictMemberById = async (districtMemberId) => {
+  return BaseAuth.findOneAndDelete({ _id: districtMemberId, role: "District" }).lean();
+};
+
+export const addMemberToDistrict = async ({ districtId, memberId }) => {
+  if (!districtId) return null;
+  return District.findByIdAndUpdate(
+    districtId,
+    { $addToSet: { members: memberId } },
+    { new: false }
+  ).lean();
+};
+
+export const removeMemberFromDistrict = async ({ districtId, memberId }) => {
+  if (!districtId) return null;
+  return District.findByIdAndUpdate(
+    districtId,
+    { $pull: { members: memberId } },
+    { new: false }
+  ).lean();
 };

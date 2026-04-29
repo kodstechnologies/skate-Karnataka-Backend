@@ -11,8 +11,12 @@ import {
   adminSendOtpForPassword,
   adminVerifyOtpForPassword,
   createDistrictByAdmin,
+  createDistrictMemberByAdmin,
+  deleteDistrictMemberByAdmin,
   deleteDistrictByAdmin,
+  getAllDistrictMembersByAdmin,
   getAllDistrictsByAdmin,
+  updateDistrictMemberByAdmin,
   updateDistrictByAdmin,
 } from "./admin.controller.js";
 import {
@@ -60,12 +64,16 @@ router.get("/v1/district", authenticate(["State", "admin"]), getAllDistrictsByAd
 router.post(
   "/v1/district",
   authenticate(["State", "admin"]),
+  upload.single("img"),
+  uploadToS3("img"),
   validate(createDistrictByAdminValidation),
   createDistrictByAdmin
 );
 router.patch(
   "/v1/district/:id",
   authenticate(["State", "admin"]),
+  upload.single("img"),
+  uploadToS3("img"),
   validate(updateDistrictByAdminValidation),
   updateDistrictByAdmin
 );
@@ -77,5 +85,30 @@ router.delete(
 );
 
 
+// district member ===================================
+router.get(
+  "/v1/district-member",
+  authenticate(["State", "admin"]),
+  getAllDistrictMembersByAdmin
+);
+router.post(
+  "/v1/district-member",
+  authenticate(["State", "admin"]),
+  upload.single("profile"),
+  uploadToS3("profile"),
+  createDistrictMemberByAdmin
+);
+router.patch(
+  "/v1/district-member/:id",
+  authenticate(["State", "admin"]),
+  upload.single("profile"),
+  uploadToS3("profile"),
+  updateDistrictMemberByAdmin
+);
+router.delete(
+  "/v1/district-member/:id",
+  authenticate(["State", "admin"]),
+  deleteDistrictMemberByAdmin
+);
 
 export default router;

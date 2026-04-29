@@ -93,3 +93,36 @@ export const findDistrictNameById = async (districtId) => {
   const district = await District.findById(districtId).select("name").lean();
   return district?.name || "";
 };
+
+export const getAllDistrictsForAdmin = async () => {
+  return District.find()
+    .select("_id name img about officeAddress presidentName createdAt updatedAt")
+    .sort({ createdAt: -1 })
+    .lean();
+};
+
+export const findDistrictByName = async (name) => {
+  return District.findOne({ name: name.trim() }).select("_id").lean();
+};
+
+export const createDistrictByAdmin = async (payload) => {
+  return District.create(payload);
+};
+
+export const findDistrictById = async (districtId) => {
+  return District.findById(districtId).select("_id name members").lean();
+};
+
+export const updateDistrictByIdForAdmin = async (districtId, payload) => {
+  return District.findByIdAndUpdate(
+    districtId,
+    { $set: payload },
+    { new: true, runValidators: true }
+  )
+    .select("_id name img about officeAddress presidentName createdAt updatedAt")
+    .lean();
+};
+
+export const deleteDistrictByIdForAdmin = async (districtId) => {
+  return District.findByIdAndDelete(districtId).lean();
+};

@@ -9,8 +9,6 @@ const eventSchema = new mongoose.Schema(
       trim: true,
     },
 
-
-
     // 📅 Date
     date: {
       type: Date,

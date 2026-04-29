@@ -2,13 +2,19 @@ import { AppError } from "../../util/common/AppError.js";
 import { generateAccessToken, generateRefreshToken } from "../../util/token/token.js";
 import {
   addRefreshTokenToAdmin,
+  createDistrictByAdmin,
+  deleteDistrictByIdForAdmin,
+  findDistrictById,
+  findDistrictByName,
   deleteAdminPasswordResetOtp,
   findDistrictNameById,
   findAdminProfileById,
+  getAllDistrictsForAdmin,
   findAdminByEmail,
   getAdminPasswordResetOtp,
   markAdminPasswordOtpVerified,
   removeRefreshTokenFromAdmin,
+  updateDistrictByIdForAdmin,
   updateAdminProfileById,
   updateAdminPasswordByEmail,
   upsertAdminPasswordResetOtp,
@@ -178,4 +184,52 @@ export const editAdminProfileService = async (adminId, payload) => {
     img: updatedProfile?.img || "",
   
   };
+};
+
+export const getAllDistrictsByAdminService = async () => {
+  return getAllDistrictsForAdmin();
+};
+
+export const createDistrictByAdminService = async (payload) => {
+  const existingDistrict = await findDistrictByName(payload.name);
+  if (existingDistrict) {
+    throw new AppError("District already exists", 409);
+  }
+
+  const district = await createDistrictByAdmin(payload);
+  return {
+    _id: district._id,
+    name: district.name,
+  };
+};
+
+export const updateDistrictByAdminService = async (districtId, payload) => {
+  const district = await findDistrictById(districtId);
+  if (!district) {
+    throw new AppError("District not found", 404);
+  }
+
+  if (payload?.name && payload.name.trim() !== district.name) {
+    const existingDistrict = await findDistrictByName(payload.name);
+    if (existingDistrict && String(existingDistrict._id) !== String(districtId)) {
+      throw new AppError("District already exists", 409);
+    }
+  }
+
+  const updatedDistrict = await updateDistrictByIdForAdmin(districtId, payload);
+  return updatedDistrict;
+};
+
+export const deleteDistrictByAdminService = async (districtId) => {
+  const district = await findDistrictById(districtId);
+  if (!district) {
+    throw new AppError("District not found", 404);
+  }
+
+  if ((district.members || []).length > 0) {
+    throw new AppError("District has members, cannot delete", 400);
+  }
+
+  await deleteDistrictByIdForAdmin(districtId);
+  return { deleted: true };
 };

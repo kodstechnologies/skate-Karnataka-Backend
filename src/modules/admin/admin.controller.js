@@ -6,8 +6,12 @@ import {
   adminLogoutService,
   adminResetPasswordService,
   adminSendOtpForPasswordService,
+  createDistrictByAdminService,
+  deleteDistrictByAdminService,
   editAdminProfileService,
+  getAllDistrictsByAdminService,
   getAdminProfileService,
+  updateDistrictByAdminService,
   adminVerifyOtpForPasswordService,
 } from "./admin.service.js";
 
@@ -83,4 +87,36 @@ export const editAdminProfile = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, result, "Admin profile updated successfully"));
+});
+
+export const getAllDistrictsByAdmin = asyncHandler(async (_req, res) => {
+  const result = await getAllDistrictsByAdminService();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, result, "Districts fetched successfully"));
+});
+
+export const createDistrictByAdmin = asyncHandler(async (req, res) => {
+  const result = await createDistrictByAdminService(req.body);
+
+  return res
+    .status(201)
+    .json(new ApiResponse(201, result, "District created successfully"));
+});
+
+export const updateDistrictByAdmin = asyncHandler(async (req, res) => {
+  const result = await updateDistrictByAdminService(req.params.id, req.body);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, result, "District updated successfully"));
+});
+
+export const deleteDistrictByAdmin = asyncHandler(async (req, res) => {
+  const result = await deleteDistrictByAdminService(req.params.id);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, result, "District deleted successfully"));
 });

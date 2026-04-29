@@ -71,3 +71,47 @@ export const adminEditProfileValidation = {
     img: Joi.string().uri(),
   }).min(1),
 };
+
+export const createDistrictByAdminValidation = {
+  body: Joi.object({
+    name: Joi.string().trim().min(2).max(50).required().messages({
+      "any.required": "District name is required",
+      "string.empty": "District name is required",
+      "string.min": "Name must be at least 2 characters",
+      "string.max": "Name cannot exceed 50 characters",
+    }),
+    img: Joi.string().uri().allow("").optional().messages({
+      "string.uri": "District image must be a valid URL",
+    }),
+    about: Joi.string().trim().max(500).allow("").optional().messages({
+      "string.max": "About cannot exceed 500 characters",
+    }),
+  }),
+};
+
+export const updateDistrictByAdminValidation = {
+  body: Joi.object({
+    name: Joi.string().trim().min(2).max(50).optional(),
+    img: Joi.string().uri().allow("").optional().messages({
+      "string.uri": "District image must be a valid URL",
+    }),
+    about: Joi.string().trim().max(500).allow("").optional().messages({
+      "string.max": "About cannot exceed 500 characters",
+    }),
+  }).min(1),
+  params: Joi.object({
+    id: Joi.string().trim().required().messages({
+      "any.required": "District id is required",
+      "string.empty": "District id is required",
+    }),
+  }),
+};
+
+export const districtByAdminIdValidation = {
+  params: Joi.object({
+    id: Joi.string().trim().required().messages({
+      "any.required": "District id is required",
+      "string.empty": "District id is required",
+    }),
+  }),
+};

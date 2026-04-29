@@ -65,6 +65,7 @@ export const sendNotification = async ({
           )
         ),
         receiverId: receiverId.toString(),
+        receiverRole: String(auth.role || ""),
         notificationType
       }
     });

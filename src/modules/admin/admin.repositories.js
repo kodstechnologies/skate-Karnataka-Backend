@@ -180,12 +180,50 @@ export const getAllDistrictMembers = async () => {
     .lean();
 };
 
-export const getDistrictMembersByDistrictId = async (districtId) => {
-  return BaseAuth.find({ role: "District", district: districtId })
-    .select("_id fullName profile phone countryCode email gender address district role isActive")
-    .populate("district", "_id name")
-    .sort({ createdAt: -1 })
-    .lean();
+export const getDistrictMembersByDistrictId = async (
+  districtId,
+  { page = 1, limit = 10, search = "" } = {}
+) => {
+  const currentPage = Math.max(Number(page) || 1, 1);
+  const pageLimit = Math.max(Number(limit) || 10, 1);
+  const skip = (currentPage - 1) * pageLimit;
+  const trimmedSearch = String(search || "").trim();
+
+  const query = {
+    role: "District",
+    district: districtId,
+  };
+
+  if (trimmedSearch) {
+    query.$or = [
+      { fullName: { $regex: trimmedSearch, $options: "i" } },
+      { address: { $regex: trimmedSearch, $options: "i" } },
+      { gender: { $regex: trimmedSearch, $options: "i" } },
+      { email: { $regex: trimmedSearch, $options: "i" } },
+      { phone: { $regex: trimmedSearch, $options: "i" } },
+    ];
+  }
+
+  const [total, data] = await Promise.all([
+    BaseAuth.countDocuments(query),
+    BaseAuth.find(query)
+      .select("_id fullName profile phone countryCode email gender address district role isActive")
+      .populate("district", "_id name")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(pageLimit)
+      .lean(),
+  ]);
+
+  return {
+    data,
+    pagination: {
+      total,
+      page: currentPage,
+      limit: pageLimit,
+      totalPages: Math.ceil(total / pageLimit),
+    },
+  };
 };
 
 export const createDistrictMember = async (payload) => {

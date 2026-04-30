@@ -144,7 +144,12 @@ export const getAllDistrictMembersByAdmin = asyncHandler(async (_req, res) => {
 });
 
 export const getDistrictMembersByDistrictIdByAdmin = asyncHandler(async (req, res) => {
-  const result = await getDistrictMembersByDistrictIdByAdminService(req.params.id);
+  const { page = 1, limit = 10, search = "" } = req.query;
+  const result = await getDistrictMembersByDistrictIdByAdminService(req.params.id, {
+    page,
+    limit,
+    search,
+  });
 
   return res
     .status(200)

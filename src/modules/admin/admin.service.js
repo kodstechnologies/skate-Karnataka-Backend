@@ -263,13 +263,16 @@ export const getAllDistrictMembersByAdminService = async () => {
   return getAllDistrictMembers();
 };
 
-export const getDistrictMembersByDistrictIdByAdminService = async (districtId) => {
+export const getDistrictMembersByDistrictIdByAdminService = async (
+  districtId,
+  { page, limit, search }
+) => {
   const district = await findDistrictById(districtId);
   if (!district) {
     throw new AppError("District not found", 404);
   }
 
-  return getDistrictMembersByDistrictId(districtId);
+  return getDistrictMembersByDistrictId(districtId, { page, limit, search });
 };
 
 export const createDistrictMemberByAdminService = async (payload) => {

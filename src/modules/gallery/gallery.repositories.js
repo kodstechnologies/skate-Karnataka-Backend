@@ -9,7 +9,7 @@ const withMediaType = (item) => ({
   type: item?.videoUrl ? "video" : "img",
 });
 
-export const displayAllMediaBasedOnSkaterRepositories = async (skaterId, page, limit) => {
+export const displayAllMediaBasedOnSkaterRepositories = async (skaterId, type, page, limit) => {
   const skater = await Skater.findById(skaterId).select("club").lean();
   if (!skater) {
     throw new AppError("Skater not found", 404);
@@ -31,6 +31,12 @@ export const displayAllMediaBasedOnSkaterRepositories = async (skaterId, page, l
 
   const { skip, limit: perPage, page: currentPage } = paginate(page, limit);
   const query = { $or: filters };
+
+  if (type === "video") {
+    query.videoUrl = { $nin: [null, ""] };
+  } else if (type === "img" || type === "image") {
+    query.videoUrl = { $in: [null, ""] };
+  }
 
   const [total, data] = await Promise.all([
     Gallery.countDocuments(query),

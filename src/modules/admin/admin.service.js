@@ -367,8 +367,8 @@ export const deleteDistrictMemberByAdminService = async (districtMemberId) => {
   return { deleted: true };
 };
 
-export const getAllClubByAdminService = async () => {
-  return getAllClubsForAdmin();
+export const getAllClubByAdminService = async ({ page, limit, search }) => {
+  return getAllClubsForAdmin({ page, limit, search });
 };
 
 export const createClubByAdminService = async (payload) => {
@@ -458,13 +458,16 @@ export const deleteClubByAdminService = async (clubId) => {
   return { deleted: true };
 };
 
-export const getClubMembersByClubIdByAdminService = async (clubId) => {
+export const getClubMembersByClubIdByAdminService = async (
+  clubId,
+  { page, limit, search }
+) => {
   const club = await findClubByIdForAdmin(clubId);
   if (!club) {
     throw new AppError("Club not found", 404);
   }
 
-  const clubMembers = await getClubMembersByClubId(clubId);
+  const clubMembers = await getClubMembersByClubId(clubId, { page, limit, search });
   return clubMembers;
 };
 

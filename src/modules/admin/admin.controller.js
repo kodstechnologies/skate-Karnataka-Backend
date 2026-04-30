@@ -183,8 +183,9 @@ export const deleteDistrictMemberByAdmin = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, result, "District member deleted successfully"));
 });
 
-export const getAllClubByAdmin = asyncHandler(async (_req, res) => {
-  const result = await getAllClubByAdminService();
+export const getAllClubByAdmin = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 10, search = "" } = req.query;
+  const result = await getAllClubByAdminService({ page, limit, search });
 
   return res
     .status(200)
@@ -216,7 +217,12 @@ export const deleteClubByAdmin = asyncHandler(async (req, res) => {
 });
 
 export const getClubMembersByClubIdByAdmin = asyncHandler(async (req, res) => {
-  const result = await getClubMembersByClubIdByAdminService(req.params.id);
+  const { page = 1, limit = 10, search = "" } = req.query;
+  const result = await getClubMembersByClubIdByAdminService(req.params.id, {
+    page,
+    limit,
+    search,
+  });
 
   return res
     .status(200)

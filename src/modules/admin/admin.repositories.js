@@ -283,12 +283,46 @@ export const removeMemberFromDistrict = async ({ districtId, memberId }) => {
   ).lean();
 };
 
-export const getAllClubsForAdmin = async () => {
-  return Club.find()
-    .select("_id clubId name img officeAddress about district districtName districtStatus members")
-    .populate("district", "_id name")
-    .sort({ createdAt: -1 })
-    .lean();
+export const getAllClubsForAdmin = async ({ page = 1, limit = 10, search = "" } = {}) => {
+  const currentPage = Math.max(Number(page) || 1, 1);
+  const pageLimit = Math.max(Number(limit) || 10, 1);
+  const skip = (currentPage - 1) * pageLimit;
+  const trimmedSearch = String(search || "").trim();
+  const query = trimmedSearch
+    ? {
+      $or: [
+        { name: { $regex: trimmedSearch, $options: "i" } },
+        { districtName: { $regex: trimmedSearch, $options: "i" } },
+        { clubId: { $regex: trimmedSearch, $options: "i" } },
+      ],
+    }
+    : {};
+
+  const [total, clubs] = await Promise.all([
+    Club.countDocuments(query),
+    Club.find(query)
+      .select("_id clubId name img officeAddress about district districtName districtStatus members")
+      .populate("district", "_id name")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(pageLimit)
+      .lean(),
+  ]);
+
+  const data = clubs.map((club) => ({
+    ...club,
+    memberCount: Array.isArray(club.members) ? club.members.length : 0,
+  }));
+
+  return {
+    data,
+    pagination: {
+      total,
+      page: currentPage,
+      limit: pageLimit,
+      totalPages: Math.ceil(total / pageLimit),
+    },
+  };
 };
 
 export const findClubByIdForAdmin = async (clubId) => {
@@ -332,7 +366,15 @@ export const removeClubFromDistrict = async ({ districtId, clubId }) => {
   ).lean();
 };
 
-export const getClubMembersByClubId = async (clubId) => {
+export const getClubMembersByClubId = async (
+  clubId,
+  { page = 1, limit = 10, search = "" } = {}
+) => {
+  const currentPage = Math.max(Number(page) || 1, 1);
+  const pageLimit = Math.max(Number(limit) || 10, 1);
+  const skip = (currentPage - 1) * pageLimit;
+  const trimmedSearch = String(search || "").trim().toLowerCase();
+
   const club = await Club.findById(clubId)
     .select("_id name members")
     .populate(
@@ -341,7 +383,39 @@ export const getClubMembersByClubId = async (clubId) => {
     )
     .lean();
 
-  return club;
+  const allMembers = Array.isArray(club?.members) ? club.members : [];
+
+  const filteredMembers = trimmedSearch
+    ? allMembers.filter((member) => {
+      const fullName = String(member?.fullName || "").toLowerCase();
+      const phone = String(member?.phone || "").toLowerCase();
+      const email = String(member?.email || "").toLowerCase();
+      const address = String(member?.address || "").toLowerCase();
+      const gender = String(member?.gender || "").toLowerCase();
+
+      return (
+        fullName.includes(trimmedSearch) ||
+        phone.includes(trimmedSearch) ||
+        email.includes(trimmedSearch) ||
+        address.includes(trimmedSearch) ||
+        gender.includes(trimmedSearch)
+      );
+    })
+    : allMembers;
+
+  const paginatedMembers = filteredMembers.slice(skip, skip + pageLimit);
+
+  return {
+    clubId: club?._id || clubId,
+    clubName: club?.name || "",
+    data: paginatedMembers,
+    pagination: {
+      total: filteredMembers.length,
+      page: currentPage,
+      limit: pageLimit,
+      totalPages: Math.ceil(filteredMembers.length / pageLimit),
+    },
+  };
 };
 
 export const findClubMemberByPhoneOrEmail = async ({ phone, email }) => {

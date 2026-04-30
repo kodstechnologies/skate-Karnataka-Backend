@@ -102,3 +102,89 @@ export const eventByIdValidation = {
     }),
   }),
 };
+
+export const addDisciplineValidation = {
+  body: Joi.object({
+    img: Joi.string().uri().allow("").optional().messages({
+      "string.uri": "Image must be a valid URL",
+    }),
+    title: Joi.string().trim().min(3).max(200).required().messages({
+      "string.empty": "Title is required",
+      "any.required": "Title is required",
+    }),
+    text: Joi.string().trim().allow("").optional(),
+    about: Joi.string().trim().min(5).max(2000).required().messages({
+      "string.empty": "About is required",
+      "any.required": "About is required",
+    }),
+  }),
+};
+
+export const updateDisciplineValidation = {
+  params: Joi.object({
+    id: Joi.string().trim().required().messages({
+      "any.required": "Discipline id is required",
+      "string.empty": "Discipline id is required",
+    }),
+  }),
+  body: Joi.object({
+    img: Joi.string().uri().allow("").optional().messages({
+      "string.uri": "Image must be a valid URL",
+    }),
+    title: Joi.string().trim().min(3).max(200).optional(),
+    text: Joi.string().trim().allow("").optional(),
+    about: Joi.string().trim().min(5).max(2000).optional(),
+  }).min(1),
+};
+
+export const disciplineByIdValidation = {
+  params: Joi.object({
+    id: Joi.string().trim().required().messages({
+      "any.required": "Discipline id is required",
+      "string.empty": "Discipline id is required",
+    }),
+  }),
+};
+
+export const addCircularValidation = {
+  body: Joi.object({
+    img: Joi.string().uri().allow("").optional().messages({
+      "string.uri": "Image must be a valid URL",
+    }),
+    heading: Joi.string().trim().min(3).max(200).required().messages({
+      "string.empty": "Heading is required",
+      "any.required": "Heading is required",
+    }),
+    text: Joi.string().trim().min(3).max(2000).required().messages({
+      "string.empty": "Text is required",
+      "any.required": "Text is required",
+    }),
+    date: Joi.date().optional(),
+  }),
+};
+
+export const updateCircularValidation = {
+  params: Joi.object({
+    id: Joi.string().trim().required().messages({
+      "any.required": "Circular id is required",
+      "string.empty": "Circular id is required",
+    }),
+  }),
+  body: Joi.object({
+    img: Joi.string().uri().allow("").optional().messages({
+      "string.uri": "Image must be a valid URL",
+    }),
+    heading: Joi.string().trim().min(3).max(200).optional(),
+    text: Joi.string().trim().min(3).max(2000).optional(),
+    date: Joi.date().optional(),
+  }).min(1),
+};
+
+export const circularByIdValidation = {
+  params: Joi.object({
+    id: Joi.string().trim().required().messages({
+      "any.required": "Circular id is required",
+      "string.empty": "Circular id is required",
+    }),
+  }),
+};

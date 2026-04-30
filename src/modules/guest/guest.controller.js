@@ -4,14 +4,22 @@ import {
   addContactUsService,
   addFeedBackService,
   addNewsService,
+  addCircularService,
+  addDisciplineService,
   afterLoginFormGuestService,
+  deleteCircularService,
+  deleteDisciplineService,
   deleteNewsService,
+  displayCircularService,
   displayContactUsService,
+  displayDisciplinesService,
   displayFeedbackService,
   displayNewsService,
   displayStateLatestEventsService,
   displayStateLatestSingleEventsService,
   displaySingleNewsService,
+  updateCircularService,
+  updateDisciplineService,
   updateNewsService,
 } from "./guest.services.js";
 
@@ -109,5 +117,62 @@ export const displayStateLatestSingleEvents = asyncHandler(async (req, res) => {
     const result = await displayStateLatestSingleEventsService(req.params.id);
     return res.status(200).json(
         new ApiResponse(200, result, "State event details fetched successfully")
+    );
+});
+
+
+export const displayDisciplines = asyncHandler(async(req, res) =>{
+    const { page = 1, limit = 10 } = req.query;
+    const result = await displayDisciplinesService({ page, limit });
+    return res.status(200).json(
+        new ApiResponse(200, result, "Disciplines fetched successfully")
+    );
+});
+
+export const addDiscipline = asyncHandler(async(req, res) =>{
+    await addDisciplineService(req.body);
+    return res.status(201).json(
+        new ApiResponse(201, null, "Discipline added successfully")
+    );
+});
+export const updateDiscipline = asyncHandler(async(req, res) =>{
+    const result = await updateDisciplineService(req.params.id, req.body);
+    return res.status(200).json(
+        new ApiResponse(200, result, "Discipline updated successfully")
+    );
+});
+export const deleteDiscipline = asyncHandler(async(req, res) =>{
+    const result = await deleteDisciplineService(req.params.id);
+    return res.status(200).json(
+        new ApiResponse(200, result, "Discipline deleted successfully")
+    );
+});
+
+export const displayCircular = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 10 } = req.query;
+    const result = await displayCircularService({ page, limit });
+    return res.status(200).json(
+        new ApiResponse(200, result, "Circular fetched successfully")
+    );
+});
+
+export const addCircular = asyncHandler(async (req, res) => {
+    await addCircularService(req.body);
+    return res.status(201).json(
+        new ApiResponse(201, null, "Circular added successfully")
+    );
+});
+
+export const updateCircular = asyncHandler(async (req, res) => {
+    const result = await updateCircularService(req.params.id, req.body);
+    return res.status(200).json(
+        new ApiResponse(200, result, "Circular updated successfully")
+    );
+});
+
+export const deleteCircular = asyncHandler(async (req, res) => {
+    const result = await deleteCircularService(req.params.id);
+    return res.status(200).json(
+        new ApiResponse(200, result, "Circular deleted successfully")
     );
 });

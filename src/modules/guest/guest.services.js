@@ -2,14 +2,22 @@ import {
   addContactUsRepositories,
   addFeedBackRepositories,
   addNewsRepositories,
+  addCircularRepositories,
+  addDisciplineRepositories,
+  deleteCircularRepositories,
   deleteNewsRepositories,
+  deleteDisciplineRepositories,
   afterLoginGuestFormRepositories,
+  displayCircularRepositories,
   displayContactUsRepositories,
+  displayDisciplinesRepositories,
   displayFeedbackRepositories,
   displayNewsRepositories,
   displayStateLatestEventsRepositories,
   displayStateLatestSingleEventsRepositories,
   displaySingleNewsRepositories,
+  updateCircularRepositories,
+  updateDisciplineRepositories,
   updateNewsRepositories,
 } from "./guest.repositories.js";
 import { AppError } from "../../util/common/AppError.js";
@@ -76,4 +84,52 @@ export const displayStateLatestSingleEventsService = async (id) => {
         throw new AppError("State event not found", 404);
     }
     return event;
+};
+
+export const displayDisciplinesService = async ({ page, limit }) => {
+    return displayDisciplinesRepositories({ page, limit });
+};
+
+export const addDisciplineService = async (data) => {
+    await addDisciplineRepositories(data);
+};
+
+export const updateDisciplineService = async (id, data) => {
+    const updated = await updateDisciplineRepositories(id, data);
+    if (!updated) {
+        throw new AppError("Discipline not found", 404);
+    }
+    return updated;
+};
+
+export const deleteDisciplineService = async (id) => {
+    const deleted = await deleteDisciplineRepositories(id);
+    if (!deleted) {
+        throw new AppError("Discipline not found", 404);
+    }
+    return { deleted: true };
+};
+
+export const displayCircularService = async ({ page, limit }) => {
+    return displayCircularRepositories({ page, limit });
+};
+
+export const addCircularService = async (data) => {
+    await addCircularRepositories(data);
+};
+
+export const updateCircularService = async (id, data) => {
+    const updated = await updateCircularRepositories(id, data);
+    if (!updated) {
+        throw new AppError("Circular not found", 404);
+    }
+    return updated;
+};
+
+export const deleteCircularService = async (id) => {
+    const deleted = await deleteCircularRepositories(id);
+    if (!deleted) {
+        throw new AppError("Circular not found", 404);
+    }
+    return { deleted: true };
 };

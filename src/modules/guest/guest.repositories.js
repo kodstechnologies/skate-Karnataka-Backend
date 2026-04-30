@@ -4,6 +4,8 @@ import { Guest } from "./guest.model.js";
 import { paginate } from "../../util/common/paginate.js";
 import { News } from "./news.model.js";
 import { Event } from "../event/event.model.js";
+import { Discipline } from "./disciplines.model.js";
+import { Circular } from "./circular.model.js";
 
 export const afterLoginGuestFormRepositories = async (data, id) => {
     const updated = await Guest.findOneAndUpdate(
@@ -135,4 +137,82 @@ export const displayStateLatestEventsRepositories = async ({ page, limit }) => {
 
 export const displayStateLatestSingleEventsRepositories = async (id) => {
     return Event.findOne({ _id: id, eventType: "State" }).lean();
+};
+
+export const displayDisciplinesRepositories = async ({ page, limit }) => {
+    const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+
+    const [total, data] = await Promise.all([
+        Discipline.countDocuments(),
+        Discipline.find()
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(pageLimit)
+            .lean(),
+    ]);
+
+    return {
+        data,
+        pagination: {
+            total,
+            page: currentPage,
+            limit: pageLimit,
+            totalPages: Math.ceil(total / pageLimit),
+        },
+    };
+};
+
+export const addDisciplineRepositories = async (data) => {
+    return Discipline.create(data);
+};
+
+export const updateDisciplineRepositories = async (id, data) => {
+    return Discipline.findByIdAndUpdate(
+        id,
+        { $set: data },
+        { new: true, runValidators: true }
+    ).lean();
+};
+
+export const deleteDisciplineRepositories = async (id) => {
+    return Discipline.findByIdAndDelete(id).lean();
+};
+
+export const displayCircularRepositories = async ({ page, limit }) => {
+    const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+
+    const [total, data] = await Promise.all([
+        Circular.countDocuments(),
+        Circular.find()
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(pageLimit)
+            .lean(),
+    ]);
+
+    return {
+        data,
+        pagination: {
+            total,
+            page: currentPage,
+            limit: pageLimit,
+            totalPages: Math.ceil(total / pageLimit),
+        },
+    };
+};
+
+export const addCircularRepositories = async (data) => {
+    return Circular.create(data);
+};
+
+export const updateCircularRepositories = async (id, data) => {
+    return Circular.findByIdAndUpdate(
+        id,
+        { $set: data },
+        { new: true, runValidators: true }
+    ).lean();
+};
+
+export const deleteCircularRepositories = async (id) => {
+    return Circular.findByIdAndDelete(id).lean();
 };

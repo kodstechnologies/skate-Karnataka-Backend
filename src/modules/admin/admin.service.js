@@ -211,8 +211,8 @@ export const editAdminProfileService = async (adminId, payload) => {
   };
 };
 
-export const getAllDistrictsByAdminService = async () => {
-  return getAllDistrictsForAdmin();
+export const getAllDistrictsByAdminService = async ({ page, limit, name }) => {
+  return getAllDistrictsForAdmin({ page, limit, name });
 };
 
 export const createDistrictByAdminService = async (payload) => {

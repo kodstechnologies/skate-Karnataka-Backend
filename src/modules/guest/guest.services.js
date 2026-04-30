@@ -7,6 +7,8 @@ import {
   displayContactUsRepositories,
   displayFeedbackRepositories,
   displayNewsRepositories,
+  displayStateLatestEventsRepositories,
+  displayStateLatestSingleEventsRepositories,
   displaySingleNewsRepositories,
   updateNewsRepositories,
 } from "./guest.repositories.js";
@@ -62,4 +64,16 @@ export const deleteNewsService = async (id) => {
         throw new AppError("News not found", 404);
     }
     return { deleted: true };
+};
+
+export const displayStateLatestEventsService = async ({ page, limit }) => {
+    return displayStateLatestEventsRepositories({ page, limit });
+};
+
+export const displayStateLatestSingleEventsService = async (id) => {
+    const event = await displayStateLatestSingleEventsRepositories(id);
+    if (!event) {
+        throw new AppError("State event not found", 404);
+    }
+    return event;
 };

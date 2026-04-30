@@ -93,3 +93,12 @@ export const newsByIdValidation = {
     }),
   }),
 };
+
+export const eventByIdValidation = {
+  params: Joi.object({
+    id: Joi.string().trim().required().messages({
+      "any.required": "Event id is required",
+      "string.empty": "Event id is required",
+    }),
+  }),
+};

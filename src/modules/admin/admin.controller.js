@@ -102,8 +102,9 @@ export const editAdminProfile = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, result, "Admin profile updated successfully"));
 });
 
-export const getAllDistrictsByAdmin = asyncHandler(async (_req, res) => {
-  const result = await getAllDistrictsByAdminService();
+export const getAllDistrictsByAdmin = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 10, name = "" } = req.query;
+  const result = await getAllDistrictsByAdminService({ page, limit, name });
 
   return res
     .status(200)

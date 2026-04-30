@@ -9,6 +9,8 @@ import {
   displayContactUsService,
   displayFeedbackService,
   displayNewsService,
+  displayStateLatestEventsService,
+  displayStateLatestSingleEventsService,
   displaySingleNewsService,
   updateNewsService,
 } from "./guest.services.js";
@@ -92,5 +94,20 @@ export const deleteNews = asyncHandler(async (req, res) => {
     const result = await deleteNewsService(req.params.id);
     return res.status(200).json(
         new ApiResponse(200, result, "News deleted successfully")
+    );
+});
+
+export const displayStateLatestEvents = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 10 } = req.query;
+    const result = await displayStateLatestEventsService({ page, limit });
+    return res.status(200).json(
+        new ApiResponse(200, result, "State events fetched successfully")
+    );
+});
+
+export const displayStateLatestSingleEvents = asyncHandler(async (req, res) => {
+    const result = await displayStateLatestSingleEventsService(req.params.id);
+    return res.status(200).json(
+        new ApiResponse(200, result, "State event details fetched successfully")
     );
 });

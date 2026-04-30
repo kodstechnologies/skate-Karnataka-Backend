@@ -98,11 +98,37 @@ export const findDistrictNameById = async (districtId) => {
   return district?.name || "";
 };
 
-export const getAllDistrictsForAdmin = async () => {
-  return District.find()
-    .select("_id name img about officeAddress presidentName createdAt updatedAt")
-    .sort({ createdAt: -1 })
-    .lean();
+export const getAllDistrictsForAdmin = async ({ page = 1, limit = 10, name = "" }) => {
+  const currentPage = Math.max(Number(page) || 1, 1);
+  const pageLimit = Math.max(Number(limit) || 10, 1);
+  const skip = (currentPage - 1) * pageLimit;
+  const trimmedName = String(name || "").trim();
+  const query = trimmedName ? { name: { $regex: trimmedName, $options: "i" } } : {};
+
+  const [total, districts] = await Promise.all([
+    District.countDocuments(query),
+    District.find(query)
+      .select("_id name img about officeAddress presidentName members createdAt updatedAt")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(pageLimit)
+      .lean(),
+  ]);
+
+  const data = districts.map((district) => ({
+    ...district,
+    memberCount: Array.isArray(district.members) ? district.members.length : 0,
+  }));
+
+  return {
+    data,
+    pagination: {
+      total,
+      page: currentPage,
+      limit: pageLimit,
+      totalPages: Math.ceil(total / pageLimit),
+    },
+  };
 };
 
 export const findDistrictByName = async (name) => {

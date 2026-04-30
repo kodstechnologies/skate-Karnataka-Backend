@@ -10,6 +10,8 @@ import {
   deleteNews,
   displayContactUs,
   displayFeedback,
+  displayStateLatestEvents,
+  displayStateLatestSingleEvents,
   displayNews,
   displaySingleNews,
   updateNews,
@@ -19,6 +21,7 @@ import {
   addContactUSValidation,
   addFeedBackValidation,
   addNewsValidation,
+  eventByIdValidation,
   newsByIdValidation,
   updateNewsValidation,
 } from "./guest.validation.js";
@@ -61,6 +64,11 @@ router.delete(
   validate(newsByIdValidation),
   deleteNews
 );
+
+// ============ event & championship 
+
+router.get("/v1/events" , displayStateLatestEvents);
+router.get("/v1/events/:id", validate(eventByIdValidation), displayStateLatestSingleEvents);
 
 // =============
 router.post(

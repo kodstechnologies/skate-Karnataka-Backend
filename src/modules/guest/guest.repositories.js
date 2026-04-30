@@ -3,6 +3,7 @@ import { FeedBack } from "./feedBack.model.js";
 import { Guest } from "./guest.model.js";
 import { paginate } from "../../util/common/paginate.js";
 import { News } from "./news.model.js";
+import { Event } from "../event/event.model.js";
 
 export const afterLoginGuestFormRepositories = async (data, id) => {
     const updated = await Guest.findOneAndUpdate(
@@ -105,4 +106,33 @@ export const updateNewsRepositories = async (id, data) => {
 
 export const deleteNewsRepositories = async (id) => {
     return News.findByIdAndDelete(id).lean();
+};
+
+export const displayStateLatestEventsRepositories = async ({ page, limit }) => {
+    const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+
+    const query = { eventType: "State" };
+
+    const [total, data] = await Promise.all([
+        Event.countDocuments(query),
+        Event.find(query)
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(pageLimit)
+            .lean(),
+    ]);
+
+    return {
+        data,
+        pagination: {
+            total,
+            page: currentPage,
+            limit: pageLimit,
+            totalPages: Math.ceil(total / pageLimit),
+        },
+    };
+};
+
+export const displayStateLatestSingleEventsRepositories = async (id) => {
+    return Event.findOne({ _id: id, eventType: "State" }).lean();
 };

@@ -12,17 +12,21 @@ import {
   adminVerifyOtpForPassword,
   createDistrictByAdmin,
   createClubByAdmin,
+  createClubMemberByAdmin,
   createDistrictMemberByAdmin,
   deleteClubByAdmin,
+  deleteClubMemberByAdmin,
   deleteDistrictMemberByAdmin,
   deleteDistrictByAdmin,
   getAllClubByAdmin,
+  getClubMembersByClubIdByAdmin,
   getAllDistrictMembersByAdmin,
   getDistrictMembersByDistrictIdByAdmin,
   getAllDistrictsByAdmin,
   updateClubByAdmin,
   updateDistrictMemberByAdmin,
   updateDistrictByAdmin,
+  updateClubMemberByAdmin,
 } from "./admin.controller.js";
 import {
   adminForgotPasswordValidation,
@@ -32,10 +36,13 @@ import {
   adminSendOtpForPasswordValidation,
   adminVerifyOtpForPasswordValidation,
   ClubByAdminIdValidation,
+  clubMemberByAdminIdValidation,
   createClubByAdminValidation,
+  createClubMemberByAdminValidation,
   createDistrictMemberByAdminValidation,
   createDistrictByAdminValidation,
   districtByAdminIdValidation,
+  updateClubMemberByAdminValidation,
   updateClubByAdminValidation,
   updateDistrictByAdminValidation,
 } from "./admin.validation.js";
@@ -145,6 +152,36 @@ router.delete(
   authenticate(["State", "admin"]),
   validate(ClubByAdminIdValidation),
   deleteClubByAdmin
+);
+
+// =============================  club member
+
+router.get(
+  "/v1/club-member/:id",
+  authenticate(["State", "admin"]),
+  getClubMembersByClubIdByAdmin
+);
+router.post(
+  "/v1/club-member/:id",
+  authenticate(["State", "admin"]),
+  upload.single("profile"),
+  uploadToS3("profile"),
+  validate(createClubMemberByAdminValidation),
+  createClubMemberByAdmin
+);
+router.patch(
+  "/v1/club-member/:id",
+  authenticate(["State", "admin"]),
+  upload.single("profile"),
+  uploadToS3("profile"),
+  validate(updateClubMemberByAdminValidation),
+  updateClubMemberByAdmin
+);
+router.delete(
+  "/v1/club-member/:id",
+  authenticate(["State", "admin"]),
+  validate(clubMemberByAdminIdValidation),
+  deleteClubMemberByAdmin
 );
 
 export default router;

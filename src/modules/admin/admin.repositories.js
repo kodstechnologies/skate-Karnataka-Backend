@@ -4,6 +4,7 @@ import { District } from "../district/district.model.js";
 import { BaseAuth } from "../auth/baseAuth.model.js";
 import { DistrictMember } from "../district/districtMember.model.js";
 import { Club } from "../club/club.model.js";
+import { ClubMember } from "../club/clubMember.model.js";
 
 export const findAdminByEmail = async (email) => {
   return Admin.findOne({ email: email.toLowerCase().trim(), role: "admin" });
@@ -265,4 +266,82 @@ export const removeClubFromDistrict = async ({ districtId, clubId }) => {
     { $pull: { club: clubId } },
     { new: false }
   ).lean();
+};
+
+export const getClubMembersByClubId = async (clubId) => {
+  const club = await Club.findById(clubId)
+    .select("_id name members")
+    .populate(
+      "members",
+      "_id fullName profile phone countryCode email gender address district role isActive"
+    )
+    .lean();
+
+  return club;
+};
+
+export const findClubMemberByPhoneOrEmail = async ({ phone, email }) => {
+  const orConditions = [];
+  if (phone) {
+    orConditions.push({ phone });
+  }
+  if (email) {
+    orConditions.push({ email: email.toLowerCase().trim() });
+  }
+  if (!orConditions.length) return null;
+
+  return BaseAuth.findOne({ $or: orConditions }).select("_id").lean();
+};
+
+export const createClubMember = async (payload) => {
+  const normalizedPayload = {
+    ...payload,
+    role: "Club",
+  };
+
+  if (normalizedPayload.email) {
+    normalizedPayload.email = normalizedPayload.email.toLowerCase().trim();
+  }
+
+  return ClubMember.create(normalizedPayload);
+};
+
+export const addMemberToClub = async ({ clubId, memberId }) => {
+  return Club.findByIdAndUpdate(
+    clubId,
+    { $addToSet: { members: memberId } },
+    { new: false }
+  ).lean();
+};
+
+export const findClubMemberById = async (clubMemberId) => {
+  return BaseAuth.findOne({ _id: clubMemberId, role: "Club" })
+    .select("_id fullName")
+    .lean();
+};
+
+export const updateClubMemberById = async (clubMemberId, payload) => {
+  const normalizedPayload = { ...payload };
+  if (normalizedPayload.email) {
+    normalizedPayload.email = normalizedPayload.email.toLowerCase().trim();
+  }
+
+  return BaseAuth.findOneAndUpdate(
+    { _id: clubMemberId, role: "Club" },
+    { $set: normalizedPayload },
+    { new: true, runValidators: true }
+  )
+    .select("_id fullName profile phone countryCode email gender address district role isActive")
+    .lean();
+};
+
+export const deleteClubMemberById = async (clubMemberId) => {
+  return BaseAuth.findOneAndDelete({ _id: clubMemberId, role: "Club" }).lean();
+};
+
+export const removeClubMemberFromAllClubs = async (clubMemberId) => {
+  return Club.updateMany(
+    { members: clubMemberId },
+    { $pull: { members: clubMemberId } }
+  );
 };

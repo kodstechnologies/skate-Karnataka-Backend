@@ -12,6 +12,14 @@ const gallerySchema = new mongoose.Schema(
       default: null,
     },
 
+    title: {
+      type: String,
+      default: "",
+    },
+    about: {
+      type: String,
+      default: "",
+    },
     ownerType: {
       type: String,
       enum: ["admin", "club", "district", "state"],

@@ -188,3 +188,58 @@ export const ClubByAdminIdValidation = {
     }),
   }),
 };
+
+export const createClubMemberByAdminValidation = {
+  params: Joi.object({
+    id: Joi.string().trim().required().messages({
+      "any.required": "Club id is required",
+      "string.empty": "Club id is required",
+    }),
+  }),
+  body: Joi.object({
+    fullName: Joi.string().trim().min(3).max(50).required().messages({
+      "any.required": "Full name is required",
+      "string.empty": "Full name is required",
+    }),
+    phone: Joi.string().trim().pattern(/^[6-9]\d{9}$/).required().messages({
+      "any.required": "Phone is required",
+      "string.pattern.base": "Invalid Indian phone number",
+    }),
+    email: Joi.string().trim().email().lowercase().allow("").optional(),
+    gender: Joi.string().trim().lowercase().allow("").optional(),
+    address: Joi.string().trim().max(200).allow("").optional(),
+    countryCode: Joi.string().trim().allow("").optional(),
+    profile: Joi.string().uri().allow("").optional().messages({
+      "string.uri": "Profile must be a valid URL",
+    }),
+  }),
+};
+
+export const updateClubMemberByAdminValidation = {
+  params: Joi.object({
+    id: Joi.string().trim().required().messages({
+      "any.required": "Club member id is required",
+      "string.empty": "Club member id is required",
+    }),
+  }),
+  body: Joi.object({
+    fullName: Joi.string().trim().min(3).max(50).optional(),
+    phone: Joi.string().trim().pattern(/^[6-9]\d{9}$/).optional(),
+    email: Joi.string().trim().email().lowercase().allow("").optional(),
+    gender: Joi.string().trim().lowercase().allow("").optional(),
+    address: Joi.string().trim().max(200).allow("").optional(),
+    countryCode: Joi.string().trim().allow("").optional(),
+    profile: Joi.string().uri().allow("").optional().messages({
+      "string.uri": "Profile must be a valid URL",
+    }),
+  }).min(1),
+};
+
+export const clubMemberByAdminIdValidation = {
+  params: Joi.object({
+    id: Joi.string().trim().required().messages({
+      "any.required": "Club member id is required",
+      "string.empty": "Club member id is required",
+    }),
+  }),
+};

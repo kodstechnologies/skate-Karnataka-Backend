@@ -7,18 +7,22 @@ import {
   adminResetPasswordService,
   adminSendOtpForPasswordService,
   createDistrictByAdminService,
+  createClubMemberByAdminService,
   createClubByAdminService,
   createDistrictMemberByAdminService,
   deleteClubByAdminService,
+  deleteClubMemberByAdminService,
   deleteDistrictMemberByAdminService,
   deleteDistrictByAdminService,
   editAdminProfileService,
   getAllDistrictMembersByAdminService,
+  getClubMembersByClubIdByAdminService,
   getAllClubByAdminService,
   getDistrictMembersByDistrictIdByAdminService,
   getAllDistrictsByAdminService,
   getAdminProfileService,
   updateDistrictMemberByAdminService,
+  updateClubMemberByAdminService,
   updateClubByAdminService,
   updateDistrictByAdminService,
   adminVerifyOtpForPasswordService,
@@ -203,4 +207,39 @@ export const deleteClubByAdmin = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, result, "Club deleted successfully"));
+});
+
+export const getClubMembersByClubIdByAdmin = asyncHandler(async (req, res) => {
+  const result = await getClubMembersByClubIdByAdminService(req.params.id);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, result, "Club members fetched successfully"));
+});
+
+export const createClubMemberByAdmin = asyncHandler(async (req, res) => {
+  const result = await createClubMemberByAdminService({
+    clubId: req.params.id,
+    payload: req.body,
+  });
+
+  return res
+    .status(201)
+    .json(new ApiResponse(201, result, "Club member created successfully"));
+});
+
+export const updateClubMemberByAdmin = asyncHandler(async (req, res) => {
+  const result = await updateClubMemberByAdminService(req.params.id, req.body);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, result, "Club member updated successfully"));
+});
+
+export const deleteClubMemberByAdmin = asyncHandler(async (req, res) => {
+  const result = await deleteClubMemberByAdminService(req.params.id);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, result, "Club member deleted successfully"));
 });

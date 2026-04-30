@@ -14,7 +14,7 @@ export const displayAllMediaBasedOnSkaterRepositories = async (skaterId, page, l
     ? await Club.findById(skater.club).select("district").lean()
     : null;
 
-  const filters = [{ ownerType: "state" },{ ownerType: "admin" }];
+  const filters = [{ ownerType: "state" }, { ownerType: "admin" }];
 
   if (skater.club) {
     filters.push({ ownerType: "club", ownerId: skater.club });
@@ -88,17 +88,17 @@ export const displayAllMediaRepositories = async (type = {}, page, limit) => {
     ...item,
     ownerId: item?.ownerId
       ? {
-          _id: item.ownerId?._id || "",
-          fullName: item.ownerId?.fullName || "",
-          name: item.ownerId?.name || "",
-          role: item.ownerId?.role || "",
-        }
+        _id: item.ownerId?._id || "",
+        fullName: item.ownerId?.fullName || "",
+        name: item.ownerId?.name || "",
+        role: item.ownerId?.role || "",
+      }
       : {
-          _id: "",
-          fullName: "",
-          name: "",
-          role: "",
-        },
+        _id: "",
+        fullName: "",
+        name: "",
+        role: "",
+      },
     ownerName: item?.ownerId?.name || item?.ownerId?.fullName || "",
   }));
 
@@ -140,6 +140,8 @@ export const addMediaREpositories = async (data) => {
   return Gallery.create({
     imageUrl: data?.img || data?.imageUrl || null,
     videoUrl: data?.videoUrl || null,
+    title: data?.title || "",
+    about: data?.about || "",
     ownerType: data.ownerType,
     ownerId: data.ownerId,
   });

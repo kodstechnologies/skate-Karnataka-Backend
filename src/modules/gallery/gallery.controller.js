@@ -31,8 +31,8 @@ export const displayAllMedia = asyncHandler(async (req, res) => {
 });
 
 export const basedOnRoleDisplay = asyncHandler(async(req, res) =>{
-  const { page = 1, limit = 10 } = req.query;
-  const media = await basedOnRoleDisplayService(req.user, page, limit);
+  const { page = 1, limit = 10, type } = req.query;
+  const media = await basedOnRoleDisplayService(req.user, type, page, limit);
 
     return res
     .status(200)

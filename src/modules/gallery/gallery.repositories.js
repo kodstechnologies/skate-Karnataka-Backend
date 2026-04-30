@@ -4,6 +4,11 @@ import { Club } from "../club/club.model.js";
 import { Skater } from "../skater/skater.model.js";
 import { Gallery } from "./gallery.model.js";
 
+const withMediaType = (item) => ({
+  ...item,
+  type: item?.videoUrl ? "video" : "img",
+});
+
 export const displayAllMediaBasedOnSkaterRepositories = async (skaterId, page, limit) => {
   const skater = await Skater.findById(skaterId).select("club").lean();
   if (!skater) {
@@ -37,7 +42,7 @@ export const displayAllMediaBasedOnSkaterRepositories = async (skaterId, page, l
   ]);
 
   return {
-    data,
+    data: data.map(withMediaType),
     pagination: {
       total,
       page: currentPage,
@@ -100,6 +105,7 @@ export const displayAllMediaRepositories = async (type = {}, page, limit) => {
         role: "",
       },
     ownerName: item?.ownerId?.name || item?.ownerId?.fullName || "",
+    type: item?.videoUrl ? "video" : "img",
   }));
 
   return {
@@ -113,8 +119,15 @@ export const displayAllMediaRepositories = async (type = {}, page, limit) => {
   };
 };
 
-export const basedOnRoleDisplayRepositories = async ({ ownerType, ownerId }, page, limit) => {
+export const basedOnRoleDisplayRepositories = async ({ ownerType, ownerId, type }, page, limit) => {
   const filter = { ownerType, ownerId };
+
+  if (type === "video") {
+    filter.videoUrl = { $ne: null };
+  } else if (type === "img" || type === "image") {
+    filter.videoUrl = null;
+  }
+
   const { skip, limit: perPage, page: currentPage } = paginate(page, limit);
 
   const [total, media] = await Promise.all([
@@ -127,7 +140,7 @@ export const basedOnRoleDisplayRepositories = async ({ ownerType, ownerId }, pag
   ]);
 
   return {
-    data: media,
+    data: media.map(withMediaType),
     pagination: {
       total,
       page: currentPage,

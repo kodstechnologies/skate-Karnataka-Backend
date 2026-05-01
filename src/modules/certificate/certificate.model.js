@@ -5,7 +5,7 @@ const certificateSchema = new mongoose.Schema(
         userId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "BaseAuth",
-            required: true,
+            required: false,
         },
         winnerKRSAId: {
             type: String,

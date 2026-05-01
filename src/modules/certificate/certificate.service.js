@@ -14,22 +14,20 @@ const display_all_certificate_service = async ({ id, page, limit }) => {
     return await display_all_certificate_repositories(krsaID, page, limit);
 };
 
-const upload_template_service = async (file, layoutStr) => {
+const upload_template_service = async (file, layout) => {
     let pdfUrl = null;
-    let layoutObj = null;
-    
-    try {
-        layoutObj = JSON.parse(layoutStr);
-    } catch (err) {
-        throw new Error("Invalid layout JSON format");
+
+    // layout is already a parsed JS object (parsed in the controller)
+    if (!layout || typeof layout !== "object") {
+        throw new Error("Invalid layout: must be a non-null object");
     }
 
     if (file) {
         const uploadRes = await putObject(file, "certificate-templates");
         pdfUrl = uploadRes.url;
     }
-    
-    return await save_template_repository(pdfUrl, layoutObj);
+
+    return await save_template_repository(pdfUrl, layout);
 };
 
 const get_template_service = async () => {
@@ -51,7 +49,7 @@ const getColor = (colorStr) => {
 }
 
 const generate_certificate_service = async (userData) => {
-
+   console.log("service Generating certificate for userData:", userData);
     const template = await get_template_service();
     if (!template || !template.pdfTemplateUrl) {
         throw new Error("No certificate template found");
@@ -238,11 +236,16 @@ const generate_certificate_service = async (userData) => {
     };
     const uploadRes = await putObject(fileToUpload, "certificates");
 
+    // Look up the user's ObjectId from their KRSA ID so the Certificate
+    // model's userId field (required) is correctly populated.
+    const userRecord = await get_user_by_krsa_repository(userData.winnerKRSAId);
+
     // Save certificate record to DB
     const certData = {
         winnerKRSAId: userData.winnerKRSAId,
-        pdfUrl:   uploadRes.url,
-        filename: uploadRes.key || `certificates/certificate_${userData.winnerKRSAId}.pdf`,
+        userId:       userRecord?._id || null,
+        pdfUrl:       uploadRes.url,
+        filename:     uploadRes.key || `certificates/certificate_${userData.winnerKRSAId}.pdf`,
     };
     await create_certificate_repositories(certData);
     return certData;

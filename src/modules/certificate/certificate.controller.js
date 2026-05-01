@@ -10,6 +10,10 @@ import {
   generate_certificate_service,
   download_certificate_service,
 } from "./certificate.service.js";
+import {
+  uploadTemplateValidation,
+  generateCertificateValidation,
+} from "./certificate.validation.js";
 
 const createCertificate = asyncHandler(async (req, res) => {
   const certificate = await create_certificate_services(req.body);
@@ -42,10 +46,42 @@ const displayAllCertificate = asyncHandler(async (req, res) => {
     );
 });
 
+
+const MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+
 const uploadTemplate = asyncHandler(async (req, res) => {
-  const layout = req.body.layout;
   const file = req.file;
-  if (!layout) throw new AppError(400, "Layout is required");
+
+  // ── Joi validation (runs here because Multer must parse the multipart
+  //    body first — validate middleware cannot run before upload.single)
+  const { error, value } = uploadTemplateValidation.body.validate(req.body, {
+    abortEarly: false,
+    stripUnknown: true,
+  });
+  if (error) {
+    const message = error.details.map((d) => d.message.replace(/"/g, "")).join(", ");
+    throw new AppError(message, 400);
+  }
+
+  const { layout: layoutString } = value;
+
+  // Parse layout JSON string
+  let layout;
+  try {
+    layout = JSON.parse(layoutString);
+  } catch {
+    throw new AppError("layout must be valid JSON", 400);
+  }
+
+  // File validation — only run when a new file is uploaded
+  if (file) {
+    if (file.mimetype !== "application/pdf") {
+      throw new AppError("Uploaded template must be a PDF file", 400);
+    }
+    if (file.size > MAX_PDF_SIZE_BYTES) {
+      throw new AppError("PDF template must be smaller than 10 MB", 400);
+    }
+  }
   const result = await upload_template_service(file, layout);
   return res
     .status(200)
@@ -60,13 +96,20 @@ const getTemplate = asyncHandler(async (req, res) => {
 });
 
 const generateCertificate = asyncHandler(async (req, res) => {
-  const { name, issueDate, field, clubName, Rank, winnerKRSAId } = req.body;
-  // const{id}=req.user
-  if (!name || !issueDate || !field || !clubName || !Rank || !winnerKRSAId) {
-    throw new AppError(400, "Missing required dynamic fields for certificate");
+  // ── Joi validation inside the controller
+
+  const { error, value } = generateCertificateValidation.body.validate(req.body, {
+    abortEarly: false,
+    stripUnknown: true,
+  });
+  if (error) {
+    const message = error.details.map((d) => d.message.replace(/"/g, "")).join(", ");
+    throw new AppError(message, 400);
   }
-  console.log("Received data for certificate generation Controller");
-  const result = await generate_certificate_service({name, issueDate, field, clubName, Rank, winnerKRSAId });
+
+  const { name, issueDate, field, clubName, Rank, winnerKRSAId } = value;
+
+  const result = await generate_certificate_service({ name, issueDate, field, clubName, Rank, winnerKRSAId });
   return res
     .status(200)
     .json(new ApiResponse(200, result, "Certificate generated successfully"));
@@ -84,7 +127,7 @@ const downloadCertificate = asyncHandler(async (req, res) => {
     
     response.data.pipe(res);
   } catch (error) {
-    throw new AppError(500, "Failed to download the certificate from storage");
+    throw new AppError("Failed to download the certificate from storage", 500);
   }
 });
 

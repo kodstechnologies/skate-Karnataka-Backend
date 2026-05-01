@@ -11,8 +11,8 @@ import {
 
 export const displayAllMediaBasedOnSkater = asyncHandler(async (req, res) => {
     const id = req.user._id;
-    const { page = 1, limit = 10 } = req.query;
-    const media = await displayAllMediaBasedOnSkaterService(id, page, limit);
+    const { page = 1, limit = 10, type = "all" } = req.query;
+    const media = await displayAllMediaBasedOnSkaterService(id, type, page, limit);
     return res.status(200).json(new ApiResponse(200, media, "Display all media successfully"));
  });
 
@@ -31,8 +31,8 @@ export const displayAllMedia = asyncHandler(async (req, res) => {
 });
 
 export const basedOnRoleDisplay = asyncHandler(async(req, res) =>{
-  const { page = 1, limit = 10 } = req.query;
-  const media = await basedOnRoleDisplayService(req.user, page, limit);
+  const { page = 1, limit = 10, type } = req.query;
+  const media = await basedOnRoleDisplayService(req.user, type, page, limit);
 
     return res
     .status(200)

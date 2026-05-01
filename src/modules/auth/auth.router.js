@@ -1,9 +1,9 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
-import {ContactSupport, GetAchievements, GetRankings, LoginUser, LogoutUser, RefreshToken, RegisterUser, sendEmailOTP, sendPhoneOTP, ToggleNotifications, verifyEmailOTP, VerifyOTP, verifyPhoneOTP} from "./auth.controller.js";
+import { ContactSupport, GetAchievements, GetRankings, LoginUser, LogoutUser, RefreshToken, RegisterUser, sendEmailOTP, sendPhoneOTP, ToggleNotifications, verifyEmailOTP, VerifyOTP, verifyPhoneOTP } from "./auth.controller.js";
 import { validate } from "../../middleware/validate.multiple.js";
 import { upload } from "../../middleware/multer.middleware.js";
-import {LoginValidation, LogoutValidation, RegisterValidation, sendEmailOTPValidation, sendPhoneOTPValidation, verifyEmailOTPValidation, VerifyOTPValidation, verifyPhoneOTPValidation} from "./auth.validation.js";
+import { LoginValidation, LogoutValidation, RegisterValidation, sendEmailOTPValidation, sendPhoneOTPValidation, verifyEmailOTPValidation, VerifyOTPValidation, verifyPhoneOTPValidation } from "./auth.validation.js";
 
 const router = express.Router();
 
@@ -69,4 +69,5 @@ router.get("/support",
     authenticate(["user", "admin"]),
     ContactSupport);
 
-                            export default router;
+
+export default router;

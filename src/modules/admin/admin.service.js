@@ -2,13 +2,44 @@ import { AppError } from "../../util/common/AppError.js";
 import { generateAccessToken, generateRefreshToken } from "../../util/token/token.js";
 import {
   addRefreshTokenToAdmin,
+  addMemberToDistrict,
+  addMemberToClub,
+  addClubToDistrict,
+  createClubByAdmin,
+  createClubMember,
+  createDistrictByAdmin,
+  createDistrictMember,
+  deleteClubByIdForAdmin,
+  deleteClubMemberById,
+  deleteDistrictMemberById,
+  deleteDistrictByIdForAdmin,
+  findClubByIdForAdmin,
+  findClubMemberById,
+  findClubMemberByPhoneOrEmail,
+  findClubByNameAndDistrict,
+  findDistrictById,
+  findDistrictMemberById,
+  findDistrictMemberByPhoneOrEmail,
+  findDistrictByName,
   deleteAdminPasswordResetOtp,
   findDistrictNameById,
   findAdminProfileById,
+  getAllDistrictMembers,
+  getDistrictMembersByDistrictId,
+  getClubMembersByClubId,
+  getAllClubsForAdmin,
+  getAllDistrictsForAdmin,
   findAdminByEmail,
   getAdminPasswordResetOtp,
   markAdminPasswordOtpVerified,
+  removeMemberFromDistrict,
+  removeClubFromDistrict,
+  removeClubMemberFromAllClubs,
   removeRefreshTokenFromAdmin,
+  updateDistrictByIdForAdmin,
+  updateDistrictMemberById,
+  updateClubByIdForAdmin,
+  updateClubMemberById,
   updateAdminProfileById,
   updateAdminPasswordByEmail,
   upsertAdminPasswordResetOtp,
@@ -157,7 +188,7 @@ export const getAdminProfileService = async (adminId) => {
     throw new AppError("Admin profile not found", 404);
   }
 
- 
+
   return {
     ...profile,
     img: profile?.img || "",
@@ -176,6 +207,330 @@ export const editAdminProfileService = async (adminId, payload) => {
   return {
     ...updatedProfile,
     img: updatedProfile?.img || "",
-  
+
   };
+};
+
+export const getAllDistrictsByAdminService = async ({ page, limit, name }) => {
+  return getAllDistrictsForAdmin({ page, limit, name });
+};
+
+export const createDistrictByAdminService = async (payload) => {
+  const existingDistrict = await findDistrictByName(payload.name);
+  if (existingDistrict) {
+    throw new AppError("District already exists", 409);
+  }
+
+  const district = await createDistrictByAdmin(payload);
+  return {
+    _id: district._id,
+    name: district.name,
+  };
+};
+
+export const updateDistrictByAdminService = async (districtId, payload) => {
+  const district = await findDistrictById(districtId);
+  if (!district) {
+    throw new AppError("District not found", 404);
+  }
+
+  if (payload?.name && payload.name.trim() !== district.name) {
+    const existingDistrict = await findDistrictByName(payload.name);
+    if (existingDistrict && String(existingDistrict._id) !== String(districtId)) {
+      throw new AppError("District already exists", 409);
+    }
+  }
+
+  const updatedDistrict = await updateDistrictByIdForAdmin(districtId, payload);
+  return updatedDistrict;
+};
+
+export const deleteDistrictByAdminService = async (districtId) => {
+  const district = await findDistrictById(districtId);
+  if (!district) {
+    throw new AppError("District not found", 404);
+  }
+
+  if ((district.members || []).length > 0) {
+    throw new AppError("District has members, cannot delete", 400);
+  }
+
+  await deleteDistrictByIdForAdmin(districtId);
+  return { deleted: true };
+};
+
+export const getAllDistrictMembersByAdminService = async () => {
+  return getAllDistrictMembers();
+};
+
+export const getDistrictMembersByDistrictIdByAdminService = async (
+  districtId,
+  { page, limit, search }
+) => {
+  const district = await findDistrictById(districtId);
+  if (!district) {
+    throw new AppError("District not found", 404);
+  }
+
+  return getDistrictMembersByDistrictId(districtId, { page, limit, search });
+};
+
+export const createDistrictMemberByAdminService = async (payload) => {
+  if (!payload?.district) {
+    throw new AppError("District id is required", 400);
+  }
+
+  const district = await findDistrictById(payload.district);
+  if (!district) {
+    throw new AppError("District not found", 404);
+  }
+  const existingMember = await findDistrictMemberByPhoneOrEmail({
+    phone: payload.phone,
+    email: payload.email,
+  });
+  if (existingMember) {
+    throw new AppError("District member already exists with phone or email", 409);
+  }
+
+  const member = await createDistrictMember(payload);
+  await addMemberToDistrict({ districtId: payload.district, memberId: member._id });
+
+  return {
+    _id: member._id,
+    fullName: member.fullName,
+    phone: member.phone,
+    role: member.role,
+  };
+};
+
+export const updateDistrictMemberByAdminService = async (districtMemberId, payload) => {
+  const existingMember = await findDistrictMemberById(districtMemberId);
+  if (!existingMember) {
+    throw new AppError("District member not found", 404);
+  }
+
+  if (payload?.phone || payload?.email) {
+    const duplicate = await findDistrictMemberByPhoneOrEmail({
+      phone: payload.phone,
+      email: payload.email,
+    });
+    if (duplicate && String(duplicate._id) !== String(districtMemberId)) {
+      throw new AppError("Phone or email already in use", 409);
+    }
+  }
+
+  if (payload?.district) {
+    const targetDistrict = await findDistrictById(payload.district);
+    if (!targetDistrict) {
+      throw new AppError("Target district not found", 404);
+    }
+  }
+
+  const updatedMember = await updateDistrictMemberById(districtMemberId, payload);
+  if (!updatedMember) {
+    throw new AppError("District member not found", 404);
+  }
+
+  const oldDistrictId = existingMember?.district ? String(existingMember.district) : "";
+  const newDistrictId = updatedMember?.district?._id
+    ? String(updatedMember.district._id)
+    : updatedMember?.district
+      ? String(updatedMember.district)
+      : "";
+
+  if (oldDistrictId && oldDistrictId !== newDistrictId) {
+    await removeMemberFromDistrict({ districtId: oldDistrictId, memberId: districtMemberId });
+  }
+
+  if (newDistrictId && oldDistrictId !== newDistrictId) {
+    await addMemberToDistrict({ districtId: newDistrictId, memberId: districtMemberId });
+  }
+
+  return updatedMember;
+};
+
+export const deleteDistrictMemberByAdminService = async (districtMemberId) => {
+  const existingMember = await findDistrictMemberById(districtMemberId);
+  if (!existingMember) {
+    throw new AppError("District member not found", 404);
+  }
+
+  await deleteDistrictMemberById(districtMemberId);
+
+  if (existingMember.district) {
+    await removeMemberFromDistrict({
+      districtId: existingMember.district,
+      memberId: districtMemberId,
+    });
+  }
+
+  return { deleted: true };
+};
+
+export const getAllClubByAdminService = async ({ page, limit, search }) => {
+  return getAllClubsForAdmin({ page, limit, search });
+};
+
+export const createClubByAdminService = async (payload) => {
+  const district = await findDistrictById(payload?.district);
+  if (!district) {
+    throw new AppError("District not found", 404);
+  }
+
+  const existingClub = await findClubByNameAndDistrict({
+    name: payload.name,
+    district: payload.district,
+  });
+  if (existingClub) {
+    throw new AppError("Club already exists in this district", 409);
+  }
+
+  const club = await createClubByAdmin(payload);
+  await addClubToDistrict({ districtId: payload.district, clubId: club._id });
+
+  return {
+    _id: club._id,
+    clubId: club.clubId,
+    name: club.name,
+  };
+};
+
+export const updateClubByAdminService = async (clubId, payload) => {
+  const existingClub = await findClubByIdForAdmin(clubId);
+  if (!existingClub) {
+    throw new AppError("Club not found", 404);
+  }
+
+  const targetDistrictId = payload?.district || existingClub?.district;
+  const district = await findDistrictById(targetDistrictId);
+  if (!district) {
+    throw new AppError("District not found", 404);
+  }
+
+  if (payload?.name || payload?.district) {
+    const duplicateClub = await findClubByNameAndDistrict({
+      name: payload?.name || existingClub.name,
+      district: targetDistrictId,
+    });
+    if (duplicateClub && String(duplicateClub._id) !== String(clubId)) {
+      throw new AppError("Club already exists in this district", 409);
+    }
+  }
+
+  const updatedClub = await updateClubByIdForAdmin(clubId, payload);
+  if (!updatedClub) {
+    throw new AppError("Club not found", 404);
+  }
+
+  const oldDistrictId = existingClub?.district ? String(existingClub.district) : "";
+  const newDistrictId = updatedClub?.district?._id
+    ? String(updatedClub.district._id)
+    : updatedClub?.district
+      ? String(updatedClub.district)
+      : "";
+
+  if (oldDistrictId && oldDistrictId !== newDistrictId) {
+    await removeClubFromDistrict({ districtId: oldDistrictId, clubId });
+  }
+  if (newDistrictId && oldDistrictId !== newDistrictId) {
+    await addClubToDistrict({ districtId: newDistrictId, clubId });
+  }
+
+  return updatedClub;
+};
+
+export const deleteClubByAdminService = async (clubId) => {
+  const existingClub = await findClubByIdForAdmin(clubId);
+  if (!existingClub) {
+    throw new AppError("Club not found", 404);
+  }
+
+  if ((existingClub.members || []).length > 0) {
+    throw new AppError("Club has members, cannot delete", 400);
+  }
+
+  await deleteClubByIdForAdmin(clubId);
+
+  if (existingClub.district) {
+    await removeClubFromDistrict({ districtId: existingClub.district, clubId });
+  }
+
+  return { deleted: true };
+};
+
+export const getClubMembersByClubIdByAdminService = async (
+  clubId,
+  { page, limit, search }
+) => {
+  const club = await findClubByIdForAdmin(clubId);
+  if (!club) {
+    throw new AppError("Club not found", 404);
+  }
+
+  const clubMembers = await getClubMembersByClubId(clubId, { page, limit, search });
+  return clubMembers;
+};
+
+export const createClubMemberByAdminService = async ({ clubId, payload }) => {
+  const club = await findClubByIdForAdmin(clubId);
+  if (!club) {
+    throw new AppError("Club not found", 404);
+  }
+
+  const existingMember = await findClubMemberByPhoneOrEmail({
+    phone: payload.phone,
+    email: payload.email,
+  });
+  if (existingMember) {
+    throw new AppError("Club member already exists with phone or email", 409);
+  }
+
+  const member = await createClubMember({
+    ...payload,
+    district: club?.district || undefined,
+  });
+  await addMemberToClub({ clubId, memberId: member._id });
+
+  return {
+    _id: member._id,
+    fullName: member.fullName,
+    phone: member.phone,
+    role: member.role,
+  };
+};
+
+export const updateClubMemberByAdminService = async (clubMemberId, payload) => {
+  const existingMember = await findClubMemberById(clubMemberId);
+  if (!existingMember) {
+    throw new AppError("Club member not found", 404);
+  }
+
+  if (payload?.phone || payload?.email) {
+    const duplicate = await findClubMemberByPhoneOrEmail({
+      phone: payload.phone,
+      email: payload.email,
+    });
+    if (duplicate && String(duplicate._id) !== String(clubMemberId)) {
+      throw new AppError("Phone or email already in use", 409);
+    }
+  }
+
+  const updatedMember = await updateClubMemberById(clubMemberId, payload);
+  if (!updatedMember) {
+    throw new AppError("Club member not found", 404);
+  }
+
+  return updatedMember;
+};
+
+export const deleteClubMemberByAdminService = async (clubMemberId) => {
+  const existingMember = await findClubMemberById(clubMemberId);
+  if (!existingMember) {
+    throw new AppError("Club member not found", 404);
+  }
+
+  await deleteClubMemberById(clubMemberId);
+  await removeClubMemberFromAllClubs(clubMemberId);
+
+  return { deleted: true };
 };

@@ -71,3 +71,175 @@ export const adminEditProfileValidation = {
     img: Joi.string().uri(),
   }).min(1),
 };
+
+export const createDistrictByAdminValidation = {
+  body: Joi.object({
+    name: Joi.string().trim().min(2).max(50).required().messages({
+      "any.required": "District name is required",
+      "string.empty": "District name is required",
+      "string.min": "Name must be at least 2 characters",
+      "string.max": "Name cannot exceed 50 characters",
+    }),
+    img: Joi.string().uri().allow("").optional().messages({
+      "string.uri": "District image must be a valid URL",
+    }),
+    about: Joi.string().trim().max(500).allow("").optional().messages({
+      "string.max": "About cannot exceed 500 characters",
+    }),
+    officeAddress: Joi.string().allow(""),
+  }),
+};
+
+export const updateDistrictByAdminValidation = {
+  body: Joi.object({
+    name: Joi.string().trim().min(2).max(50).optional(),
+    img: Joi.string().uri().allow("").optional().messages({
+      "string.uri": "District image must be a valid URL",
+    }),
+    about: Joi.string().trim().max(500).allow("").optional().messages({
+      "string.max": "About cannot exceed 500 characters",
+    }),
+    officeAddress: Joi.string().allow(""),
+  }).min(1),
+  params: Joi.object({
+    id: Joi.string().trim().required().messages({
+      "any.required": "District id is required",
+      "string.empty": "District id is required",
+    }),
+  }),
+};
+
+export const districtByAdminIdValidation = {
+  params: Joi.object({
+    id: Joi.string().trim().required().messages({
+      "any.required": "District id is required",
+      "string.empty": "District id is required",
+    }),
+  }),
+};
+
+export const createDistrictMemberByAdminValidation = {
+  params: Joi.object({
+    id: Joi.string().trim().required().messages({
+      "any.required": "District id is required",
+      "string.empty": "District id is required",
+    }),
+  }),
+  body: Joi.object({
+    fullName: Joi.string().trim().min(3).max(50).required().messages({
+      "any.required": "Full name is required",
+      "string.empty": "Full name is required",
+    }),
+    phone: Joi.string().trim().pattern(/^[6-9]\d{9}$/).required().messages({
+      "any.required": "Phone is required",
+      "string.pattern.base": "Invalid Indian phone number",
+    }),
+    email: Joi.string().trim().email().lowercase().allow("").optional(),
+    gender: Joi.string().trim().lowercase().allow("").optional(),
+    address: Joi.string().trim().max(200).allow("").optional(),
+    countryCode: Joi.string().trim().allow("").optional(),
+    profile: Joi.string().uri().allow("").optional().messages({
+      "string.uri": "Profile must be a valid URL",
+    }),
+  }),
+};
+
+export const createClubByAdminValidation = {
+  body: Joi.object({
+    name: Joi.string().trim().min(2).max(100).required().messages({
+      "any.required": "Club name is required",
+      "string.empty": "Club name is required",
+    }),
+    district: Joi.string().trim().required().messages({
+      "any.required": "District id is required",
+      "string.empty": "District id is required",
+    }),
+    img: Joi.string().uri().allow("").optional().messages({
+      "string.uri": "Club image must be a valid URL",
+    }),
+    officeAddress: Joi.string().trim().max(200).allow("").optional(),
+    about: Joi.string().trim().max(500).allow("").optional(),
+  }),
+};
+
+export const updateClubByAdminValidation = {
+  params: Joi.object({
+    id: Joi.string().trim().required().messages({
+      "any.required": "Club id is required",
+      "string.empty": "Club id is required",
+    }),
+  }),
+  body: Joi.object({
+    name: Joi.string().trim().min(2).max(100).optional(),
+    district: Joi.string().trim().optional(),
+    img: Joi.string().uri().allow("").optional().messages({
+      "string.uri": "Club image must be a valid URL",
+    }),
+    officeAddress: Joi.string().trim().max(200).allow("").optional(),
+    about: Joi.string().trim().max(500).allow("").optional(),
+  }).min(1),
+};
+
+export const ClubByAdminIdValidation = {
+  params: Joi.object({
+    id: Joi.string().trim().required().messages({
+      "any.required": "Club id is required",
+      "string.empty": "Club id is required",
+    }),
+  }),
+};
+
+export const createClubMemberByAdminValidation = {
+  params: Joi.object({
+    id: Joi.string().trim().required().messages({
+      "any.required": "Club id is required",
+      "string.empty": "Club id is required",
+    }),
+  }),
+  body: Joi.object({
+    fullName: Joi.string().trim().min(3).max(50).required().messages({
+      "any.required": "Full name is required",
+      "string.empty": "Full name is required",
+    }),
+    phone: Joi.string().trim().pattern(/^[6-9]\d{9}$/).required().messages({
+      "any.required": "Phone is required",
+      "string.pattern.base": "Invalid Indian phone number",
+    }),
+    email: Joi.string().trim().email().lowercase().allow("").optional(),
+    gender: Joi.string().trim().lowercase().allow("").optional(),
+    address: Joi.string().trim().max(200).allow("").optional(),
+    countryCode: Joi.string().trim().allow("").optional(),
+    profile: Joi.string().uri().allow("").optional().messages({
+      "string.uri": "Profile must be a valid URL",
+    }),
+  }),
+};
+
+export const updateClubMemberByAdminValidation = {
+  params: Joi.object({
+    id: Joi.string().trim().required().messages({
+      "any.required": "Club member id is required",
+      "string.empty": "Club member id is required",
+    }),
+  }),
+  body: Joi.object({
+    fullName: Joi.string().trim().min(3).max(50).optional(),
+    phone: Joi.string().trim().pattern(/^[6-9]\d{9}$/).optional(),
+    email: Joi.string().trim().email().lowercase().allow("").optional(),
+    gender: Joi.string().trim().lowercase().allow("").optional(),
+    address: Joi.string().trim().max(200).allow("").optional(),
+    countryCode: Joi.string().trim().allow("").optional(),
+    profile: Joi.string().uri().allow("").optional().messages({
+      "string.uri": "Profile must be a valid URL",
+    }),
+  }).min(1),
+};
+
+export const clubMemberByAdminIdValidation = {
+  params: Joi.object({
+    id: Joi.string().trim().required().messages({
+      "any.required": "Club member id is required",
+      "string.empty": "Club member id is required",
+    }),
+  }),
+};

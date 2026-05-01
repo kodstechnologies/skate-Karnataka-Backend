@@ -2,7 +2,11 @@ import { Event } from "./event.model.js";
 import { paginate } from "../../util/common/paginate.js";
 import { BaseAuth } from "../auth/baseAuth.model.js";
 import { Skater } from "../skater/skater.model.js";
+import { Club } from "../club/club.model.js";
+import { District } from "../district/district.model.js";
+import { State } from "../state/state.model.js";
 import mongoose from "mongoose";
+import { sendNotification } from "../../util/firebase/sendNotification.js";
 
 const displayAllEventRepository = async ({ page, limit }) => {
 
@@ -63,13 +67,61 @@ console.log("pppppppppppp")
 };
 
 export const createClubEventRepositories = async (clubId, data) => {
+  let resolvedClubId = clubId;
+
+  const clubByMember = await Club.findOne({
+    members: new mongoose.Types.ObjectId(clubId),
+  })
+    .select("_id")
+    .lean();
+
+  if (clubByMember?._id) {
+    resolvedClubId = clubByMember._id;
+  }
+
   const payload = {
     ...data,
     eventType: "Club",
-    eventFor: new mongoose.Types.ObjectId(clubId),
+    eventFor: new mongoose.Types.ObjectId(resolvedClubId),
   };
+console.log(payload,"===========")
+  const event = await Event.create(payload);
+  console.log(resolvedClubId,"resolvedClubIdresolvedClubIdresolvedClubId")
+  const club = await Club.findById(resolvedClubId)
+    .select("name members")
+    .lean();
 
-  return Event.create(payload);
+  if (!club) return event;
+
+  const skaters = await Skater.find({ club: resolvedClubId })
+    .select("_id")
+    .lean();
+
+  const targetUserIds = [
+    ...(club.members || []).map((id) => id.toString()),
+    ...skaters.map((skater) => skater._id.toString()),
+  ];
+
+  const uniqueUserIds = [...new Set(targetUserIds)];
+
+  await Promise.all(
+    uniqueUserIds.map((receiverId) =>
+      sendNotification({
+        receiverId,
+        title: "New Club Event",
+        body: `${club.name} created a new event: ${event.header}`,
+        notificationType: "event",
+        sentBy: resolvedClubId,
+        data: {
+          eventId: event._id,
+          clubId: resolvedClubId,
+          eventType: "Club",
+        },
+      })
+    )
+  );
+
+  return event;
 };
 
 export const districtRelatedEventDisplayRepositories = async (districtUserId, { page, limit }) => {
@@ -110,7 +162,52 @@ export const createDistrictEventRepositories = async (districtUserId, data) => {
     eventFor: new mongoose.Types.ObjectId(districtId),
   };
 
-  return Event.create(payload);
+  const event = await Event.create(payload);
+
+  const district = await District.findById(districtId)
+    .select("name members")
+    .lean();
+
+  if (!district) return event;
+
+  const clubs = await Club.find({ district: districtId })
+    .select("_id members")
+    .lean();
+
+  const clubIds = clubs.map((club) => club._id);
+
+  const skaters = clubIds.length
+    ? await Skater.find({ club: { $in: clubIds } })
+      .select("_id")
+      .lean()
+    : [];
+
+  const targetUserIds = [
+    ...(district.members || []).map((id) => id.toString()),
+    ...clubs.flatMap((club) => (club.members || []).map((id) => id.toString())),
+    ...skaters.map((skater) => skater._id.toString()),
+  ];
+
+  const uniqueUserIds = [...new Set(targetUserIds)];
+
+  await Promise.all(
+    uniqueUserIds.map((receiverId) =>
+      sendNotification({
+        receiverId,
+        title: "New District Event",
+        body: `${district.name} created a new event: ${event.header}`,
+        notificationType: "event",
+        sentBy: districtId,
+        data: {
+          eventId: event._id,
+          districtId,
+          eventType: "District",
+        },
+      })
+    )
+  );
+
+  return event;
 };
 
 export const stateRelatedEventDisplayRepositories = async (stateId, { page, limit }) => {
@@ -145,7 +242,46 @@ export const createStateEventRepositories = async (stateId, data) => {
     eventFor: new mongoose.Types.ObjectId(stateId),
   };
 
-  return Event.create(payload);
+  const event = await Event.create(payload);
+
+  const state = await State.findById(stateId)
+    .select("name")
+    .lean();
+
+  const [stateUsers, districts, clubs, skaters] = await Promise.all([
+    BaseAuth.find({ role: "State" }).select("_id").lean(),
+    District.find().select("members").lean(),
+    Club.find().select("members").lean(),
+    Skater.find().select("_id").lean(),
+  ]);
+
+  const targetUserIds = [
+    ...stateUsers.map((user) => user._id.toString()),
+    ...districts.flatMap((district) => (district.members || []).map((id) => id.toString())),
+    ...clubs.flatMap((club) => (club.members || []).map((id) => id.toString())),
+    ...skaters.map((skater) => skater._id.toString()),
+  ];
+
+  const uniqueUserIds = [...new Set(targetUserIds)];
+
+  await Promise.all(
+    uniqueUserIds.map((receiverId) =>
+      sendNotification({
+        receiverId,
+        title: "New State Event",
+        body: `${state?.name || "State"} created a new event: ${event.header}`,
+        notificationType: "event",
+        sentBy: stateId,
+        data: {
+          eventId: event._id,
+          stateId,
+          eventType: "State",
+        },
+      })
+    )
+  );
+
+  return event;
 };
 
 const displaySingleEventRepository = async (id) => {

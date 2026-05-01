@@ -1,5 +1,5 @@
 import { authenticate } from "../../middleware/auth.middleware.js";
-import { initiateRazorpayPayment, razorpayWebhook, verifyRazorpayPayment, verifyRazorpayPaymentWeb } from "./payment.controller.js";
+import { checkPaymentStatus, initiateRazorpayPayment, razorpayWebhook, verifyRazorpayPayment, verifyRazorpayPaymentWeb } from "./payment.controller.js";
 
 const router = Router();
 

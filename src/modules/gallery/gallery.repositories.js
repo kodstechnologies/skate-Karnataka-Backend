@@ -4,7 +4,12 @@ import { Club } from "../club/club.model.js";
 import { Skater } from "../skater/skater.model.js";
 import { Gallery } from "./gallery.model.js";
 
-export const displayAllMediaBasedOnSkaterRepositories = async (skaterId, page, limit) => {
+const withMediaType = (item) => ({
+  ...item,
+  type: item?.videoUrl ? "video" : "img",
+});
+
+export const displayAllMediaBasedOnSkaterRepositories = async (skaterId, type, page, limit) => {
   const skater = await Skater.findById(skaterId).select("club").lean();
   if (!skater) {
     throw new AppError("Skater not found", 404);
@@ -14,7 +19,7 @@ export const displayAllMediaBasedOnSkaterRepositories = async (skaterId, page, l
     ? await Club.findById(skater.club).select("district").lean()
     : null;
 
-  const filters = [{ ownerType: "state" },{ ownerType: "admin" }];
+  const filters = [{ ownerType: "state" }, { ownerType: "admin" }];
 
   if (skater.club) {
     filters.push({ ownerType: "club", ownerId: skater.club });
@@ -27,6 +32,12 @@ export const displayAllMediaBasedOnSkaterRepositories = async (skaterId, page, l
   const { skip, limit: perPage, page: currentPage } = paginate(page, limit);
   const query = { $or: filters };
 
+  if (type === "video") {
+    query.videoUrl = { $nin: [null, ""] };
+  } else if (type === "img" || type === "image") {
+    query.videoUrl = { $in: [null, ""] };
+  }
+
   const [total, data] = await Promise.all([
     Gallery.countDocuments(query),
     Gallery.find(query)
@@ -37,7 +48,7 @@ export const displayAllMediaBasedOnSkaterRepositories = async (skaterId, page, l
   ]);
 
   return {
-    data,
+    data: data.map(withMediaType),
     pagination: {
       total,
       page: currentPage,
@@ -88,18 +99,19 @@ export const displayAllMediaRepositories = async (type = {}, page, limit) => {
     ...item,
     ownerId: item?.ownerId
       ? {
-          _id: item.ownerId?._id || "",
-          fullName: item.ownerId?.fullName || "",
-          name: item.ownerId?.name || "",
-          role: item.ownerId?.role || "",
-        }
+        _id: item.ownerId?._id || "",
+        fullName: item.ownerId?.fullName || "",
+        name: item.ownerId?.name || "",
+        role: item.ownerId?.role || "",
+      }
       : {
-          _id: "",
-          fullName: "",
-          name: "",
-          role: "",
-        },
+        _id: "",
+        fullName: "",
+        name: "",
+        role: "",
+      },
     ownerName: item?.ownerId?.name || item?.ownerId?.fullName || "",
+    type: item?.videoUrl ? "video" : "img",
   }));
 
   return {
@@ -113,8 +125,15 @@ export const displayAllMediaRepositories = async (type = {}, page, limit) => {
   };
 };
 
-export const basedOnRoleDisplayRepositories = async ({ ownerType, ownerId }, page, limit) => {
+export const basedOnRoleDisplayRepositories = async ({ ownerType, ownerId, type }, page, limit) => {
   const filter = { ownerType, ownerId };
+
+  if (type === "video") {
+    filter.videoUrl = { $ne: null };
+  } else if (type === "img" || type === "image") {
+    filter.videoUrl = null;
+  }
+
   const { skip, limit: perPage, page: currentPage } = paginate(page, limit);
 
   const [total, media] = await Promise.all([
@@ -127,7 +146,7 @@ export const basedOnRoleDisplayRepositories = async ({ ownerType, ownerId }, pag
   ]);
 
   return {
-    data: media,
+    data: media.map(withMediaType),
     pagination: {
       total,
       page: currentPage,
@@ -140,6 +159,8 @@ export const addMediaREpositories = async (data) => {
   return Gallery.create({
     imageUrl: data?.img || data?.imageUrl || null,
     videoUrl: data?.videoUrl || null,
+    title: data?.title || "",
+    about: data?.about || "",
     ownerType: data.ownerType,
     ownerId: data.ownerId,
   });

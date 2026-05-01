@@ -23,17 +23,17 @@ const getOwnerContext = (user) => {
     return { ownerType, ownerId: user?._id };
 };
 
-export const displayAllMediaBasedOnSkaterService = async (skaterId, page, limit) => {
-    return await displayAllMediaBasedOnSkaterRepositories(skaterId, page, limit);
+export const displayAllMediaBasedOnSkaterService = async (skaterId, type, page, limit) => {
+    return await displayAllMediaBasedOnSkaterRepositories(skaterId, type, page, limit);
 }
 
 export const displayAllMediaServices = async (type, page, limit) => {
     return await displayAllMediaRepositories(type, page, limit);
 }
 
-export const basedOnRoleDisplayService = async (user, page, limit) => {
+export const basedOnRoleDisplayService = async (user, type, page, limit) => {
     const { ownerType, ownerId } = getOwnerContext(user);
-    return await basedOnRoleDisplayRepositories({ ownerType, ownerId }, page, limit);
+    return await basedOnRoleDisplayRepositories({ ownerType, ownerId, type }, page, limit);
 }
 
 export const addMediaService = async (data, user) => {

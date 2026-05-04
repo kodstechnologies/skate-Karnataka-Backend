@@ -41,8 +41,8 @@ export const addContactUsService = async (data) => {
     await addContactUsRepositories(data)
 }
 
-export const displayFeedbackService = async ({ page, limit }) => {
-    return displayFeedbackRepositories({ page, limit });
+export const displayFeedbackService = async ({ page, limit, search }) => {
+    return displayFeedbackRepositories({ page, limit, search });
 };
 
 export const addFeedBackService = async (data) => {

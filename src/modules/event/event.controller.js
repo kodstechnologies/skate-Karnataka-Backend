@@ -1,4 +1,5 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
+import { AppError } from "../../util/common/AppError.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
 import { clubRelatedEventDisplayService, createClubEventService, createDistrictEventService, createStateEventService, create_event_schema, delete_event_schema, display_all_event_based_on_user_service, display_latest_event_server, displayEventServer, displaySingleEventDetailsServer, districtRelatedEventDisplayService, edit_event_schema, stateRelatedEventDisplayService } from "./event.service.js";
 
@@ -91,9 +92,14 @@ export const createDistrictEvent = asyncHandler(async (req, res) => {
 // ===================================== state 
 
 export const stateRelatedEventDisplay = asyncHandler(async (req, res) => {
-    const stateId = req.user._id;
-    const { page = 1, limit = 10 } = req.query;
-    const events = await stateRelatedEventDisplayService(stateId, { page, limit });
+    const role = (req.user.role || "").toLowerCase();
+    const { page = 1, limit = 10, stateId: queryStateId } = req.query;
+    const filterStateId =
+        role === "admin" ? queryStateId : req.user._id.toString();
+    const events = await stateRelatedEventDisplayService(filterStateId, {
+        page,
+        limit,
+    });
     return res.status(200).json(
         new ApiResponse(
             200,
@@ -112,8 +118,13 @@ export const stateRelatedEventDisplay = asyncHandler(async (req, res) => {
 });
 
 export const createStateEvent = asyncHandler(async (req, res) => {
-    const stateId = req.user._id;
-    const event = await createStateEventService(stateId, req.body);
+    const role = (req.user.role || "").toLowerCase();
+    console.log(role,"role")
+    const body = req.body || {};
+    console.log(body,"body")
+    const { stateId: bodyStateId, ...payload } = body;
+    const stateId = role === "admin" ? bodyStateId : req.user._id;
+    const event = await createStateEventService(stateId, payload);
 
     return res.status(201).json(
         new ApiResponse(

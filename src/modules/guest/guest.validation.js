@@ -104,6 +104,10 @@ export const displayNewsQueryValidation = {
   query: paginatedSearchQuerySchema,
 };
 
+export const displayFeedbackQueryValidation = {
+  query: paginatedSearchQuerySchema,
+};
+
 export const displayDisciplinesQueryValidation = {
   query: paginatedSearchQuerySchema,
 };

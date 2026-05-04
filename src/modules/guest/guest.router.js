@@ -47,6 +47,7 @@ import {
   newsByIdValidation,
   updateDisciplineValidation,
   updateNewsValidation,
+  displayFeedbackQueryValidation,
   displayNewsQueryValidation,
   displayDisciplinesQueryValidation,
   displayCircularQueryValidation,
@@ -61,7 +62,11 @@ router.post("/v1/contact-us", authenticate(["Skater", "Admin"]), validate(addCon
 
 // FeedBack ===========================
 
-router.get("/v1/feed-back", displayFeedback);
+router.get(
+  "/v1/feed-back",
+  validate(displayFeedbackQueryValidation),
+  displayFeedback
+);
 router.post("/v1/feed-back", validate(addFeedBackValidation), addFeedBack);
 
 // news ======================

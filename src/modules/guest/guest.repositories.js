@@ -41,12 +41,23 @@ export const addContactUsRepositories = async (data) => {
     const contact = await ContactUS.create(data);
 };
 
-export const displayFeedbackRepositories = async ({ page, limit }) => {
+export const displayFeedbackRepositories = async ({ page, limit, search }) => {
     const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+    const term = typeof search === "string" ? search.trim() : "";
+    const filter =
+        term.length > 0
+            ? {
+                $or: [
+                    { fullName: { $regex: escapeRegExp(term), $options: "i" } },
+                    { email: { $regex: escapeRegExp(term), $options: "i" } },
+                    { phone: { $regex: escapeRegExp(term), $options: "i" } },
+                ],
+            }
+            : {};
 
     const [total, data] = await Promise.all([
-        FeedBack.countDocuments(),
-        FeedBack.find()
+        FeedBack.countDocuments(filter),
+        FeedBack.find(filter)
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(pageLimit)

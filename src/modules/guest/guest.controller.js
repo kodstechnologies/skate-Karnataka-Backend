@@ -69,8 +69,8 @@ export const addContactUs = asyncHandler(async (req, res) => {
 })
 
 export const displayFeedback = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 10 } = req.query;
-    const result = await displayFeedbackService({ page, limit });
+    const { page = 1, limit = 10, search } = req.query;
+    const result = await displayFeedbackService({ page, limit, search });
     return res.status(200).json(
         new ApiResponse(200, result, "Feedback fetched successfully")
     );

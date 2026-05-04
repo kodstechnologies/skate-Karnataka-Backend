@@ -1,4 +1,5 @@
 import { AppError } from "../../util/common/AppError.js";
+import { State } from "../state/state.model.js";
 import { displaySingleEventRepository, displayAllEventRepository, create_event_repositories, edit_event_repositories, delete_event_repositories, display_latest_event_repositories, display_all_event_based_on_user_repositories, clubRelatedEventDisplayRepositories, createClubEventRepositories, districtRelatedEventDisplayRepositories, createDistrictEventRepositories, stateRelatedEventDisplayRepositories, createStateEventRepositories } from "./event.repositories.js";
 
 const displayEventServer = async (data) => {
@@ -38,8 +39,23 @@ export const stateRelatedEventDisplayService = async (stateId, query) => {
 }
 
 export const createStateEventService = async (stateId, data) => {
-    return await createStateEventRepositories(stateId, data);
-}
+    let resolvedStateId = stateId;
+
+    if (resolvedStateId) {
+        const state = await State.findById(resolvedStateId).select("_id").lean();
+        if (state) {
+            return await createStateEventRepositories(resolvedStateId, data);
+        }
+    }
+
+    const fallbackState = await State.findOne().sort({ createdAt: 1 }).select("_id").lean();
+    if (!fallbackState) {
+        throw new AppError("No state found to create state event", 404);
+    }
+
+    resolvedStateId = fallbackState._id;
+    return await createStateEventRepositories(resolvedStateId, data);
+};
 
 const displaySingleEventDetailsServer = async (id) => {
     return await displaySingleEventRepository(id);

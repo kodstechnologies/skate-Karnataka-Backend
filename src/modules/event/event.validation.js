@@ -1,5 +1,20 @@
 import Joi from "joi";
 
+const objectIdString = Joi.string()
+    .trim()
+    .pattern(/^[0-9a-fA-F]{24}$/)
+    .messages({
+        "string.pattern.base": "stateId must be a valid 24-character hex id",
+    });
+
+export const stateEventListQueryValidation = {
+    query: Joi.object({
+        page: Joi.number().integer().min(1).default(1),
+        limit: Joi.number().integer().min(1).max(100).default(10),
+        stateId: objectIdString.optional(),
+    }),
+};
+
 const create_event_validation = {
     body: Joi.object({
         header: Joi.string()
@@ -149,6 +164,9 @@ const create_state_event_validation = {
         // club event type and club id are forced from authenticated token in service layer
         eventType: Joi.forbidden(),
         eventFor: Joi.forbidden(),
+
+        /** Required when the authenticated user is Admin; ignored for State users (controller). */
+        stateId: objectIdString.optional(),
 
         entryFee: Joi.string().allow(""),
         colorOne: Joi.string().allow(""),

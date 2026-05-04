@@ -211,10 +211,10 @@ export const createDistrictEventRepositories = async (districtUserId, data) => {
 };
 
 export const stateRelatedEventDisplayRepositories = async (stateId, { page, limit }) => {
-  const query = {
-    eventType: "State",
-    eventFor: new mongoose.Types.ObjectId(stateId),
-  };
+  const query = { eventType: "State" };
+  if (stateId) {
+    query.eventFor = new mongoose.Types.ObjectId(stateId);
+  }
 
   const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
 

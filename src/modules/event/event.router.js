@@ -2,8 +2,16 @@ import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import { clubRelatedEventDisplay, createClubEvent, create_event, delete_event, display_all_event_based_on_user, display_latest_event, displayAllEvents, displayEventById, edit_event, createDistrictEvent, districtRelatedEventDisplay, stateRelatedEventDisplay, createStateEvent } from "./event.controller.js";
 import { validate } from "../../middleware/validate.multiple.js";
-import { create_club_event_validation, create_district_event_validation, create_event_validation, create_state_event_validation, update_event_validation } from "./event.validation.js";
+import {
+    create_club_event_validation,
+    create_district_event_validation,
+    create_event_validation,
+    create_state_event_validation,
+    stateEventListQueryValidation,
+    update_event_validation,
+} from "./event.validation.js";
 import { upload } from "../../middleware/multer.middleware.js";
+import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
 
 const router = express.Router();
 
@@ -29,13 +37,30 @@ router.post(
 // display latest event 
 
 // state ============================
-router.get("/v1/state", authenticate(["State"]), stateRelatedEventDisplay);
+router.get(
+    "/v1/state",
+    authenticate(["State", "Admin"]),
+    validate(stateEventListQueryValidation),
+    stateRelatedEventDisplay
+);
 router.post(
     "/v1/state",
-    authenticate(["State"]),
-    upload.single("image"),
+    authenticate(["State", "Admin"]),
+
     validate(create_state_event_validation),
     createStateEvent
+);
+router.patch(
+    "/v1/state/:id",
+    authenticate(["State", "Admin"]),
+
+    validate(update_event_validation),
+    edit_event
+);
+router.delete(
+    "/v1/state/:id",
+    authenticate(["State", "Admin"]),
+    delete_event
 );
 // =============================
 

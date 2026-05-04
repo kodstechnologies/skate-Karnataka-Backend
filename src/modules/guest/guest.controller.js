@@ -11,8 +11,10 @@ import {
   deleteDisciplineService,
   deleteNewsService,
   displayCircularService,
+  displaySingleCircularService,
   displayContactUsService,
   displayDisciplinesService,
+  displaySingleDisciplineService,
   displayFeedbackService,
   displayNewsService,
   displayStateLatestEventsService,
@@ -129,6 +131,13 @@ export const displayDisciplines = asyncHandler(async(req, res) =>{
     );
 });
 
+export const displaySingleDiscipline = asyncHandler(async (req, res) => {
+    const result = await displaySingleDisciplineService(req.params.id);
+    return res.status(200).json(
+        new ApiResponse(200, result, "Discipline fetched successfully")
+    );
+});
+
 export const addDiscipline = asyncHandler(async(req, res) =>{
     await addDisciplineService(req.body);
     return res.status(201).json(
@@ -153,6 +162,13 @@ export const displayCircular = asyncHandler(async (req, res) => {
     const result = await displayCircularService({ page, limit });
     return res.status(200).json(
         new ApiResponse(200, result, "Circular fetched successfully")
+    );
+});
+
+export const displaySingleCircular = asyncHandler(async (req, res) => {
+    const result = await displaySingleCircularService(req.params.id);
+    return res.status(200).json(
+        new ApiResponse(200, result, "Single circular fetched successfully")
     );
 });
 

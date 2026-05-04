@@ -16,10 +16,12 @@ import {
   displaySingleNews,
   updateNews,
   displayDisciplines,
+  displaySingleDiscipline,
   addDiscipline,
   updateDiscipline,
   deleteDiscipline,
   displayCircular,
+  displaySingleCircular,
   addCircular,
   updateCircular,
   deleteCircular,
@@ -87,6 +89,10 @@ router.get("/v1/events/:id", validate(eventByIdValidation), displayStateLatestSi
 // ====================== Disciplines  
 
 router.get("/v1/discipline", displayDisciplines);
+router.get(
+  "/v1/discipline/:id",
+  displaySingleDiscipline
+);
 router.post(
   "/v1/discipline",
   authenticate(["Skater", "Admin"]),
@@ -113,6 +119,10 @@ router.delete(
 // Circular====================
 
 router.get("/v1/circular", displayCircular);
+router.get(
+  "/v1/circular/:id",
+  displaySingleCircular
+);
 router.post(
   "/v1/circular",
   authenticate(["Skater", "Admin"]),

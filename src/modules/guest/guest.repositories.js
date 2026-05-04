@@ -162,6 +162,10 @@ export const displayDisciplinesRepositories = async ({ page, limit }) => {
     };
 };
 
+export const displaySingleDisciplineRepositories = async (id) => {
+    return Discipline.findById(id).lean();
+};
+
 export const addDisciplineRepositories = async (data) => {
     return Discipline.create(data);
 };
@@ -199,6 +203,10 @@ export const displayCircularRepositories = async ({ page, limit }) => {
             totalPages: Math.ceil(total / pageLimit),
         },
     };
+};
+
+export const displaySingleCircularRepositories = async (id) => {
+    return Circular.findById(id).lean();
 };
 
 export const addCircularRepositories = async (data) => {

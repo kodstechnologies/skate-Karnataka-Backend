@@ -9,8 +9,10 @@ import {
   deleteDisciplineRepositories,
   afterLoginGuestFormRepositories,
   displayCircularRepositories,
+  displaySingleCircularRepositories,
   displayContactUsRepositories,
   displayDisciplinesRepositories,
+  displaySingleDisciplineRepositories,
   displayFeedbackRepositories,
   displayNewsRepositories,
   displayStateLatestEventsRepositories,
@@ -90,6 +92,14 @@ export const displayDisciplinesService = async ({ page, limit }) => {
     return displayDisciplinesRepositories({ page, limit });
 };
 
+export const displaySingleDisciplineService = async (id) => {
+    const discipline = await displaySingleDisciplineRepositories(id);
+    if (!discipline) {
+        throw new AppError("Discipline not found", 404);
+    }
+    return discipline;
+};
+
 export const addDisciplineService = async (data) => {
     await addDisciplineRepositories(data);
 };
@@ -112,6 +122,14 @@ export const deleteDisciplineService = async (id) => {
 
 export const displayCircularService = async ({ page, limit }) => {
     return displayCircularRepositories({ page, limit });
+};
+
+export const displaySingleCircularService = async (id) => {
+    const circular = await displaySingleCircularRepositories(id);
+    if (!circular) {
+        throw new AppError("Circular not found", 404);
+    }
+    return circular;
 };
 
 export const addCircularService = async (data) => {

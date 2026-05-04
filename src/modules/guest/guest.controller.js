@@ -14,11 +14,13 @@ import {
   addAboutService,
   addCircularService,
   addDisciplineService,
+  addSponsorshipDonationService,
   afterLoginFormGuestService,
   deleteAboutService,
   deleteCircularService,
   deleteDisciplineService,
   deleteNewsService,
+  deleteSponsorshipDonationService,
   displayAboutGuestService,
   displayCircularService,
   displayLatestAboutService,
@@ -28,13 +30,16 @@ import {
   displaySingleDisciplineService,
   displayFeedbackService,
   displayNewsService,
+  displaySponsorshipDonationsService,
   displayStateLatestEventsService,
   displayStateLatestSingleEventsService,
   displaySingleNewsService,
+  displaySingleSponsorshipDonationService,
   updateAboutService,
   updateCircularService,
   updateDisciplineService,
   updateNewsService,
+  updateSponsorshipDonationService,
 } from "./guest.services.js";
 
 export const afterLoginGuestForm = asyncHandler(async (req, res) => {
@@ -237,5 +242,49 @@ export const deleteAbout = asyncHandler(async (req, res) => {
     const result = await deleteAboutService();
     return res.status(200).json(
         new ApiResponse(200, result, "All about records deleted successfully")
+    );
+});
+
+export const displaySponsorshipDonations = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 10, search, supportType } = req.query;
+    const result = await displaySponsorshipDonationsService({ page, limit, search, supportType });
+    return res.status(200).json(
+        new ApiResponse(200, result, "Sponsorship/Donation records fetched successfully")
+    );
+});
+
+export const addSponsorshipDonation = asyncHandler(async (req, res) => {
+    const payload = { ...req.body };
+    if (Array.isArray(payload.img)) {
+        payload.img = payload.img[0] || "";
+    }
+    const created = await addSponsorshipDonationService(payload);
+    return res.status(201).json(
+        new ApiResponse(201, created, "Sponsorship/Donation record added successfully")
+    );
+});
+
+export const displaySingleSponsorshipDonation = asyncHandler(async (req, res) => {
+    const result = await displaySingleSponsorshipDonationService(req.params.id);
+    return res.status(200).json(
+        new ApiResponse(200, result, "Sponsorship/Donation record fetched successfully")
+    );
+});
+
+export const updateSponsorshipDonation = asyncHandler(async (req, res) => {
+    const payload = { ...req.body };
+    if (Array.isArray(payload.img)) {
+        payload.img = payload.img[0] || "";
+    }
+    const result = await updateSponsorshipDonationService(req.params.id, payload);
+    return res.status(200).json(
+        new ApiResponse(200, result, "Sponsorship/Donation record updated successfully")
+    );
+});
+
+export const deleteSponsorshipDonation = asyncHandler(async (req, res) => {
+    const result = await deleteSponsorshipDonationService(req.params.id);
+    return res.status(200).json(
+        new ApiResponse(200, result, "Sponsorship/Donation record deleted successfully")
     );
 });

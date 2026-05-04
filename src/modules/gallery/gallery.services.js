@@ -66,6 +66,12 @@ export const updateMediaService = async (id, data, user) => {
     if (typeof data?.videoUrl !== "undefined") {
         payload.videoUrl = normalizeSingleUrl(data.videoUrl);
     }
+    if (typeof data?.title !== "undefined") {
+        payload.title = data.title || "";
+    }
+    if (typeof data?.about !== "undefined") {
+        payload.about = data.about || "";
+    }
 
     if (!Object.keys(payload).length) {
         throw new AppError("No fields provided to update", 400);

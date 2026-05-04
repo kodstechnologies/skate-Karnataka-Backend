@@ -30,6 +30,11 @@ import {
   addAbout,
   editAbout,
   deleteAbout,
+  addSponsorshipDonation,
+  deleteSponsorshipDonation,
+  displaySingleSponsorshipDonation,
+  displaySponsorshipDonations,
+  updateSponsorshipDonation,
 } from "./guest.controller.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import {
@@ -213,6 +218,33 @@ router.delete(
   "/v1/guest-about",
   authenticate(["Skater", "Admin"]),
   deleteAbout
+);
+
+// ================= SponsorshipAndDonation ==============
+
+router.get("/v1/sponsorship-donation", displaySponsorshipDonations);
+router.post(
+  "/v1/sponsorship-donation",
+  authenticate(["Skater", "Admin"]),
+  upload.single("img"),
+  uploadToS3("about", { img: "img" }),
+  addSponsorshipDonation
+);
+router.get(
+  "/v1/sponsorship-donation/:id",
+  displaySingleSponsorshipDonation
+);
+router.patch(
+  "/v1/sponsorship-donation/:id",
+  authenticate(["Skater", "Admin"]),
+  upload.single("img"),
+  uploadToS3("about", { img: "img" }),
+  updateSponsorshipDonation
+);
+router.delete(
+  "/v1/sponsorship-donation/:id",
+  authenticate(["Skater", "Admin"]),
+  deleteSponsorshipDonation
 );
 
 export default router;

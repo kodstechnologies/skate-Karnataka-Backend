@@ -5,10 +5,12 @@ import {
   addAboutRepositories,
   addCircularRepositories,
   addDisciplineRepositories,
+  addSponsorshipDonationRepositories,
   deleteAllAboutRepositories,
   deleteCircularRepositories,
   deleteNewsRepositories,
   deleteDisciplineRepositories,
+  deleteSponsorshipDonationRepositories,
   afterLoginGuestFormRepositories,
   displayAboutGuestRepositories,
   displayCircularRepositories,
@@ -19,13 +21,16 @@ import {
   displaySingleDisciplineRepositories,
   displayFeedbackRepositories,
   displayNewsRepositories,
+  displaySponsorshipDonationsRepositories,
   displayStateLatestEventsRepositories,
   displayStateLatestSingleEventsRepositories,
   displaySingleNewsRepositories,
+  displaySingleSponsorshipDonationRepositories,
   updateLatestAboutRepositories,
   updateCircularRepositories,
   updateDisciplineRepositories,
   updateNewsRepositories,
+  updateSponsorshipDonationRepositories,
 } from "./guest.repositories.js";
 import { AppError } from "../../util/common/AppError.js";
 export const afterLoginFormGuestService = async (data, id) => {
@@ -180,4 +185,36 @@ export const updateAboutService = async (data) => {
 
 export const deleteAboutService = async () => {
     return deleteAllAboutRepositories();
+};
+
+export const displaySponsorshipDonationsService = async ({ page, limit, search, supportType }) => {
+    return displaySponsorshipDonationsRepositories({ page, limit, search, supportType });
+};
+
+export const addSponsorshipDonationService = async (data) => {
+    return addSponsorshipDonationRepositories(data);
+};
+
+export const displaySingleSponsorshipDonationService = async (id) => {
+    const item = await displaySingleSponsorshipDonationRepositories(id);
+    if (!item) {
+        throw new AppError("Sponsorship/Donation record not found", 404);
+    }
+    return item;
+};
+
+export const updateSponsorshipDonationService = async (id, data) => {
+    const updated = await updateSponsorshipDonationRepositories(id, data);
+    if (!updated) {
+        throw new AppError("Sponsorship/Donation record not found", 404);
+    }
+    return updated;
+};
+
+export const deleteSponsorshipDonationService = async (id) => {
+    const deleted = await deleteSponsorshipDonationRepositories(id);
+    if (!deleted) {
+        throw new AppError("Sponsorship/Donation record not found", 404);
+    }
+    return { deleted: true };
 };

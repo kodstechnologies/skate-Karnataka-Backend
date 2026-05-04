@@ -7,6 +7,7 @@ import { Event } from "../event/event.model.js";
 import { Discipline } from "./disciplines.model.js";
 import { Circular } from "./circular.model.js";
 import { KRSAabout } from "./KRSAabout.model.js";
+import { SponsorshipAndDonation } from "./sponsorshipAndDonation.model.js";
 
 export const afterLoginGuestFormRepositories = async (data, id) => {
     const updated = await Guest.findOneAndUpdate(
@@ -293,4 +294,62 @@ export const updateLatestAboutRepositories = async (data) => {
 export const deleteAllAboutRepositories = async () => {
     const result = await KRSAabout.deleteMany({});
     return { deletedCount: result.deletedCount };
+};
+
+export const displaySponsorshipDonationsRepositories = async ({ page, limit, search, supportType }) => {
+    const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+    const term = typeof search === "string" ? search.trim() : "";
+
+    const filter = {};
+    if (term.length > 0) {
+        filter.$or = [
+            { brandName: { $regex: escapeRegExp(term), $options: "i" } },
+            { title: { $regex: escapeRegExp(term), $options: "i" } },
+            { donorName: { $regex: escapeRegExp(term), $options: "i" } },
+        ];
+    }
+
+    const normalizedType = typeof supportType === "string" ? supportType.trim().toLowerCase() : "";
+    if (normalizedType === "sponsorship" || normalizedType === "donation") {
+        filter.supportType = normalizedType;
+    }
+
+    const [total, data] = await Promise.all([
+        SponsorshipAndDonation.countDocuments(filter),
+        SponsorshipAndDonation.find(filter)
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(pageLimit)
+            .lean(),
+    ]);
+
+    return {
+        data,
+        pagination: {
+            total,
+            page: currentPage,
+            limit: pageLimit,
+            totalPages: Math.ceil(total / pageLimit),
+        },
+    };
+};
+
+export const addSponsorshipDonationRepositories = async (data) => {
+    return SponsorshipAndDonation.create(data);
+};
+
+export const displaySingleSponsorshipDonationRepositories = async (id) => {
+    return SponsorshipAndDonation.findById(id).lean();
+};
+
+export const updateSponsorshipDonationRepositories = async (id, data) => {
+    return SponsorshipAndDonation.findByIdAndUpdate(
+        id,
+        { $set: data },
+        { new: true, runValidators: true }
+    ).lean();
+};
+
+export const deleteSponsorshipDonationRepositories = async (id) => {
+    return SponsorshipAndDonation.findByIdAndDelete(id).lean();
 };

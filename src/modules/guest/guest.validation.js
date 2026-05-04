@@ -94,6 +94,14 @@ export const newsByIdValidation = {
   }),
 };
 
+export const displayNewsQueryValidation = {
+  query: Joi.object({
+    page: Joi.number().integer().min(1).default(1),
+    limit: Joi.number().integer().min(1).max(100).default(10),
+    search: Joi.string().trim().max(200).allow("").optional(),
+  }),
+};
+
 export const eventByIdValidation = {
   params: Joi.object({
     id: Joi.string().trim().required().messages({
@@ -187,4 +195,54 @@ export const circularByIdValidation = {
       "string.empty": "Circular id is required",
     }),
   }),
+};
+
+const aboutImgSchema = Joi.alternatives()
+  .try(
+    Joi.string().uri().allow("").messages({
+      "string.uri": "Each image must be a valid URL",
+    }),
+    Joi.array().items(
+      Joi.string().uri().allow("").messages({
+        "string.uri": "Each image must be a valid URL",
+      })
+    )
+  )
+  .optional();
+
+const aboutBodyFields = {
+  logo: Joi.string().uri().allow("").optional().messages({
+    "string.uri": "Logo must be a valid URL",
+  }),
+  img: aboutImgSchema,
+  heading: Joi.string().trim().min(1).max(500).optional(),
+  about: Joi.string().trim().min(1).max(10000).optional(),
+  ourMission: Joi.string().trim().min(1).max(10000).optional(),
+  student: Joi.number().integer().min(0).optional(),
+  titles: Joi.string().trim().max(500).allow("").optional(),
+  address: Joi.string().trim().max(500).allow("").optional(),
+  email: Joi.string().trim().email().allow("").optional(),
+  phoneNo: Joi.string().trim().max(20).allow("").optional(),
+};
+
+export const addAboutValidation = {
+  body: Joi.object({
+    ...aboutBodyFields,
+    heading: Joi.string().trim().min(1).max(500).required().messages({
+      "string.empty": "Heading is required",
+      "any.required": "Heading is required",
+    }),
+    about: Joi.string().trim().min(1).max(10000).required().messages({
+      "string.empty": "About is required",
+      "any.required": "About is required",
+    }),
+    ourMission: Joi.string().trim().min(1).max(10000).required().messages({
+      "string.empty": "Our mission is required",
+      "any.required": "Our mission is required",
+    }),
+  }),
+};
+
+export const updateAboutValidation = {
+  body: Joi.object(aboutBodyFields).min(1),
 };

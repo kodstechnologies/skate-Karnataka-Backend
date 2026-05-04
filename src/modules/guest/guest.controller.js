@@ -1,16 +1,27 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
+
+const normalizeAboutPayload = (body) => {
+  if (body.img != null && typeof body.img === "string") {
+    body.img = [body.img];
+  }
+  return body;
+};
 import {
   addContactUsService,
   addFeedBackService,
   addNewsService,
+  addAboutService,
   addCircularService,
   addDisciplineService,
   afterLoginFormGuestService,
+  deleteAboutService,
   deleteCircularService,
   deleteDisciplineService,
   deleteNewsService,
+  displayAboutGuestService,
   displayCircularService,
+  displayLatestAboutService,
   displaySingleCircularService,
   displayContactUsService,
   displayDisciplinesService,
@@ -20,6 +31,7 @@ import {
   displayStateLatestEventsService,
   displayStateLatestSingleEventsService,
   displaySingleNewsService,
+  updateAboutService,
   updateCircularService,
   updateDisciplineService,
   updateNewsService,
@@ -72,8 +84,8 @@ export const addFeedBack = asyncHandler(async (req, res) => {
 });
 
 export const displayNews = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 10 } = req.query;
-    const result = await displayNewsService({ page, limit });
+    const { page = 1, limit = 10, search } = req.query;
+    const result = await displayNewsService({ page, limit, search });
     return res.status(200).json(
         new ApiResponse(200, result, "News fetched successfully")
     );
@@ -190,5 +202,40 @@ export const deleteCircular = asyncHandler(async (req, res) => {
     const result = await deleteCircularService(req.params.id);
     return res.status(200).json(
         new ApiResponse(200, result, "Circular deleted successfully")
+    );
+});
+
+export const displayLatestAbout = asyncHandler(async (req, res) => {
+    const result = await displayLatestAboutService();
+    return res.status(200).json(
+        new ApiResponse(200, result, "Latest about fetched successfully")
+    );
+});
+
+export const displayAboutGuest = asyncHandler(async (req, res) => {
+    const result = await displayAboutGuestService();
+    return res.status(200).json(
+        new ApiResponse(200, result, "About preview fetched successfully")
+    );
+});
+
+export const addAbout = asyncHandler(async (req, res) => {
+    await addAboutService(normalizeAboutPayload(req.body));
+    return res.status(201).json(
+        new ApiResponse(201, null, "About added successfully")
+    );
+});
+
+export const editAbout = asyncHandler(async (req, res) => {
+    const result = await updateAboutService(normalizeAboutPayload(req.body));
+    return res.status(200).json(
+        new ApiResponse(200, result, "About updated successfully")
+    );
+});
+
+export const deleteAbout = asyncHandler(async (req, res) => {
+    const result = await deleteAboutService();
+    return res.status(200).json(
+        new ApiResponse(200, result, "All about records deleted successfully")
     );
 });

@@ -2,13 +2,17 @@ import {
   addContactUsRepositories,
   addFeedBackRepositories,
   addNewsRepositories,
+  addAboutRepositories,
   addCircularRepositories,
   addDisciplineRepositories,
+  deleteAllAboutRepositories,
   deleteCircularRepositories,
   deleteNewsRepositories,
   deleteDisciplineRepositories,
   afterLoginGuestFormRepositories,
+  displayAboutGuestRepositories,
   displayCircularRepositories,
+  displayLatestAboutRepositories,
   displaySingleCircularRepositories,
   displayContactUsRepositories,
   displayDisciplinesRepositories,
@@ -18,6 +22,7 @@ import {
   displayStateLatestEventsRepositories,
   displayStateLatestSingleEventsRepositories,
   displaySingleNewsRepositories,
+  updateLatestAboutRepositories,
   updateCircularRepositories,
   updateDisciplineRepositories,
   updateNewsRepositories,
@@ -44,8 +49,8 @@ export const addFeedBackService = async (data) => {
     await addFeedBackRepositories(data);
 };
 
-export const displayNewsService = async ({ page, limit }) => {
-    return displayNewsRepositories({ page, limit });
+export const displayNewsService = async ({ page, limit, search }) => {
+    return displayNewsRepositories({ page, limit, search });
 };
 
 export const addNewsService = async (data) => {
@@ -150,4 +155,29 @@ export const deleteCircularService = async (id) => {
         throw new AppError("Circular not found", 404);
     }
     return { deleted: true };
+};
+
+export const displayLatestAboutService = async () => {
+    return displayLatestAboutRepositories();
+};
+
+export const displayAboutGuestService = async () => {
+    return displayAboutGuestRepositories();
+};
+
+export const addAboutService = async (data) => {
+    await deleteAllAboutRepositories();
+    await addAboutRepositories(data);
+};
+
+export const updateAboutService = async (data) => {
+    const updated = await updateLatestAboutRepositories(data);
+    if (!updated) {
+        throw new AppError("About not found", 404);
+    }
+    return updated;
+};
+
+export const deleteAboutService = async () => {
+    return deleteAllAboutRepositories();
 };

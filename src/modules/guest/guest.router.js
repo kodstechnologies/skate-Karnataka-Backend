@@ -25,6 +25,11 @@ import {
   addCircular,
   updateCircular,
   deleteCircular,
+  displayLatestAbout,
+  displayAboutGuest,
+  addAbout,
+  editAbout,
+  deleteAbout,
 } from "./guest.controller.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import {
@@ -36,10 +41,13 @@ import {
   addCircularValidation,
   updateCircularValidation,
   circularByIdValidation,
+  addAboutValidation,
+  updateAboutValidation,
   eventByIdValidation,
   newsByIdValidation,
   updateDisciplineValidation,
   updateNewsValidation,
+  displayNewsQueryValidation,
 } from "./guest.validation.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
 
@@ -56,7 +64,11 @@ router.post("/v1/feed-back", validate(addFeedBackValidation), addFeedBack);
 
 // news ======================
 
-router.get("/v1/news", displayNews);
+router.get(
+  "/v1/news",
+  validate(displayNewsQueryValidation),
+  displayNews
+);
 router.post(
   "/v1/news",
   authenticate(["Skater", "Admin"]),
@@ -157,5 +169,35 @@ router.post(
   afterLoginGuestForm
 );
 
+// =========== about ===============
+router.get("/v1/display-latest-about", displayLatestAbout);
+router.get("/v1/display-about-guest", displayAboutGuest);
+router.post(
+  "/v1/add-about",
+  authenticate(["Skater", "Admin"]),
+  upload.fields([
+    { name: "logo", maxCount: 1 },
+    { name: "img", maxCount: 20 },
+  ]),
+  uploadToS3("about", { logo: "logo", img: "img" }),
+  validate(addAboutValidation),
+  addAbout
+);
+router.patch(
+  "/v1/edit-about",
+  authenticate(["Skater", "Admin"]),
+  upload.fields([
+    { name: "logo", maxCount: 1 },
+    { name: "img", maxCount: 20 },
+  ]),
+  uploadToS3("about", { logo: "logo", img: "img" }),
+  validate(updateAboutValidation),
+  editAbout
+);
+router.delete(
+  "/v1/delete-about",
+  authenticate(["Skater", "Admin"]),
+  deleteAbout
+);
 
 export default router;

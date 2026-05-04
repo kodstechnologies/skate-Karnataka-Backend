@@ -6,6 +6,7 @@ import { News } from "./news.model.js";
 import { Event } from "../event/event.model.js";
 import { Discipline } from "./disciplines.model.js";
 import { Circular } from "./circular.model.js";
+import { KRSAabout } from "./KRSAabout.model.js";
 
 export const afterLoginGuestFormRepositories = async (data, id) => {
     const updated = await Guest.findOneAndUpdate(
@@ -67,12 +68,20 @@ export const addFeedBackRepositories = async (data) => {
     return FeedBack.create(data);
 };
 
-export const displayNewsRepositories = async ({ page, limit }) => {
+const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+export const displayNewsRepositories = async ({ page, limit, search }) => {
     const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
 
+    const term = typeof search === "string" ? search.trim() : "";
+    const filter =
+        term.length > 0
+            ? { heading: { $regex: escapeRegExp(term), $options: "i" } }
+            : {};
+
     const [total, data] = await Promise.all([
-        News.countDocuments(),
-        News.find()
+        News.countDocuments(filter),
+        News.find(filter)
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(pageLimit)
@@ -223,4 +232,42 @@ export const updateCircularRepositories = async (id, data) => {
 
 export const deleteCircularRepositories = async (id) => {
     return Circular.findByIdAndDelete(id).lean();
+};
+
+export const displayLatestAboutRepositories = async () => {
+    return KRSAabout.findOne().sort({ createdAt: -1 }).lean();
+};
+
+export const displayAboutGuestRepositories = async () => {
+    const doc = await KRSAabout.findOne()
+        .sort({ createdAt: -1 })
+        .select("about img")
+        .lean();
+
+    if (!doc) {
+        return { about: null, img: null };
+    }
+
+    const imgs = Array.isArray(doc.img) ? doc.img : [];
+    return {
+        about: doc.about,
+        img: imgs.length > 0 ? imgs[imgs.length - 1] : null,
+    };
+};
+
+export const addAboutRepositories = async (data) => {
+    return KRSAabout.create(data);
+};
+
+export const updateLatestAboutRepositories = async (data) => {
+    return KRSAabout.findOneAndUpdate(
+        {},
+        { $set: data },
+        { sort: { createdAt: -1 }, new: true, runValidators: true }
+    ).lean();
+};
+
+export const deleteAllAboutRepositories = async () => {
+    const result = await KRSAabout.deleteMany({});
+    return { deletedCount: result.deletedCount };
 };

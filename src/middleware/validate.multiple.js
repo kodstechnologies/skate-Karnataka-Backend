@@ -1,5 +1,19 @@
 import { AppError } from "../util/common/AppError.js";
 
+/** Express 5 makes req.query / req.params getters-only; assignment throws TypeError. */
+const assignValidatedSlice = (req, property, value) => {
+    if (property === "query" || property === "params") {
+        Object.defineProperty(req, property, {
+            value,
+            writable: true,
+            enumerable: true,
+            configurable: true,
+        });
+        return;
+    }
+    req[property] = value;
+};
+
 export const validate = (schemas) => {
     return (req, res, next) => {
         try {
@@ -35,7 +49,7 @@ export const validate = (schemas) => {
                         return next(new AppError(errorMessage, 400));
                     }
 
-                    req[property] = value;
+                    assignValidatedSlice(req, property, value);
                 }
             }
 

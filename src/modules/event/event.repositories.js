@@ -210,10 +210,18 @@ export const createDistrictEventRepositories = async (districtUserId, data) => {
   return event;
 };
 
-export const stateRelatedEventDisplayRepositories = async (stateId, { page, limit }) => {
+export const stateRelatedEventDisplayRepositories = async (stateId, { page, limit, search }) => {
   const query = { eventType: "State" };
   if (stateId) {
     query.eventFor = new mongoose.Types.ObjectId(stateId);
+  }
+  if (search?.trim()) {
+    const searchRegex = new RegExp(search.trim(), "i");
+    query.$or = [
+      { header: searchRegex },
+      { about: searchRegex },
+      { address: searchRegex },
+    ];
   }
 
   const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);

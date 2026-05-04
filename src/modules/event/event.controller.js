@@ -93,12 +93,13 @@ export const createDistrictEvent = asyncHandler(async (req, res) => {
 
 export const stateRelatedEventDisplay = asyncHandler(async (req, res) => {
     const role = (req.user.role || "").toLowerCase();
-    const { page = 1, limit = 10, stateId: queryStateId } = req.query;
+    const { page = 1, limit = 10, search = "", stateId: queryStateId } = req.query;
     const filterStateId =
         role === "admin" ? queryStateId : req.user._id.toString();
     const events = await stateRelatedEventDisplayService(filterStateId, {
         page,
         limit,
+        search,
     });
     return res.status(200).json(
         new ApiResponse(
@@ -180,13 +181,15 @@ const edit_event = asyncHandler(async (req, res) => {
 })
 
 const delete_event = asyncHandler(async (req, res) => {
-    const { id } = req.params();
+    const { id } = req.params;
     await delete_event_schema(id);
 
     return res.status(200).json(
-        200,
-        null,
-        "Event deleted successfully"
+        new ApiResponse(
+            200,
+            null,
+            "Event deleted successfully"
+        )
     )
 })
 

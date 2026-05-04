@@ -14,14 +14,14 @@ router.post("/v1", authenticate(["Admin","Club", "District", "State"]),
       { name: "img", maxCount: 1 },
       { name: "video", maxCount: 1 },
     ]),
-    uploadToS3("img", { img: "img", video: "videoUrl" }), addMedia);
+    uploadToS3("img", { img: "imageUrl", video: "videoUrl" }), addMedia);
 
 router.patch("/v1/:id", authenticate(["Admin","Club", "District", "State"]),
     upload.fields([
       { name: "img", maxCount: 1 },
       { name: "video", maxCount: 1 },
     ]),
-    uploadToS3("img", { img: "img", video: "videoUrl" }), updateMedia);
+    uploadToS3("img", { img: "imageUrl", video: "videoUrl" }), updateMedia);
 router.delete("/v1/:id", authenticate(["Admin","Club", "District", "State"]), deleteMedia);
 
 export default router;

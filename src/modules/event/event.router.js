@@ -46,14 +46,13 @@ router.get(
 router.post(
     "/v1/state",
     authenticate(["State", "Admin"]),
-
+    upload.single("image"),
     validate(create_state_event_validation),
     createStateEvent
 );
 router.patch(
     "/v1/state/:id",
     authenticate(["State", "Admin"]),
-
     validate(update_event_validation),
     edit_event
 );

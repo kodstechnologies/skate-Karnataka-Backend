@@ -5,14 +5,18 @@ const eventSchema = new mongoose.Schema(
     // 🧾 Header / Title
     header: {
       type: String,
-      required: true,
+      required: function () {
+        return this.isNew;
+      },
       trim: true,
     },
 
     // 📅 Date
     date: {
       type: Date,
-      required: true,
+      required: function () {
+        return this.isNew;
+      },
     },
 
     // 📝 Description
@@ -30,14 +34,18 @@ const eventSchema = new mongoose.Schema(
     // 🔥 Event Type (State / District / Club)
     eventType: {
       type: String,
-      required: true,
+      required: function () {
+        return this.isNew;
+      },
       enum: ["State", "District", "Club"], // must match model names
     },
 
     // 🔥 Dynamic Reference ID
     eventFor: {
       type: mongoose.Schema.Types.ObjectId,
-      required: true,
+      required: function () {
+        return this.isNew;
+      },
       refPath: "eventType", // 🔥 dynamic reference
     },
 

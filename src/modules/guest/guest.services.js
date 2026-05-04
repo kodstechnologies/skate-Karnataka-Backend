@@ -93,8 +93,8 @@ export const displayStateLatestSingleEventsService = async (id) => {
     return event;
 };
 
-export const displayDisciplinesService = async ({ page, limit }) => {
-    return displayDisciplinesRepositories({ page, limit });
+export const displayDisciplinesService = async ({ page, limit, search }) => {
+    return displayDisciplinesRepositories({ page, limit, search });
 };
 
 export const displaySingleDisciplineService = async (id) => {
@@ -125,8 +125,8 @@ export const deleteDisciplineService = async (id) => {
     return { deleted: true };
 };
 
-export const displayCircularService = async ({ page, limit }) => {
-    return displayCircularRepositories({ page, limit });
+export const displayCircularService = async ({ page, limit, search }) => {
+    return displayCircularRepositories({ page, limit, search });
 };
 
 export const displaySingleCircularService = async (id) => {

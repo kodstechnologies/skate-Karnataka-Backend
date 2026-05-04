@@ -48,6 +48,8 @@ import {
   updateDisciplineValidation,
   updateNewsValidation,
   displayNewsQueryValidation,
+  displayDisciplinesQueryValidation,
+  displayCircularQueryValidation,
 } from "./guest.validation.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
 
@@ -100,7 +102,11 @@ router.get("/v1/events/:id", validate(eventByIdValidation), displayStateLatestSi
 
 // ====================== Disciplines  
 
-router.get("/v1/discipline", displayDisciplines);
+router.get(
+  "/v1/discipline",
+  // validate(displayDisciplinesQueryValidation),
+  displayDisciplines
+);
 router.get(
   "/v1/discipline/:id",
   displaySingleDiscipline
@@ -130,7 +136,11 @@ router.delete(
 
 // Circular====================
 
-router.get("/v1/circular", displayCircular);
+router.get(
+  "/v1/circular",
+  validate(displayCircularQueryValidation),
+  displayCircular
+);
 router.get(
   "/v1/circular/:id",
   displaySingleCircular
@@ -173,7 +183,7 @@ router.post(
 router.get("/v1/display-latest-about", displayLatestAbout);
 router.get("/v1/display-about-guest", displayAboutGuest);
 router.post(
-  "/v1/add-about",
+  "/v1/guest-about",
   authenticate(["Skater", "Admin"]),
   upload.fields([
     { name: "logo", maxCount: 1 },
@@ -184,7 +194,7 @@ router.post(
   addAbout
 );
 router.patch(
-  "/v1/edit-about",
+  "/v1/guest-about",
   authenticate(["Skater", "Admin"]),
   upload.fields([
     { name: "logo", maxCount: 1 },
@@ -195,7 +205,7 @@ router.patch(
   editAbout
 );
 router.delete(
-  "/v1/delete-about",
+  "/v1/guest-about",
   authenticate(["Skater", "Admin"]),
   deleteAbout
 );

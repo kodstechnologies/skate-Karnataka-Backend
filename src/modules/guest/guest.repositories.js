@@ -148,12 +148,18 @@ export const displayStateLatestSingleEventsRepositories = async (id) => {
     return Event.findOne({ _id: id, eventType: "State" }).lean();
 };
 
-export const displayDisciplinesRepositories = async ({ page, limit }) => {
+export const displayDisciplinesRepositories = async ({ page, limit, search }) => {
     const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
 
+    const term = typeof search === "string" ? search.trim() : "";
+    const filter =
+        term.length > 0
+            ? { title: { $regex: escapeRegExp(term), $options: "i" } }
+            : {};
+
     const [total, data] = await Promise.all([
-        Discipline.countDocuments(),
-        Discipline.find()
+        Discipline.countDocuments(filter),
+        Discipline.find(filter)
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(pageLimit)
@@ -191,12 +197,18 @@ export const deleteDisciplineRepositories = async (id) => {
     return Discipline.findByIdAndDelete(id).lean();
 };
 
-export const displayCircularRepositories = async ({ page, limit }) => {
+export const displayCircularRepositories = async ({ page, limit, search }) => {
     const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
 
+    const term = typeof search === "string" ? search.trim() : "";
+    const filter =
+        term.length > 0
+            ? { heading: { $regex: escapeRegExp(term), $options: "i" } }
+            : {};
+
     const [total, data] = await Promise.all([
-        Circular.countDocuments(),
-        Circular.find()
+        Circular.countDocuments(filter),
+        Circular.find(filter)
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(pageLimit)

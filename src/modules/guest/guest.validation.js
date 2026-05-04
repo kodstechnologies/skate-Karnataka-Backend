@@ -94,12 +94,22 @@ export const newsByIdValidation = {
   }),
 };
 
+const paginatedSearchQuerySchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1),
+  limit: Joi.number().integer().min(1).max(100).default(10),
+  search: Joi.string().trim().max(200).allow("").optional(),
+});
+
 export const displayNewsQueryValidation = {
-  query: Joi.object({
-    page: Joi.number().integer().min(1).default(1),
-    limit: Joi.number().integer().min(1).max(100).default(10),
-    search: Joi.string().trim().max(200).allow("").optional(),
-  }),
+  query: paginatedSearchQuerySchema,
+};
+
+export const displayDisciplinesQueryValidation = {
+  query: paginatedSearchQuerySchema,
+};
+
+export const displayCircularQueryValidation = {
+  query: paginatedSearchQuerySchema,
 };
 
 export const eventByIdValidation = {

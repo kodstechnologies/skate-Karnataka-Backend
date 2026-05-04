@@ -136,8 +136,8 @@ export const displayStateLatestSingleEvents = asyncHandler(async (req, res) => {
 
 
 export const displayDisciplines = asyncHandler(async(req, res) =>{
-    const { page = 1, limit = 10 } = req.query;
-    const result = await displayDisciplinesService({ page, limit });
+    const { page = 1, limit = 10, search } = req.query;
+    const result = await displayDisciplinesService({ page, limit, search });
     return res.status(200).json(
         new ApiResponse(200, result, "Disciplines fetched successfully")
     );
@@ -170,8 +170,8 @@ export const deleteDiscipline = asyncHandler(async(req, res) =>{
 });
 
 export const displayCircular = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 10 } = req.query;
-    const result = await displayCircularService({ page, limit });
+    const { page = 1, limit = 10, search } = req.query;
+    const result = await displayCircularService({ page, limit, search });
     return res.status(200).json(
         new ApiResponse(200, result, "Circular fetched successfully")
     );

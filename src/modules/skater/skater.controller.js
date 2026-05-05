@@ -42,7 +42,7 @@ const GetSkaterDigitalIdCard = asyncHandler(async (req, res) => {
         name: profile?.fullName || "",
         krsaId: profile?.krsaId || "",
         dob: profile.dob ? formatDate(profile.dob) : "",
-        category: profile?.category || "",   
+        category: profile?.category?.typeName || "",
         clubName: profile?.club?.name || "",
         date : profile?.createdAt ? formatDate(profile.createdAt) : "", 
     };

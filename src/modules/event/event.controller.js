@@ -1,7 +1,7 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { AppError } from "../../util/common/AppError.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { clubRelatedEventDisplayService, createClubEventService, createDistrictEventService, createStateEventService, create_event_schema, delete_event_schema, display_all_event_based_on_user_service, display_latest_event_server, displayEventServer, displaySingleEventDetailsServer, districtRelatedEventDisplayService, edit_event_schema, stateRelatedEventDisplayService } from "./event.service.js";
+import { clubRelatedEventDisplayService, createClubEventService, createDistrictEventService, createEventCategoryService, createStateEventService, create_event_schema, deleteEventCategoryService, delete_event_schema, display_all_event_based_on_user_service, display_latest_event_server, displayEventServer, displaySingleEventDetailsServer, districtRelatedEventDisplayService, edit_event_schema, getAllEventCategoriesService, getEventCategoryByIdService, stateRelatedEventDisplayService, updateEventCategoryService } from "./event.service.js";
 
 
 const display_latest_event = asyncHandler(async (req, res) => {
@@ -219,6 +219,56 @@ const displayEventById = asyncHandler(async (req, res) => {
                 "Event displayed successfully"
             )
         );
+});
+
+export const getEventCategories = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 10 } = req.query;
+    const categories = await getAllEventCategoriesService({ page, limit });
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                {
+                    data: categories.data || [],
+                    pagination: {
+                        total: categories.total || 0,
+                        page: categories.page || Number(page) || 1,
+                        limit: categories.limit || Number(limit) || 10,
+                        totalPages: categories.totalPages || 0,
+                    },
+                },
+                "Event categories fetched successfully"
+            )
+        );
+});
+
+export const getEventCategoryById = asyncHandler(async (req, res) => {
+    const category = await getEventCategoryByIdService(req.params.id);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, category, "Event category fetched successfully"));
+});
+
+export const createEventCategory = asyncHandler(async (req, res) => {
+    const category = await createEventCategoryService(req.body);
+    return res
+        .status(201)
+        .json(new ApiResponse(201, category, "Event category created successfully"));
+});
+
+export const updateEventCategory = asyncHandler(async (req, res) => {
+    const category = await updateEventCategoryService(req.params.id, req.body);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, category, "Event category updated successfully"));
+});
+
+export const deleteEventCategory = asyncHandler(async (req, res) => {
+    await deleteEventCategoryService(req.params.id);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, null, "Event category deleted successfully"));
 });
 
 

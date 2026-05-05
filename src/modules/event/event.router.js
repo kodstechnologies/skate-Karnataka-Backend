@@ -1,13 +1,16 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
-import { clubRelatedEventDisplay, createClubEvent, create_event, delete_event, display_all_event_based_on_user, display_latest_event, displayAllEvents, displayEventById, edit_event, createDistrictEvent, districtRelatedEventDisplay, stateRelatedEventDisplay, createStateEvent } from "./event.controller.js";
+import { clubRelatedEventDisplay, createClubEvent, create_event, delete_event, display_all_event_based_on_user, display_latest_event, displayAllEvents, displayEventById, edit_event, createDistrictEvent, districtRelatedEventDisplay, stateRelatedEventDisplay, createStateEvent, createEventCategory, deleteEventCategory, getEventCategories, getEventCategoryById, updateEventCategory } from "./event.controller.js";
 import { validate } from "../../middleware/validate.multiple.js";
 import {
+    create_event_category_validation,
     create_club_event_validation,
     create_district_event_validation,
     create_event_validation,
     create_state_event_validation,
+    eventCategoryListQueryValidation,
     stateEventListQueryValidation,
+    update_event_category_validation,
     update_event_validation,
 } from "./event.validation.js";
 import { upload } from "../../middleware/multer.middleware.js";
@@ -91,5 +94,26 @@ router.patch("/v1/:id",
 // delete event 
 router.delete("/v1/:id", delete_event);
 
+// =================================== create event category 
+router.get(
+    "/v1/event-categories",
+    authenticate(["State", "Admin"]),
+    validate(eventCategoryListQueryValidation),
+    getEventCategories
+);
+router.get("/v1/event-categories/:id", authenticate(["State", "Admin"]), getEventCategoryById);
+router.post(
+    "/v1/event-categories",
+    authenticate(["State", "Admin"]),
+    validate(create_event_category_validation),
+    createEventCategory
+);
+router.patch(
+    "/v1/event-categories/:id",
+    authenticate(["State", "Admin"]),
+    validate(update_event_category_validation),
+    updateEventCategory
+);
+router.delete("/v1/event-categories/:id", authenticate(["State", "Admin"]), deleteEventCategory);
 
 export default router;

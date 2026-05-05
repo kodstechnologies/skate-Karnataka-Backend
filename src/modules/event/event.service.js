@@ -1,6 +1,6 @@
 import { AppError } from "../../util/common/AppError.js";
 import { State } from "../state/state.model.js";
-import { displaySingleEventRepository, displayAllEventRepository, create_event_repositories, edit_event_repositories, delete_event_repositories, display_latest_event_repositories, display_all_event_based_on_user_repositories, clubRelatedEventDisplayRepositories, createClubEventRepositories, districtRelatedEventDisplayRepositories, createDistrictEventRepositories, stateRelatedEventDisplayRepositories, createStateEventRepositories } from "./event.repositories.js";
+import { createEventCategoryRepository, deleteEventCategoryRepository, displaySingleEventRepository, displayAllEventRepository, create_event_repositories, edit_event_repositories, delete_event_repositories, display_latest_event_repositories, display_all_event_based_on_user_repositories, clubRelatedEventDisplayRepositories, createClubEventRepositories, districtRelatedEventDisplayRepositories, createDistrictEventRepositories, stateRelatedEventDisplayRepositories, createStateEventRepositories, getAllEventCategoriesRepository, getEventCategoryByIdRepository, updateEventCategoryRepository } from "./event.repositories.js";
 
 const displayEventServer = async (data) => {
 
@@ -55,6 +55,38 @@ export const createStateEventService = async (stateId, data) => {
 
     resolvedStateId = fallbackState._id;
     return await createStateEventRepositories(resolvedStateId, data);
+};
+
+export const getAllEventCategoriesService = async (query) => {
+    return await getAllEventCategoriesRepository(query);
+};
+
+export const getEventCategoryByIdService = async (id) => {
+    const category = await getEventCategoryByIdRepository(id);
+    if (!category) {
+        throw new AppError("Event category not found", 404);
+    }
+    return category;
+};
+
+export const createEventCategoryService = async (payload) => {
+    return await createEventCategoryRepository(payload);
+};
+
+export const updateEventCategoryService = async (id, payload) => {
+    const updated = await updateEventCategoryRepository(id, payload);
+    if (!updated) {
+        throw new AppError("Event category not found", 404);
+    }
+    return updated;
+};
+
+export const deleteEventCategoryService = async (id) => {
+    const deleted = await deleteEventCategoryRepository(id);
+    if (!deleted) {
+        throw new AppError("Event category not found", 404);
+    }
+    return deleted;
 };
 
 const displaySingleEventDetailsServer = async (id) => {

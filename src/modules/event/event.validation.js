@@ -218,10 +218,43 @@ const update_event_validation = {
 
 };
 
+const categorySchema = Joi.object({
+    name: Joi.string().trim().min(1).required(),
+});
+
+const ageGroupSchema = Joi.object({
+    label: Joi.string().trim().required(),
+    categories: Joi.array().items(categorySchema).default([]),
+});
+
+const create_event_category_validation = {
+    body: Joi.object({
+        typeName: Joi.string().trim().min(2).max(100).required(),
+        ageGroups: Joi.array().items(ageGroupSchema).default([]),
+    }),
+};
+
+const update_event_category_validation = {
+    body: Joi.object({
+        typeName: Joi.string().trim().min(2).max(100),
+        ageGroups: Joi.array().items(ageGroupSchema),
+    }).min(1),
+};
+
+const eventCategoryListQueryValidation = {
+    query: Joi.object({
+        page: Joi.number().integer().min(1).default(1),
+        limit: Joi.number().integer().min(1).max(100).default(10),
+    }),
+};
+
 export {
     create_event_validation,
     create_club_event_validation,
     create_district_event_validation,
     create_state_event_validation,
-    update_event_validation
-}
+    update_event_validation,
+    create_event_category_validation,
+    update_event_category_validation,
+    eventCategoryListQueryValidation
+};

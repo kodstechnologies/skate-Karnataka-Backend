@@ -1,4 +1,5 @@
 import { Event } from "./event.model.js";
+import SkatingEventCategory from "./SkatingEventCategory.model.js";
 import { paginate } from "../../util/common/paginate.js";
 import { BaseAuth } from "../auth/baseAuth.model.js";
 import { Skater } from "../skater/skater.model.js";
@@ -28,6 +29,45 @@ const displayAllEventRepository = async ({ page, limit }) => {
     totalPages: Math.ceil(total / pageLimit),
     data: events
   };
+};
+
+export const getAllEventCategoriesRepository = async ({ page, limit }) => {
+  const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+
+  const data = await SkatingEventCategory.find()
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(pageLimit)
+    .lean();
+
+  const total = await SkatingEventCategory.countDocuments();
+
+  return {
+    total,
+    page: currentPage,
+    limit: pageLimit,
+    totalPages: Math.ceil(total / pageLimit),
+    data,
+  };
+};
+
+export const getEventCategoryByIdRepository = async (id) => {
+  return await SkatingEventCategory.findById(id).lean();
+};
+
+export const createEventCategoryRepository = async (payload) => {
+  return await SkatingEventCategory.create(payload);
+};
+
+export const updateEventCategoryRepository = async (id, payload) => {
+  return await SkatingEventCategory.findByIdAndUpdate(id, payload, {
+    new: true,
+    runValidators: true,
+  }).lean();
+};
+
+export const deleteEventCategoryRepository = async (id) => {
+  return await SkatingEventCategory.findByIdAndDelete(id).lean();
 };
 
 

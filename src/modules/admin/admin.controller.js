@@ -26,6 +26,8 @@ import {
   updateClubByAdminService,
   updateDistrictByAdminService,
   adminVerifyOtpForPasswordService,
+  getAllSkatersByAdminService,
+  getSkaterFullDetailsByAdminService,
 } from "./admin.service.js";
 
 export const adminLogin = asyncHandler(async (req, res) => {
@@ -254,4 +256,21 @@ export const deleteClubMemberByAdmin = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, result, "Club member deleted successfully"));
+});
+
+export const getAllSkatersByAdmin = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 10, search = "" } = req.query;
+  const result = await getAllSkatersByAdminService({ page, limit, search });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, result, "Skaters fetched successfully"));
+});
+
+export const getSkaterFullDetailsByAdmin = asyncHandler(async (req, res) => {
+  const result = await getSkaterFullDetailsByAdminService(req.params.id);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, result, "Skater details fetched successfully"));
 });

@@ -243,3 +243,20 @@ export const clubMemberByAdminIdValidation = {
     }),
   }),
 };
+
+export const skaterListByAdminValidation = {
+  query: Joi.object({
+    page: Joi.number().integer().min(1).default(1),
+    limit: Joi.number().integer().min(1).max(100).default(10),
+    search: Joi.string().trim().max(200).allow("").optional(),
+  }),
+};
+
+export const skaterByAdminIdValidation = {
+  params: Joi.object({
+    id: Joi.string().trim().required().messages({
+      "any.required": "Skater id is required",
+      "string.empty": "Skater id is required",
+    }),
+  }),
+};

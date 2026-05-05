@@ -36,6 +36,8 @@ import {
   removeClubFromDistrict,
   removeClubMemberFromAllClubs,
   removeRefreshTokenFromAdmin,
+  getAllSkatersForAdmin,
+  getSkaterFullDetailsByIdForAdmin,
   updateDistrictByIdForAdmin,
   updateDistrictMemberById,
   updateClubByIdForAdmin,
@@ -533,4 +535,17 @@ export const deleteClubMemberByAdminService = async (clubMemberId) => {
   await removeClubMemberFromAllClubs(clubMemberId);
 
   return { deleted: true };
+};
+
+export const getAllSkatersByAdminService = async ({ page, limit, search }) => {
+  return getAllSkatersForAdmin({ page, limit, search });
+};
+
+export const getSkaterFullDetailsByAdminService = async (skaterId) => {
+  const skater = await getSkaterFullDetailsByIdForAdmin(skaterId);
+  if (!skater) {
+    throw new AppError("Skater not found", 404);
+  }
+
+  return skater;
 };

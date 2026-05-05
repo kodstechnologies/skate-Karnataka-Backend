@@ -1,7 +1,7 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { AppError } from "../../util/common/AppError.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { clubRelatedEventDisplayService, createClubEventService, createDistrictEventService, createEventCategoryService, createStateEventService, create_event_schema, deleteEventCategoryService, delete_event_schema, display_all_event_based_on_user_service, display_latest_event_server, displayEventServer, displaySingleEventDetailsServer, districtRelatedEventDisplayService, edit_event_schema, getAllEventCategoriesService, getEventCategoryByIdService, stateRelatedEventDisplayService, updateEventCategoryService } from "./event.service.js";
+import { clubRelatedEventDisplayService, createClubEventService, createDistrictEventService, createEventCategoryService, createRegisterFormService, createStateEventService, create_event_schema, deleteEventCategoryService, delete_event_schema, display_all_event_based_on_user_service, display_latest_event_server, displayEventServer, displaySingleEventDetailsServer, districtRelatedEventDisplayService, edit_event_schema, getAllEventCategoriesService, getEventCategoryByIdService, getRegisterFormByIdService, getRegisterFormByUserIdService, stateRelatedEventDisplayService, updateEventCategoryService } from "./event.service.js";
 
 
 const display_latest_event = asyncHandler(async (req, res) => {
@@ -269,6 +269,30 @@ export const deleteEventCategory = asyncHandler(async (req, res) => {
     return res
         .status(200)
         .json(new ApiResponse(200, null, "Event category deleted successfully"));
+});
+
+export const getRegisterFormByUserId = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+    const registrations = await getRegisterFormByUserIdService(userId);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, registrations, "Register form fetched successfully"));
+});
+
+export const getRegisterFormById = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+    const result = await getRegisterFormByIdService(req.params.id, userId);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, result, "Register form fetched successfully"));
+});
+
+export const createRegisterForm = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+    const result = await createRegisterFormService(userId, req.body);
+    return res
+        .status(201)
+        .json(new ApiResponse(201, result, "Register form submitted successfully"));
 });
 
 

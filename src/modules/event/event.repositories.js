@@ -1,5 +1,6 @@
 import { Event } from "./event.model.js";
 import SkatingEventCategory from "./SkatingEventCategory.model.js";
+import { EventParticipant } from "./eventParticipant.model.js";
 import { paginate } from "../../util/common/paginate.js";
 import { BaseAuth } from "../auth/baseAuth.model.js";
 import { Skater } from "../skater/skater.model.js";
@@ -68,6 +69,62 @@ export const updateEventCategoryRepository = async (id, payload) => {
 
 export const deleteEventCategoryRepository = async (id) => {
   return await SkatingEventCategory.findByIdAndDelete(id).lean();
+};
+
+export const getRegisterFormByUserIdRepository = async (userId) => {
+  const registrations = await EventParticipant.find({ userId })
+    .sort({ createdAt: -1 })
+    .populate("eventId", "header")
+    .lean();
+
+  return registrations.map((item) => ({
+    id: item._id,
+    eventId: item.eventId?._id || null,
+    eventName: item.eventId?.header || "",
+    ageGroup: item.ageGroup,
+    paymentStatus: item.paymentStatus,
+  }));
+};
+
+export const getRegisterFormByIdRepository = async (id, userId) => {
+  const item = await EventParticipant.findOne({ _id: id, userId })
+    .populate(
+      "eventId",
+      "header registerStartDate registerEndDate eventStartDate eventEndDate eventStartTime eventEndTime address eventType status"
+    )
+    .lean();
+
+  if (!item) return null;
+
+  return {
+    id: item._id,
+    event: item.eventId
+      ? {
+          id: item.eventId._id,
+          header: item.eventId.header || "",
+          registerStartDate: item.eventId.registerStartDate || null,
+          registerEndDate: item.eventId.registerEndDate || null,
+          eventStartDate: item.eventId.eventStartDate || null,
+          eventEndDate: item.eventId.eventEndDate || null,
+          eventStartTime: item.eventId.eventStartTime || "",
+          eventEndTime: item.eventId.eventEndTime || "",
+          address: item.eventId.address || "",
+          eventType: item.eventId.eventType || "",
+          status: item.eventId.status || "",
+        }
+      : null,
+    eventId: item.eventId?._id || null,
+    name: item.name || "",
+    ageGroup: item.ageGroup,
+    categories: item.categories || [],
+    paymentStatus: item.paymentStatus,
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+  };
+};
+
+export const createRegisterFormRepository = async (payload) => {
+  return await EventParticipant.create(payload);
 };
 
 
@@ -384,7 +441,12 @@ const display_latest_event_repositories = async (userId) => {
     image: event.image
       ? `${event.image}`
       : "",
-    date: event.date,
+    registerStartDate: event.registerStartDate,
+    registerEndDate: event.registerEndDate,
+    eventStartDate: event.eventStartDate,
+    eventEndDate: event.eventEndDate,
+    eventStartTime: event.eventStartTime,
+    eventEndTime: event.eventEndTime,
     address: event.address,
     eventType: event.eventType,
     eventForName:
@@ -451,7 +513,7 @@ const display_all_event_based_on_user_repositories = async (userId, { page, limi
       path: "eventFor",
       select: "name districtName clubName", // based on your models
     })
-    .sort({ date: 1 })
+    .sort({ eventStartDate: 1 })
     .skip(skip)
     .limit(pageLimit)
     .lean();
@@ -463,7 +525,12 @@ const display_all_event_based_on_user_repositories = async (userId, { page, limi
     id: event._id,
     header: event.header,
     image: event.image,
-    date: event.date,
+    registerStartDate: event.registerStartDate,
+    registerEndDate: event.registerEndDate,
+    eventStartDate: event.eventStartDate,
+    eventEndDate: event.eventEndDate,
+    eventStartTime: event.eventStartTime,
+    eventEndTime: event.eventEndTime,
     address: event.address,
     eventType: event.eventType,
     colorOne: event.colorOne,

@@ -29,8 +29,12 @@ const create_event_validation = {
             .optional()
             .allow(""),
 
-        date: Joi.date()
-            .required(),
+        registerStartDate: Joi.date().required(),
+        registerEndDate: Joi.date().required(),
+        eventStartDate: Joi.date().required(),
+        eventEndDate: Joi.date().required(),
+        eventStartTime: Joi.string().trim().required(),
+        eventEndTime: Joi.string().trim().required(),
 
         about: Joi.string()
             .trim()
@@ -69,8 +73,12 @@ const create_club_event_validation = {
             .optional()
             .allow(""),
 
-        date: Joi.date()
-            .required(),
+        registerStartDate: Joi.date().required(),
+        registerEndDate: Joi.date().required(),
+        eventStartDate: Joi.date().required(),
+        eventEndDate: Joi.date().required(),
+        eventStartTime: Joi.string().trim().required(),
+        eventEndTime: Joi.string().trim().required(),
 
         about: Joi.string()
             .trim()
@@ -109,8 +117,12 @@ const create_district_event_validation = {
             .optional()
             .allow(""),
 
-        date: Joi.date()
-            .required(),
+        registerStartDate: Joi.date().required(),
+        registerEndDate: Joi.date().required(),
+        eventStartDate: Joi.date().required(),
+        eventEndDate: Joi.date().required(),
+        eventStartTime: Joi.string().trim().required(),
+        eventEndTime: Joi.string().trim().required(),
 
         about: Joi.string()
             .trim()
@@ -149,8 +161,12 @@ const create_state_event_validation = {
             .optional()
             .allow(""),
 
-        date: Joi.date()
-            .required(),
+        registerStartDate: Joi.date().required(),
+        registerEndDate: Joi.date().required(),
+        eventStartDate: Joi.date().required(),
+        eventEndDate: Joi.date().required(),
+        eventStartTime: Joi.string().trim().required(),
+        eventEndTime: Joi.string().trim().required(),
 
         about: Joi.string()
             .trim()
@@ -191,7 +207,12 @@ const update_event_validation = {
             .uri()
             .allow(""),
 
-        date: Joi.date(),
+        registerStartDate: Joi.date(),
+        registerEndDate: Joi.date(),
+        eventStartDate: Joi.date(),
+        eventEndDate: Joi.date(),
+        eventStartTime: Joi.string().trim(),
+        eventEndTime: Joi.string().trim(),
 
         about: Joi.string()
             .trim()
@@ -248,6 +269,24 @@ const eventCategoryListQueryValidation = {
     }),
 };
 
+const register_form_validation = {
+    body: Joi.object({
+        eventId: Joi.string().trim().pattern(/^[0-9a-fA-F]{24}$/).required(),
+        name: Joi.string().trim().min(1).required(),
+        ageGroup: Joi.string().trim().required(),
+        categories: Joi.array().items(
+            Joi.object({
+                name: Joi.string().trim().min(1).required(),
+                timeTaken: Joi.number().allow(null),
+                rank: Joi.number().integer().allow(null),
+                isDisqualified: Joi.boolean().optional(),
+                remarks: Joi.string().trim().allow("").optional(),
+            })
+        ).min(1).required(),
+        paymentStatus: Joi.string().valid("pending", "paid", "failed").optional(),
+    }),
+};
+
 export {
     create_event_validation,
     create_club_event_validation,
@@ -256,5 +295,6 @@ export {
     update_event_validation,
     create_event_category_validation,
     update_event_category_validation,
-    eventCategoryListQueryValidation
+    eventCategoryListQueryValidation,
+    register_form_validation
 };

@@ -1,6 +1,6 @@
 import { AppError } from "../../util/common/AppError.js";
 import { State } from "../state/state.model.js";
-import { createEventCategoryRepository, deleteEventCategoryRepository, displaySingleEventRepository, displayAllEventRepository, create_event_repositories, edit_event_repositories, delete_event_repositories, display_latest_event_repositories, display_all_event_based_on_user_repositories, clubRelatedEventDisplayRepositories, createClubEventRepositories, districtRelatedEventDisplayRepositories, createDistrictEventRepositories, stateRelatedEventDisplayRepositories, createStateEventRepositories, getAllEventCategoriesRepository, getEventCategoryByIdRepository, updateEventCategoryRepository } from "./event.repositories.js";
+import { createEventCategoryRepository, createRegisterFormRepository, deleteEventCategoryRepository, displaySingleEventRepository, displayAllEventRepository, create_event_repositories, edit_event_repositories, delete_event_repositories, display_latest_event_repositories, display_all_event_based_on_user_repositories, clubRelatedEventDisplayRepositories, createClubEventRepositories, districtRelatedEventDisplayRepositories, createDistrictEventRepositories, getRegisterFormByIdRepository, getRegisterFormByUserIdRepository, stateRelatedEventDisplayRepositories, createStateEventRepositories, getAllEventCategoriesRepository, getEventCategoryByIdRepository, updateEventCategoryRepository } from "./event.repositories.js";
 
 const displayEventServer = async (data) => {
 
@@ -87,6 +87,25 @@ export const deleteEventCategoryService = async (id) => {
         throw new AppError("Event category not found", 404);
     }
     return deleted;
+};
+
+export const getRegisterFormByUserIdService = async (userId) => {
+    return await getRegisterFormByUserIdRepository(userId);
+};
+
+export const getRegisterFormByIdService = async (id, userId) => {
+    const registerForm = await getRegisterFormByIdRepository(id, userId);
+    if (!registerForm) {
+        throw new AppError("Register form not found", 404);
+    }
+    return registerForm;
+};
+
+export const createRegisterFormService = async (userId, payload) => {
+    return await createRegisterFormRepository({
+        ...payload,
+        userId,
+    });
 };
 
 const displaySingleEventDetailsServer = async (id) => {

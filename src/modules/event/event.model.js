@@ -11,12 +11,45 @@ const eventSchema = new mongoose.Schema(
       trim: true,
     },
 
-    // 📅 Date
-    date: {
+    // 📅 Registration Window
+    registerStartDate: {
       type: Date,
       required: function () {
         return this.isNew;
       },
+    },
+    registerEndDate: {
+      type: Date,
+      required: function () {
+        return this.isNew;
+      },
+    },
+    // 🏁 Event Schedule
+    eventStartDate: {
+      type: Date,
+      required: function () {
+        return this.isNew;
+      },
+    },
+    eventEndDate: {
+      type: Date,
+      required: function () {
+        return this.isNew;
+      },
+    },
+    eventStartTime: {
+      type: String,
+      required: function () {
+        return this.isNew;
+      },
+      trim: true,
+    },
+    eventEndTime: {
+      type: String,
+      required: function () {
+        return this.isNew;
+      },
+      trim: true,
     },
 
     // 📝 Description

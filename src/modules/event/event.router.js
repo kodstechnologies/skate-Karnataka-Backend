@@ -1,6 +1,6 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
-import { clubRelatedEventDisplay, createClubEvent, create_event, delete_event, display_all_event_based_on_user, display_latest_event, displayAllEvents, displayEventById, edit_event, createDistrictEvent, districtRelatedEventDisplay, stateRelatedEventDisplay, createStateEvent, createEventCategory, deleteEventCategory, getEventCategories, getEventCategoryById, updateEventCategory } from "./event.controller.js";
+import { clubRelatedEventDisplay, createClubEvent, create_event, delete_event, display_all_event_based_on_user, display_latest_event, displayAllEvents, displayEventById, edit_event, createDistrictEvent, districtRelatedEventDisplay, stateRelatedEventDisplay, createStateEvent, createEventCategory, deleteEventCategory, getEventCategories, getEventCategoryById, updateEventCategory, createRegisterForm, getRegisterFormById, getRegisterFormByUserId } from "./event.controller.js";
 import { validate } from "../../middleware/validate.multiple.js";
 import {
     create_event_category_validation,
@@ -9,6 +9,7 @@ import {
     create_event_validation,
     create_state_event_validation,
     eventCategoryListQueryValidation,
+    register_form_validation,
     stateEventListQueryValidation,
     update_event_category_validation,
     update_event_validation,
@@ -115,5 +116,18 @@ router.patch(
     updateEventCategory
 );
 router.delete("/v1/event-categories/:id", authenticate(["State", "Admin"]), deleteEventCategory);
+
+// ================================== skater register 
+
+router.get("/v1/register-form", authenticate(["Skater"]), getRegisterFormByUserId);
+router.get("/v1/register-form/:id", authenticate(["Skater"]), getRegisterFormById);
+router.post(
+    "/v1/register-form",
+    authenticate(["Skater"]),
+    validate(register_form_validation),
+    createRegisterForm
+);
+
+
 
 export default router;

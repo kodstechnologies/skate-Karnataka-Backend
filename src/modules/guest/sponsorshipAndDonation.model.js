@@ -26,6 +26,12 @@ const SponsorshipAndDonationSchema = new mongoose.Schema(
       default: "",
     },
 
+    support: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
     contribution: {
       type: String,
       trim: true,
@@ -52,9 +58,9 @@ const SponsorshipAndDonationSchema = new mongoose.Schema(
     },
 
     amount: {
-      type: Number,
-      min: 0,
-      default: 0,
+      type: String,
+      trim: true,
+      default: "",
     },
   },
   {

@@ -260,3 +260,76 @@ export const addAboutValidation = {
 export const updateAboutValidation = {
   body: Joi.object(aboutBodyFields).min(1),
 };
+
+const sponsorshipDonationBodyFields = {
+  img: Joi.string().uri().allow("").optional().messages({
+    "string.uri": "Image must be a valid URL",
+  }),
+  brandName: Joi.string().trim().min(1).max(200).allow(""),
+  title: Joi.string().trim().min(1).max(200).allow(""),
+  about: Joi.string().trim().max(10000).allow(""),
+  support: Joi.string().trim().max(10000).allow(""),
+  contribution: Joi.string().trim().max(500).allow(""),
+  duration: Joi.string().trim().max(200).allow(""),
+  supportType: Joi.string()
+    .trim()
+    .lowercase()
+    .valid("sponsorship", "donation")
+    .messages({
+      "any.only": "Support type must be sponsorship or donation",
+    }),
+  donorName: Joi.string().trim().max(200).allow(""),
+  amount: Joi.string().trim().max(200).allow(""),
+};
+
+export const sponsorshipDonationListQueryValidation = {
+  query: paginatedSearchQuerySchema.keys({
+    supportType: Joi.string()
+      .trim()
+      .lowercase()
+      .valid("sponsorship", "donation", "")
+      .optional(),
+  }),
+};
+
+export const addSponsorshipDonationValidation = {
+  body: Joi.object({
+    ...sponsorshipDonationBodyFields,
+    brandName: sponsorshipDonationBodyFields.brandName.required().messages({
+      "string.empty": "Brand name is required",
+      "any.required": "Brand name is required",
+    }),
+    title: sponsorshipDonationBodyFields.title.required().messages({
+      "string.empty": "Title is required",
+      "any.required": "Title is required",
+    }),
+    supportType: Joi.string()
+      .trim()
+      .lowercase()
+      .valid("sponsorship", "donation")
+      .required()
+      .messages({
+        "any.only": "Support type must be sponsorship or donation",
+        "any.required": "Support type is required",
+      }),
+  }),
+};
+
+export const updateSponsorshipDonationValidation = {
+  params: Joi.object({
+    id: Joi.string().trim().required().messages({
+      "any.required": "Sponsorship/Donation id is required",
+      "string.empty": "Sponsorship/Donation id is required",
+    }),
+  }),
+  body: Joi.object(sponsorshipDonationBodyFields).min(1),
+};
+
+export const sponsorshipDonationByIdValidation = {
+  params: Joi.object({
+    id: Joi.string().trim().required().messages({
+      "any.required": "Sponsorship/Donation id is required",
+      "string.empty": "Sponsorship/Donation id is required",
+    }),
+  }),
+};

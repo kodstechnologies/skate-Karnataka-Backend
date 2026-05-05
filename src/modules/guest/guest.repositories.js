@@ -305,6 +305,7 @@ export const displaySponsorshipDonationsRepositories = async ({ page, limit, sea
         filter.$or = [
             { brandName: { $regex: escapeRegExp(term), $options: "i" } },
             { title: { $regex: escapeRegExp(term), $options: "i" } },
+            { support: { $regex: escapeRegExp(term), $options: "i" } },
             { donorName: { $regex: escapeRegExp(term), $options: "i" } },
         ];
     }

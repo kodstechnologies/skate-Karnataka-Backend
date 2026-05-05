@@ -56,6 +56,10 @@ import {
   displayNewsQueryValidation,
   displayDisciplinesQueryValidation,
   displayCircularQueryValidation,
+  sponsorshipDonationListQueryValidation,
+  addSponsorshipDonationValidation,
+  updateSponsorshipDonationValidation,
+  sponsorshipDonationByIdValidation,
 } from "./guest.validation.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
 
@@ -222,16 +226,21 @@ router.delete(
 
 // ================= SponsorshipAndDonation ==============
 
-router.get("/v1/sponsorship-donation", displaySponsorshipDonations);
+router.get(
+  "/v1/sponsorship-donation",
+  displaySponsorshipDonations
+);
 router.post(
   "/v1/sponsorship-donation",
   authenticate(["Skater", "Admin"]),
   upload.single("img"),
   uploadToS3("about", { img: "img" }),
+  validate(addSponsorshipDonationValidation),
   addSponsorshipDonation
 );
 router.get(
   "/v1/sponsorship-donation/:id",
+  validate(sponsorshipDonationByIdValidation),
   displaySingleSponsorshipDonation
 );
 router.patch(
@@ -239,11 +248,13 @@ router.patch(
   authenticate(["Skater", "Admin"]),
   upload.single("img"),
   uploadToS3("about", { img: "img" }),
+  validate(updateSponsorshipDonationValidation),
   updateSponsorshipDonation
 );
 router.delete(
   "/v1/sponsorship-donation/:id",
   authenticate(["Skater", "Admin"]),
+  validate(sponsorshipDonationByIdValidation),
   deleteSponsorshipDonation
 );
 

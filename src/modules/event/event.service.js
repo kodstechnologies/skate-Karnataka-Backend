@@ -71,8 +71,17 @@ export const stateEventFullDetailsService = async (eventId, { role, userId }) =>
 };
 
 export const stateEventSkatersSummaryService = async (eventId, { role, userId }, query) => {
-    await assertUserCanAccessStateEvent(eventId, { role, userId });
-    return await listEventSkatersByEventIdRepository(eventId, query);
+    const event = await assertUserCanAccessStateEvent(eventId, { role, userId });
+    const list = await listEventSkatersByEventIdRepository(eventId, query);
+    return {
+        ...list,
+        event: {
+            eventName: event.header ?? "",
+            colorOne: event.colorOne ?? null,
+            colorTwo: event.colorTwo ?? null,
+            textColor: event.textColor ?? null,
+        },
+    };
 };
 
 export const createStateEventService = async (stateId, data) => {

@@ -146,6 +146,12 @@ export const stateEventSkatersSummary = asyncHandler(async (req, res) => {
             200,
             {
                 eventId,
+                event: result.event || {
+                    eventName: "",
+                    colorOne: null,
+                    colorTwo: null,
+                    textColor: null,
+                },
                 data: result.data || [],
                 pagination: {
                     total: result.total || 0,

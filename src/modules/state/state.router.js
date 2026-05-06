@@ -17,7 +17,6 @@ router.get("/v1/profile",
      displayProfile
 )
 
-
 // 🔹 Get all states
 router.get("/v1/all",
   authenticate(["Admin", "State"]),

@@ -12,6 +12,8 @@ import { sendNotification } from "../../util/firebase/sendNotification.js";
 import { AppError } from "../../util/common/AppError.js";
 
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const normalizeAttendanceStatus = (status) =>
+  status === "apsent" ? "absent" : status;
 
 const displayAllEventRepository = async ({ page, limit }) => {
 
@@ -119,9 +121,11 @@ export const getRegisterFormByIdRepository = async (id, userId) => {
     eventId: item.eventId?._id || null,
     name: item.name || "",
     ageGroup: item.ageGroup,
-    categories: item.categories || [],
+    categories: (item.categories || []).map((category) => ({
+      ...category,
+      attendanceStatus: category?.attendanceStatus || "pending",
+    })),
     paymentStatus: item.paymentStatus,
-    attendanceStatus: item.attendanceStatus || "pending",
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
   };
@@ -131,13 +135,44 @@ export const createRegisterFormRepository = async (payload) => {
   return await EventParticipant.create(payload);
 };
 
-export const listEventSkatersByEventIdRepository = async (eventId, { page, limit, search }) => {
+export const listEventSkatersByEventIdRepository = async (
+  eventId,
+  { page, limit, search, ageGroup, categoryName }
+) => {
   const oid = new mongoose.Types.ObjectId(eventId);
   const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
   const usersCol = BaseAuth.collection.name;
 
-  const pipeline = [
-    { $match: { eventId: oid } },
+  const initialMatch = { eventId: oid };
+  const ageTerm = typeof ageGroup === "string" ? ageGroup.trim() : "";
+  if (ageTerm) {
+    initialMatch.ageGroup = ageTerm;
+  }
+
+  const categoryTermRaw = typeof categoryName === "string" ? categoryName.trim() : "";
+  if (categoryTermRaw) {
+    const disqualifiedTagMatch = categoryTermRaw.match(/^(.*)\+\s*d$/i);
+    if (disqualifiedTagMatch) {
+      const categoryLabel = disqualifiedTagMatch[1].trim();
+      if (categoryLabel) {
+        initialMatch.categories = {
+          $elemMatch: {
+            name: categoryLabel,
+            isDisqualified: true,
+          },
+        };
+      }
+    } else {
+      initialMatch.categories = {
+        $elemMatch: {
+          name: categoryTermRaw,
+        },
+      };
+    }
+  }
+
+  const pipeline = [{ $match: initialMatch }];
+  pipeline.push(
     {
       $lookup: {
         from: usersCol,
@@ -146,8 +181,8 @@ export const listEventSkatersByEventIdRepository = async (eventId, { page, limit
         as: "user",
       },
     },
-    { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } },
-  ];
+    { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } }
+  );
 
   const term = typeof search === "string" ? search.trim() : "";
   if (term) {
@@ -178,8 +213,23 @@ export const listEventSkatersByEventIdRepository = async (eventId, { page, limit
             participantName: "$name",
             ageGroup: 1,
             paymentStatus: 1,
-            attendanceStatus: 1,
-            categories: 1,
+            categories: {
+              $map: {
+                input: { $ifNull: ["$categories", []] },
+                as: "category",
+                in: {
+                  name: "$$category.name",
+                  timeTaken: "$$category.timeTaken",
+                  rank: "$$category.rank",
+                  isDisqualified: "$$category.isDisqualified",
+                  remarks: "$$category.remarks",
+                  _id: "$$category._id",
+                  attendanceStatus: {
+                    $ifNull: ["$$category.attendanceStatus", "pending"],
+                  },
+                },
+              },
+            },
             registeredAt: "$createdAt",
             fullName: "$user.fullName",
             phone: "$user.phone",
@@ -227,20 +277,32 @@ export const listEventSkatersBasicByEventIdRepository = async (eventId) => {
 };
 
 export const updateEventParticipantTimingBySkaterRepository = async (
-  skaterId,
+  { skaterId, registrationId },
   eventId,
   payload
 ) => {
-  const participant = await EventParticipant.findOne({
-    userId: new mongoose.Types.ObjectId(skaterId),
-    eventId: new mongoose.Types.ObjectId(eventId),
-  });
+  let participant = null;
+
+  if (registrationId) {
+    participant = await EventParticipant.findOne({
+      _id: new mongoose.Types.ObjectId(registrationId),
+      eventId: new mongoose.Types.ObjectId(eventId),
+    });
+  } else if (skaterId) {
+    participant = await EventParticipant.findOne({
+      userId: new mongoose.Types.ObjectId(skaterId),
+      eventId: new mongoose.Types.ObjectId(eventId),
+    });
+  }
 
   if (!participant) return null;
 
   if (typeof payload.status === "string") {
-    participant.attendanceStatus =
-      payload.status === "apsent" ? "absent" : payload.status;
+    const normalizedStatus = normalizeAttendanceStatus(payload.status);
+    participant.categories = participant.categories.map((category) => ({
+      ...category.toObject(),
+      attendanceStatus: normalizedStatus,
+    }));
   }
 
   const forceDisqualified = payload.isDisqualified;
@@ -283,12 +345,19 @@ export const updateEventParticipantTimingBySkaterRepository = async (
               ? forceDisqualified
               : categoryObj.isDisqualified,
         remarks: incoming.remarks !== undefined ? incoming.remarks : categoryObj.remarks,
+        attendanceStatus:
+          incoming.attendanceStatus !== undefined
+            ? normalizeAttendanceStatus(incoming.attendanceStatus)
+            : categoryObj.attendanceStatus || "pending",
       };
     });
   } else if (typeof forceDisqualified === "boolean") {
     participant.categories = participant.categories.map((category) => ({
       ...category.toObject(),
       isDisqualified: forceDisqualified,
+      attendanceStatus:
+        category.attendanceStatus ||
+        "pending",
     }));
   }
 

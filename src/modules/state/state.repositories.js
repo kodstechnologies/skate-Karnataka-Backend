@@ -139,9 +139,25 @@ export const stateDashboardRepository = async () => {
 };
 
 export const stateProfileRepository = async (stateId) => {
-  const state = await State.findById(stateId)
-    .select("name officialAddress img krsaId")
-    .lean();
+  const [state, districtMedalsAgg, clubMedalsAgg] = await Promise.all([
+    State.findById(stateId).select("name officialAddress img krsaId").lean(),
+    District.aggregate([
+      {
+        $group: {
+          _id: null,
+          total: { $sum: { $ifNull: ["$championships", 0] } },
+        },
+      },
+    ]),
+    Club.aggregate([
+      {
+        $group: {
+          _id: null,
+          total: { $sum: { $ifNull: ["$championships", 0] } },
+        },
+      },
+    ]),
+  ]);
 
   if (!state) {
     throw new AppError("State not found", 404);
@@ -152,5 +168,8 @@ export const stateProfileRepository = async (stateId) => {
     officialAddress: state.officialAddress || "",
     img: state.img || "",
     krsaId: state.krsaId || "",
+    districtMedals: districtMedalsAgg?.[0]?.total || 0,
+    clubMedals: clubMedalsAgg?.[0]?.total || 0,
+    skaterMedals: 0,
   };
 };

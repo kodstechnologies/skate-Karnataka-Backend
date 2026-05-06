@@ -96,7 +96,7 @@ export const updateStateEventSkaterTimeService = async (
     { role, userId },
     payload
 ) => {
-    const { eventId, skaterId } = payload;
+    const { eventId, skaterId, registrationId } = payload;
     await assertUserCanAccessStateEvent(
         eventId,
         { role, userId },
@@ -108,13 +108,16 @@ export const updateStateEventSkaterTimeService = async (
 
         for (const skaterPayload of payload.skaters) {
             const updated = await updateEventParticipantTimingBySkaterRepository(
-                skaterPayload.skaterId,
+                {
+                    skaterId: skaterPayload.skaterId,
+                    registrationId: skaterPayload.registrationId,
+                },
                 eventId,
                 skaterPayload
             );
             if (!updated) {
                 throw new AppError(
-                    `Skater registration not found for this event: ${skaterPayload.skaterId}`,
+                    `Skater registration not found for this event: ${skaterPayload.registrationId || skaterPayload.skaterId}`,
                     404
                 );
             }
@@ -128,7 +131,11 @@ export const updateStateEventSkaterTimeService = async (
         };
     }
 
-    const updated = await updateEventParticipantTimingBySkaterRepository(skaterId, eventId, payload);
+    const updated = await updateEventParticipantTimingBySkaterRepository(
+        { skaterId, registrationId },
+        eventId,
+        payload
+    );
     if (!updated) {
         throw new AppError("Skater registration not found for this event", 404);
     }

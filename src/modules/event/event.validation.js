@@ -21,6 +21,8 @@ export const stateEventSkatersListQueryValidation = {
         page: Joi.number().integer().min(1).default(1),
         limit: Joi.number().integer().min(1).max(100).default(10),
         search: Joi.string().trim().max(200).allow("").optional(),
+        ageGroup: Joi.string().trim().allow("").optional(),
+        categoryName: Joi.string().trim().allow("").optional(),
     }),
 };
 
@@ -28,6 +30,7 @@ const state_skater_time_update_validation = {
     body: Joi.object({
         eventId: objectIdString.required(),
         skaterId: objectIdString.optional(),
+        registrationId: objectIdString.optional(),
         status: Joi.string()
             .trim()
             .lowercase()
@@ -41,11 +44,17 @@ const state_skater_time_update_validation = {
                 rank: Joi.number().integer().allow(null).optional(),
                 isDisqualified: Joi.boolean().optional(),
                 remarks: Joi.string().trim().allow("").optional(),
+                attendanceStatus: Joi.string()
+                    .trim()
+                    .lowercase()
+                    .valid("pending", "attend", "absent", "apsent")
+                    .optional(),
             })
         ).optional(),
         skaters: Joi.array().items(
             Joi.object({
-                skaterId: objectIdString.required(),
+                skaterId: objectIdString.optional(),
+                registrationId: objectIdString.optional(),
                 status: Joi.string()
                     .trim()
                     .lowercase()
@@ -59,15 +68,22 @@ const state_skater_time_update_validation = {
                         rank: Joi.number().integer().allow(null).optional(),
                         isDisqualified: Joi.boolean().optional(),
                         remarks: Joi.string().trim().allow("").optional(),
+                        attendanceStatus: Joi.string()
+                            .trim()
+                            .lowercase()
+                            .valid("pending", "attend", "absent", "apsent")
+                            .optional(),
                     })
                 ).optional(),
-            }).min(2)
+            })
+                .xor("skaterId", "registrationId")
+                .min(2)
         ).min(1).optional(),
     })
-        .xor("skaterId", "skaters")
+        .xor("skaterId", "registrationId", "skaters")
         .custom((value, helpers) => {
             if (
-                value.skaterId &&
+                (value.skaterId || value.registrationId) &&
                 value.status === undefined &&
                 value.isDisqualified === undefined &&
                 value.categories === undefined
@@ -79,7 +95,7 @@ const state_skater_time_update_validation = {
             return value;
         })
         .messages({
-            "object.xor": "Provide either skaterId (single) or skaters (batch), not both",
+            "object.xor": "Provide either skaterId/registrationId (single) or skaters (batch), not both",
             "any.custom": "{{#message}}",
         }),
 };

@@ -132,14 +132,14 @@ export const stateRelatedEventDisplay = asyncHandler(async (req, res) => {
 
 export const stateEventSkatersSummary = asyncHandler(async (req, res) => {
     const { id: eventId } = req.params;
-    const { page = 1, limit = 10, search = "" } = req.query;
+    const { page = 1, limit = 10, search = "", ageGroup = "", categoryName = "" } = req.query;
     const result = await stateEventSkatersSummaryService(
         eventId,
         {
             role: req.user.role,
             userId: req.user._id,
         },
-        { page, limit, search }
+        { page, limit, search, ageGroup, categoryName }
     );
     return res.status(200).json(
         new ApiResponse(

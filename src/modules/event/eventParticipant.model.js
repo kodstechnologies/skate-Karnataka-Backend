@@ -51,17 +51,17 @@ const participantSchema = new mongoose.Schema(
           type: String,
           trim: true,
         },
+        attendanceStatus: {
+          type: String,
+          enum: ["pending", "attend", "absent"],
+          default: "pending",
+        },
       },
     ],
 
     paymentStatus: {
       type: String,
       enum: ["pending", "paid", "failed"],
-      default: "pending",
-    },
-    attendanceStatus: {
-      type: String,
-      enum: ["pending", "attend", "absent"],
       default: "pending",
     },
   },

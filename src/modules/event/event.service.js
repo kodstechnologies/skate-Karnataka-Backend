@@ -1,6 +1,6 @@
 import { AppError } from "../../util/common/AppError.js";
 import { State } from "../state/state.model.js";
-import { createEventCategoryRepository, createRegisterFormRepository, deleteEventCategoryRepository, displaySingleEventRepository, displayAllEventRepository, create_event_repositories, edit_event_repositories, delete_event_repositories, display_latest_event_repositories, display_all_event_based_on_user_repositories, clubRelatedEventDisplayRepositories, createClubEventRepositories, districtRelatedEventDisplayRepositories, createDistrictEventRepositories, getRegisterFormByIdRepository, getRegisterFormByUserIdRepository, stateRelatedEventDisplayRepositories, createStateEventRepositories, getAllEventCategoriesRepository, getEventCategoryByIdRepository, updateEventCategoryRepository, getStateEventFullDetailsByIdRepository, listEventSkatersBasicByEventIdRepository, listEventSkatersByEventIdRepository, updateEventParticipantTimingBySkaterRepository } from "./event.repositories.js";
+import { createEventCategoryRepository, createRegisterFormRepository, deleteEventCategoryRepository, displaySingleEventRepository, displayAllEventRepository, create_event_repositories, edit_event_repositories, delete_event_repositories, display_latest_event_repositories, display_all_event_based_on_user_repositories, clubRelatedEventDisplayRepositories, createClubEventRepositories, districtRelatedEventDisplayRepositories, createDistrictEventRepositories, getRegisterFormByIdRepository, getRegisterFormByUserIdRepository, stateRelatedEventDisplayRepositories, createStateEventRepositories, getAllEventCategoriesRepository, getEventCategoryByIdRepository, updateEventCategoryRepository, getStateEventFullDetailsByIdRepository, getStateEventResultsRepository, listEventSkatersBasicByEventIdRepository, listEventSkatersByEventIdRepository, updateEventParticipantTimingBySkaterRepository } from "./event.repositories.js";
 
 const displayEventServer = async (data) => {
 
@@ -89,6 +89,27 @@ export const stateEventSkatersSummaryService = async (eventId, { role, userId },
             colorTwo: event.colorTwo ?? null,
             textColor: event.textColor ?? null,
         },
+    };
+};
+
+export const stateEventResultsService = async (eventId, { role, userId }, query) => {
+    const event = await assertUserCanAccessStateEvent(eventId, { role, userId });
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const eventEndDate = event?.eventEndDate ? new Date(event.eventEndDate) : null;
+
+    if (!eventEndDate || eventEndDate >= todayStart) {
+        throw new AppError("Results are available from next day after event end date", 400);
+    }
+
+    const result = await getStateEventResultsRepository(eventId, query);
+    return {
+        event: {
+            eventId: event._id,
+            eventName: event.header ?? "",
+            eventEndDate: event.eventEndDate ?? null,
+        },
+        ...result,
     };
 };
 

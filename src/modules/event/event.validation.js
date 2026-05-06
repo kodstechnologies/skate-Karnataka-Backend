@@ -26,6 +26,13 @@ export const stateEventSkatersListQueryValidation = {
     }),
 };
 
+export const stateEventResultQueryValidation = {
+    query: Joi.object({
+        ageGroup: Joi.string().trim().allow("").optional(),
+        categoryName: Joi.string().trim().allow("").optional(),
+    }),
+};
+
 const state_skater_time_update_validation = {
     body: Joi.object({
         eventId: objectIdString.required(),
@@ -381,5 +388,6 @@ export {
     create_event_category_validation,
     update_event_category_validation,
     eventCategoryListQueryValidation,
-    register_form_validation
+    register_form_validation,
+    // stateEventResultQueryValidation
 };

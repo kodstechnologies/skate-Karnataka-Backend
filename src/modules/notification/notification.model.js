@@ -15,10 +15,12 @@ const notificationSchema = new mongoose.Schema(
       "Skater",
       "Parent",
       "School",
+      "Academy",
       "Scademy",
       "State",
       "Official",
       "Admin",
+      "admin",
       "Guest",
       "Club",
       "District"
@@ -54,6 +56,7 @@ const notificationSchema = new mongoose.Schema(
       "report",
       "approval",
       "event",
+      "competition",
       "message",
       "announcement",
       "general"
@@ -61,14 +64,27 @@ const notificationSchema = new mongoose.Schema(
     default: "general"
   },
 
-  isRead: {
-    type: Boolean,
-    default: false
-  },
-
   sentBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "BaseAuth"
+  },
+  senderRole: {
+    type: String,
+    enum: [
+      "Skater",
+      "Parent",
+      "School",
+      "Academy",
+      "Scademy",
+      "State",
+      "Official",
+      "Admin",
+      "admin",
+      "Guest",
+      "Club",
+      "District"
+    ],
+    default: null
   }
 
 },

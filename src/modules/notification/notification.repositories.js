@@ -9,6 +9,7 @@ export const displayAllNotificationRepositories = async ({ id, page = 1, limit =
     const [total, notifications] = await Promise.all([
         Notification.countDocuments(query),
         Notification.find(query)
+            .select("-__v -isRead")
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(perPage)

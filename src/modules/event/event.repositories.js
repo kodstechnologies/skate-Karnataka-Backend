@@ -276,6 +276,126 @@ export const listEventSkatersBasicByEventIdRepository = async (eventId) => {
   };
 };
 
+export const getStateEventResultsRepository = async (
+  eventId,
+  { ageGroup, categoryName }
+) => {
+  const participants = await EventParticipant.find({
+    eventId: new mongoose.Types.ObjectId(eventId),
+  })
+    .select("name ageGroup categories userId")
+    .populate("userId", "fullName phone email krsaId")
+    .lean();
+
+  const ageGroupTerm = typeof ageGroup === "string" ? ageGroup.trim() : "";
+  const categoryTermRaw =
+    typeof categoryName === "string" ? categoryName.trim() : "";
+
+  let categoryFilterName = "";
+  let categoryFilterIsDisqualified = null;
+  if (categoryTermRaw) {
+    const disqualifiedTagMatch = categoryTermRaw.match(/^(.*)\+\s*d$/i);
+    if (disqualifiedTagMatch) {
+      categoryFilterName = disqualifiedTagMatch[1].trim();
+      categoryFilterIsDisqualified = true;
+    } else {
+      categoryFilterName = categoryTermRaw;
+    }
+  }
+
+  const grouped = new Map();
+
+  for (const participant of participants) {
+    if (ageGroupTerm && participant.ageGroup !== ageGroupTerm) {
+      continue;
+    }
+
+    for (const category of participant.categories || []) {
+      const categoryNameValue = String(category?.name || "").trim();
+      if (!categoryNameValue) continue;
+
+      if (categoryFilterName && categoryNameValue !== categoryFilterName) {
+        continue;
+      }
+      if (
+        categoryFilterIsDisqualified !== null &&
+        Boolean(category.isDisqualified) !== categoryFilterIsDisqualified
+      ) {
+        continue;
+      }
+
+      const key = `${participant.ageGroup}::${categoryNameValue}`;
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          ageGroup: participant.ageGroup,
+          categoryName: categoryNameValue,
+          results: [],
+        });
+      }
+
+      grouped.get(key).results.push({
+        registrationId: participant._id,
+        userId: participant.userId?._id || participant.userId || null,
+        participantName:
+          participant.name || participant.userId?.fullName || "",
+        fullName: participant.userId?.fullName || "",
+        krsaId: participant.userId?.krsaId || "",
+        phone: participant.userId?.phone || "",
+        email: participant.userId?.email || "",
+        timeTaken: category.timeTaken ?? null,
+        isDisqualified: Boolean(category.isDisqualified),
+        remarks: category.remarks || "",
+        attendanceStatus: category.attendanceStatus || "pending",
+      });
+    }
+  }
+
+  const groups = Array.from(grouped.values()).map((group) => {
+    const sorted = [...group.results].sort((a, b) => {
+      if (a.isDisqualified !== b.isDisqualified) {
+        return a.isDisqualified ? 1 : -1;
+      }
+
+      const aTime = typeof a.timeTaken === "number" ? a.timeTaken : null;
+      const bTime = typeof b.timeTaken === "number" ? b.timeTaken : null;
+
+      if (aTime === null && bTime === null) return 0;
+      if (aTime === null) return 1;
+      if (bTime === null) return -1;
+      return aTime - bTime;
+    });
+
+    let runningRank = 0;
+    for (const row of sorted) {
+      const hasValidTime = typeof row.timeTaken === "number";
+      if (row.isDisqualified || !hasValidTime) {
+        row.rank = null;
+      } else {
+        runningRank += 1;
+        row.rank = runningRank;
+      }
+    }
+
+    return {
+      ...group,
+      totalSkaters: sorted.length,
+      results: sorted,
+    };
+  });
+
+  groups.sort((a, b) => {
+    if (a.ageGroup !== b.ageGroup) {
+      return a.ageGroup.localeCompare(b.ageGroup);
+    }
+    return a.categoryName.localeCompare(b.categoryName);
+  });
+
+  return {
+    groups,
+    totalGroups: groups.length,
+  };
+};
+
 export const updateEventParticipantTimingBySkaterRepository = async (
   { skaterId, registrationId },
   eventId,
@@ -592,11 +712,17 @@ export const createStateEventRepositories = async (stateId, data) => {
     .select("name")
     .lean();
 
-  const [stateUsers, districts, clubs, skaters] = await Promise.all([
+  const [stateUsers, districts, clubs, skaters, fallbackUsers] = await Promise.all([
     BaseAuth.find({ role: "State" }).select("_id").lean(),
     District.find().select("members").lean(),
     Club.find().select("members").lean(),
     Skater.find().select("_id").lean(),
+    BaseAuth.find({
+      role: { $in: ["State", "District", "Club", "Skater"] },
+      isActive: true,
+    })
+      .select("_id")
+      .lean(),
   ]);
 
   const targetUserIds = [
@@ -606,7 +732,10 @@ export const createStateEventRepositories = async (stateId, data) => {
     ...skaters.map((skater) => skater._id.toString()),
   ];
 
-  const uniqueUserIds = [...new Set(targetUserIds)];
+  let uniqueUserIds = [...new Set(targetUserIds)];
+  if (!uniqueUserIds.length) {
+    uniqueUserIds = fallbackUsers.map((user) => user._id.toString());
+  }
 
   await Promise.all(
     uniqueUserIds.map((receiverId) =>

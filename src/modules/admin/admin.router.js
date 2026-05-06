@@ -23,6 +23,8 @@ import {
   getAllDistrictMembersByAdmin,
   getDistrictMembersByDistrictIdByAdmin,
   getAllDistrictsByAdmin,
+  getAllSkatersByAdmin,
+  getSkaterFullDetailsByAdmin,
   updateClubByAdmin,
   updateDistrictMemberByAdmin,
   updateDistrictByAdmin,
@@ -42,6 +44,8 @@ import {
   createDistrictMemberByAdminValidation,
   createDistrictByAdminValidation,
   districtByAdminIdValidation,
+  skaterByAdminIdValidation,
+  skaterListByAdminValidation,
   updateClubMemberByAdminValidation,
   updateClubByAdminValidation,
   updateDistrictByAdminValidation,
@@ -182,6 +186,20 @@ router.delete(
   authenticate(["State", "admin"]),
   validate(clubMemberByAdminIdValidation),
   deleteClubMemberByAdmin
+);
+
+// ================================= skater
+router.get(
+  "/v1/skater",
+  authenticate(["State", "admin"]),
+  validate(skaterListByAdminValidation),
+  getAllSkatersByAdmin
+);
+router.get(
+  "/v1/skater/:id",
+  authenticate(["State", "admin"]),
+  validate(skaterByAdminIdValidation),
+  getSkaterFullDetailsByAdmin
 );
 
 export default router;

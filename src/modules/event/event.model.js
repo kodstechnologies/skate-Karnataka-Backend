@@ -5,14 +5,51 @@ const eventSchema = new mongoose.Schema(
     // 🧾 Header / Title
     header: {
       type: String,
-      required: true,
+      required: function () {
+        return this.isNew;
+      },
       trim: true,
     },
 
-    // 📅 Date
-    date: {
+    // 📅 Registration Window
+    registerStartDate: {
       type: Date,
-      required: true,
+      required: function () {
+        return this.isNew;
+      },
+    },
+    registerEndDate: {
+      type: Date,
+      required: function () {
+        return this.isNew;
+      },
+    },
+    // 🏁 Event Schedule
+    eventStartDate: {
+      type: Date,
+      required: function () {
+        return this.isNew;
+      },
+    },
+    eventEndDate: {
+      type: Date,
+      required: function () {
+        return this.isNew;
+      },
+    },
+    eventStartTime: {
+      type: String,
+      required: function () {
+        return this.isNew;
+      },
+      trim: true,
+    },
+    eventEndTime: {
+      type: String,
+      required: function () {
+        return this.isNew;
+      },
+      trim: true,
     },
 
     // 📝 Description
@@ -30,14 +67,18 @@ const eventSchema = new mongoose.Schema(
     // 🔥 Event Type (State / District / Club)
     eventType: {
       type: String,
-      required: true,
+      required: function () {
+        return this.isNew;
+      },
       enum: ["State", "District", "Club"], // must match model names
     },
 
     // 🔥 Dynamic Reference ID
     eventFor: {
       type: mongoose.Schema.Types.ObjectId,
-      required: true,
+      required: function () {
+        return this.isNew;
+      },
       refPath: "eventType", // 🔥 dynamic reference
     },
 

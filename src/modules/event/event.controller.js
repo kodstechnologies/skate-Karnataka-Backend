@@ -1,6 +1,7 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
+import { AppError } from "../../util/common/AppError.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { clubRelatedEventDisplayService, createClubEventService, createDistrictEventService, createStateEventService, create_event_schema, delete_event_schema, display_all_event_based_on_user_service, display_latest_event_server, displayEventServer, displaySingleEventDetailsServer, districtRelatedEventDisplayService, edit_event_schema, stateRelatedEventDisplayService } from "./event.service.js";
+import { clubRelatedEventDisplayService, createClubEventService, createDistrictEventService, createEventCategoryService, createRegisterFormService, createStateEventService, create_event_schema, deleteEventCategoryService, delete_event_schema, display_all_event_based_on_user_service, display_latest_event_server, displayEventServer, displaySingleEventDetailsServer, districtRelatedEventDisplayService, edit_event_schema, getAllEventCategoriesService, getEventCategoryByIdService, getRegisterFormByIdService, getRegisterFormByUserIdService, stateRelatedEventDisplayService, updateEventCategoryService } from "./event.service.js";
 
 
 const display_latest_event = asyncHandler(async (req, res) => {
@@ -91,9 +92,15 @@ export const createDistrictEvent = asyncHandler(async (req, res) => {
 // ===================================== state 
 
 export const stateRelatedEventDisplay = asyncHandler(async (req, res) => {
-    const stateId = req.user._id;
-    const { page = 1, limit = 10 } = req.query;
-    const events = await stateRelatedEventDisplayService(stateId, { page, limit });
+    const role = (req.user.role || "").toLowerCase();
+    const { page = 1, limit = 10, search = "", stateId: queryStateId } = req.query;
+    const filterStateId =
+        role === "admin" ? queryStateId : req.user._id.toString();
+    const events = await stateRelatedEventDisplayService(filterStateId, {
+        page,
+        limit,
+        search,
+    });
     return res.status(200).json(
         new ApiResponse(
             200,
@@ -112,8 +119,13 @@ export const stateRelatedEventDisplay = asyncHandler(async (req, res) => {
 });
 
 export const createStateEvent = asyncHandler(async (req, res) => {
-    const stateId = req.user._id;
-    const event = await createStateEventService(stateId, req.body);
+    const role = (req.user.role || "").toLowerCase();
+    console.log(role,"role")
+    const body = req.body || {};
+    console.log(body,"body")
+    const { stateId: bodyStateId, ...payload } = body;
+    const stateId = role === "admin" ? bodyStateId : req.user._id;
+    const event = await createStateEventService(stateId, payload);
 
     return res.status(201).json(
         new ApiResponse(
@@ -169,13 +181,15 @@ const edit_event = asyncHandler(async (req, res) => {
 })
 
 const delete_event = asyncHandler(async (req, res) => {
-    const { id } = req.params();
+    const { id } = req.params;
     await delete_event_schema(id);
 
     return res.status(200).json(
-        200,
-        null,
-        "Event deleted successfully"
+        new ApiResponse(
+            200,
+            null,
+            "Event deleted successfully"
+        )
     )
 })
 
@@ -205,6 +219,80 @@ const displayEventById = asyncHandler(async (req, res) => {
                 "Event displayed successfully"
             )
         );
+});
+
+export const getEventCategories = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 10 } = req.query;
+    const categories = await getAllEventCategoriesService({ page, limit });
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                {
+                    data: categories.data || [],
+                    pagination: {
+                        total: categories.total || 0,
+                        page: categories.page || Number(page) || 1,
+                        limit: categories.limit || Number(limit) || 10,
+                        totalPages: categories.totalPages || 0,
+                    },
+                },
+                "Event categories fetched successfully"
+            )
+        );
+});
+
+export const getEventCategoryById = asyncHandler(async (req, res) => {
+    const category = await getEventCategoryByIdService(req.params.id);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, category, "Event category fetched successfully"));
+});
+
+export const createEventCategory = asyncHandler(async (req, res) => {
+    const category = await createEventCategoryService(req.body);
+    return res
+        .status(201)
+        .json(new ApiResponse(201, category, "Event category created successfully"));
+});
+
+export const updateEventCategory = asyncHandler(async (req, res) => {
+    const category = await updateEventCategoryService(req.params.id, req.body);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, category, "Event category updated successfully"));
+});
+
+export const deleteEventCategory = asyncHandler(async (req, res) => {
+    await deleteEventCategoryService(req.params.id);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, null, "Event category deleted successfully"));
+});
+
+export const getRegisterFormByUserId = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+    const registrations = await getRegisterFormByUserIdService(userId);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, registrations, "Register form fetched successfully"));
+});
+
+export const getRegisterFormById = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+    const result = await getRegisterFormByIdService(req.params.id, userId);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, result, "Register form fetched successfully"));
+});
+
+export const createRegisterForm = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+    const result = await createRegisterFormService(userId, req.body);
+    return res
+        .status(201)
+        .json(new ApiResponse(201, result, "Register form submitted successfully"));
 });
 
 

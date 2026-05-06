@@ -9,6 +9,13 @@ const withMediaType = (item) => ({
   type: item?.videoUrl ? "video" : "img",
 });
 
+const normalizeSingleUrl = (value) => {
+  if (Array.isArray(value)) {
+    return value[0] || null;
+  }
+  return value || null;
+};
+
 export const displayAllMediaBasedOnSkaterRepositories = async (skaterId, type, page, limit) => {
   const skater = await Skater.findById(skaterId).select("club").lean();
   if (!skater) {
@@ -157,8 +164,8 @@ export const basedOnRoleDisplayRepositories = async ({ ownerType, ownerId, type 
 };
 export const addMediaREpositories = async (data) => {
   return Gallery.create({
-    imageUrl: data?.img || data?.imageUrl || null,
-    videoUrl: data?.videoUrl || null,
+    imageUrl: normalizeSingleUrl(data?.imageUrl ?? data?.img),
+    videoUrl: normalizeSingleUrl(data?.videoUrl),
     title: data?.title || "",
     about: data?.about || "",
     ownerType: data.ownerType,

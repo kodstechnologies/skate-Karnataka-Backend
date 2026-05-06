@@ -94,6 +94,28 @@ export const newsByIdValidation = {
   }),
 };
 
+const paginatedSearchQuerySchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1),
+  limit: Joi.number().integer().min(1).max(100).default(10),
+  search: Joi.string().trim().max(200).allow("").optional(),
+});
+
+export const displayNewsQueryValidation = {
+  query: paginatedSearchQuerySchema,
+};
+
+export const displayFeedbackQueryValidation = {
+  query: paginatedSearchQuerySchema,
+};
+
+export const displayDisciplinesQueryValidation = {
+  query: paginatedSearchQuerySchema,
+};
+
+export const displayCircularQueryValidation = {
+  query: paginatedSearchQuerySchema,
+};
+
 export const eventByIdValidation = {
   params: Joi.object({
     id: Joi.string().trim().required().messages({
@@ -185,6 +207,129 @@ export const circularByIdValidation = {
     id: Joi.string().trim().required().messages({
       "any.required": "Circular id is required",
       "string.empty": "Circular id is required",
+    }),
+  }),
+};
+
+const aboutImgSchema = Joi.alternatives()
+  .try(
+    Joi.string().uri().allow("").messages({
+      "string.uri": "Each image must be a valid URL",
+    }),
+    Joi.array().items(
+      Joi.string().uri().allow("").messages({
+        "string.uri": "Each image must be a valid URL",
+      })
+    )
+  )
+  .optional();
+
+const aboutBodyFields = {
+  logo: Joi.string().uri().allow("").optional().messages({
+    "string.uri": "Logo must be a valid URL",
+  }),
+  img: aboutImgSchema,
+  heading: Joi.string().trim().min(1).max(500).optional(),
+  about: Joi.string().trim().min(1).max(10000).optional(),
+  ourMission: Joi.string().trim().min(1).max(10000).optional(),
+  student: Joi.number().integer().min(0).optional(),
+  titles: Joi.string().trim().max(500).allow("").optional(),
+  address: Joi.string().trim().max(500).allow("").optional(),
+  email: Joi.string().trim().email().allow("").optional(),
+  phoneNo: Joi.string().trim().max(20).allow("").optional(),
+};
+
+export const addAboutValidation = {
+  body: Joi.object({
+    ...aboutBodyFields,
+    heading: Joi.string().trim().min(1).max(500).required().messages({
+      "string.empty": "Heading is required",
+      "any.required": "Heading is required",
+    }),
+    about: Joi.string().trim().min(1).max(10000).required().messages({
+      "string.empty": "About is required",
+      "any.required": "About is required",
+    }),
+    ourMission: Joi.string().trim().min(1).max(10000).required().messages({
+      "string.empty": "Our mission is required",
+      "any.required": "Our mission is required",
+    }),
+  }),
+};
+
+export const updateAboutValidation = {
+  body: Joi.object(aboutBodyFields).min(1),
+};
+
+const sponsorshipDonationBodyFields = {
+  img: Joi.string().uri().allow("").optional().messages({
+    "string.uri": "Image must be a valid URL",
+  }),
+  brandName: Joi.string().trim().min(1).max(200).allow(""),
+  title: Joi.string().trim().min(1).max(200).allow(""),
+  about: Joi.string().trim().max(10000).allow(""),
+  support: Joi.string().trim().max(10000).allow(""),
+  contribution: Joi.string().trim().max(500).allow(""),
+  duration: Joi.string().trim().max(200).allow(""),
+  supportType: Joi.string()
+    .trim()
+    .lowercase()
+    .valid("sponsorship", "donation")
+    .messages({
+      "any.only": "Support type must be sponsorship or donation",
+    }),
+  donorName: Joi.string().trim().max(200).allow(""),
+  amount: Joi.string().trim().max(200).allow(""),
+};
+
+export const sponsorshipDonationListQueryValidation = {
+  query: paginatedSearchQuerySchema.keys({
+    supportType: Joi.string()
+      .trim()
+      .lowercase()
+      .valid("sponsorship", "donation", "")
+      .optional(),
+  }),
+};
+
+export const addSponsorshipDonationValidation = {
+  body: Joi.object({
+    ...sponsorshipDonationBodyFields,
+    brandName: sponsorshipDonationBodyFields.brandName.required().messages({
+      "string.empty": "Brand name is required",
+      "any.required": "Brand name is required",
+    }),
+    title: sponsorshipDonationBodyFields.title.required().messages({
+      "string.empty": "Title is required",
+      "any.required": "Title is required",
+    }),
+    supportType: Joi.string()
+      .trim()
+      .lowercase()
+      .valid("sponsorship", "donation")
+      .required()
+      .messages({
+        "any.only": "Support type must be sponsorship or donation",
+        "any.required": "Support type is required",
+      }),
+  }),
+};
+
+export const updateSponsorshipDonationValidation = {
+  params: Joi.object({
+    id: Joi.string().trim().required().messages({
+      "any.required": "Sponsorship/Donation id is required",
+      "string.empty": "Sponsorship/Donation id is required",
+    }),
+  }),
+  body: Joi.object(sponsorshipDonationBodyFields).min(1),
+};
+
+export const sponsorshipDonationByIdValidation = {
+  params: Joi.object({
+    id: Joi.string().trim().required().messages({
+      "any.required": "Sponsorship/Donation id is required",
+      "string.empty": "Sponsorship/Donation id is required",
     }),
   }),
 };

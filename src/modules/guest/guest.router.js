@@ -16,13 +16,25 @@ import {
   displaySingleNews,
   updateNews,
   displayDisciplines,
+  displaySingleDiscipline,
   addDiscipline,
   updateDiscipline,
   deleteDiscipline,
   displayCircular,
+  displaySingleCircular,
   addCircular,
   updateCircular,
   deleteCircular,
+  displayLatestAbout,
+  displayAboutGuest,
+  addAbout,
+  editAbout,
+  deleteAbout,
+  addSponsorshipDonation,
+  deleteSponsorshipDonation,
+  displaySingleSponsorshipDonation,
+  displaySponsorshipDonations,
+  updateSponsorshipDonation,
 } from "./guest.controller.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import {
@@ -34,10 +46,20 @@ import {
   addCircularValidation,
   updateCircularValidation,
   circularByIdValidation,
+  addAboutValidation,
+  updateAboutValidation,
   eventByIdValidation,
   newsByIdValidation,
   updateDisciplineValidation,
   updateNewsValidation,
+  displayFeedbackQueryValidation,
+  displayNewsQueryValidation,
+  displayDisciplinesQueryValidation,
+  displayCircularQueryValidation,
+  sponsorshipDonationListQueryValidation,
+  addSponsorshipDonationValidation,
+  updateSponsorshipDonationValidation,
+  sponsorshipDonationByIdValidation,
 } from "./guest.validation.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
 
@@ -49,12 +71,20 @@ router.post("/v1/contact-us", authenticate(["Skater", "Admin"]), validate(addCon
 
 // FeedBack ===========================
 
-router.get("/v1/feed-back", displayFeedback);
+router.get(
+  "/v1/feed-back",
+  validate(displayFeedbackQueryValidation),
+  displayFeedback
+);
 router.post("/v1/feed-back", validate(addFeedBackValidation), addFeedBack);
 
 // news ======================
 
-router.get("/v1/news", displayNews);
+router.get(
+  "/v1/news",
+  validate(displayNewsQueryValidation),
+  displayNews
+);
 router.post(
   "/v1/news",
   authenticate(["Skater", "Admin"]),
@@ -86,7 +116,15 @@ router.get("/v1/events/:id", validate(eventByIdValidation), displayStateLatestSi
 
 // ====================== Disciplines  
 
-router.get("/v1/discipline", displayDisciplines);
+router.get(
+  "/v1/discipline",
+  // validate(displayDisciplinesQueryValidation),
+  displayDisciplines
+);
+router.get(
+  "/v1/discipline/:id",
+  displaySingleDiscipline
+);
 router.post(
   "/v1/discipline",
   authenticate(["Skater", "Admin"]),
@@ -112,7 +150,15 @@ router.delete(
 
 // Circular====================
 
-router.get("/v1/circular", displayCircular);
+router.get(
+  "/v1/circular",
+  validate(displayCircularQueryValidation),
+  displayCircular
+);
+router.get(
+  "/v1/circular/:id",
+  displaySingleCircular
+);
 router.post(
   "/v1/circular",
   authenticate(["Skater", "Admin"]),
@@ -147,5 +193,69 @@ router.post(
   afterLoginGuestForm
 );
 
+// =========== about ===============
+router.get("/v1/display-latest-about", displayLatestAbout);
+router.get("/v1/display-about-guest", displayAboutGuest);
+router.post(
+  "/v1/guest-about",
+  authenticate(["Skater", "Admin"]),
+  upload.fields([
+    { name: "logo", maxCount: 1 },
+    { name: "img", maxCount: 20 },
+  ]),
+  uploadToS3("about", { logo: "logo", img: "img" }),
+  validate(addAboutValidation),
+  addAbout
+);
+router.patch(
+  "/v1/guest-about",
+  authenticate(["Skater", "Admin"]),
+  upload.fields([
+    { name: "logo", maxCount: 1 },
+    { name: "img", maxCount: 20 },
+  ]),
+  uploadToS3("about", { logo: "logo", img: "img" }),
+  validate(updateAboutValidation),
+  editAbout
+);
+router.delete(
+  "/v1/guest-about",
+  authenticate(["Skater", "Admin"]),
+  deleteAbout
+);
+
+// ================= SponsorshipAndDonation ==============
+
+router.get(
+  "/v1/sponsorship-donation",
+  displaySponsorshipDonations
+);
+router.post(
+  "/v1/sponsorship-donation",
+  authenticate(["Skater", "Admin"]),
+  upload.single("img"),
+  uploadToS3("about", { img: "img" }),
+  validate(addSponsorshipDonationValidation),
+  addSponsorshipDonation
+);
+router.get(
+  "/v1/sponsorship-donation/:id",
+  validate(sponsorshipDonationByIdValidation),
+  displaySingleSponsorshipDonation
+);
+router.patch(
+  "/v1/sponsorship-donation/:id",
+  authenticate(["Skater", "Admin"]),
+  upload.single("img"),
+  uploadToS3("about", { img: "img" }),
+  validate(updateSponsorshipDonationValidation),
+  updateSponsorshipDonation
+);
+router.delete(
+  "/v1/sponsorship-donation/:id",
+  authenticate(["Skater", "Admin"]),
+  validate(sponsorshipDonationByIdValidation),
+  deleteSponsorshipDonation
+);
 
 export default router;

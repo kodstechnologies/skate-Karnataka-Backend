@@ -23,6 +23,13 @@ const getOwnerContext = (user) => {
     return { ownerType, ownerId: user?._id };
 };
 
+const normalizeSingleUrl = (value) => {
+    if (Array.isArray(value)) {
+        return value[0] || "";
+    }
+    return value || "";
+};
+
 export const displayAllMediaBasedOnSkaterService = async (skaterId, type, page, limit) => {
     return await displayAllMediaBasedOnSkaterRepositories(skaterId, type, page, limit);
 }
@@ -54,10 +61,16 @@ export const updateMediaService = async (id, data, user) => {
 
     const payload = {};
     if (typeof data?.img !== "undefined" || typeof data?.imageUrl !== "undefined") {
-        payload.imageUrl = data?.img || data?.imageUrl || "";
+        payload.imageUrl = normalizeSingleUrl(data?.imageUrl ?? data?.img);
     }
     if (typeof data?.videoUrl !== "undefined") {
-        payload.videoUrl = data.videoUrl || "";
+        payload.videoUrl = normalizeSingleUrl(data.videoUrl);
+    }
+    if (typeof data?.title !== "undefined") {
+        payload.title = data.title || "";
+    }
+    if (typeof data?.about !== "undefined") {
+        payload.about = data.about || "";
     }
 
     if (!Object.keys(payload).length) {

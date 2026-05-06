@@ -483,3 +483,51 @@ export const removeClubMemberFromAllClubs = async (clubMemberId) => {
     { $pull: { members: clubMemberId } }
   );
 };
+
+export const getAllSkatersForAdmin = async ({ page = 1, limit = 10, search = "" } = {}) => {
+  const currentPage = Math.max(Number(page) || 1, 1);
+  const pageLimit = Math.max(Number(limit) || 10, 1);
+  const skip = (currentPage - 1) * pageLimit;
+  const trimmedSearch = String(search || "").trim();
+
+  const query = { role: "Skater" };
+  if (trimmedSearch) {
+    query.$or = [
+      { fullName: { $regex: trimmedSearch, $options: "i" } },
+      { phone: { $regex: trimmedSearch, $options: "i" } },
+      { address: { $regex: trimmedSearch, $options: "i" } },
+      { gender: { $regex: trimmedSearch, $options: "i" } },
+      { email: { $regex: trimmedSearch, $options: "i" } },
+      { krsaId: { $regex: trimmedSearch, $options: "i" } },
+    ];
+  }
+
+  const [total, skaters] = await Promise.all([
+    BaseAuth.countDocuments(query),
+    BaseAuth.find(query)
+      .select("_id fullName profile phone address district gender email krsaId")
+      .populate("district", "_id name")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(pageLimit)
+      .lean(),
+  ]);
+
+  return {
+    data: skaters,
+    pagination: {
+      total,
+      page: currentPage,
+      limit: pageLimit,
+      totalPages: Math.ceil(total / pageLimit),
+    },
+  };
+};
+
+export const getSkaterFullDetailsByIdForAdmin = async (skaterId) => {
+  return BaseAuth.findOne({ _id: skaterId, role: "Skater" })
+    .select("-refreshTokens -isNotificationsEnabled -isActive -firebaseTokens")
+    .populate("district", "_id name")
+    .populate("club", "_id name clubId district districtName")
+    .lean();
+};

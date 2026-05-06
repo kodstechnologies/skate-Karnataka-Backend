@@ -61,7 +61,11 @@ const get_skater_profile_repositories = async (id) => {
 };
 
 const get_skater_digital_id_card_repositories = async (id) => {
-    const profile = await Skater.findById(id).select("createdAt photo fullName krsaId dob category club").populate("club", "name").lean();
+    const profile = await Skater.findById(id)
+        .select("createdAt photo fullName krsaId dob category club")
+        .populate("club", "name")
+        .populate("category", "typeName")
+        .lean();
     console.log(profile, "profile ...");
     return profile;
 }

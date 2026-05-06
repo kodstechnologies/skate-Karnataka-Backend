@@ -16,7 +16,9 @@ const afterLoginSkaterFormValidation = {
             .valid("male", "female", "other")
         ,
 
-        category: Joi.string(),
+        category: Joi.string()
+            .trim()
+            .pattern(/^[0-9a-fA-F]{24}$/),
         discipline: Joi.string(),
 
         address: Joi.string().max(200),

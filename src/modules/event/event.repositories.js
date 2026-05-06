@@ -712,30 +712,14 @@ export const createStateEventRepositories = async (stateId, data) => {
     .select("name")
     .lean();
 
-  const [stateUsers, districts, clubs, skaters, fallbackUsers] = await Promise.all([
-    BaseAuth.find({ role: "State" }).select("_id").lean(),
-    District.find().select("members").lean(),
-    Club.find().select("members").lean(),
-    Skater.find().select("_id").lean(),
-    BaseAuth.find({
-      role: { $in: ["State", "District", "Club", "Skater"] },
-      isActive: true,
-    })
-      .select("_id")
-      .lean(),
-  ]);
+  const users = await BaseAuth.find({
+    isActive: true,
+    isNotificationsEnabled: true,
+  })
+    .select("_id")
+    .lean();
 
-  const targetUserIds = [
-    ...stateUsers.map((user) => user._id.toString()),
-    ...districts.flatMap((district) => (district.members || []).map((id) => id.toString())),
-    ...clubs.flatMap((club) => (club.members || []).map((id) => id.toString())),
-    ...skaters.map((skater) => skater._id.toString()),
-  ];
-
-  let uniqueUserIds = [...new Set(targetUserIds)];
-  if (!uniqueUserIds.length) {
-    uniqueUserIds = fallbackUsers.map((user) => user._id.toString());
-  }
+  const uniqueUserIds = [...new Set(users.map((user) => user._id.toString()))];
 
   await Promise.all(
     uniqueUserIds.map((receiverId) =>

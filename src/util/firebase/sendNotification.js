@@ -22,7 +22,7 @@ export const sendNotification = async ({
       ? await BaseAuth.findById(sentBy).select("role")
       : null;
     const senderRole = sender?.role || null;
-    // console.log(auth, "00000000000000000000000")
+    console.log(auth, "00000000000000000000000")
     if (!auth) {
       console.log(`Receiver not found: ${receiverId}`);
       return;
@@ -80,7 +80,7 @@ export const sendNotification = async ({
       `Notification sent to ${receiverId}`,
       response.successCount
     );
-    // console.log(response, "=============")
+    console.log(response, "=============")
   } catch (error) {
     console.error(
       "sendNotification error:",

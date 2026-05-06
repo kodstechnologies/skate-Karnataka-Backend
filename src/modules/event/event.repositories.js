@@ -9,6 +9,7 @@ import { District } from "../district/district.model.js";
 import { State } from "../state/state.model.js";
 import mongoose from "mongoose";
 import { sendNotification } from "../../util/firebase/sendNotification.js";
+import { AppError } from "../../util/common/AppError.js";
 
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -120,6 +121,7 @@ export const getRegisterFormByIdRepository = async (id, userId) => {
     ageGroup: item.ageGroup,
     categories: item.categories || [],
     paymentStatus: item.paymentStatus,
+    attendanceStatus: item.attendanceStatus || "pending",
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
   };
@@ -176,6 +178,7 @@ export const listEventSkatersByEventIdRepository = async (eventId, { page, limit
             participantName: "$name",
             ageGroup: 1,
             paymentStatus: 1,
+            attendanceStatus: 1,
             categories: 1,
             registeredAt: "$createdAt",
             fullName: "$user.fullName",
@@ -200,6 +203,98 @@ export const listEventSkatersByEventIdRepository = async (eventId, { page, limit
     limit: pageLimit,
     totalPages: Math.ceil(total / pageLimit) || 0,
   };
+};
+
+export const listEventSkatersBasicByEventIdRepository = async (eventId) => {
+  const participants = await EventParticipant.find({
+    eventId: new mongoose.Types.ObjectId(eventId),
+  })
+    .select("name userId")
+    .populate("userId", "fullName krsaId phone email")
+    .lean();
+
+  const skaters = participants.map((participant) => ({
+    name: participant.name || participant.userId?.fullName || "",
+    krsaId: participant.userId?.krsaId || "",
+    phone: participant.userId?.phone || "",
+    email: participant.userId?.email || "",
+  }));
+
+  return {
+    skaterCount: skaters.length,
+    skaters,
+  };
+};
+
+export const updateEventParticipantTimingBySkaterRepository = async (
+  skaterId,
+  eventId,
+  payload
+) => {
+  const participant = await EventParticipant.findOne({
+    userId: new mongoose.Types.ObjectId(skaterId),
+    eventId: new mongoose.Types.ObjectId(eventId),
+  });
+
+  if (!participant) return null;
+
+  if (typeof payload.status === "string") {
+    participant.attendanceStatus =
+      payload.status === "apsent" ? "absent" : payload.status;
+  }
+
+  const forceDisqualified = payload.isDisqualified;
+
+  if (Array.isArray(payload.categories) && payload.categories.length > 0) {
+    const inputByName = new Map(
+      payload.categories.map((category) => [String(category.name || "").trim(), category])
+    );
+
+    const unknownCategories = [...inputByName.keys()].filter((name) => {
+      if (!name) return true;
+      return !participant.categories.some(
+        (registeredCategory) => String(registeredCategory.name || "").trim() === name
+      );
+    });
+
+    if (unknownCategories.length > 0) {
+      throw new AppError(
+        `Invalid categories for this skater: ${unknownCategories.join(", ")}`,
+        400
+      );
+    }
+
+    participant.categories = participant.categories.map((category) => {
+      const categoryObj = category.toObject();
+      const incoming = inputByName.get(String(categoryObj.name || "").trim());
+      if (!incoming) {
+        return categoryObj;
+      }
+
+      return {
+        ...categoryObj,
+        timeTaken:
+          incoming.timeTaken !== undefined ? incoming.timeTaken : categoryObj.timeTaken,
+        rank: incoming.rank !== undefined ? incoming.rank : categoryObj.rank,
+        isDisqualified:
+          incoming.isDisqualified !== undefined
+            ? incoming.isDisqualified
+            : typeof forceDisqualified === "boolean"
+              ? forceDisqualified
+              : categoryObj.isDisqualified,
+        remarks: incoming.remarks !== undefined ? incoming.remarks : categoryObj.remarks,
+      };
+    });
+  } else if (typeof forceDisqualified === "boolean") {
+    participant.categories = participant.categories.map((category) => ({
+      ...category.toObject(),
+      isDisqualified: forceDisqualified,
+    }));
+  }
+
+  await participant.save();
+
+  return participant.toObject();
 };
 
 

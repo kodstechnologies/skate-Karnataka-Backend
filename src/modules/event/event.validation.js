@@ -24,6 +24,66 @@ export const stateEventSkatersListQueryValidation = {
     }),
 };
 
+const state_skater_time_update_validation = {
+    body: Joi.object({
+        eventId: objectIdString.required(),
+        skaterId: objectIdString.optional(),
+        status: Joi.string()
+            .trim()
+            .lowercase()
+            .valid("pending", "attend", "absent", "apsent")
+            .optional(),
+        isDisqualified: Joi.boolean().optional(),
+        categories: Joi.array().items(
+            Joi.object({
+                name: Joi.string().trim().min(1).required(),
+                timeTaken: Joi.number().allow(null).optional(),
+                rank: Joi.number().integer().allow(null).optional(),
+                isDisqualified: Joi.boolean().optional(),
+                remarks: Joi.string().trim().allow("").optional(),
+            })
+        ).optional(),
+        skaters: Joi.array().items(
+            Joi.object({
+                skaterId: objectIdString.required(),
+                status: Joi.string()
+                    .trim()
+                    .lowercase()
+                    .valid("pending", "attend", "absent", "apsent")
+                    .optional(),
+                isDisqualified: Joi.boolean().optional(),
+                categories: Joi.array().items(
+                    Joi.object({
+                        name: Joi.string().trim().min(1).required(),
+                        timeTaken: Joi.number().allow(null).optional(),
+                        rank: Joi.number().integer().allow(null).optional(),
+                        isDisqualified: Joi.boolean().optional(),
+                        remarks: Joi.string().trim().allow("").optional(),
+                    })
+                ).optional(),
+            }).min(2)
+        ).min(1).optional(),
+    })
+        .xor("skaterId", "skaters")
+        .custom((value, helpers) => {
+            if (
+                value.skaterId &&
+                value.status === undefined &&
+                value.isDisqualified === undefined &&
+                value.categories === undefined
+            ) {
+                return helpers.error("any.custom", {
+                    message: "Single skater update requires status, isDisqualified, or categories",
+                });
+            }
+            return value;
+        })
+        .messages({
+            "object.xor": "Provide either skaterId (single) or skaters (batch), not both",
+            "any.custom": "{{#message}}",
+        }),
+};
+
 const create_event_validation = {
     body: Joi.object({
         header: Joi.string()
@@ -296,6 +356,7 @@ const register_form_validation = {
 };
 
 export {
+    state_skater_time_update_validation,
     create_event_validation,
     create_club_event_validation,
     create_district_event_validation,

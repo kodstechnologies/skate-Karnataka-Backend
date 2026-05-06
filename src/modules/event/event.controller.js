@@ -1,7 +1,7 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { AppError } from "../../util/common/AppError.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { clubRelatedEventDisplayService, createClubEventService, createDistrictEventService, createEventCategoryService, createRegisterFormService, createStateEventService, create_event_schema, deleteEventCategoryService, delete_event_schema, display_all_event_based_on_user_service, display_latest_event_server, displayEventServer, displaySingleEventDetailsServer, districtRelatedEventDisplayService, edit_event_schema, getAllEventCategoriesService, getEventCategoryByIdService, getRegisterFormByIdService, getRegisterFormByUserIdService, stateRelatedEventDisplayService, stateEventFullDetailsService, stateEventSkatersSummaryService, updateEventCategoryService } from "./event.service.js";
+import { clubRelatedEventDisplayService, createClubEventService, createDistrictEventService, createEventCategoryService, createRegisterFormService, createStateEventService, create_event_schema, deleteEventCategoryService, delete_event_schema, display_all_event_based_on_user_service, display_latest_event_server, displayEventServer, displaySingleEventDetailsServer, districtRelatedEventDisplayService, edit_event_schema, getAllEventCategoriesService, getEventCategoryByIdService, getRegisterFormByIdService, getRegisterFormByUserIdService, stateRelatedEventDisplayService, stateEventFullDetailsService, stateEventSkatersSummaryService, updateEventCategoryService, updateStateEventSkaterTimeService } from "./event.service.js";
 
 
 const display_latest_event = asyncHandler(async (req, res) => {
@@ -162,6 +162,19 @@ export const stateEventSkatersSummary = asyncHandler(async (req, res) => {
             },
             "Event skaters fetched successfully"
         )
+    );
+});
+
+export const updateStateSkaterTime = asyncHandler(async (req, res) => {
+    const updated = await updateStateEventSkaterTimeService(
+        {
+            role: req.user.role,
+            userId: req.user._id,
+        },
+        req.body
+    );
+    return res.status(200).json(
+        new ApiResponse(200, updated, "Skater timings updated successfully")
     );
 });
 

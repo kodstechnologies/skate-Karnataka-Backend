@@ -1,6 +1,6 @@
 import { AppError } from "../../util/common/AppError.js";
 import { State } from "../state/state.model.js";
-import { createEventCategoryRepository, createRegisterFormRepository, deleteEventCategoryRepository, displaySingleEventRepository, displayAllEventRepository, create_event_repositories, edit_event_repositories, delete_event_repositories, display_latest_event_repositories, display_all_event_based_on_user_repositories, clubRelatedEventDisplayRepositories, createClubEventRepositories, districtRelatedEventDisplayRepositories, createDistrictEventRepositories, getRegisterFormByIdRepository, getRegisterFormByUserIdRepository, stateRelatedEventDisplayRepositories, createStateEventRepositories, getAllEventCategoriesRepository, getEventCategoryByIdRepository, updateEventCategoryRepository, getStateEventFullDetailsByIdRepository, listEventSkatersByEventIdRepository } from "./event.repositories.js";
+import { createEventCategoryRepository, createRegisterFormRepository, deleteEventCategoryRepository, displaySingleEventRepository, displayAllEventRepository, create_event_repositories, edit_event_repositories, delete_event_repositories, display_latest_event_repositories, display_all_event_based_on_user_repositories, clubRelatedEventDisplayRepositories, createClubEventRepositories, districtRelatedEventDisplayRepositories, createDistrictEventRepositories, getRegisterFormByIdRepository, getRegisterFormByUserIdRepository, stateRelatedEventDisplayRepositories, createStateEventRepositories, getAllEventCategoriesRepository, getEventCategoryByIdRepository, updateEventCategoryRepository, getStateEventFullDetailsByIdRepository, listEventSkatersBasicByEventIdRepository, listEventSkatersByEventIdRepository, updateEventParticipantTimingBySkaterRepository } from "./event.repositories.js";
 
 const displayEventServer = async (data) => {
 
@@ -38,7 +38,11 @@ export const stateRelatedEventDisplayService = async (stateId, query) => {
     return await stateRelatedEventDisplayRepositories(stateId, query);
 }
 
-const assertUserCanAccessStateEvent = async (eventId, { role, userId }) => {
+const assertUserCanAccessStateEvent = async (
+    eventId,
+    { role, userId },
+    { enforceOwnership = true } = {}
+) => {
     const event = await getStateEventFullDetailsByIdRepository(eventId);
     if (!event) {
         throw new AppError("Event not found", 404);
@@ -46,8 +50,9 @@ const assertUserCanAccessStateEvent = async (eventId, { role, userId }) => {
     if (event.eventType !== "State") {
         throw new AppError("Event not found", 404);
     }
-    const isAdmin = (role || "").toLowerCase() === "admin";
-    if (!isAdmin) {
+    const normalizedRole = String(role || "").trim().toLowerCase();
+    const isAdmin = normalizedRole === "admin" || normalizedRole === "superadmin";
+    if (!isAdmin && enforceOwnership) {
         const ownerId =
             event.eventFor && typeof event.eventFor === "object" && event.eventFor._id
                 ? event.eventFor._id.toString()
@@ -63,10 +68,13 @@ const assertUserCanAccessStateEvent = async (eventId, { role, userId }) => {
 
 export const stateEventFullDetailsService = async (eventId, { role, userId }) => {
     const event = await assertUserCanAccessStateEvent(eventId, { role, userId });
+    const skatersSummary = await listEventSkatersBasicByEventIdRepository(eventId);
     const payload = { ...event };
     if (payload.eventFor && typeof payload.eventFor === "object" && "name" in payload.eventFor) {
         payload.eventFor = payload.eventFor.name;
     }
+    payload.skaterCount = skatersSummary.skaterCount;
+    payload.skaters = skatersSummary.skaters;
     return payload;
 };
 
@@ -81,6 +89,53 @@ export const stateEventSkatersSummaryService = async (eventId, { role, userId },
             colorTwo: event.colorTwo ?? null,
             textColor: event.textColor ?? null,
         },
+    };
+};
+
+export const updateStateEventSkaterTimeService = async (
+    { role, userId },
+    payload
+) => {
+    const { eventId, skaterId } = payload;
+    await assertUserCanAccessStateEvent(
+        eventId,
+        { role, userId },
+        { enforceOwnership: false }
+    );
+
+    if (Array.isArray(payload.skaters) && payload.skaters.length > 0) {
+        const updatedSkaters = [];
+
+        for (const skaterPayload of payload.skaters) {
+            const updated = await updateEventParticipantTimingBySkaterRepository(
+                skaterPayload.skaterId,
+                eventId,
+                skaterPayload
+            );
+            if (!updated) {
+                throw new AppError(
+                    `Skater registration not found for this event: ${skaterPayload.skaterId}`,
+                    404
+                );
+            }
+            updatedSkaters.push(updated);
+        }
+
+        return {
+            eventId,
+            updatedCount: updatedSkaters.length,
+            skaters: updatedSkaters,
+        };
+    }
+
+    const updated = await updateEventParticipantTimingBySkaterRepository(skaterId, eventId, payload);
+    if (!updated) {
+        throw new AppError("Skater registration not found for this event", 404);
+    }
+    return {
+        eventId,
+        updatedCount: 1,
+        skaters: [updated],
     };
 };
 

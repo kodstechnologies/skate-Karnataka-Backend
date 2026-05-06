@@ -2,6 +2,12 @@ import mongoose from "mongoose";
 
 const certificateTemplateSchema = new mongoose.Schema(
     {
+        name: {
+            type: String,
+            required: true,
+            trim: true,
+            unique: true,
+        },
         pdfUrl: {
             type: String,
             required: true,
@@ -13,12 +19,13 @@ const certificateTemplateSchema = new mongoose.Schema(
         },
         isActive: {
             type: Boolean,
-            default: true,
-        }
+            default: false,
+        },
     },
     {
-        timestamps: true
+        timestamps: true,
     }
 );
 
 export const CertificateTemplate = mongoose.model("CertificateTemplate", certificateTemplateSchema);
+

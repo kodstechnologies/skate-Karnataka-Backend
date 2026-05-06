@@ -58,11 +58,34 @@ const generateCertificateValidation = {
 };
 
 // ---------------------------------------------------------------------------
-// uploadTemplate — validates req.body (layout arrives as a JSON string)
-// File type / size is checked structurally in the controller after multer runs.
+// uploadTemplate (CREATE) — requires `name` + `layout` JSON string.
+// File type/size is checked in the controller after multer runs.
 // ---------------------------------------------------------------------------
 const uploadTemplateValidation = {
   body: Joi.object({
+    name: Joi.string().trim().min(2).max(100).required().messages({
+      "string.base": "name must be a string",
+      "string.min": "name must be at least 2 characters",
+      "string.max": "name must be at most 100 characters",
+      "any.required": "Template name is required",
+    }),
+    layout: Joi.string().required().messages({
+      "string.base": "layout must be a JSON string",
+      "any.required": "layout is required",
+    }),
+  }),
+};
+
+// ---------------------------------------------------------------------------
+// updateTemplate (UPDATE) — `name` is optional; `layout` is required.
+// ---------------------------------------------------------------------------
+const updateTemplateValidation = {
+  body: Joi.object({
+    name: Joi.string().trim().min(2).max(100).optional().messages({
+      "string.base": "name must be a string",
+      "string.min": "name must be at least 2 characters",
+      "string.max": "name must be at most 100 characters",
+    }),
     layout: Joi.string().required().messages({
       "string.base": "layout must be a JSON string",
       "any.required": "layout is required",
@@ -74,4 +97,5 @@ export {
   createCertificateValidation,
   generateCertificateValidation,
   uploadTemplateValidation,
+  updateTemplateValidation,
 };

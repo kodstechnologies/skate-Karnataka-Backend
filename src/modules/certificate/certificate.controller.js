@@ -3,24 +3,29 @@ import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { AppError } from "../../util/common/AppError.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
 import {
-  create_certificate_services,
-  display_all_certificate_service,
-  upload_template_service,
-  get_template_service,
-  generate_certificate_service,
-  download_certificate_service,
+    create_certificate_services,
+    display_all_certificate_service,
+    create_template_service,
+    update_template_service,
+    set_active_template_service,
+    get_all_templates_service,
+    get_template_service,
+    get_template_by_id_service,
+    generate_certificate_service,
+    download_certificate_service,
 } from "./certificate.service.js";
 import {
-  uploadTemplateValidation,
-  generateCertificateValidation,
+    uploadTemplateValidation,
+    updateTemplateValidation,
+    generateCertificateValidation,
 } from "./certificate.validation.js";
 
+// ---------------------------------------------------------------------------
+// Unchanged helpers
+// ---------------------------------------------------------------------------
 const createCertificate = asyncHandler(async (req, res) => {
-  const certificate = await create_certificate_services(req.body);
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, null, "certificate created successfully"));
+    await create_certificate_services(req.body);
+    return res.status(200).json(new ApiResponse(200, null, "certificate created successfully"));
 });
 
 const updateCertificates = asyncHandler(async (req, res) => {});
@@ -30,116 +35,180 @@ const deleteCertificates = asyncHandler(async (req, res) => {});
 const displaySingleCertificate = asyncHandler(async (req, res) => {});
 
 const displayAllCertificate = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 10 } = req.query;
-  const id = req.user._id;
+    const { page = 1, limit = 10 } = req.query;
+    const id = req.user._id;
 
-  const certificates = await display_all_certificate_service({
-    id,
-    page,
-    limit,
-  });
+    const certificates = await display_all_certificate_service({ id, page, limit });
 
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(200, certificates, "Certificates displayed successfully"),
-    );
+    return res.status(200).json(new ApiResponse(200, certificates, "Certificates displayed successfully"));
 });
 
-
+// ---------------------------------------------------------------------------
+// MAX file size constant
+// ---------------------------------------------------------------------------
 const MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
+// ---------------------------------------------------------------------------
+// uploadTemplate — CREATE a new template
+// Requires: name (body), layout (body, JSON string), pdf (file, optional)
+// ---------------------------------------------------------------------------
 const uploadTemplate = asyncHandler(async (req, res) => {
-  const file = req.file;
+    const file = req.file;
 
-  // ── Joi validation (runs here because Multer must parse the multipart
-  //    body first — validate middleware cannot run before upload.single)
-  const { error, value } = uploadTemplateValidation.body.validate(req.body, {
-    abortEarly: false,
-    stripUnknown: true,
-  });
-  if (error) {
-    const message = error.details.map((d) => d.message.replace(/"/g, "")).join(", ");
-    throw new AppError(message, 400);
-  }
-
-  const { layout: layoutString } = value;
-
-  // Parse layout JSON string
-  let layout;
-  try {
-    layout = JSON.parse(layoutString);
-  } catch {
-    throw new AppError("layout must be valid JSON", 400);
-  }
-
-  // File validation — only run when a new file is uploaded
-  if (file) {
-    if (file.mimetype !== "application/pdf") {
-      throw new AppError("Uploaded template must be a PDF file", 400);
+    const { error, value } = uploadTemplateValidation.body.validate(req.body, {
+        abortEarly: false,
+        stripUnknown: true,
+    });
+    if (error) {
+        const message = error.details.map((d) => d.message.replace(/"/g, "")).join(", ");
+        throw new AppError(message, 400);
     }
-    if (file.size > MAX_PDF_SIZE_BYTES) {
-      throw new AppError("PDF template must be smaller than 10 MB", 400);
+
+    const { name, layout: layoutString } = value;
+
+    let layout;
+    try {
+        layout = JSON.parse(layoutString);
+    } catch {
+        throw new AppError("layout must be valid JSON", 400);
     }
-  }
-  const result = await upload_template_service(file, layout);
-  return res
-    .status(200)
-    .json(new ApiResponse(200, result, "Template uploaded successfully"));
+
+    if (file) {
+        if (file.mimetype !== "application/pdf") {
+            throw new AppError("Uploaded template must be a PDF file", 400);
+        }
+        if (file.size > MAX_PDF_SIZE_BYTES) {
+            throw new AppError("PDF template must be smaller than 10 MB", 400);
+        }
+    }
+
+    const result = await create_template_service(name, file, layout);
+    return res.status(201).json(new ApiResponse(201, result, "Template created successfully"));
 });
 
+// ---------------------------------------------------------------------------
+// updateTemplate — UPDATE an existing template by _id
+// Requires: layout (body, JSON string). name + pdf are optional.
+// ---------------------------------------------------------------------------
+const updateTemplate = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const file = req.file;
+
+    const { error, value } = updateTemplateValidation.body.validate(req.body, {
+        abortEarly: false,
+        stripUnknown: true,
+    });
+    if (error) {
+        const message = error.details.map((d) => d.message.replace(/"/g, "")).join(", ");
+        throw new AppError(message, 400);
+    }
+
+    const { name, layout: layoutString } = value;
+
+    let layout;
+    try {
+        layout = JSON.parse(layoutString);
+    } catch {
+        throw new AppError("layout must be valid JSON", 400);
+    }
+
+    if (file) {
+        if (file.mimetype !== "application/pdf") {
+            throw new AppError("Uploaded template must be a PDF file", 400);
+        }
+        if (file.size > MAX_PDF_SIZE_BYTES) {
+            throw new AppError("PDF template must be smaller than 10 MB", 400);
+        }
+    }
+
+    const result = await update_template_service(id, file, { name, layout });
+    return res.status(200).json(new ApiResponse(200, result, "Template updated successfully"));
+});
+
+// ---------------------------------------------------------------------------
+// setActiveTemplate — mark one template as the active one for generation
+// ---------------------------------------------------------------------------
+const setActiveTemplate = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const result = await set_active_template_service(id);
+    return res.status(200).json(new ApiResponse(200, result, "Template set as active successfully"));
+});
+
+// ---------------------------------------------------------------------------
+// getAllTemplates — return lightweight list for the dropdown
+// ---------------------------------------------------------------------------
+const getAllTemplates = asyncHandler(async (req, res) => {
+    const templates = await get_all_templates_service();
+    return res.status(200).json(new ApiResponse(200, templates, "Templates retrieved successfully"));
+});
+
+// ---------------------------------------------------------------------------
+// getTemplate — return the single active template (unchanged contract)
+// ---------------------------------------------------------------------------
 const getTemplate = asyncHandler(async (req, res) => {
-  const template = await get_template_service();
-  return res
-    .status(200)
-    .json(new ApiResponse(200, template, "Template retrieved successfully"));
+    const template = await get_template_service();
+    return res.status(200).json(new ApiResponse(200, template, "Template retrieved successfully"));
 });
 
+// ---------------------------------------------------------------------------
+// getTemplateById — return full template data by _id (for edit modal)
+// ---------------------------------------------------------------------------
+const getTemplateById = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const template = await get_template_by_id_service(id);
+    return res.status(200).json(new ApiResponse(200, template, "Template retrieved successfully"));
+});
+
+// ---------------------------------------------------------------------------
+// generateCertificate — UNCHANGED logic; only imports differ above
+// ---------------------------------------------------------------------------
 const generateCertificate = asyncHandler(async (req, res) => {
-  // ── Joi validation inside the controller
+    const { error, value } = generateCertificateValidation.body.validate(req.body, {
+        abortEarly: false,
+        stripUnknown: true,
+    });
+    if (error) {
+        const message = error.details.map((d) => d.message.replace(/"/g, "")).join(", ");
+        throw new AppError(message, 400);
+    }
 
-  const { error, value } = generateCertificateValidation.body.validate(req.body, {
-    abortEarly: false,
-    stripUnknown: true,
-  });
-  if (error) {
-    const message = error.details.map((d) => d.message.replace(/"/g, "")).join(", ");
-    throw new AppError(message, 400);
-  }
-
-  const { name, issueDate, field, clubName, Rank, winnerKRSAId } = value;
-
-  const result = await generate_certificate_service({ name, issueDate, field, clubName, Rank, winnerKRSAId });
-  return res
-    .status(200)
-    .json(new ApiResponse(200, result, "Certificate generated successfully"));
+    const { name, issueDate, field, clubName, Rank, winnerKRSAId } = value;
+    console.log(value)
+    const result = await generate_certificate_service({ name, issueDate, field, clubName, Rank, winnerKRSAId });
+    return res.status(200).json(new ApiResponse(200, result, "Certificate generated successfully"));
 });
 
+// ---------------------------------------------------------------------------
+// downloadCertificate — UNCHANGED
+// ---------------------------------------------------------------------------
 const downloadCertificate = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const certificate = await download_certificate_service(id);
-  
-  try {
-    const response = await axios.get(certificate.pdfUrl, { responseType: 'stream' });
-    
-    res.setHeader('Content-Disposition', `attachment; filename="${certificate.filename || 'certificate.pdf'}"`);
-    res.setHeader('Content-Type', 'application/pdf');
-    
-    response.data.pipe(res);
-  } catch (error) {
-    throw new AppError("Failed to download the certificate from storage", 500);
-  }
+    const { id } = req.params;
+    const certificate = await download_certificate_service(id);
+
+    try {
+        const response = await axios.get(certificate.pdfUrl, { responseType: "stream" });
+
+        res.setHeader("Content-Disposition", `attachment; filename="${certificate.filename || "certificate.pdf"}"`);
+        res.setHeader("Content-Type", "application/pdf");
+
+        response.data.pipe(res);
+    } catch (error) {
+        throw new AppError("Failed to download the certificate from storage", 500);
+    }
 });
 
 export {
-    
-  createCertificate,
-  updateCertificates,
-  deleteCertificates,
-  displaySingleCertificate,
-  displayAllCertificate,
-  uploadTemplate,
-  getTemplate,
-  generateCertificate,
-  downloadCertificate,
+    createCertificate,
+    updateCertificates,
+    deleteCertificates,
+    displaySingleCertificate,
+    displayAllCertificate,
+    uploadTemplate,
+    updateTemplate,
+    setActiveTemplate,
+    getAllTemplates,
+    getTemplate,
+    getTemplateById,
+    generateCertificate,
+    downloadCertificate,
 };

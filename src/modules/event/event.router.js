@@ -1,6 +1,6 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
-import { clubRelatedEventDisplay, createClubEvent, create_event, delete_event, display_all_event_based_on_user, display_latest_event, displayAllEvents, displayEventById, edit_event, createDistrictEvent, districtRelatedEventDisplay, stateRelatedEventDisplay, createStateEvent, createEventCategory, deleteEventCategory, getEventCategories, getEventCategoryById, updateEventCategory, createRegisterForm, getRegisterFormById, getRegisterFormByUserId } from "./event.controller.js";
+import { clubRelatedEventDisplay, createClubEvent, create_event, delete_event, display_all_event_based_on_user, display_latest_event, displayAllEvents, displayEventById, edit_event, createDistrictEvent, districtRelatedEventDisplay, stateRelatedEventDisplay, stateEventSkatersSummary, createStateEvent, createEventCategory, deleteEventCategory, getEventCategories, getEventCategoryById, updateEventCategory, createRegisterForm, getRegisterFormById, getRegisterFormByUserId } from "./event.controller.js";
 import { validate } from "../../middleware/validate.multiple.js";
 import {
     create_event_category_validation,
@@ -11,6 +11,7 @@ import {
     eventCategoryListQueryValidation,
     register_form_validation,
     stateEventListQueryValidation,
+    stateEventSkatersListQueryValidation,
     update_event_category_validation,
     update_event_validation,
 } from "./event.validation.js";
@@ -44,7 +45,17 @@ router.post(
 router.get(
     "/v1/state",
     authenticate(["State", "Admin"]),
-    validate(stateEventListQueryValidation),
+    stateRelatedEventDisplay
+);
+router.get(
+    "/v1/state/all-skater/:id",
+    authenticate(["State", "Admin"]),
+    validate(stateEventSkatersListQueryValidation),
+    stateEventSkatersSummary
+);
+router.get(
+    "/v1/state/:id",
+    authenticate(["State", "Admin"]),
     stateRelatedEventDisplay
 );
 router.post(
@@ -129,5 +140,7 @@ router.post(
 );
 
 
+// ======================== all SkatingEventCategory
+// router.get("/")
 
 export default router;

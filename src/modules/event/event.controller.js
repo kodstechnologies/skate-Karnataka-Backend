@@ -1,7 +1,7 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { AppError } from "../../util/common/AppError.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { clubRelatedEventDisplayService, createClubEventService, createDistrictEventService, createEventCategoryService, createRegisterFormService, createStateEventService, create_event_schema, deleteEventCategoryService, delete_event_schema, display_all_event_based_on_user_service, display_latest_event_server, displayEventServer, displaySingleEventDetailsServer, districtRelatedEventDisplayService, edit_event_schema, getAllEventCategoriesService, getEventCategoryByIdService, getRegisterFormByIdService, getRegisterFormByUserIdService, stateRelatedEventDisplayService, updateEventCategoryService } from "./event.service.js";
+import { clubRelatedEventDisplayService, createClubEventService, createDistrictEventService, createEventCategoryService, createRegisterFormService, createStateEventService, create_event_schema, deleteEventCategoryService, delete_event_schema, display_all_event_based_on_user_service, display_latest_event_server, displayEventServer, displaySingleEventDetailsServer, districtRelatedEventDisplayService, edit_event_schema, getAllEventCategoriesService, getEventCategoryByIdService, getRegisterFormByIdService, getRegisterFormByUserIdService, stateRelatedEventDisplayService, stateEventFullDetailsService, stateEventSkatersSummaryService, updateEventCategoryService } from "./event.service.js";
 
 
 const display_latest_event = asyncHandler(async (req, res) => {
@@ -93,6 +93,18 @@ export const createDistrictEvent = asyncHandler(async (req, res) => {
 
 export const stateRelatedEventDisplay = asyncHandler(async (req, res) => {
     const role = (req.user.role || "").toLowerCase();
+    const { id: eventId } = req.params;
+
+    if (eventId) {
+        const event = await stateEventFullDetailsService(eventId, {
+            role: req.user.role,
+            userId: req.user._id,
+        });
+        return res.status(200).json(
+            new ApiResponse(200, event, "Event displayed successfully")
+        );
+    }
+
     const { page = 1, limit = 10, search = "", stateId: queryStateId } = req.query;
     const filterStateId =
         role === "admin" ? queryStateId : req.user._id.toString();
@@ -116,6 +128,35 @@ export const stateRelatedEventDisplay = asyncHandler(async (req, res) => {
             "Display pending approver"
         )
     )
+});
+
+export const stateEventSkatersSummary = asyncHandler(async (req, res) => {
+    const { id: eventId } = req.params;
+    const { page = 1, limit = 10, search = "" } = req.query;
+    const result = await stateEventSkatersSummaryService(
+        eventId,
+        {
+            role: req.user.role,
+            userId: req.user._id,
+        },
+        { page, limit, search }
+    );
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                eventId,
+                data: result.data || [],
+                pagination: {
+                    total: result.total || 0,
+                    page: result.page || Number(page) || 1,
+                    limit: result.limit || Number(limit) || 10,
+                    totalPages: result.totalPages || 0,
+                },
+            },
+            "Event skaters fetched successfully"
+        )
+    );
 });
 
 export const createStateEvent = asyncHandler(async (req, res) => {

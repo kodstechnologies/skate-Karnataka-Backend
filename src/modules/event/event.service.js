@@ -1,6 +1,6 @@
 import { AppError } from "../../util/common/AppError.js";
 import { State } from "../state/state.model.js";
-import { createEventCategoryRepository, createRegisterFormRepository, deleteEventCategoryRepository, displaySingleEventRepository, displayAllEventRepository, create_event_repositories, edit_event_repositories, delete_event_repositories, display_latest_event_repositories, display_all_event_based_on_user_repositories, clubRelatedEventDisplayRepositories, createClubEventRepositories, districtRelatedEventDisplayRepositories, createDistrictEventRepositories, getRegisterFormByIdRepository, getRegisterFormByUserIdRepository, stateRelatedEventDisplayRepositories, createStateEventRepositories, getAllEventCategoriesRepository, getEventCategoryByIdRepository, updateEventCategoryRepository } from "./event.repositories.js";
+import { createEventCategoryRepository, createRegisterFormRepository, deleteEventCategoryRepository, displaySingleEventRepository, displayAllEventRepository, create_event_repositories, edit_event_repositories, delete_event_repositories, display_latest_event_repositories, display_all_event_based_on_user_repositories, clubRelatedEventDisplayRepositories, createClubEventRepositories, districtRelatedEventDisplayRepositories, createDistrictEventRepositories, getRegisterFormByIdRepository, getRegisterFormByUserIdRepository, stateRelatedEventDisplayRepositories, createStateEventRepositories, getAllEventCategoriesRepository, getEventCategoryByIdRepository, updateEventCategoryRepository, getStateEventFullDetailsByIdRepository, listEventSkatersByEventIdRepository } from "./event.repositories.js";
 
 const displayEventServer = async (data) => {
 
@@ -37,6 +37,43 @@ export const createDistrictEventService = async (districtUserId, data) => {
 export const stateRelatedEventDisplayService = async (stateId, query) => {
     return await stateRelatedEventDisplayRepositories(stateId, query);
 }
+
+const assertUserCanAccessStateEvent = async (eventId, { role, userId }) => {
+    const event = await getStateEventFullDetailsByIdRepository(eventId);
+    if (!event) {
+        throw new AppError("Event not found", 404);
+    }
+    if (event.eventType !== "State") {
+        throw new AppError("Event not found", 404);
+    }
+    const isAdmin = (role || "").toLowerCase() === "admin";
+    if (!isAdmin) {
+        const ownerId =
+            event.eventFor && typeof event.eventFor === "object" && event.eventFor._id
+                ? event.eventFor._id.toString()
+                : event.eventFor != null
+                  ? String(event.eventFor)
+                  : null;
+        if (!ownerId || ownerId !== userId.toString()) {
+            throw new AppError("Forbidden", 403);
+        }
+    }
+    return event;
+};
+
+export const stateEventFullDetailsService = async (eventId, { role, userId }) => {
+    const event = await assertUserCanAccessStateEvent(eventId, { role, userId });
+    const payload = { ...event };
+    if (payload.eventFor && typeof payload.eventFor === "object" && "name" in payload.eventFor) {
+        payload.eventFor = payload.eventFor.name;
+    }
+    return payload;
+};
+
+export const stateEventSkatersSummaryService = async (eventId, { role, userId }, query) => {
+    await assertUserCanAccessStateEvent(eventId, { role, userId });
+    return await listEventSkatersByEventIdRepository(eventId, query);
+};
 
 export const createStateEventService = async (stateId, data) => {
     let resolvedStateId = stateId;

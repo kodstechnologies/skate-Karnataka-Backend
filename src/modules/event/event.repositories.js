@@ -10,6 +10,8 @@ import { State } from "../state/state.model.js";
 import mongoose from "mongoose";
 import { sendNotification } from "../../util/firebase/sendNotification.js";
 
+const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 const displayAllEventRepository = async ({ page, limit }) => {
 
   const { skip, limit: pageLimit, page: currentPage } =
@@ -125,6 +127,79 @@ export const getRegisterFormByIdRepository = async (id, userId) => {
 
 export const createRegisterFormRepository = async (payload) => {
   return await EventParticipant.create(payload);
+};
+
+export const listEventSkatersByEventIdRepository = async (eventId, { page, limit, search }) => {
+  const oid = new mongoose.Types.ObjectId(eventId);
+  const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+  const usersCol = BaseAuth.collection.name;
+
+  const pipeline = [
+    { $match: { eventId: oid } },
+    {
+      $lookup: {
+        from: usersCol,
+        localField: "userId",
+        foreignField: "_id",
+        as: "user",
+      },
+    },
+    { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } },
+  ];
+
+  const term = typeof search === "string" ? search.trim() : "";
+  if (term) {
+    const rx = new RegExp(escapeRegex(term), "i");
+    pipeline.push({
+      $match: {
+        $or: [
+          { "user.fullName": rx },
+          { "user.phone": rx },
+          { "user.email": rx },
+        ],
+      },
+    });
+  }
+
+  pipeline.push({
+    $facet: {
+      totalCount: [{ $count: "count" }],
+      data: [
+        { $sort: { createdAt: -1 } },
+        { $skip: skip },
+        { $limit: pageLimit },
+        {
+          $project: {
+            _id: 0,
+            registrationId: "$_id",
+            userId: 1,
+            participantName: "$name",
+            ageGroup: 1,
+            paymentStatus: 1,
+            categories: 1,
+            registeredAt: "$createdAt",
+            fullName: "$user.fullName",
+            phone: "$user.phone",
+            email: "$user.email",
+            profile: "$user.profile",
+            krsaId: "$user.krsaId",
+          },
+        },
+      ],
+    },
+  });
+
+  const [agg] = await EventParticipant.aggregate(pipeline);
+  const total = agg?.totalCount?.[0]?.count ?? 0;
+  const data = Array.isArray(agg?.data) ? agg.data : [];
+
+  return {
+    data,
+    total,
+    page: currentPage,
+    limit: pageLimit,
+    totalPages: Math.ceil(total / pageLimit) || 0,
+  };
 };
 
 
@@ -399,6 +474,11 @@ const displaySingleEventRepository = async (id) => {
   }
 
   return event;
+};
+
+/** Same fetch as display single, but keeps populated `eventFor` for authorization. */
+export const getStateEventFullDetailsByIdRepository = async (eventId) => {
+  return Event.findById(eventId).populate("eventFor", "name").lean();
 };
 
 const display_latest_event_repositories = async (userId) => {

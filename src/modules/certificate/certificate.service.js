@@ -12,7 +12,7 @@ import {
     get_user_by_krsa_repository,
 } from "./certificate.repositories.js";
 import { putObject } from "../../util/aws/putObject.js";
-import { PDFDocument, rgb, StandardFonts, degrees } from "pdf-lib";
+import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import axios from "axios";
 
 const create_certificate_services = async (data) => {
@@ -137,158 +137,205 @@ const generate_certificate_service = async (userData) => {
     const response = await axios.get(template.pdfTemplateUrl, { responseType: "arraybuffer" });
     const pdfDoc = await PDFDocument.load(response.data);
 
-    // getPages() returns the array; index [0] gives the first (and only) page.
     const page = pdfDoc.getPages()[0];
     const { width, height } = page.getSize();
-
     const layout = template.textLayout || {};
 
-    // ── Coordinate scaling ────────────────────────────────────────────────
-    const TEMPLATE_ASSUMED_W = 842;
-    const TEMPLATE_ASSUMED_H = 595;
-    const scaleX = width / TEMPLATE_ASSUMED_W;
+    // ── Coordinate scaling ──────────────────────────────────────────────────
+    const TEMPLATE_ASSUMED_W = 595;
+    const TEMPLATE_ASSUMED_H = 842;
+    const scaleX = width  / TEMPLATE_ASSUMED_W;
     const scaleY = height / TEMPLATE_ASSUMED_H;
 
-    // ── Fonts ─────────────────────────────────────────────────────────────
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    // fontScale matches frontend: overlayWidth/842 → use scaleX
+    const fontScale = scaleX;
+
+    // Helpers: stored pt coords → pdf-lib px (y is bottom-up, no flip needed)
+    const drawX = (ptX) => Math.round(ptX * scaleX);
+    const drawY = (ptY) => Math.round(ptY * scaleY);
+
+    // ── Fonts ───────────────────────────────────────────────────────────────
+    const font          = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont      = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     const emphasizedFont = await pdfDoc.embedFont(StandardFonts.HelveticaBoldOblique);
     const signatureFont = await pdfDoc.embedFont(StandardFonts.TimesRomanItalic);
+    const dynamicFont   = await pdfDoc.embedFont(StandardFonts.TimesRomanBoldItalic);
 
-    // ── Color resolver (matches frontend color tokens) ────────────────────
+    // ── Color resolver ──────────────────────────────────────────────────────
     const resolveColor = (colorName, fallback) => {
         const map = {
-            white: rgb(1, 1, 1),
-            darkBlue: rgb(0.09, 0.18, 0.52),
-            darkYellow: rgb(1, 0.66, 0),
+            dark:      rgb(0.1, 0.1, 0.1),
+            lightDark: rgb(0.25, 0.25, 0.25),
+            gray:      rgb(0.5, 0.5, 0.5),
+            darkGray:  rgb(0.35, 0.35, 0.35),
         };
         return map[colorName] || fallback;
     };
 
-    // ── Field-specific layout defaults (fallback if DB has no layout) ─────
-    const DEFAULT_COLOR = rgb(1, 1, 1);
-    const namePosRaw = layout.name || { x: TEMPLATE_ASSUMED_W / 2, y: TEMPLATE_ASSUMED_H / 2, size: 18 };
-    const fieldPosRaw = layout.field || { x: TEMPLATE_ASSUMED_W / 2, y: TEMPLATE_ASSUMED_H / 2 - 40, size: 16 };
-    const clubPosRaw = layout.clubName || { x: TEMPLATE_ASSUMED_W / 2, y: TEMPLATE_ASSUMED_H / 2 - 80, size: 14 };
-    const rankPosRaw = layout.Rank || { x: TEMPLATE_ASSUMED_W / 2, y: TEMPLATE_ASSUMED_H / 2 - 120, size: 14 };
-    const datePosRaw = layout.issueDate || { x: TEMPLATE_ASSUMED_W / 2, y: 60, size: 12 };
-    const signaturePosRaw = layout.signature || { x: 690, y: 92, size: 12 };
+    // ── Layout defaults ─────────────────────────────────────────────────────
+    const DEFAULT_COLOR   = rgb(0, 0, 0);
+    const namePosRaw      = layout.name       || { x: TEMPLATE_ASSUMED_W / 2, y: TEMPLATE_ASSUMED_H / 2,        size: 18 };
+    const ageGroupPosRaw  = layout.ageGroup   || layout.field || { x: 120,                    y: TEMPLATE_ASSUMED_H / 2 - 40,   size: 14 };
+    const clubPosRaw      = layout.clubName   || { x: 120,                    y: TEMPLATE_ASSUMED_H / 2 - 80,   size: 14 };
+    const datePosRaw      = layout.issueDate  || { x: 80,                     y: 60,  size: 12 };
+    const signaturePosRaw = layout.signature  || { x: 500,                    y: 60,  size: 12 };
+    const tablePosRaw     = layout.eventTable || { x: 80,                     y: 330, width: 500 };
 
-    // ── NAME ─────────────────────────────────────────────────────────────
-    const nameSize = (namePosRaw.size || 18) * Math.min(scaleX, scaleY);
-    const nameX = namePosRaw.x * scaleX;
-    const nameY = (namePosRaw.y + nameSize) * scaleY;
+
+    // ── NAME (centre-aligned) ───────────────────────────────────────────────
     const nameText = String(userData.name || "");
-    const nameWidth = emphasizedFont.widthOfTextAtSize(nameText, nameSize);
     if (nameText) {
+        const nameSize = (namePosRaw.size || 18) * fontScale;
+        const nameW    = dynamicFont.widthOfTextAtSize(nameText, nameSize);
         page.drawText(nameText, {
-            x: Math.round(nameX - nameWidth / 2),
-            y: Math.round(nameY - 10),
+            x: Math.round(drawX(namePosRaw.x) - nameW / 2),
+            y: drawY(namePosRaw.y),
             size: nameSize,
-            font: emphasizedFont,
+            font: dynamicFont,
             color: resolveColor(namePosRaw.color, DEFAULT_COLOR),
         });
     }
 
-    // ── FIELD / EVENT ────────────────────────────────────────────────────
-    const fieldSize = (fieldPosRaw.size || 16) * Math.min(scaleX, scaleY);
-    const fieldX = fieldPosRaw.x * scaleX;
-    const fieldY = fieldPosRaw.y * scaleY + fieldSize;
-    const fieldText = String(userData.field || "");
-    const fieldWidth = emphasizedFont.widthOfTextAtSize(fieldText, fieldSize);
-    if (fieldText) {
-        page.drawText(fieldText, {
-            x: Math.round(fieldX + fieldWidth / 2),
-            y: Math.round(fieldY - 10),
-            size: fieldSize,
-            font: emphasizedFont,
-            color: resolveColor(fieldPosRaw.color, rgb(1, 1, 0)),
+    // ── AGE GROUP (left-aligned) ──────────────────────────────────────────
+    const ageGroupText = String(userData.ageGroup || "");
+    if (ageGroupText) {
+        const ageGroupSize = (ageGroupPosRaw.size || 14) * fontScale;
+         const ageGroupW    = dynamicFont.widthOfTextAtSize(ageGroupText, ageGroupSize);
+        page.drawText(ageGroupText, {
+            x: Math.round(drawX(ageGroupPosRaw.x)),
+            y: drawY(ageGroupPosRaw.y),
+            size: ageGroupSize,
+            font: dynamicFont,
+            color: resolveColor(ageGroupPosRaw.color, DEFAULT_COLOR),
         });
     }
 
-    // ── CLUB NAME ────────────────────────────────────────────────────────
-    const clubSize = (clubPosRaw.size || 14) * Math.min(scaleX, scaleY);
-    const clubX = clubPosRaw.x * scaleX;
-    const clubY = clubPosRaw.y * scaleY + clubSize;
+    // ── CLUB NAME (left-aligned) ────────────────────────────────────────────
     const clubText = String(userData.clubName || "");
-    const clubWidth = emphasizedFont.widthOfTextAtSize(clubText, clubSize);
     if (clubText) {
+        const clubSize = (clubPosRaw.size || 14) * fontScale;
+         const clubW    = dynamicFont.widthOfTextAtSize(clubText, clubSize);
         page.drawText(clubText, {
-            x: Math.round(clubX - clubWidth / 2),
-            y: Math.round(clubY - 10),
+            x: Math.round(drawX(clubPosRaw.x)),
+            y: drawY(clubPosRaw.y),
             size: clubSize,
-            font: emphasizedFont,
+            font: dynamicFont,
             color: resolveColor(clubPosRaw.color, DEFAULT_COLOR),
         });
     }
 
-    // ── RANK ─────────────────────────────────────────────────────────────
-    const rankSize = (rankPosRaw.size || 14) * Math.min(scaleX, scaleY);
-    const rankX = rankPosRaw.x * scaleX;
-    const rankY = rankPosRaw.y * scaleY + rankSize;
-    const rankText = String(userData.Rank || "");
-    const rankWidth = emphasizedFont.widthOfTextAtSize(rankText, rankSize);
-    if (rankText) {
-        page.drawText(rankText, {
-            x: Math.round(rankX + rankWidth + rankWidth * 0.5),
-            y: Math.round(rankY - 8),
-            size: rankSize,
-            font: emphasizedFont,
-            color: resolveColor(rankPosRaw.color, DEFAULT_COLOR),
-        });
-    }
 
-    // ── ISSUE DATE ───────────────────────────────────────────────────────
-    const dateSize = (datePosRaw.size || 12) * Math.min(scaleX, scaleY);
-    const dateX = (datePosRaw.x - 12) * scaleX;
-    const dateY = (datePosRaw.y - dateSize) * scaleY;
+
+    // ── ISSUE DATE (left-aligned) ───────────────────────────────────────────
     const dateText = String(userData.issueDate || "");
-    const dateWidth = font.widthOfTextAtSize(dateText, dateSize);
     if (dateText) {
+        const dateSize = (datePosRaw.size || 12) * fontScale;
+          const dateW    = dynamicFont.widthOfTextAtSize(dateText, dateSize);
         page.drawText(dateText, {
-            x: Math.round(dateX - dateWidth * 1.5),
-            y: Math.round(dateY + 5),
+            x: Math.round(drawX(datePosRaw.x)),
+            y: drawY(datePosRaw.y),
             size: dateSize,
-            font: emphasizedFont,
+            font: dynamicFont,
             color: resolveColor(datePosRaw.color, DEFAULT_COLOR),
         });
     }
 
-    // ── SIGNATURE ────────────────────────────────────────────────────────
-    const signatureText = String(layout?.signature?.text || "")
-        .trim()
-        .slice(0, 80);
+    // ── SIGNATURE (left-aligned) ────────────────────────────────────────────
+    const signatureText = String(layout?.signature?.text || "").trim().slice(0, 80);
     if (signatureText) {
-        const sigSize = (signaturePosRaw.size || 12) * Math.min(scaleX, scaleY) * 1.12;
-        const sigX = (signaturePosRaw.x + 12) * scaleX;
-        const sigY = signaturePosRaw.y * scaleY;
-        const sigWidth = signatureFont.widthOfTextAtSize(signatureText, sigSize);
+        const sigSize  = (signaturePosRaw.size || 12) * fontScale;
+        const sigX     = Math.round(drawX(signaturePosRaw.x));
+        const sigY     = drawY(signaturePosRaw.y);
         const sigColor = resolveColor(signaturePosRaw.color, rgb(1, 0.66, 0));
-
-        // Pass 1 — shadow
-        page.drawText(signatureText, {
-            x: sigX + sigWidth / 2,
-            y: sigY - 5,
-            size: sigSize,
-            font: signatureFont,
-            color: sigColor,
-            rotate: degrees(0),
-            opacity: 0.45,
-        });
-
-        // Pass 2 — solid
-        page.drawText(signatureText, {
-            x: sigX + sigWidth / 2,
-            y: sigY - 5,
-            size: sigSize,
-            font: signatureFont,
-            color: sigColor,
-            rotate: degrees(0),
-        });
+        page.drawText(signatureText, { x: sigX + 1, y: sigY - 1, size: sigSize, font: signatureFont, color: sigColor, opacity: 0.35 });
+        page.drawText(signatureText, { x: sigX,     y: sigY,     size: sigSize, font: signatureFont, color: sigColor });
     }
 
-    const generatedPdfBytes = await pdfDoc.save();
+    // ── EVENT TABLE ─────────────────────────────────────────────────────────
+    // Columns: EVENT 25% | DISCIPLINE 20% | DISTANCE 35% | PLACEMENT 20%
+    const COL_RATIOS  = [0.25, 0.20, 0.35, 0.20];
+    const HEADERS     = ["EVENT", "DISCIPLINE", "DISTANCE", "PLACEMENT"];
 
-    // Upload generated PDF to S3
+    /**
+     * drawEventTable — draws a bordered table using pdf-lib primitives.
+     *
+     * @param {object[]} rows  - Array of { event, discipline, distance, placement }
+     * @param {number}   startX   - Left edge of table in pdf-lib pts
+     * @param {number}   topY     - TOP edge of table in pdf-lib pts (rows grow downward = decreasing Y)
+     * @param {number}   tableW   - Total table width in pdf-lib pts
+     * @param {number}   cellFontSz - Base font size for data rows
+     */
+    const drawEventTable = (rows, startX, topY, tableW, cellFontSz, tableColor) => {
+        const headerFontSz = cellFontSz * 1.15;
+        const rowH         = cellFontSz * 2.4;   // row height auto-calculated from font size
+        const borderColor  = tableColor;
+        const textColor    = tableColor;
+        const colWidths    = COL_RATIOS.map((r) => tableW * r);
+
+        const allRows = [
+            { cells: HEADERS, isHeader: true },
+            ...rows.map((r) => ({
+                cells: [
+                    String(r.event       || ""),
+                    String(r.discipline  || ""),
+                    String(r.distance    || ""),
+                    String(r.placement   || ""),
+                ],
+                isHeader: false,
+            })),
+        ];
+
+        allRows.forEach((row, rowIdx) => {
+            const rowTopY    = topY - rowIdx * rowH;          // top edge of this row
+            const rowBottomY = rowTopY - rowH;                 // bottom edge
+
+            // Horizontal top/bottom borders for row
+            page.drawLine({ start: { x: startX, y: rowTopY    }, end: { x: startX + tableW, y: rowTopY    }, thickness: 0.8, color: borderColor });
+            page.drawLine({ start: { x: startX, y: rowBottomY }, end: { x: startX + tableW, y: rowBottomY }, thickness: 0.8, color: borderColor });
+
+            let cellX = startX;
+            row.cells.forEach((text, colIdx) => {
+                const cellW = colWidths[colIdx];
+                // Left border of each cell
+                page.drawLine({ start: { x: cellX, y: rowTopY }, end: { x: cellX, y: rowBottomY }, thickness: 0.8, color: borderColor });
+
+                // Font selection: Headers and first column (Event) are bold
+                const fnt = row.isHeader || colIdx === 0 ? boldFont : dynamicFont;
+                const fntSz = row.isHeader ? headerFontSz : cellFontSz;
+
+                // Text — horizontally centred within cell, vertically centred in row
+                const textW  = fnt.widthOfTextAtSize(text, fntSz);
+                const textX  = cellX + Math.max(2, (cellW - textW) / 2);
+                const textY  = rowBottomY + (rowH - fntSz) / 2;
+                page.drawText(text, { x: Math.round(textX), y: Math.round(textY), size: fntSz, font: fnt, color: textColor });
+
+                cellX += cellW;
+            });
+            // Right border of row
+            page.drawLine({ start: { x: cellX, y: rowTopY }, end: { x: cellX, y: rowBottomY }, thickness: 0.8, color: borderColor });
+        });
+    };
+
+    // Use dynamic events from userData if provided, otherwise fall back to static demo rows
+    const tableRows = (Array.isArray(userData.events) && userData.events.length > 0)
+        ? userData.events
+        : [
+            { event: "RINK - I",   discipline: "QUAD", distance: "1 LAP",                   placement: "" },
+            { event: "RINK - II",  discipline: "QUAD", distance: "2 LAP / 500 +D",           placement: "" },
+            { event: "RINK - III", discipline: "QUAD", distance: "3 LAPS / 4 LAPS / 1000M", placement: "" },
+        ];
+
+    drawEventTable(
+        tableRows,
+        drawX(tablePosRaw.x),
+        drawY(tablePosRaw.y),
+        drawX(tablePosRaw.width || 500),
+        (tablePosRaw.size || 8) * fontScale,           // base font size, scaled
+        resolveColor(tablePosRaw.color, DEFAULT_COLOR) // Table color
+    );
+
+    // ── Save & upload ───────────────────────────────────────────────────────
+    const generatedPdfBytes = await pdfDoc.save();
     const fileToUpload = {
         buffer: Buffer.from(generatedPdfBytes),
         mimetype: "application/pdf",
@@ -296,19 +343,18 @@ const generate_certificate_service = async (userData) => {
     };
     const uploadRes = await putObject(fileToUpload, "certificates");
 
-    // Look up the user's ObjectId from their KRSA ID
     const userRecord = await get_user_by_krsa_repository(userData.winnerKRSAId);
-
-    // Save certificate record to DB
     const certData = {
         winnerKRSAId: userData.winnerKRSAId,
-        userId: userRecord?._id || null,
-        pdfUrl: uploadRes.url,
-        filename: uploadRes.key || `certificates/certificate_${userData.winnerKRSAId}.pdf`,
+        userId:       userRecord?._id || null,
+        pdfUrl:       uploadRes.url,
+        filename:     uploadRes.key || `certificates/certificate_${userData.winnerKRSAId}.pdf`,
     };
     await create_certificate_repositories(certData);
     return certData;
 };
+
+
 
 const download_certificate_service = async (id) => {
     const certificate = await get_certificate_by_id_repository(id);

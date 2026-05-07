@@ -53,7 +53,7 @@ const participantSchema = new mongoose.Schema(
         },
       },
     ],
-
+     
     paymentStatus: {
       type: String,
       enum: ["pending", "paid", "failed"],

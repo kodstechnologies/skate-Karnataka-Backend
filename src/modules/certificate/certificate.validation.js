@@ -24,11 +24,11 @@ const generateCertificateValidation = {
       "any.required": "issueDate is required",
     }),
 
-    field: Joi.string().trim().min(2).max(100).required().messages({
-      "string.base": "field must be a string",
-      "string.min": "field must be at least 2 characters",
-      "string.max": "field must be at most 100 characters",
-      "any.required": "field is required",
+    ageGroup: Joi.string().trim().min(2).max(100).required().messages({
+      "string.base": "ageGroup must be a string",
+      "string.min": "ageGroup must be at least 2 characters",
+      "string.max": "ageGroup must be at most 100 characters",
+      "any.required": "ageGroup is required",
     }),
 
     clubName: Joi.string().trim().min(2).max(100).required().messages({
@@ -38,14 +38,7 @@ const generateCertificateValidation = {
       "any.required": "clubName is required",
     }),
 
-    // Kept flexible: Rank can be "1st" / "Gold" (string) or 1 / 2 (number)
-    Rank: Joi.alternatives()
-      .try(Joi.string().trim().min(1).max(50), Joi.number().integer().min(1))
-      .required()
-      .messages({
-        "alternatives.match": "Rank must be a non-empty string or positive integer",
-        "any.required": "Rank is required",
-      }),
+
 
     // KRSA ID is a custom alphanumeric string e.g. "KRSA123456S"
     winnerKRSAId: Joi.string().trim().min(5).max(30).required().messages({

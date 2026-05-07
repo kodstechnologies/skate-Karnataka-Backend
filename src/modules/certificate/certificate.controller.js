@@ -172,9 +172,9 @@ const generateCertificate = asyncHandler(async (req, res) => {
         throw new AppError(message, 400);
     }
 
-    const { name, issueDate, field, clubName, Rank, winnerKRSAId } = value;
+    const { name, issueDate, ageGroup, clubName, winnerKRSAId } = value;
     console.log(value)
-    const result = await generate_certificate_service({ name, issueDate, field, clubName, Rank, winnerKRSAId });
+    const result = await generate_certificate_service({ name, issueDate, ageGroup, clubName, winnerKRSAId });
     return res.status(200).json(new ApiResponse(200, result, "Certificate generated successfully"));
 });
 

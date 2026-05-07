@@ -12,6 +12,10 @@ import {
   displayFeedback,
   displayStateLatestEvents,
   displayStateLatestSingleEvents,
+  displayStateEvents,
+  displayStateEventDetailsWithPodium,
+  displayGuestStateMedia,
+  displayGuestStateMediaDetails,
   displayNews,
   displaySingleNews,
   updateNews,
@@ -125,6 +129,14 @@ router.delete(
 
 router.get("/v1/events", displayStateLatestEvents);
 router.get("/v1/events/:id", validate(eventByIdValidation), displayStateLatestSingleEvents);
+
+// ============ State events (Guest)
+router.get("/v1/state-events", validate(displayNewsQueryValidation), displayStateEvents);
+router.get("/v1/state-events/:id", validate(eventByIdValidation), displayStateEventDetailsWithPodium);
+
+// ============ Media (Guest) - state only
+router.get("/v1/media", validate(displayNewsQueryValidation), displayGuestStateMedia);
+router.get("/v1/media/:id", validate(eventByIdValidation), displayGuestStateMediaDetails);
 
 // ====================== District (Guest)
 router.get(
@@ -307,7 +319,6 @@ router.delete(
   validate(sponsorshipDonationByIdValidation),
   deleteSponsorshipDonation
 );
-
 
 
 export default router;

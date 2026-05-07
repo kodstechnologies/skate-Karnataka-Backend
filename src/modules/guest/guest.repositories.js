@@ -11,6 +11,8 @@ import { SponsorshipAndDonation } from "./sponsorshipAndDonation.model.js";
 import { District } from "../district/district.model.js";
 import { Club } from "../club/club.model.js";
 import { Skater } from "../skater/skater.model.js";
+import mongoose from "mongoose";
+import { Gallery } from "../gallery/gallery.model.js";
 
 export const afterLoginGuestFormRepositories = async (data, id) => {
     const updated = await Guest.findOneAndUpdate(
@@ -161,6 +163,143 @@ export const displayStateLatestEventsRepositories = async ({ page, limit }) => {
 
 export const displayStateLatestSingleEventsRepositories = async (id) => {
     return Event.findOne({ _id: id, eventType: "State" }).lean();
+};
+
+export const displayStateEventsRepositories = async ({ page, limit, search }) => {
+    const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+    const term = typeof search === "string" ? search.trim() : "";
+
+    const filter = { eventType: "State" };
+    if (term.length > 0) {
+        filter.header = { $regex: escapeRegExp(term), $options: "i" };
+    }
+
+    const [total, data] = await Promise.all([
+        Event.countDocuments(filter),
+        Event.find(filter)
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(pageLimit)
+            .lean(),
+    ]);
+
+    return {
+        data,
+        pagination: {
+            total,
+            page: currentPage,
+            limit: pageLimit,
+            totalPages: Math.ceil(total / pageLimit),
+        },
+    };
+};
+
+export const displayStateEventDetailsWithPodiumRepositories = async (eventId) => {
+    const event = await Event.findOne({ _id: eventId, eventType: "State" }).lean();
+    if (!event) return null;
+
+    const oid = new mongoose.Types.ObjectId(eventId);
+    const usersCol = "baseauths";
+
+    const [podiumRow] = await (await import("../event/eventParticipant.model.js")).EventParticipant
+        .aggregate([
+            { $match: { eventId: oid } },
+            { $unwind: "$categories" },
+            {
+                $match: {
+                    "categories.rank": { $in: [1, 2, 3] },
+                    "categories.isDisqualified": { $ne: true },
+                },
+            },
+            { $sort: { "categories.rank": 1, "categories.timeTaken": 1, createdAt: 1 } },
+            {
+                $group: {
+                    _id: "$categories.rank",
+                    userId: { $first: "$userId" },
+                    participantName: { $first: "$name" },
+                },
+            },
+            {
+                $lookup: {
+                    from: usersCol,
+                    localField: "userId",
+                    foreignField: "_id",
+                    as: "user",
+                },
+            },
+            { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } },
+            {
+                $project: {
+                    _id: 0,
+                    rank: "$_id",
+                    name: {
+                        $ifNull: ["$user.fullName", "$participantName"],
+                    },
+                    img: {
+                        $ifNull: ["$user.photo", "$user.profile"],
+                    },
+                },
+            },
+            {
+                $group: {
+                    _id: null,
+                    podium: { $push: "$$ROOT" },
+                },
+            },
+            { $project: { _id: 0, podium: 1 } },
+        ])
+        .exec();
+
+    const podium = Array.isArray(podiumRow?.podium) ? podiumRow.podium : [];
+    const pick = (rank) => podium.find((p) => p.rank === rank) || { rank, name: "", img: "" };
+
+    return {
+        ...event,
+        podium: [pick(1), pick(2), pick(3)],
+    };
+};
+
+export const displayGuestStateMediaRepositories = async ({ page, limit }) => {
+    const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+
+    const query = {
+        ownerType: "state",
+        $or: [
+            { imageUrl: { $nin: [null, ""] } },
+            { videoUrl: { $nin: [null, ""] } },
+        ],
+    };
+
+    const [total, data] = await Promise.all([
+        Gallery.countDocuments(query),
+        Gallery.find(query)
+            .select("_id imageUrl videoUrl")
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(pageLimit)
+            .lean(),
+    ]);
+
+    return {
+        data: data.map((item) => ({
+            _id: item._id,
+            imageUrl: item.imageUrl || null,
+            videoUrl: item.videoUrl || null,
+            type: item?.videoUrl ? "video" : "image",
+        })),
+        pagination: {
+            total,
+            page: currentPage,
+            limit: pageLimit,
+            totalPages: Math.ceil(total / pageLimit),
+        },
+    };
+};
+
+export const displayGuestStateMediaDetailsRepositories = async (id) => {
+    return Gallery.findOne({ _id: id, ownerType: "state" })
+        .select("_id imageUrl videoUrl title about ownerType createdAt")
+        .lean();
 };
 
 export const displayDisciplinesRepositories = async ({ page, limit, search }) => {

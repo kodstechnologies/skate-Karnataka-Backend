@@ -54,6 +54,10 @@ import {
   displaySponsorshipDonationsService,
   displayStateLatestEventsService,
   displayStateLatestSingleEventsService,
+  displayStateEventsService,
+  displayStateEventDetailsWithPodiumService,
+  displayGuestStateMediaService,
+  displayGuestStateMediaDetailsService,
   displaySingleNewsService,
   displaySingleSponsorshipDonationService,
   displayDistrictsService,
@@ -163,6 +167,36 @@ export const displayStateLatestSingleEvents = asyncHandler(async (req, res) => {
     const result = await displayStateLatestSingleEventsService(req.params.id);
     return res.status(200).json(
         new ApiResponse(200, result, "State event details fetched successfully")
+    );
+});
+
+export const displayStateEvents = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 10, search } = req.query;
+    const result = await displayStateEventsService({ page, limit, search });
+    return res.status(200).json(
+        new ApiResponse(200, result, "State events fetched successfully")
+    );
+});
+
+export const displayStateEventDetailsWithPodium = asyncHandler(async (req, res) => {
+    const result = await displayStateEventDetailsWithPodiumService(req.params.id);
+    return res.status(200).json(
+        new ApiResponse(200, result, "State event details fetched successfully")
+    );
+});
+
+export const displayGuestStateMedia = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 10 } = req.query;
+    const result = await displayGuestStateMediaService({ page, limit });
+    return res.status(200).json(
+        new ApiResponse(200, result, "Media fetched successfully")
+    );
+});
+
+export const displayGuestStateMediaDetails = asyncHandler(async (req, res) => {
+    const result = await displayGuestStateMediaDetailsService(req.params.id);
+    return res.status(200).json(
+        new ApiResponse(200, result, "Media details fetched successfully")
     );
 });
 

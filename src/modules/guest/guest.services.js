@@ -24,6 +24,8 @@ import {
   displaySponsorshipDonationsRepositories,
   displayStateLatestEventsRepositories,
   displayStateLatestSingleEventsRepositories,
+  displayStateEventsRepositories,
+  displayStateEventDetailsWithPodiumRepositories,
   displaySingleNewsRepositories,
   displaySingleSponsorshipDonationRepositories,
   displayDistrictsRepositories,
@@ -37,6 +39,8 @@ import {
   updateDisciplineRepositories,
   updateNewsRepositories,
   updateSponsorshipDonationRepositories,
+  displayGuestStateMediaRepositories,
+  displayGuestStateMediaDetailsRepositories,
 } from "./guest.repositories.js";
 import { AppError } from "../../util/common/AppError.js";
 export const afterLoginFormGuestService = async (data, id) => {
@@ -102,6 +106,30 @@ export const displayStateLatestSingleEventsService = async (id) => {
         throw new AppError("State event not found", 404);
     }
     return event;
+};
+
+export const displayStateEventsService = async ({ page, limit, search }) => {
+    return displayStateEventsRepositories({ page, limit, search });
+};
+
+export const displayStateEventDetailsWithPodiumService = async (eventId) => {
+    const result = await displayStateEventDetailsWithPodiumRepositories(eventId);
+    if (!result) {
+        throw new AppError("State event not found", 404);
+    }
+    return result;
+};
+
+export const displayGuestStateMediaService = async ({ page, limit }) => {
+    return displayGuestStateMediaRepositories({ page, limit });
+};
+
+export const displayGuestStateMediaDetailsService = async (id) => {
+    const media = await displayGuestStateMediaDetailsRepositories(id);
+    if (!media) {
+        throw new AppError("Media not found", 404);
+    }
+    return media;
 };
 
 export const displayDisciplinesService = async ({ page, limit, search }) => {

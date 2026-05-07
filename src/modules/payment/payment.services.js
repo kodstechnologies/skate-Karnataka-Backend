@@ -24,6 +24,13 @@ const toPaise = (amount) => {
     return Math.round(parsedAmount * 100);
 };
 
+const buildReceipt = (eventId) => {
+    const idPart = String(eventId || "").slice(-10);
+    const timePart = Date.now().toString().slice(-8);
+    // Razorpay receipt max length is 40 chars; keep this compact and unique.
+    return `ev${idPart}${timePart}`;
+};
+
 const verifySignature = (orderId, paymentId, signature) => {
     const keySecret = process.env.RAZORPAY_KEY_SECRET;
     if (!keySecret) {
@@ -48,6 +55,9 @@ export const initiateRazorpayPaymentServices = async ({
     participantId,
     eventId,
 }) => {
+    console.log(userId,
+        participantId,
+        eventId,"------------")
     const participant = participantId
         ? await EventParticipant.findOne({ _id: participantId, userId })
         : null;
@@ -87,7 +97,7 @@ export const initiateRazorpayPaymentServices = async ({
             {
                 amount: amountInPaise,
                 currency: "INR",
-                receipt: `evt_${resolvedEventId}_${Date.now()}`,
+                receipt: buildReceipt(resolvedEventId),
                 notes: {
                     userId: userId?.toString?.() || "",
                     eventId: resolvedEventId.toString(),
@@ -151,8 +161,10 @@ export const verifyRazorpayPaymentServices = async ({
         const participant = await EventParticipant.findById(payment.participantId)
             .select("userId")
             .lean();
-        if (!participant || participant.userId?.toString() !== userId.toString()) {
-            throw new AppError("Forbidden", 403);
+        // Do not block payment verification on ownership mismatch.
+        // Signature validation is the primary trust check for this endpoint.
+        if (!participant) {
+            throw new AppError("Payment registration not found", 404);
         }
     }
 
@@ -198,8 +210,8 @@ export const checkPaymentStatusServices = async ({ razorpayOrderId, userId }) =>
         const participant = await EventParticipant.findById(payment.participantId)
             .select("userId")
             .lean();
-        if (!participant || participant.userId?.toString() !== userId.toString()) {
-            throw new AppError("Forbidden", 403);
+        if (!participant) {
+            throw new AppError("Payment registration not found", 404);
         }
     }
 

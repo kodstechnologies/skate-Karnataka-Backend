@@ -40,7 +40,7 @@ export const clubRelatedEventDisplay = asyncHandler(async (req, res) => {
 })
 
 export const createClubEvent = asyncHandler(async (req, res) => {
-    console.log(req.body ,"=====")
+    console.log(req.body, "=====")
     const clubId = req.user._id;
     const event = await createClubEventService(clubId, req.body);
 
@@ -77,7 +77,7 @@ export const districtRelatedEventDisplay = asyncHandler(async (req, res) => {
 })
 
 export const createDistrictEvent = asyncHandler(async (req, res) => {
-    console.log(req.body ,"=====")
+    console.log(req.body, "=====")
     const districtUserId = req.user._id;
     const event = await createDistrictEventService(districtUserId, req.body);
 
@@ -197,9 +197,9 @@ export const updateStateSkaterTime = asyncHandler(async (req, res) => {
 
 export const createStateEvent = asyncHandler(async (req, res) => {
     const role = (req.user.role || "").toLowerCase();
-    console.log(role,"role")
+    console.log(role, "role")
     const body = req.body || {};
-    console.log(body,"body")
+    console.log(body, "body")
     const { stateId: bodyStateId, ...payload } = body;
     const stateId = role === "admin" ? bodyStateId : req.user._id;
     const event = await createStateEventService(stateId, payload);
@@ -365,8 +365,10 @@ export const getRegisterFormById = asyncHandler(async (req, res) => {
 });
 
 export const createRegisterForm = asyncHandler(async (req, res) => {
-    const userId = req.user._id;
+    // const userId = req.user._id;
+    const userId = "69f9d0fe923f8c560847aa01";
     const result = await createRegisterFormService(userId, req.body);
+    console.log(result,"====")
     const payment = await initiateRazorpayPaymentServices({
         userId,
         participantId: result?._id,

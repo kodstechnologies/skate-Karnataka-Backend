@@ -3,6 +3,9 @@ import { ApiResponse } from "../../util/common/ApiResponse.js";
 import {
   createStateService,
   deleteStateService,
+  displayAllClubsByStateService,
+  displayAllDistrictsByStateService,
+  displayAllSkatersByStateService,
   displayDashboardService,
   displayProfileService,
   displayAllStateService,
@@ -57,6 +60,45 @@ const deleteState = asyncHandler(async(req, res) =>{
     const { id } = req.params;
     await deleteStateService(id);
     return res.status(200).json(new ApiResponse(200, null, "State deleted successfully"));
+});
+
+export const displayAllDistrictsByState = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 10, search = "" } = req.query;
+  const result = await displayAllDistrictsByStateService({
+    page: Number(page),
+    limit: Number(limit),
+    search,
+  });
+
+  return res.status(200).json(
+    new ApiResponse(200, result, "All districts fetched successfully")
+  );
+});
+
+export const displayAllClubsByState = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 10, search = "" } = req.query;
+  const result = await displayAllClubsByStateService({
+    page: Number(page),
+    limit: Number(limit),
+    search,
+  });
+
+  return res.status(200).json(
+    new ApiResponse(200, result, "All clubs fetched successfully")
+  );
+});
+
+export const displayAllSkatersByState = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 10, search = "" } = req.query;
+  const result = await displayAllSkatersByStateService({
+    page: Number(page),
+    limit: Number(limit),
+    search,
+  });
+
+  return res.status(200).json(
+    new ApiResponse(200, result, "All skaters fetched successfully")
+  );
 });
 
 export  {

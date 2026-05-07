@@ -513,8 +513,20 @@ export const getAllSkatersForAdmin = async ({ page = 1, limit = 10, search = "" 
       .lean(),
   ]);
 
+  const formattedSkaters = skaters.map((skater) => ({
+    _id: skater._id,
+    fullName: skater.fullName || "",
+    profile: skater.profile || "",
+    phone: skater.phone || "",
+    address: skater.address || "",
+    district: skater?.district?.name || "",
+    gender: skater.gender || "",
+    email: skater.email || "",
+    krsaId: skater.krsaId || "",
+  }));
+
   return {
-    data: skaters,
+    data: formattedSkaters,
     pagination: {
       total,
       page: currentPage,
@@ -525,9 +537,19 @@ export const getAllSkatersForAdmin = async ({ page = 1, limit = 10, search = "" 
 };
 
 export const getSkaterFullDetailsByIdForAdmin = async (skaterId) => {
-  return BaseAuth.findOne({ _id: skaterId, role: "Skater" })
+  const skater = await BaseAuth.findOne({ _id: skaterId, role: "Skater" })
     .select("-refreshTokens -isNotificationsEnabled -isActive -firebaseTokens")
     .populate("district", "_id name")
     .populate("club", "_id name clubId district districtName")
     .lean();
+
+  if (!skater) {
+    return null;
+  }
+
+  return {
+    ...skater,
+    district: skater?.district?.name || "",
+    districtDetails: skater?.district || null,
+  };
 };

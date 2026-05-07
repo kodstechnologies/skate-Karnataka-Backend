@@ -24,13 +24,23 @@ import {
   displaySponsorshipDonationsRepositories,
   displayStateLatestEventsRepositories,
   displayStateLatestSingleEventsRepositories,
+  displayStateEventsRepositories,
+  displayStateEventDetailsWithPodiumRepositories,
   displaySingleNewsRepositories,
   displaySingleSponsorshipDonationRepositories,
+  displayDistrictsRepositories,
+  displayDistrictDetailsRepositories,
+  displayDistrictClubsRepositories,
+  displayDistrictClubDetailsRepositories,
+  displayDistrictSkatersRepositories,
+  displayDistrictEventsRepositories,
   updateLatestAboutRepositories,
   updateCircularRepositories,
   updateDisciplineRepositories,
   updateNewsRepositories,
   updateSponsorshipDonationRepositories,
+  displayGuestStateMediaRepositories,
+  displayGuestStateMediaDetailsRepositories,
 } from "./guest.repositories.js";
 import { AppError } from "../../util/common/AppError.js";
 export const afterLoginFormGuestService = async (data, id) => {
@@ -96,6 +106,30 @@ export const displayStateLatestSingleEventsService = async (id) => {
         throw new AppError("State event not found", 404);
     }
     return event;
+};
+
+export const displayStateEventsService = async ({ page, limit, search }) => {
+    return displayStateEventsRepositories({ page, limit, search });
+};
+
+export const displayStateEventDetailsWithPodiumService = async (eventId) => {
+    const result = await displayStateEventDetailsWithPodiumRepositories(eventId);
+    if (!result) {
+        throw new AppError("State event not found", 404);
+    }
+    return result;
+};
+
+export const displayGuestStateMediaService = async ({ page, limit }) => {
+    return displayGuestStateMediaRepositories({ page, limit });
+};
+
+export const displayGuestStateMediaDetailsService = async (id) => {
+    const media = await displayGuestStateMediaDetailsRepositories(id);
+    if (!media) {
+        throw new AppError("Media not found", 404);
+    }
+    return media;
 };
 
 export const displayDisciplinesService = async ({ page, limit, search }) => {
@@ -189,6 +223,50 @@ export const deleteAboutService = async () => {
 
 export const displaySponsorshipDonationsService = async ({ page, limit, search, supportType }) => {
     return displaySponsorshipDonationsRepositories({ page, limit, search, supportType });
+};
+
+export const displayDistrictsService = async ({ page, limit, search }) => {
+    return displayDistrictsRepositories({ page, limit, search });
+};
+
+export const displayDistrictDetailsService = async (districtId) => {
+    const district = await displayDistrictDetailsRepositories(districtId);
+    if (!district) {
+        throw new AppError("District not found", 404);
+    }
+    return district;
+};
+
+export const displayDistrictClubsService = async (districtId, { page, limit, search }) => {
+    const result = await displayDistrictClubsRepositories(districtId, { page, limit, search });
+    if (!result) {
+        throw new AppError("District not found", 404);
+    }
+    return result;
+};
+
+export const displayDistrictClubDetailsService = async ({ districtId, clubId }) => {
+    const club = await displayDistrictClubDetailsRepositories({ districtId, clubId });
+    if (!club) {
+        throw new AppError("Club not found in this district", 404);
+    }
+    return club;
+};
+
+export const displayDistrictSkatersService = async (districtId, { page, limit, search }) => {
+    const result = await displayDistrictSkatersRepositories(districtId, { page, limit, search });
+    if (!result) {
+        throw new AppError("District not found", 404);
+    }
+    return result;
+};
+
+export const displayDistrictEventsService = async (districtId, { page, limit, search }) => {
+    const result = await displayDistrictEventsRepositories(districtId, { page, limit, search });
+    if (!result) {
+        throw new AppError("District not found", 404);
+    }
+    return result;
 };
 
 export const addSponsorshipDonationService = async (data) => {

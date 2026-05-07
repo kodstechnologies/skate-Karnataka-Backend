@@ -139,9 +139,25 @@ export const stateDashboardRepository = async () => {
 };
 
 export const stateProfileRepository = async (stateId) => {
-  const state = await State.findById(stateId)
-    .select("name officialAddress img krsaId")
-    .lean();
+  const [state, districtMedalsAgg, clubMedalsAgg] = await Promise.all([
+    State.findById(stateId).select("name officialAddress img krsaId").lean(),
+    District.aggregate([
+      {
+        $group: {
+          _id: null,
+          total: { $sum: { $ifNull: ["$championships", 0] } },
+        },
+      },
+    ]),
+    Club.aggregate([
+      {
+        $group: {
+          _id: null,
+          total: { $sum: { $ifNull: ["$championships", 0] } },
+        },
+      },
+    ]),
+  ]);
 
   if (!state) {
     throw new AppError("State not found", 404);
@@ -152,5 +168,106 @@ export const stateProfileRepository = async (stateId) => {
     officialAddress: state.officialAddress || "",
     img: state.img || "",
     krsaId: state.krsaId || "",
+    districtMedals: districtMedalsAgg?.[0]?.total || 0,
+    clubMedals: clubMedalsAgg?.[0]?.total || 0,
+    skaterMedals: 0,
+  };
+};
+
+export const getAllDistrictsByStateRepository = async ({ page, limit, search = "" }) => {
+  const pagination = paginate(page, limit);
+  const term = String(search || "").trim();
+  const query = term ? { name: { $regex: term, $options: "i" } } : {};
+
+  const [data, total] = await Promise.all([
+    District.find(query)
+      .select("_id name img officeAddress rank championships")
+      .sort({ createdAt: -1 })
+      .skip(pagination.skip)
+      .limit(pagination.limit)
+      .lean(),
+    District.countDocuments(query),
+  ]);
+
+  return {
+    data,
+    pagination: {
+      page: pagination.page,
+      limit: pagination.limit,
+      total,
+      totalPages: Math.ceil(total / pagination.limit) || 1,
+    },
+  };
+};
+
+export const getAllClubsByStateRepository = async ({ page, limit, search = "" }) => {
+  const pagination = paginate(page, limit);
+  const term = String(search || "").trim();
+  const query = term
+    ? {
+        $or: [
+          { name: { $regex: term, $options: "i" } },
+          { clubId: { $regex: term, $options: "i" } },
+          { districtName: { $regex: term, $options: "i" } },
+        ],
+      }
+    : {};
+
+  const [data, total] = await Promise.all([
+    Club.find(query)
+      .select("_id name clubId district districtName img officeAddress rank championships")
+      .populate("district", "_id name")
+      .sort({ createdAt: -1 })
+      .skip(pagination.skip)
+      .limit(pagination.limit)
+      .lean(),
+    Club.countDocuments(query),
+  ]);
+
+  return {
+    data,
+    pagination: {
+      page: pagination.page,
+      limit: pagination.limit,
+      total,
+      totalPages: Math.ceil(total / pagination.limit) || 1,
+    },
+  };
+};
+
+export const getAllSkatersByStateRepository = async ({ page, limit, search = "" }) => {
+  const pagination = paginate(page, limit);
+  const term = String(search || "").trim();
+  const query = { role: "Skater" };
+
+  if (term) {
+    query.$or = [
+      { fullName: { $regex: term, $options: "i" } },
+      { phone: { $regex: term, $options: "i" } },
+      { email: { $regex: term, $options: "i" } },
+      { krsaId: { $regex: term, $options: "i" } },
+    ];
+  }
+
+  const [data, total] = await Promise.all([
+    Skater.find(query)
+      .select("_id fullName profile phone email gender address district club krsaId")
+      .populate("district", "_id name")
+      .populate("club", "_id name clubId")
+      .sort({ createdAt: -1 })
+      .skip(pagination.skip)
+      .limit(pagination.limit)
+      .lean(),
+    Skater.countDocuments(query),
+  ]);
+
+  return {
+    data,
+    pagination: {
+      page: pagination.page,
+      limit: pagination.limit,
+      total,
+      totalPages: Math.ceil(total / pagination.limit) || 1,
+    },
   };
 };

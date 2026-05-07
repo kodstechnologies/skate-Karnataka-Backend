@@ -170,9 +170,30 @@ export const disciplineByIdValidation = {
 
 export const addCircularValidation = {
   body: Joi.object({
-    img: Joi.string().uri().allow("").optional().messages({
-      "string.uri": "Image must be a valid URL",
-    }),
+    img: Joi.alternatives()
+      .try(
+        Joi.string().uri().allow("").messages({
+          "string.uri": "Image must be a valid URL",
+        }),
+        Joi.array().items(
+          Joi.string().uri().allow("").messages({
+            "string.uri": "Each image must be a valid URL",
+          })
+        )
+      )
+      .optional(),
+    relatedInformationImages: Joi.alternatives()
+      .try(
+        Joi.string().uri().allow("").messages({
+          "string.uri": "Each related information image must be a valid URL",
+        }),
+        Joi.array().items(
+          Joi.string().uri().allow("").messages({
+            "string.uri": "Each related information image must be a valid URL",
+          })
+        )
+      )
+      .optional(),
     heading: Joi.string().trim().min(3).max(200).required().messages({
       "string.empty": "Heading is required",
       "any.required": "Heading is required",
@@ -193,9 +214,30 @@ export const updateCircularValidation = {
     }),
   }),
   body: Joi.object({
-    img: Joi.string().uri().allow("").optional().messages({
-      "string.uri": "Image must be a valid URL",
-    }),
+    img: Joi.alternatives()
+      .try(
+        Joi.string().uri().allow("").messages({
+          "string.uri": "Image must be a valid URL",
+        }),
+        Joi.array().items(
+          Joi.string().uri().allow("").messages({
+            "string.uri": "Each image must be a valid URL",
+          })
+        )
+      )
+      .optional(),
+    relatedInformationImages: Joi.alternatives()
+      .try(
+        Joi.string().uri().allow("").messages({
+          "string.uri": "Each related information image must be a valid URL",
+        }),
+        Joi.array().items(
+          Joi.string().uri().allow("").messages({
+            "string.uri": "Each related information image must be a valid URL",
+          })
+        )
+      )
+      .optional(),
     heading: Joi.string().trim().min(3).max(200).optional(),
     text: Joi.string().trim().min(3).max(2000).optional(),
     date: Joi.date().optional(),
@@ -332,4 +374,49 @@ export const sponsorshipDonationByIdValidation = {
       "string.empty": "Sponsorship/Donation id is required",
     }),
   }),
+};
+
+const districtParamsSchema = Joi.object({
+  districtId: Joi.string().trim().required().messages({
+    "any.required": "District id is required",
+    "string.empty": "District id is required",
+  }),
+});
+
+const districtClubParamsSchema = Joi.object({
+  districtId: Joi.string().trim().required().messages({
+    "any.required": "District id is required",
+    "string.empty": "District id is required",
+  }),
+  clubId: Joi.string().trim().required().messages({
+    "any.required": "Club id is required",
+    "string.empty": "Club id is required",
+  }),
+});
+
+export const districtListQueryValidation = {
+  query: paginatedSearchQuerySchema,
+};
+
+export const districtByIdValidation = {
+  params: districtParamsSchema,
+};
+
+export const districtClubListValidation = {
+  params: districtParamsSchema,
+  query: paginatedSearchQuerySchema,
+};
+
+export const districtClubByIdValidation = {
+  params: districtClubParamsSchema,
+};
+
+export const districtSkaterListValidation = {
+  params: districtParamsSchema,
+  query: paginatedSearchQuerySchema,
+};
+
+export const districtEventListValidation = {
+  params: districtParamsSchema,
+  query: paginatedSearchQuerySchema,
 };

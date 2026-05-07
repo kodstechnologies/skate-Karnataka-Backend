@@ -12,6 +12,10 @@ import {
   displayFeedback,
   displayStateLatestEvents,
   displayStateLatestSingleEvents,
+  displayStateEvents,
+  displayStateEventDetailsWithPodium,
+  displayGuestStateMedia,
+  displayGuestStateMediaDetails,
   displayNews,
   displaySingleNews,
   updateNews,
@@ -35,6 +39,12 @@ import {
   displaySingleSponsorshipDonation,
   displaySponsorshipDonations,
   updateSponsorshipDonation,
+  displayDistricts,
+  displayDistrictDetails,
+  displayDistrictClubs,
+  displayDistrictClubDetails,
+  displayDistrictSkaters,
+  displayDistrictEvents,
 } from "./guest.controller.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import {
@@ -60,6 +70,12 @@ import {
   addSponsorshipDonationValidation,
   updateSponsorshipDonationValidation,
   sponsorshipDonationByIdValidation,
+  districtListQueryValidation,
+  districtByIdValidation,
+  districtClubListValidation,
+  districtClubByIdValidation,
+  districtSkaterListValidation,
+  districtEventListValidation,
 } from "./guest.validation.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
 
@@ -114,6 +130,46 @@ router.delete(
 router.get("/v1/events", displayStateLatestEvents);
 router.get("/v1/events/:id", validate(eventByIdValidation), displayStateLatestSingleEvents);
 
+// ============ State events (Guest)
+router.get("/v1/state-events", validate(displayNewsQueryValidation), displayStateEvents);
+router.get("/v1/state-events/:id", validate(eventByIdValidation), displayStateEventDetailsWithPodium);
+
+// ============ Media (Guest) - state only
+router.get("/v1/media", validate(displayNewsQueryValidation), displayGuestStateMedia);
+router.get("/v1/media/:id", validate(eventByIdValidation), displayGuestStateMediaDetails);
+
+// ====================== District (Guest)
+router.get(
+  "/v1/district",
+  validate(districtListQueryValidation),
+  displayDistricts
+);
+router.get(
+  "/v1/district/:districtId",
+  validate(districtByIdValidation),
+  displayDistrictDetails
+);
+router.get(
+  "/v1/district/:districtId/club",
+  validate(districtClubListValidation),
+  displayDistrictClubs
+);
+router.get(
+  "/v1/district/:districtId/club/:clubId",
+  validate(districtClubByIdValidation),
+  displayDistrictClubDetails
+);
+router.get(
+  "/v1/district/:districtId/skater",
+  validate(districtSkaterListValidation),
+  displayDistrictSkaters
+);
+router.get(
+  "/v1/district/:districtId/event",
+  validate(districtEventListValidation),
+  displayDistrictEvents
+);
+
 // ====================== Disciplines  
 
 router.get(
@@ -162,16 +218,22 @@ router.get(
 router.post(
   "/v1/circular",
   authenticate(["Skater", "Admin"]),
-  upload.single("img"),
-  uploadToS3("img"),
+  upload.fields([
+    { name: "img", maxCount: 1 },
+    { name: "relatedInformationImages", maxCount: 20 },
+  ]),
+  uploadToS3("circular", { img: "img", relatedInformationImages: "relatedInformationImages" }),
   validate(addCircularValidation),
   addCircular
 );
 router.patch(
   "/v1/circular/:id",
   authenticate(["Skater", "Admin"]),
-  upload.single("img"),
-  uploadToS3("img"),
+  upload.fields([
+    { name: "img", maxCount: 1 },
+    { name: "relatedInformationImages", maxCount: 20 },
+  ]),
+  uploadToS3("circular", { img: "img", relatedInformationImages: "relatedInformationImages" }),
   validate(updateCircularValidation),
   updateCircular
 );
@@ -257,5 +319,6 @@ router.delete(
   validate(sponsorshipDonationByIdValidation),
   deleteSponsorshipDonation
 );
+
 
 export default router;

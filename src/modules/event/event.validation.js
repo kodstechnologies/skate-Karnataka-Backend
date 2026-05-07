@@ -16,6 +16,97 @@ export const stateEventListQueryValidation = {
     }),
 };
 
+export const stateEventSkatersListQueryValidation = {
+    query: Joi.object({
+        page: Joi.number().integer().min(1).default(1),
+        limit: Joi.number().integer().min(1).max(100).default(10),
+        search: Joi.string().trim().max(200).allow("").optional(),
+        ageGroup: Joi.string().trim().allow("").optional(),
+        categoryName: Joi.string().trim().allow("").optional(),
+    }),
+};
+
+export const stateEventResultQueryValidation = {
+    query: Joi.object({
+        ageGroup: Joi.string().trim().allow("").optional(),
+        categoryName: Joi.string().trim().allow("").optional(),
+    }),
+};
+
+const state_skater_time_update_validation = {
+    body: Joi.object({
+        eventId: objectIdString.required(),
+        skaterId: objectIdString.optional(),
+        registrationId: objectIdString.optional(),
+        status: Joi.string()
+            .trim()
+            .lowercase()
+            .valid("pending", "attend", "absent", "apsent")
+            .optional(),
+        isDisqualified: Joi.boolean().optional(),
+        categories: Joi.array().items(
+            Joi.object({
+                name: Joi.string().trim().min(1).required(),
+                timeTaken: Joi.number().allow(null).optional(),
+                rank: Joi.number().integer().allow(null).optional(),
+                isDisqualified: Joi.boolean().optional(),
+                remarks: Joi.string().trim().allow("").optional(),
+                attendanceStatus: Joi.string()
+                    .trim()
+                    .lowercase()
+                    .valid("pending", "attend", "absent", "apsent")
+                    .optional(),
+            })
+        ).optional(),
+        skaters: Joi.array().items(
+            Joi.object({
+                skaterId: objectIdString.optional(),
+                registrationId: objectIdString.optional(),
+                status: Joi.string()
+                    .trim()
+                    .lowercase()
+                    .valid("pending", "attend", "absent", "apsent")
+                    .optional(),
+                isDisqualified: Joi.boolean().optional(),
+                categories: Joi.array().items(
+                    Joi.object({
+                        name: Joi.string().trim().min(1).required(),
+                        timeTaken: Joi.number().allow(null).optional(),
+                        rank: Joi.number().integer().allow(null).optional(),
+                        isDisqualified: Joi.boolean().optional(),
+                        remarks: Joi.string().trim().allow("").optional(),
+                        attendanceStatus: Joi.string()
+                            .trim()
+                            .lowercase()
+                            .valid("pending", "attend", "absent", "apsent")
+                            .optional(),
+                    })
+                ).optional(),
+            })
+                .xor("skaterId", "registrationId")
+                .min(2)
+        ).min(1).optional(),
+    })
+        .xor("skaterId", "registrationId", "skaters")
+        .custom((value, helpers) => {
+            if (
+                (value.skaterId || value.registrationId) &&
+                value.status === undefined &&
+                value.isDisqualified === undefined &&
+                value.categories === undefined
+            ) {
+                return helpers.error("any.custom", {
+                    message: "Single skater update requires status, isDisqualified, or categories",
+                });
+            }
+            return value;
+        })
+        .messages({
+            "object.xor": "Provide either skaterId/registrationId (single) or skaters (batch), not both",
+            "any.custom": "{{#message}}",
+        }),
+};
+
 const create_event_validation = {
     body: Joi.object({
         header: Joi.string()
@@ -288,6 +379,7 @@ const register_form_validation = {
 };
 
 export {
+    state_skater_time_update_validation,
     create_event_validation,
     create_club_event_validation,
     create_district_event_validation,
@@ -296,5 +388,6 @@ export {
     create_event_category_validation,
     update_event_category_validation,
     eventCategoryListQueryValidation,
-    register_form_validation
+    register_form_validation,
+    // stateEventResultQueryValidation
 };

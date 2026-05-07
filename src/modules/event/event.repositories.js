@@ -9,6 +9,11 @@ import { District } from "../district/district.model.js";
 import { State } from "../state/state.model.js";
 import mongoose from "mongoose";
 import { sendNotification } from "../../util/firebase/sendNotification.js";
+import { AppError } from "../../util/common/AppError.js";
+
+const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const normalizeAttendanceStatus = (status) =>
+  status === "apsent" ? "absent" : status;
 
 const displayAllEventRepository = async ({ page, limit }) => {
 
@@ -116,7 +121,10 @@ export const getRegisterFormByIdRepository = async (id, userId) => {
     eventId: item.eventId?._id || null,
     name: item.name || "",
     ageGroup: item.ageGroup,
-    categories: item.categories || [],
+    categories: (item.categories || []).map((category) => ({
+      ...category,
+      attendanceStatus: category?.attendanceStatus || "pending",
+    })),
     paymentStatus: item.paymentStatus,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
@@ -125,6 +133,357 @@ export const getRegisterFormByIdRepository = async (id, userId) => {
 
 export const createRegisterFormRepository = async (payload) => {
   return await EventParticipant.create(payload);
+};
+
+export const listEventSkatersByEventIdRepository = async (
+  eventId,
+  { page, limit, search, ageGroup, categoryName }
+) => {
+  const oid = new mongoose.Types.ObjectId(eventId);
+  const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+  const usersCol = BaseAuth.collection.name;
+
+  const initialMatch = { eventId: oid };
+  const ageTerm = typeof ageGroup === "string" ? ageGroup.trim() : "";
+  if (ageTerm) {
+    initialMatch.ageGroup = ageTerm;
+  }
+
+  const categoryTermRaw = typeof categoryName === "string" ? categoryName.trim() : "";
+  if (categoryTermRaw) {
+    const disqualifiedTagMatch = categoryTermRaw.match(/^(.*)\+\s*d$/i);
+    if (disqualifiedTagMatch) {
+      const categoryLabel = disqualifiedTagMatch[1].trim();
+      if (categoryLabel) {
+        initialMatch.categories = {
+          $elemMatch: {
+            name: categoryLabel,
+            isDisqualified: true,
+          },
+        };
+      }
+    } else {
+      initialMatch.categories = {
+        $elemMatch: {
+          name: categoryTermRaw,
+        },
+      };
+    }
+  }
+
+  const pipeline = [{ $match: initialMatch }];
+  pipeline.push(
+    {
+      $lookup: {
+        from: usersCol,
+        localField: "userId",
+        foreignField: "_id",
+        as: "user",
+      },
+    },
+    { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } }
+  );
+
+  const term = typeof search === "string" ? search.trim() : "";
+  if (term) {
+    const rx = new RegExp(escapeRegex(term), "i");
+    pipeline.push({
+      $match: {
+        $or: [
+          { "user.fullName": rx },
+          { "user.phone": rx },
+          { "user.email": rx },
+        ],
+      },
+    });
+  }
+
+  pipeline.push({
+    $facet: {
+      totalCount: [{ $count: "count" }],
+      data: [
+        { $sort: { createdAt: -1 } },
+        { $skip: skip },
+        { $limit: pageLimit },
+        {
+          $project: {
+            _id: 0,
+            registrationId: "$_id",
+            userId: 1,
+            participantName: "$name",
+            ageGroup: 1,
+            paymentStatus: 1,
+            categories: {
+              $map: {
+                input: { $ifNull: ["$categories", []] },
+                as: "category",
+                in: {
+                  name: "$$category.name",
+                  timeTaken: "$$category.timeTaken",
+                  rank: "$$category.rank",
+                  isDisqualified: "$$category.isDisqualified",
+                  remarks: "$$category.remarks",
+                  _id: "$$category._id",
+                  attendanceStatus: {
+                    $ifNull: ["$$category.attendanceStatus", "pending"],
+                  },
+                },
+              },
+            },
+            registeredAt: "$createdAt",
+            fullName: "$user.fullName",
+            phone: "$user.phone",
+            email: "$user.email",
+            profile: "$user.profile",
+            krsaId: "$user.krsaId",
+          },
+        },
+      ],
+    },
+  });
+
+  const [agg] = await EventParticipant.aggregate(pipeline);
+  const total = agg?.totalCount?.[0]?.count ?? 0;
+  const data = Array.isArray(agg?.data) ? agg.data : [];
+
+  return {
+    data,
+    total,
+    page: currentPage,
+    limit: pageLimit,
+    totalPages: Math.ceil(total / pageLimit) || 0,
+  };
+};
+
+export const listEventSkatersBasicByEventIdRepository = async (eventId) => {
+  const participants = await EventParticipant.find({
+    eventId: new mongoose.Types.ObjectId(eventId),
+  })
+    .select("name userId")
+    .populate("userId", "fullName krsaId phone email")
+    .lean();
+
+  const skaters = participants.map((participant) => ({
+    name: participant.name || participant.userId?.fullName || "",
+    krsaId: participant.userId?.krsaId || "",
+    phone: participant.userId?.phone || "",
+    email: participant.userId?.email || "",
+  }));
+
+  return {
+    skaterCount: skaters.length,
+    skaters,
+  };
+};
+
+export const getStateEventResultsRepository = async (
+  eventId,
+  { ageGroup, categoryName }
+) => {
+  const participants = await EventParticipant.find({
+    eventId: new mongoose.Types.ObjectId(eventId),
+  })
+    .select("name ageGroup categories userId")
+    .populate("userId", "fullName phone email krsaId")
+    .lean();
+
+  const ageGroupTerm = typeof ageGroup === "string" ? ageGroup.trim() : "";
+  const categoryTermRaw =
+    typeof categoryName === "string" ? categoryName.trim() : "";
+
+  let categoryFilterName = "";
+  let categoryFilterIsDisqualified = null;
+  if (categoryTermRaw) {
+    const disqualifiedTagMatch = categoryTermRaw.match(/^(.*)\+\s*d$/i);
+    if (disqualifiedTagMatch) {
+      categoryFilterName = disqualifiedTagMatch[1].trim();
+      categoryFilterIsDisqualified = true;
+    } else {
+      categoryFilterName = categoryTermRaw;
+    }
+  }
+
+  const grouped = new Map();
+
+  for (const participant of participants) {
+    if (ageGroupTerm && participant.ageGroup !== ageGroupTerm) {
+      continue;
+    }
+
+    for (const category of participant.categories || []) {
+      const categoryNameValue = String(category?.name || "").trim();
+      if (!categoryNameValue) continue;
+
+      if (categoryFilterName && categoryNameValue !== categoryFilterName) {
+        continue;
+      }
+      if (
+        categoryFilterIsDisqualified !== null &&
+        Boolean(category.isDisqualified) !== categoryFilterIsDisqualified
+      ) {
+        continue;
+      }
+
+      const key = `${participant.ageGroup}::${categoryNameValue}`;
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          ageGroup: participant.ageGroup,
+          categoryName: categoryNameValue,
+          results: [],
+        });
+      }
+
+      grouped.get(key).results.push({
+        registrationId: participant._id,
+        userId: participant.userId?._id || participant.userId || null,
+        participantName:
+          participant.name || participant.userId?.fullName || "",
+        fullName: participant.userId?.fullName || "",
+        krsaId: participant.userId?.krsaId || "",
+        phone: participant.userId?.phone || "",
+        email: participant.userId?.email || "",
+        timeTaken: category.timeTaken ?? null,
+        isDisqualified: Boolean(category.isDisqualified),
+        remarks: category.remarks || "",
+        attendanceStatus: category.attendanceStatus || "pending",
+      });
+    }
+  }
+
+  const groups = Array.from(grouped.values()).map((group) => {
+    const sorted = [...group.results].sort((a, b) => {
+      if (a.isDisqualified !== b.isDisqualified) {
+        return a.isDisqualified ? 1 : -1;
+      }
+
+      const aTime = typeof a.timeTaken === "number" ? a.timeTaken : null;
+      const bTime = typeof b.timeTaken === "number" ? b.timeTaken : null;
+
+      if (aTime === null && bTime === null) return 0;
+      if (aTime === null) return 1;
+      if (bTime === null) return -1;
+      return aTime - bTime;
+    });
+
+    let runningRank = 0;
+    for (const row of sorted) {
+      const hasValidTime = typeof row.timeTaken === "number";
+      if (row.isDisqualified || !hasValidTime) {
+        row.rank = null;
+      } else {
+        runningRank += 1;
+        row.rank = runningRank;
+      }
+    }
+
+    return {
+      ...group,
+      totalSkaters: sorted.length,
+      results: sorted,
+    };
+  });
+
+  groups.sort((a, b) => {
+    if (a.ageGroup !== b.ageGroup) {
+      return a.ageGroup.localeCompare(b.ageGroup);
+    }
+    return a.categoryName.localeCompare(b.categoryName);
+  });
+
+  return {
+    groups,
+    totalGroups: groups.length,
+  };
+};
+
+export const updateEventParticipantTimingBySkaterRepository = async (
+  { skaterId, registrationId },
+  eventId,
+  payload
+) => {
+  let participant = null;
+
+  if (registrationId) {
+    participant = await EventParticipant.findOne({
+      _id: new mongoose.Types.ObjectId(registrationId),
+      eventId: new mongoose.Types.ObjectId(eventId),
+    });
+  } else if (skaterId) {
+    participant = await EventParticipant.findOne({
+      userId: new mongoose.Types.ObjectId(skaterId),
+      eventId: new mongoose.Types.ObjectId(eventId),
+    });
+  }
+
+  if (!participant) return null;
+
+  if (typeof payload.status === "string") {
+    const normalizedStatus = normalizeAttendanceStatus(payload.status);
+    participant.categories = participant.categories.map((category) => ({
+      ...category.toObject(),
+      attendanceStatus: normalizedStatus,
+    }));
+  }
+
+  const forceDisqualified = payload.isDisqualified;
+
+  if (Array.isArray(payload.categories) && payload.categories.length > 0) {
+    const inputByName = new Map(
+      payload.categories.map((category) => [String(category.name || "").trim(), category])
+    );
+
+    const unknownCategories = [...inputByName.keys()].filter((name) => {
+      if (!name) return true;
+      return !participant.categories.some(
+        (registeredCategory) => String(registeredCategory.name || "").trim() === name
+      );
+    });
+
+    if (unknownCategories.length > 0) {
+      throw new AppError(
+        `Invalid categories for this skater: ${unknownCategories.join(", ")}`,
+        400
+      );
+    }
+
+    participant.categories = participant.categories.map((category) => {
+      const categoryObj = category.toObject();
+      const incoming = inputByName.get(String(categoryObj.name || "").trim());
+      if (!incoming) {
+        return categoryObj;
+      }
+
+      return {
+        ...categoryObj,
+        timeTaken:
+          incoming.timeTaken !== undefined ? incoming.timeTaken : categoryObj.timeTaken,
+        rank: incoming.rank !== undefined ? incoming.rank : categoryObj.rank,
+        isDisqualified:
+          incoming.isDisqualified !== undefined
+            ? incoming.isDisqualified
+            : typeof forceDisqualified === "boolean"
+              ? forceDisqualified
+              : categoryObj.isDisqualified,
+        remarks: incoming.remarks !== undefined ? incoming.remarks : categoryObj.remarks,
+        attendanceStatus:
+          incoming.attendanceStatus !== undefined
+            ? normalizeAttendanceStatus(incoming.attendanceStatus)
+            : categoryObj.attendanceStatus || "pending",
+      };
+    });
+  } else if (typeof forceDisqualified === "boolean") {
+    participant.categories = participant.categories.map((category) => ({
+      ...category.toObject(),
+      isDisqualified: forceDisqualified,
+      attendanceStatus:
+        category.attendanceStatus ||
+        "pending",
+    }));
+  }
+
+  await participant.save();
+
+  return participant.toObject();
 };
 
 
@@ -353,21 +712,14 @@ export const createStateEventRepositories = async (stateId, data) => {
     .select("name")
     .lean();
 
-  const [stateUsers, districts, clubs, skaters] = await Promise.all([
-    BaseAuth.find({ role: "State" }).select("_id").lean(),
-    District.find().select("members").lean(),
-    Club.find().select("members").lean(),
-    Skater.find().select("_id").lean(),
-  ]);
+  const users = await BaseAuth.find({
+    isActive: true,
+    isNotificationsEnabled: true,
+  })
+    .select("_id")
+    .lean();
 
-  const targetUserIds = [
-    ...stateUsers.map((user) => user._id.toString()),
-    ...districts.flatMap((district) => (district.members || []).map((id) => id.toString())),
-    ...clubs.flatMap((club) => (club.members || []).map((id) => id.toString())),
-    ...skaters.map((skater) => skater._id.toString()),
-  ];
-
-  const uniqueUserIds = [...new Set(targetUserIds)];
+  const uniqueUserIds = [...new Set(users.map((user) => user._id.toString()))];
 
   await Promise.all(
     uniqueUserIds.map((receiverId) =>
@@ -399,6 +751,11 @@ const displaySingleEventRepository = async (id) => {
   }
 
   return event;
+};
+
+/** Same fetch as display single, but keeps populated `eventFor` for authorization. */
+export const getStateEventFullDetailsByIdRepository = async (eventId) => {
+  return Event.findById(eventId).populate("eventFor", "name").lean();
 };
 
 const display_latest_event_repositories = async (userId) => {

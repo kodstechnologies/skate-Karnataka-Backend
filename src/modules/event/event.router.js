@@ -1,6 +1,6 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
-import { clubRelatedEventDisplay, createClubEvent, create_event, delete_event, display_all_event_based_on_user, display_latest_event, displayAllEvents, displayEventById, edit_event, createDistrictEvent, districtRelatedEventDisplay, stateRelatedEventDisplay, createStateEvent, createEventCategory, deleteEventCategory, getEventCategories, getEventCategoryById, updateEventCategory, createRegisterForm, getRegisterFormById, getRegisterFormByUserId } from "./event.controller.js";
+import { clubRelatedEventDisplay, createClubEvent, create_event, delete_event, display_all_event_based_on_user, display_latest_event, displayAllEvents, displayEventById, edit_event, createDistrictEvent, districtRelatedEventDisplay, stateEventResult, stateRelatedEventDisplay, stateEventSkatersSummary, updateStateSkaterTime, createStateEvent, createEventCategory, deleteEventCategory, getEventCategories, getEventCategoryById, updateEventCategory, createRegisterForm, getRegisterFormById, getRegisterFormByUserId } from "./event.controller.js";
 import { validate } from "../../middleware/validate.multiple.js";
 import {
     create_event_category_validation,
@@ -10,7 +10,10 @@ import {
     create_state_event_validation,
     eventCategoryListQueryValidation,
     register_form_validation,
+    state_skater_time_update_validation,
+    stateEventResultQueryValidation,
     stateEventListQueryValidation,
+    stateEventSkatersListQueryValidation,
     update_event_category_validation,
     update_event_validation,
 } from "./event.validation.js";
@@ -44,8 +47,30 @@ router.post(
 router.get(
     "/v1/state",
     authenticate(["State", "Admin"]),
-    validate(stateEventListQueryValidation),
     stateRelatedEventDisplay
+);
+router.get(
+    "/v1/state/all-skater/:id",
+    authenticate(["State", "Admin"]),
+    validate(stateEventSkatersListQueryValidation),
+    stateEventSkatersSummary
+);
+router.get(
+    "/v1/state-result/:id",
+    authenticate(["State", "Admin"]),
+    validate(stateEventResultQueryValidation),
+    stateEventResult
+);
+router.get(
+    "/v1/state/:id",
+    authenticate(["State", "Admin"]),
+    stateRelatedEventDisplay
+);
+router.post(
+    "/v1/state/skater-time",
+    authenticate(["State", "Admin"]),
+    validate(state_skater_time_update_validation),
+    updateStateSkaterTime
 );
 router.post(
     "/v1/state",
@@ -129,5 +154,7 @@ router.post(
 );
 
 
+// ======================== all SkatingEventCategory
+// router.get("/")
 
 export default router;

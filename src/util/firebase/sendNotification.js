@@ -14,10 +14,14 @@ export const sendNotification = async ({
 }) => {
 
   try {
-
+console.log(receiverId,"receiverId")
     // Find receiver
     const auth = await BaseAuth.findById(receiverId)
       .select("firebaseTokens role");
+    const sender = sentBy
+      ? await BaseAuth.findById(sentBy).select("role")
+      : null;
+    const senderRole = sender?.role || null;
     // console.log(auth, "00000000000000000000000")
     if (!auth) {
       console.log(`Receiver not found: ${receiverId}`);
@@ -33,7 +37,8 @@ export const sendNotification = async ({
       link,
       img,
       notificationType,
-      sentBy
+      sentBy,
+      senderRole
     });
 
     // No device tokens → only save notification
@@ -49,7 +54,7 @@ export const sendNotification = async ({
 
     // Send push notification
     const messaging = admin.messaging();
-    console.log(messaging, "messaging===")
+    // console.log(messaging, "messaging===")
     const response = await messaging.sendEachForMulticast({
       tokens: auth.firebaseTokens,
 
@@ -66,6 +71,7 @@ export const sendNotification = async ({
         ),
         receiverId: receiverId.toString(),
         receiverRole: String(auth.role || ""),
+        senderRole: String(senderRole || ""),
         notificationType
       }
     });

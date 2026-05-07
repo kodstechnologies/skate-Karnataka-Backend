@@ -51,6 +51,24 @@ export const uploadToS3 = (folder = "uploads", fieldMap = { img: "img" }) => {
           continue;
         }
 
+        if (targetField === "relatedInformationImages") {
+          if (!Array.isArray(req.body.relatedInformationImages)) {
+            if (
+              req.body.relatedInformationImages === undefined ||
+              req.body.relatedInformationImages === null ||
+              req.body.relatedInformationImages === ""
+            ) {
+              req.body.relatedInformationImages = [];
+            } else {
+              req.body.relatedInformationImages = Array.isArray(req.body.relatedInformationImages)
+                ? [...req.body.relatedInformationImages]
+                : [req.body.relatedInformationImages];
+            }
+          }
+          req.body.relatedInformationImages.push(url);
+          continue;
+        }
+
         req.body[targetField] = url;
         req.body[`${targetField}Key`] = key;
       }

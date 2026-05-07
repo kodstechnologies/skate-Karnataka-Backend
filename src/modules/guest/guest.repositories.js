@@ -8,6 +8,11 @@ import { Discipline } from "./disciplines.model.js";
 import { Circular } from "./circular.model.js";
 import { KRSAabout } from "./KRSAabout.model.js";
 import { SponsorshipAndDonation } from "./sponsorshipAndDonation.model.js";
+import { District } from "../district/district.model.js";
+import { Club } from "../club/club.model.js";
+import { Skater } from "../skater/skater.model.js";
+import mongoose from "mongoose";
+import { Gallery } from "../gallery/gallery.model.js";
 
 export const afterLoginGuestFormRepositories = async (data, id) => {
     const updated = await Guest.findOneAndUpdate(
@@ -160,6 +165,143 @@ export const displayStateLatestSingleEventsRepositories = async (id) => {
     return Event.findOne({ _id: id, eventType: "State" }).lean();
 };
 
+export const displayStateEventsRepositories = async ({ page, limit, search }) => {
+    const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+    const term = typeof search === "string" ? search.trim() : "";
+
+    const filter = { eventType: "State" };
+    if (term.length > 0) {
+        filter.header = { $regex: escapeRegExp(term), $options: "i" };
+    }
+
+    const [total, data] = await Promise.all([
+        Event.countDocuments(filter),
+        Event.find(filter)
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(pageLimit)
+            .lean(),
+    ]);
+
+    return {
+        data,
+        pagination: {
+            total,
+            page: currentPage,
+            limit: pageLimit,
+            totalPages: Math.ceil(total / pageLimit),
+        },
+    };
+};
+
+export const displayStateEventDetailsWithPodiumRepositories = async (eventId) => {
+    const event = await Event.findOne({ _id: eventId, eventType: "State" }).lean();
+    if (!event) return null;
+
+    const oid = new mongoose.Types.ObjectId(eventId);
+    const usersCol = "baseauths";
+
+    const [podiumRow] = await (await import("../event/eventParticipant.model.js")).EventParticipant
+        .aggregate([
+            { $match: { eventId: oid } },
+            { $unwind: "$categories" },
+            {
+                $match: {
+                    "categories.rank": { $in: [1, 2, 3] },
+                    "categories.isDisqualified": { $ne: true },
+                },
+            },
+            { $sort: { "categories.rank": 1, "categories.timeTaken": 1, createdAt: 1 } },
+            {
+                $group: {
+                    _id: "$categories.rank",
+                    userId: { $first: "$userId" },
+                    participantName: { $first: "$name" },
+                },
+            },
+            {
+                $lookup: {
+                    from: usersCol,
+                    localField: "userId",
+                    foreignField: "_id",
+                    as: "user",
+                },
+            },
+            { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } },
+            {
+                $project: {
+                    _id: 0,
+                    rank: "$_id",
+                    name: {
+                        $ifNull: ["$user.fullName", "$participantName"],
+                    },
+                    img: {
+                        $ifNull: ["$user.photo", "$user.profile"],
+                    },
+                },
+            },
+            {
+                $group: {
+                    _id: null,
+                    podium: { $push: "$$ROOT" },
+                },
+            },
+            { $project: { _id: 0, podium: 1 } },
+        ])
+        .exec();
+
+    const podium = Array.isArray(podiumRow?.podium) ? podiumRow.podium : [];
+    const pick = (rank) => podium.find((p) => p.rank === rank) || { rank, name: "", img: "" };
+
+    return {
+        ...event,
+        podium: [pick(1), pick(2), pick(3)],
+    };
+};
+
+export const displayGuestStateMediaRepositories = async ({ page, limit }) => {
+    const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+
+    const query = {
+        ownerType: "state",
+        $or: [
+            { imageUrl: { $nin: [null, ""] } },
+            { videoUrl: { $nin: [null, ""] } },
+        ],
+    };
+
+    const [total, data] = await Promise.all([
+        Gallery.countDocuments(query),
+        Gallery.find(query)
+            .select("_id imageUrl videoUrl")
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(pageLimit)
+            .lean(),
+    ]);
+
+    return {
+        data: data.map((item) => ({
+            _id: item._id,
+            imageUrl: item.imageUrl || null,
+            videoUrl: item.videoUrl || null,
+            type: item?.videoUrl ? "video" : "image",
+        })),
+        pagination: {
+            total,
+            page: currentPage,
+            limit: pageLimit,
+            totalPages: Math.ceil(total / pageLimit),
+        },
+    };
+};
+
+export const displayGuestStateMediaDetailsRepositories = async (id) => {
+    return Gallery.findOne({ _id: id, ownerType: "state" })
+        .select("_id imageUrl videoUrl title about ownerType createdAt")
+        .lean();
+};
+
 export const displayDisciplinesRepositories = async ({ page, limit, search }) => {
     const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
 
@@ -269,13 +411,251 @@ export const displayAboutGuestRepositories = async () => {
         .lean();
 
     if (!doc) {
-        return { about: null, img: null };
+        return { about: null, img: [] };
     }
 
     const imgs = Array.isArray(doc.img) ? doc.img : [];
     return {
         about: doc.about,
-        img: imgs.length > 0 ? imgs[imgs.length - 1] : null,
+        img: imgs,
+    };
+};
+
+export const displayDistrictsRepositories = async ({ page, limit, search }) => {
+    const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+    const term = typeof search === "string" ? search.trim() : "";
+
+    const filter =
+        term.length > 0
+            ? { name: { $regex: escapeRegExp(term), $options: "i" } }
+            : {};
+
+    const [total, data] = await Promise.all([
+        District.countDocuments(filter),
+        District.find(filter)
+            .select("_id name img")
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(pageLimit)
+            .lean(),
+    ]);
+
+    return {
+        data: data.map((district) => ({
+            _id: district._id,
+            name: district.name || "",
+            img: district.img || "",
+        })),
+        pagination: {
+            total,
+            page: currentPage,
+            limit: pageLimit,
+            totalPages: Math.ceil(total / pageLimit),
+        },
+    };
+};
+
+export const displayDistrictDetailsRepositories = async (districtId) => {
+    const district = await District.findById(districtId)
+        .select("_id name img about officeAddress presidentName rank championships")
+        .lean();
+
+    if (!district) {
+        return null;
+    }
+
+    const clubsQuery = { district: district._id };
+    const skatersQuery = { club: { $in: await Club.find(clubsQuery).distinct("_id") } };
+    const eventsQuery = { eventType: "District", eventFor: district._id };
+
+    const [totalClubs, totalSkaters, totalEvents] = await Promise.all([
+        Club.countDocuments(clubsQuery),
+        Skater.countDocuments(skatersQuery),
+        Event.countDocuments(eventsQuery),
+    ]);
+
+    return {
+        districtId: district._id,
+        name: district.name || "",
+        img: district.img || "",
+        about: district.about || "",
+        officeAddress: district.officeAddress || "",
+        presidentName: district.presidentName || "",
+        rank: district.rank || 0,
+        championships: district.championships || 0,
+        totalClubCount: totalClubs,
+        totalSkaterCount: totalSkaters,
+        totalEventCount: totalEvents,
+    };
+};
+
+export const displayDistrictClubsRepositories = async (districtId, { page, limit, search }) => {
+    const district = await District.findById(districtId).select("_id name").lean();
+    if (!district) {
+        return null;
+    }
+
+    const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+    const term = typeof search === "string" ? search.trim() : "";
+    const filter = { district: district._id };
+
+    if (term.length > 0) {
+        filter.name = { $regex: escapeRegExp(term), $options: "i" };
+    }
+
+    const [total, data] = await Promise.all([
+        Club.countDocuments(filter),
+        Club.find(filter)
+            .select("_id name img")
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(pageLimit)
+            .lean(),
+    ]);
+
+    return {
+        district: {
+            _id: district._id,
+            name: district.name || "",
+        },
+        data: data.map((club) => ({
+            _id: club._id,
+            name: club.name || "",
+            img: club.img || "",
+        })),
+        pagination: {
+            total,
+            page: currentPage,
+            limit: pageLimit,
+            totalPages: Math.ceil(total / pageLimit),
+        },
+    };
+};
+
+export const displayDistrictClubDetailsRepositories = async ({ districtId, clubId }) => {
+    const district = await District.findById(districtId).select("_id name").lean();
+    if (!district) {
+        return null;
+    }
+
+    const club = await Club.findOne({ _id: clubId, district: district._id })
+        .select("_id clubId name img officeAddress about districtName rank championships")
+        .lean();
+
+    if (!club) {
+        return null;
+    }
+
+    const totalSkaters = await Skater.countDocuments({ club: club._id });
+
+    return {
+        district: {
+            _id: district._id,
+            name: district.name || "",
+        },
+        clubId: club.clubId || String(club._id),
+        name: club.name || "",
+        img: club.img || "",
+        officeAddress: club.officeAddress || "",
+        about: club.about || "",
+        districtName: club.districtName || "",
+        rank: club.rank || 0,
+        championships: club.championships || 0,
+        totalSkaterCount: totalSkaters,
+    };
+};
+
+export const displayDistrictSkatersRepositories = async (districtId, { page, limit, search }) => {
+    const district = await District.findById(districtId).select("_id name").lean();
+    if (!district) {
+        return null;
+    }
+
+    const clubIds = await Club.find({ district: district._id }).distinct("_id");
+    const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+    const term = typeof search === "string" ? search.trim() : "";
+
+    const filter = {
+        club: { $in: clubIds },
+    };
+
+    if (term.length > 0) {
+        filter.fullName = { $regex: escapeRegExp(term), $options: "i" };
+    }
+
+    const [total, data] = await Promise.all([
+        Skater.countDocuments(filter),
+        Skater.find(filter)
+            .select("_id fullName photo club")
+            .populate("club", "_id name")
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(pageLimit)
+            .lean(),
+    ]);
+
+    return {
+        district: {
+            _id: district._id,
+            name: district.name || "",
+        },
+        data: data.map((skater) => ({
+            _id: skater._id,
+            name: skater.fullName || "",
+            img: skater.photo || "",
+            club: {
+                _id: skater.club?._id || null,
+                name: skater.club?.name || "",
+            },
+        })),
+        pagination: {
+            total,
+            page: currentPage,
+            limit: pageLimit,
+            totalPages: Math.ceil(total / pageLimit),
+        },
+    };
+};
+
+export const displayDistrictEventsRepositories = async (districtId, { page, limit, search }) => {
+    const district = await District.findById(districtId).select("_id name").lean();
+    if (!district) {
+        return null;
+    }
+
+    const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+    const term = typeof search === "string" ? search.trim() : "";
+
+    const filter = {
+        eventType: "District",
+        eventFor: district._id,
+    };
+
+    if (term.length > 0) {
+        filter.header = { $regex: escapeRegExp(term), $options: "i" };
+    }
+
+    const [total, data] = await Promise.all([
+        Event.countDocuments(filter),
+        Event.find(filter)
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(pageLimit)
+            .lean(),
+    ]);
+
+    return {
+        district: {
+            _id: district._id,
+            name: district.name || "",
+        },
+        data,
+        pagination: {
+            total,
+            page: currentPage,
+            limit: pageLimit,
+            totalPages: Math.ceil(total / pageLimit),
+        },
     };
 };
 

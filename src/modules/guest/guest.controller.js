@@ -7,6 +7,27 @@ const normalizeAboutPayload = (body) => {
   }
   return body;
 };
+
+const normalizeCircularPayload = (body) => {
+  const payload = { ...body };
+
+  if (Array.isArray(payload.img)) {
+    payload.img = payload.img[0] || "";
+  }
+
+  if (payload.relatedInformationImages != null) {
+    const images = Array.isArray(payload.relatedInformationImages)
+      ? payload.relatedInformationImages
+      : [payload.relatedInformationImages];
+
+    payload.relatedInformation = {
+      images: images.filter((item) => typeof item === "string" && item.trim().length > 0),
+    };
+    delete payload.relatedInformationImages;
+  }
+
+  return payload;
+};
 import {
   addContactUsService,
   addFeedBackService,
@@ -33,8 +54,18 @@ import {
   displaySponsorshipDonationsService,
   displayStateLatestEventsService,
   displayStateLatestSingleEventsService,
+  displayStateEventsService,
+  displayStateEventDetailsWithPodiumService,
+  displayGuestStateMediaService,
+  displayGuestStateMediaDetailsService,
   displaySingleNewsService,
   displaySingleSponsorshipDonationService,
+  displayDistrictsService,
+  displayDistrictDetailsService,
+  displayDistrictClubsService,
+  displayDistrictClubDetailsService,
+  displayDistrictSkatersService,
+  displayDistrictEventsService,
   updateAboutService,
   updateCircularService,
   updateDisciplineService,
@@ -139,6 +170,36 @@ export const displayStateLatestSingleEvents = asyncHandler(async (req, res) => {
     );
 });
 
+export const displayStateEvents = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 10, search } = req.query;
+    const result = await displayStateEventsService({ page, limit, search });
+    return res.status(200).json(
+        new ApiResponse(200, result, "State events fetched successfully")
+    );
+});
+
+export const displayStateEventDetailsWithPodium = asyncHandler(async (req, res) => {
+    const result = await displayStateEventDetailsWithPodiumService(req.params.id);
+    return res.status(200).json(
+        new ApiResponse(200, result, "State event details fetched successfully")
+    );
+});
+
+export const displayGuestStateMedia = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 10 } = req.query;
+    const result = await displayGuestStateMediaService({ page, limit });
+    return res.status(200).json(
+        new ApiResponse(200, result, "Media fetched successfully")
+    );
+});
+
+export const displayGuestStateMediaDetails = asyncHandler(async (req, res) => {
+    const result = await displayGuestStateMediaDetailsService(req.params.id);
+    return res.status(200).json(
+        new ApiResponse(200, result, "Media details fetched successfully")
+    );
+});
+
 
 export const displayDisciplines = asyncHandler(async(req, res) =>{
     const { page = 1, limit = 10, search } = req.query;
@@ -190,14 +251,14 @@ export const displaySingleCircular = asyncHandler(async (req, res) => {
 });
 
 export const addCircular = asyncHandler(async (req, res) => {
-    await addCircularService(req.body);
+    await addCircularService(normalizeCircularPayload(req.body));
     return res.status(201).json(
         new ApiResponse(201, null, "Circular added successfully")
     );
 });
 
 export const updateCircular = asyncHandler(async (req, res) => {
-    const result = await updateCircularService(req.params.id, req.body);
+    const result = await updateCircularService(req.params.id, normalizeCircularPayload(req.body));
     return res.status(200).json(
         new ApiResponse(200, result, "Circular updated successfully")
     );
@@ -250,6 +311,55 @@ export const displaySponsorshipDonations = asyncHandler(async (req, res) => {
     const result = await displaySponsorshipDonationsService({ page, limit, search, supportType });
     return res.status(200).json(
         new ApiResponse(200, result, "Sponsorship/Donation records fetched successfully")
+    );
+});
+
+export const displayDistricts = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 10, search } = req.query;
+    const result = await displayDistrictsService({ page, limit, search });
+    return res.status(200).json(
+        new ApiResponse(200, result, "Districts fetched successfully")
+    );
+});
+
+export const displayDistrictDetails = asyncHandler(async (req, res) => {
+    const result = await displayDistrictDetailsService(req.params.districtId);
+    return res.status(200).json(
+        new ApiResponse(200, result, "District details fetched successfully")
+    );
+});
+
+export const displayDistrictClubs = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 10, search } = req.query;
+    const result = await displayDistrictClubsService(req.params.districtId, { page, limit, search });
+    return res.status(200).json(
+        new ApiResponse(200, result, "District clubs fetched successfully")
+    );
+});
+
+export const displayDistrictClubDetails = asyncHandler(async (req, res) => {
+    const result = await displayDistrictClubDetailsService({
+        districtId: req.params.districtId,
+        clubId: req.params.clubId,
+    });
+    return res.status(200).json(
+        new ApiResponse(200, result, "District club details fetched successfully")
+    );
+});
+
+export const displayDistrictSkaters = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 10, search } = req.query;
+    const result = await displayDistrictSkatersService(req.params.districtId, { page, limit, search });
+    return res.status(200).json(
+        new ApiResponse(200, result, "District skaters fetched successfully")
+    );
+});
+
+export const displayDistrictEvents = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 10, search } = req.query;
+    const result = await displayDistrictEventsService(req.params.districtId, { page, limit, search });
+    return res.status(200).json(
+        new ApiResponse(200, result, "District events fetched successfully")
     );
 });
 

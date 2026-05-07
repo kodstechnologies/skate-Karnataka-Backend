@@ -211,7 +211,14 @@ const VerifyOTPValidation = {
         firebaseTokens: Joi.alternatives()
             .try(
                 Joi.string().allow(""),
-                Joi.array().items(Joi.string().allow(""))
+                Joi.array().items(Joi.string().allow("")),
+                Joi.valid(null)
+            )
+            .optional(),
+        firebaseToken: Joi.alternatives()
+            .try(
+                Joi.string().allow(""),
+                Joi.valid(null)
             )
             .optional()
     })

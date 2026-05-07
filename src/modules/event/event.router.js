@@ -148,7 +148,7 @@ router.get("/v1/register-form", authenticate(["Skater"]), getRegisterFormByUserI
 router.get("/v1/register-form/:id", authenticate(["Skater"]), getRegisterFormById);
 router.post(
     "/v1/register-form",
-    authenticate(["Skater"]),
+    // authenticate(["Skater"]),
     validate(register_form_validation),
     createRegisterForm
 );

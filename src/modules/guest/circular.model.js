@@ -24,7 +24,17 @@ const circularSchema = new mongoose.Schema(
       type: Date,
       required: true,
       default: Date.now
-    }
+    },
+
+    relatedInformation: {
+      images: [
+        {
+          type: String,
+          trim: true,
+          default: "",
+        },
+      ],
+    },
   },
   {
     timestamps: true

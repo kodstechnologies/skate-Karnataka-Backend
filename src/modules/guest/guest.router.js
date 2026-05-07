@@ -206,16 +206,22 @@ router.get(
 router.post(
   "/v1/circular",
   authenticate(["Skater", "Admin"]),
-  upload.single("img"),
-  uploadToS3("img"),
+  upload.fields([
+    { name: "img", maxCount: 1 },
+    { name: "relatedInformationImages", maxCount: 20 },
+  ]),
+  uploadToS3("circular", { img: "img", relatedInformationImages: "relatedInformationImages" }),
   validate(addCircularValidation),
   addCircular
 );
 router.patch(
   "/v1/circular/:id",
   authenticate(["Skater", "Admin"]),
-  upload.single("img"),
-  uploadToS3("img"),
+  upload.fields([
+    { name: "img", maxCount: 1 },
+    { name: "relatedInformationImages", maxCount: 20 },
+  ]),
+  uploadToS3("circular", { img: "img", relatedInformationImages: "relatedInformationImages" }),
   validate(updateCircularValidation),
   updateCircular
 );

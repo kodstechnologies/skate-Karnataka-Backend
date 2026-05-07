@@ -7,6 +7,27 @@ const normalizeAboutPayload = (body) => {
   }
   return body;
 };
+
+const normalizeCircularPayload = (body) => {
+  const payload = { ...body };
+
+  if (Array.isArray(payload.img)) {
+    payload.img = payload.img[0] || "";
+  }
+
+  if (payload.relatedInformationImages != null) {
+    const images = Array.isArray(payload.relatedInformationImages)
+      ? payload.relatedInformationImages
+      : [payload.relatedInformationImages];
+
+    payload.relatedInformation = {
+      images: images.filter((item) => typeof item === "string" && item.trim().length > 0),
+    };
+    delete payload.relatedInformationImages;
+  }
+
+  return payload;
+};
 import {
   addContactUsService,
   addFeedBackService,
@@ -196,14 +217,14 @@ export const displaySingleCircular = asyncHandler(async (req, res) => {
 });
 
 export const addCircular = asyncHandler(async (req, res) => {
-    await addCircularService(req.body);
+    await addCircularService(normalizeCircularPayload(req.body));
     return res.status(201).json(
         new ApiResponse(201, null, "Circular added successfully")
     );
 });
 
 export const updateCircular = asyncHandler(async (req, res) => {
-    const result = await updateCircularService(req.params.id, req.body);
+    const result = await updateCircularService(req.params.id, normalizeCircularPayload(req.body));
     return res.status(200).json(
         new ApiResponse(200, result, "Circular updated successfully")
     );

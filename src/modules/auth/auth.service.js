@@ -5,7 +5,8 @@ import { sendOTPToEmail } from "../../util/otp/emailOtp.js";
 import { sendOTPToPhone } from "../../util/otp/phoneOtp.js";
 import { District } from "../district/district.model.js";
 import { Club } from "../club/club.model.js";
-import {checkEmailOTP, checkOtp, checkPhoneOTP, isExist, isExistEmail, isExistPhone, registerUser_repositories, removeOldEmailOtp, removeOldPhoneOtp, saveEmailOtp, saveFirebaseToken, savePhoneOTP, saveRefreshToken} from "./auth.repositories.js";
+import SkatingEventCategory from "../event/SkatingEventCategory.model.js";
+import {checkEmailOTP, checkOtp, checkPhoneOTP, isExist, isExistEmail, isExistPhone, registerUser_repositories, removeFirebaseTokenAndRefressToken, removeOldEmailOtp, removeOldPhoneOtp, saveEmailOtp, saveFirebaseToken, savePhoneOTP, saveRefreshToken} from "./auth.repositories.js";
 
 const RegisterUserService = async (userData) => {
     const selectedClubId = userData.club;
@@ -217,8 +218,8 @@ const VerifyOTPService = async (userData) => {
 
 const RefreshTokenService = async (req, res) => { };
 const LogoutUserService = async (userData) => {
-    console.log("🚀 ~ LogoutUserService ~ userData:", userData)
-    await removeFirebaseTokenAndRefressToken({ ...userData, firebaseToken: null });
+    await removeFirebaseTokenAndRefressToken(userData);
+    return true;
 };
 
 const GetUserProfileService = async (userData) => {
@@ -237,6 +238,24 @@ const ToggleNotificationsService = async (userData) => {
 };
 const ContactSupportService = async (userData) => {
     return await getSupportContact(userData);
+};
+
+const getAllSkatingEventCategoryNamesService = async () => {
+    const categories = await SkatingEventCategory.find({})
+        .select("_id typeName")
+        .sort({ createdAt: -1 })
+        .lean();
+
+    return categories
+        .filter(
+            (category) =>
+                typeof category?.typeName === "string" &&
+                category.typeName.trim().length > 0
+        )
+        .map((category) => ({
+            id: category._id,
+            name: category.typeName,
+        }));
 };
 
 export {
@@ -261,5 +280,6 @@ export {
     GetAchievementsService,
     GetRankingsService,
     ToggleNotificationsService,
-    ContactSupportService
+    ContactSupportService,
+    getAllSkatingEventCategoryNamesService,
 }

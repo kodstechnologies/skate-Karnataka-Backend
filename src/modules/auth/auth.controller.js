@@ -1,7 +1,7 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
 import { formatDate } from "../../util/time/timeUtil.js";
-import {ContactSupportService, GetDigitalIDCardService, GetUserProfileService, LoginUserService, LogoutUserService, RegisterUserService, sendEmailOTPService, sendPhoneOTPService, ToggleNotificationsService, verifyEmailOTPService, VerifyOTPService, verifyPhoneOTPService} from "./auth.service.js";
+import {ContactSupportService, getAllSkatingEventCategoryNamesService, GetDigitalIDCardService, GetUserProfileService, LoginUserService, LogoutUserService, RegisterUserService, sendEmailOTPService, sendPhoneOTPService, ToggleNotificationsService, verifyEmailOTPService, VerifyOTPService, verifyPhoneOTPService} from "./auth.service.js";
 
 const RegisterUser = asyncHandler(async (req, res) => {
     const result = await RegisterUserService(req.body);
@@ -96,8 +96,11 @@ const VerifyOTP = asyncHandler(async (req, res) => {
 const RefreshToken = asyncHandler(async (req, res) => { });
 
 const LogoutUser = asyncHandler(async (req, res) => {
-    console.log("🚀 ~ req:", req.body)
-    const result = await LogoutUserService(req.body);
+    const result = await LogoutUserService({
+        userId: req.user._id,
+        refreshToken: req.body?.refreshToken,
+        firebaseToken: req.body?.firebaseToken,
+    });
     return res
         .status(200)
         .json(
@@ -159,6 +162,19 @@ const ContactSupport = asyncHandler(async (req, res) => {
         );
 });
 
+const GetAllSkatingEventCategoryNames = asyncHandler(async (_req, res) => {
+    const result = await getAllSkatingEventCategoryNamesService();
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                result,
+                "Skating event category names fetched successfully"
+            )
+        );
+});
+
 export {
 RegisterUser,
 sendEmailOTP,
@@ -175,4 +191,5 @@ GetAchievements,
 GetRankings,
 ToggleNotifications,
 ContactSupport,
+GetAllSkatingEventCategoryNames,
 }

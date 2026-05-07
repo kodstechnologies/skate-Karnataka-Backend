@@ -273,9 +273,9 @@ const afterLoginGuestFormValidation = {
 
 const LogoutValidation = {
     body: Joi.object({
-        refreshTokens: Joi.string().required(),
-        firebaseToken: Joi.string().optional()
-    })
+        refreshToken: Joi.string().optional(),
+        firebaseToken: Joi.string().optional(),
+    }).or("refreshToken", "firebaseToken")
 };
 
 const RefreshTokenValidation = {

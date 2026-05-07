@@ -1,6 +1,6 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
-import { ContactSupport, GetAchievements, GetRankings, LoginUser, LogoutUser, RefreshToken, RegisterUser, sendEmailOTP, sendPhoneOTP, ToggleNotifications, verifyEmailOTP, VerifyOTP, verifyPhoneOTP } from "./auth.controller.js";
+import { ContactSupport, GetAchievements, GetAllSkatingEventCategoryNames, GetRankings, LoginUser, LogoutUser, RefreshToken, RegisterUser, sendEmailOTP, sendPhoneOTP, ToggleNotifications, verifyEmailOTP, VerifyOTP, verifyPhoneOTP } from "./auth.controller.js";
 import { validate } from "../../middleware/validate.multiple.js";
 import { upload } from "../../middleware/multer.middleware.js";
 import { LoginValidation, LogoutValidation, RegisterValidation, sendEmailOTPValidation, sendPhoneOTPValidation, verifyEmailOTPValidation, VerifyOTPValidation, verifyPhoneOTPValidation } from "./auth.validation.js";
@@ -49,7 +49,7 @@ router.post("/refresh-token",
     RefreshToken);
 
 router.post("/logout",
-    authenticate(["user", "admin"]),
+    authenticate(["Skater", "Club", "State", "District", "Admin"]),
     validate(LogoutValidation),
     LogoutUser);
 
@@ -69,5 +69,6 @@ router.get("/support",
     authenticate(["user", "admin"]),
     ContactSupport);
 
+router.get("/v1/all-skating-event-category", GetAllSkatingEventCategoryNames);
 
 export default router;

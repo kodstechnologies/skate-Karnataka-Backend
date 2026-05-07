@@ -301,12 +301,21 @@ const saveRefreshToken = async (userId, refreshToken) => {
 }
 
 const removeFirebaseTokenAndRefressToken = async (userData) => {
-    const { userId, firebaseToken } = userData;
-    if (!firebaseToken) return; // if not provided, skip    
+    const { userId, firebaseToken, refreshToken } = userData;
+    if (!firebaseToken && !refreshToken) return;
+
+    const pull = {};
+    if (firebaseToken) {
+        pull.firebaseTokens = firebaseToken;
+    }
+    if (refreshToken) {
+        pull.refreshTokens = refreshToken;
+    }
+
     await BaseAuth.findByIdAndUpdate(
         userId,
         {
-            $pull: { firebaseTokens: firebaseToken }
+            $pull: pull
         },
         { new: true }
     );

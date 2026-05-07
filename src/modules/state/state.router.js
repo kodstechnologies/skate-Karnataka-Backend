@@ -1,7 +1,23 @@
 import express from "express";
 import { validate } from "../../middleware/validate.multiple.js";
-import { createNewState, deleteState, displayAllState, displayDashboard, displayProfile, displaySingleStateAllDistricts, updateState } from "./state.controller.js";
-import { createStateValidation, editStateValidation, getAllStateValidation } from "./state.validation.js";
+import {
+  createNewState,
+  deleteState,
+  displayAllClubsByState,
+  displayAllDistrictsByState,
+  displayAllSkatersByState,
+  displayAllState,
+  displayDashboard,
+  displayProfile,
+  displaySingleStateAllDistricts,
+  updateState,
+} from "./state.controller.js";
+import {
+  createStateValidation,
+  editStateValidation,
+  getAllStateValidation,
+  stateListQueryValidation,
+} from "./state.validation.js";
 import { upload } from "../../middleware/multer.middleware.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
@@ -31,6 +47,25 @@ router.post("/v1/",
   authenticate(["Admin"]),
   validate(createStateValidation),
   createNewState
+);
+
+router.get(
+  "/v1/all-district",
+  authenticate(["State", "Admin"]),
+  validate(stateListQueryValidation),
+  displayAllDistrictsByState
+);
+router.get(
+  "/v1/all-clubs",
+  authenticate(["State", "Admin"]),
+  validate(stateListQueryValidation),
+  displayAllClubsByState
+);
+router.get(
+  "/v1/all-skater",
+  authenticate(["State", "Admin"]),
+  validate(stateListQueryValidation),
+  displayAllSkatersByState
 );
 
 // 🔹 Get single state + all districts inside it

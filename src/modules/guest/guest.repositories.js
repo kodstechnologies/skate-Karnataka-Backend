@@ -269,13 +269,13 @@ export const displayAboutGuestRepositories = async () => {
         .lean();
 
     if (!doc) {
-        return { about: null, img: null };
+        return { about: null, img: [] };
     }
 
     const imgs = Array.isArray(doc.img) ? doc.img : [];
     return {
         about: doc.about,
-        img: imgs.length > 0 ? imgs[imgs.length - 1] : null,
+        img: imgs,
     };
 };
 

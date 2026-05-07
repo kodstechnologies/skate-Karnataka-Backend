@@ -2,6 +2,9 @@ import { AppError } from "../../util/common/AppError.js";
 import {
   createStateRepository,
   deleteStateRepository,
+  getAllClubsByStateRepository,
+  getAllDistrictsByStateRepository,
+  getAllSkatersByStateRepository,
   getAllStateRepository,
   getSingleStateWithDistrictsRepository,
   isStateExistByNameRepository,
@@ -44,4 +47,16 @@ export const displayDashboardService = async () => {
 
 export const displayProfileService = async (stateId) => {
   return stateProfileRepository(stateId);
+};
+
+export const displayAllDistrictsByStateService = async ({ page, limit, search }) => {
+  return getAllDistrictsByStateRepository({ page, limit, search });
+};
+
+export const displayAllClubsByStateService = async ({ page, limit, search }) => {
+  return getAllClubsByStateRepository({ page, limit, search });
+};
+
+export const displayAllSkatersByStateService = async ({ page, limit, search }) => {
+  return getAllSkatersByStateRepository({ page, limit, search });
 };

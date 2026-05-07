@@ -35,6 +35,12 @@ import {
   displaySingleSponsorshipDonation,
   displaySponsorshipDonations,
   updateSponsorshipDonation,
+  displayDistricts,
+  displayDistrictDetails,
+  displayDistrictClubs,
+  displayDistrictClubDetails,
+  displayDistrictSkaters,
+  displayDistrictEvents,
 } from "./guest.controller.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import {
@@ -60,6 +66,12 @@ import {
   addSponsorshipDonationValidation,
   updateSponsorshipDonationValidation,
   sponsorshipDonationByIdValidation,
+  districtListQueryValidation,
+  districtByIdValidation,
+  districtClubListValidation,
+  districtClubByIdValidation,
+  districtSkaterListValidation,
+  districtEventListValidation,
 } from "./guest.validation.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
 
@@ -113,6 +125,38 @@ router.delete(
 
 router.get("/v1/events", displayStateLatestEvents);
 router.get("/v1/events/:id", validate(eventByIdValidation), displayStateLatestSingleEvents);
+
+// ====================== District (Guest)
+router.get(
+  "/v1/district",
+  validate(districtListQueryValidation),
+  displayDistricts
+);
+router.get(
+  "/v1/district/:districtId",
+  validate(districtByIdValidation),
+  displayDistrictDetails
+);
+router.get(
+  "/v1/district/:districtId/club",
+  validate(districtClubListValidation),
+  displayDistrictClubs
+);
+router.get(
+  "/v1/district/:districtId/club/:clubId",
+  validate(districtClubByIdValidation),
+  displayDistrictClubDetails
+);
+router.get(
+  "/v1/district/:districtId/skater",
+  validate(districtSkaterListValidation),
+  displayDistrictSkaters
+);
+router.get(
+  "/v1/district/:districtId/event",
+  validate(districtEventListValidation),
+  displayDistrictEvents
+);
 
 // ====================== Disciplines  
 
@@ -257,5 +301,7 @@ router.delete(
   validate(sponsorshipDonationByIdValidation),
   deleteSponsorshipDonation
 );
+
+
 
 export default router;

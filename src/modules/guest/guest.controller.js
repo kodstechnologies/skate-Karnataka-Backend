@@ -35,6 +35,12 @@ import {
   displayStateLatestSingleEventsService,
   displaySingleNewsService,
   displaySingleSponsorshipDonationService,
+  displayDistrictsService,
+  displayDistrictDetailsService,
+  displayDistrictClubsService,
+  displayDistrictClubDetailsService,
+  displayDistrictSkatersService,
+  displayDistrictEventsService,
   updateAboutService,
   updateCircularService,
   updateDisciplineService,
@@ -250,6 +256,55 @@ export const displaySponsorshipDonations = asyncHandler(async (req, res) => {
     const result = await displaySponsorshipDonationsService({ page, limit, search, supportType });
     return res.status(200).json(
         new ApiResponse(200, result, "Sponsorship/Donation records fetched successfully")
+    );
+});
+
+export const displayDistricts = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 10, search } = req.query;
+    const result = await displayDistrictsService({ page, limit, search });
+    return res.status(200).json(
+        new ApiResponse(200, result, "Districts fetched successfully")
+    );
+});
+
+export const displayDistrictDetails = asyncHandler(async (req, res) => {
+    const result = await displayDistrictDetailsService(req.params.districtId);
+    return res.status(200).json(
+        new ApiResponse(200, result, "District details fetched successfully")
+    );
+});
+
+export const displayDistrictClubs = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 10, search } = req.query;
+    const result = await displayDistrictClubsService(req.params.districtId, { page, limit, search });
+    return res.status(200).json(
+        new ApiResponse(200, result, "District clubs fetched successfully")
+    );
+});
+
+export const displayDistrictClubDetails = asyncHandler(async (req, res) => {
+    const result = await displayDistrictClubDetailsService({
+        districtId: req.params.districtId,
+        clubId: req.params.clubId,
+    });
+    return res.status(200).json(
+        new ApiResponse(200, result, "District club details fetched successfully")
+    );
+});
+
+export const displayDistrictSkaters = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 10, search } = req.query;
+    const result = await displayDistrictSkatersService(req.params.districtId, { page, limit, search });
+    return res.status(200).json(
+        new ApiResponse(200, result, "District skaters fetched successfully")
+    );
+});
+
+export const displayDistrictEvents = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 10, search } = req.query;
+    const result = await displayDistrictEventsService(req.params.districtId, { page, limit, search });
+    return res.status(200).json(
+        new ApiResponse(200, result, "District events fetched successfully")
     );
 });
 

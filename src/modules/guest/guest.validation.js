@@ -333,3 +333,48 @@ export const sponsorshipDonationByIdValidation = {
     }),
   }),
 };
+
+const districtParamsSchema = Joi.object({
+  districtId: Joi.string().trim().required().messages({
+    "any.required": "District id is required",
+    "string.empty": "District id is required",
+  }),
+});
+
+const districtClubParamsSchema = Joi.object({
+  districtId: Joi.string().trim().required().messages({
+    "any.required": "District id is required",
+    "string.empty": "District id is required",
+  }),
+  clubId: Joi.string().trim().required().messages({
+    "any.required": "Club id is required",
+    "string.empty": "Club id is required",
+  }),
+});
+
+export const districtListQueryValidation = {
+  query: paginatedSearchQuerySchema,
+};
+
+export const districtByIdValidation = {
+  params: districtParamsSchema,
+};
+
+export const districtClubListValidation = {
+  params: districtParamsSchema,
+  query: paginatedSearchQuerySchema,
+};
+
+export const districtClubByIdValidation = {
+  params: districtClubParamsSchema,
+};
+
+export const districtSkaterListValidation = {
+  params: districtParamsSchema,
+  query: paginatedSearchQuerySchema,
+};
+
+export const districtEventListValidation = {
+  params: districtParamsSchema,
+  query: paginatedSearchQuerySchema,
+};

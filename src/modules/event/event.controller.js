@@ -2,6 +2,7 @@ import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { AppError } from "../../util/common/AppError.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
 import { clubRelatedEventDisplayService, createClubEventService, createDistrictEventService, createEventCategoryService, createRegisterFormService, createStateEventService, create_event_schema, deleteEventCategoryService, delete_event_schema, display_all_event_based_on_user_service, display_latest_event_server, displayEventServer, displaySingleEventDetailsServer, districtRelatedEventDisplayService, edit_event_schema, getAllEventCategoriesService, getEventCategoryByIdService, getRegisterFormByIdService, getRegisterFormByUserIdService, stateEventResultsService, stateRelatedEventDisplayService, stateEventFullDetailsService, stateEventSkatersSummaryService, updateEventCategoryService, updateStateEventSkaterTimeService } from "./event.service.js";
+import { initiateRazorpayPaymentServices } from "../payment/payment.services.js";
 
 
 const display_latest_event = asyncHandler(async (req, res) => {
@@ -366,9 +367,15 @@ export const getRegisterFormById = asyncHandler(async (req, res) => {
 export const createRegisterForm = asyncHandler(async (req, res) => {
     const userId = req.user._id;
     const result = await createRegisterFormService(userId, req.body);
+    const payment = await initiateRazorpayPaymentServices({
+        userId,
+        participantId: result?._id,
+        eventId: result?.eventId,
+    });
+
     return res
         .status(201)
-        .json(new ApiResponse(201, result, "Register form submitted successfully"));
+        .json(new ApiResponse(201, { registration: result, payment }, "Register form submitted successfully"));
 });
 
 

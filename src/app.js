@@ -20,6 +20,7 @@ import districtRouter from "./modules/district/district.router.js";
 import stateRouter from "./modules/state/state.router.js";
 import reportRouter from "./modules/report/report.router.js";
 import certificateRouter from "./modules/certificate/certificate.router.js";
+import paymentRouter from "./modules/payment/payment.router.js";
 import { CORS_ORIGIN } from "./config/envConfig.js";
 import { AppError } from "./util/common/AppError.js";
 import { globalErrorHandler } from "./util/globalErrorHandler.js";
@@ -84,6 +85,7 @@ app.use("/gallery", galleryRouter);
 app.use("/report", reportRouter);
 app.use("/certificate", certificateRouter);
 app.use("/notification", notificationRouter);
+app.use("/payment", paymentRouter);
 
 app.use((req, res, next) => {
     next(new AppError(`Route not found: ${req.method} ${req.originalUrl}`, 404));

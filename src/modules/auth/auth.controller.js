@@ -96,10 +96,13 @@ const VerifyOTP = asyncHandler(async (req, res) => {
 const RefreshToken = asyncHandler(async (req, res) => { });
 
 const LogoutUser = asyncHandler(async (req, res) => {
+    const refreshToken = req.body?.refreshToken ?? req.body?.refreshTokens;
+    const firebaseToken = req.body?.firebaseToken ?? req.body?.firebaseTokens;
+
     const result = await LogoutUserService({
         userId: req.user._id,
-        refreshToken: req.body?.refreshToken,
-        firebaseToken: req.body?.firebaseToken,
+        refreshToken,
+        firebaseToken,
     });
     return res
         .status(200)

@@ -279,25 +279,36 @@ const saveFirebaseToken = async (userData) => {
 
     if (!normalizedTokens.length) return;
 
-    await BaseAuth.findByIdAndUpdate(
-        userId,
-        {
-            $addToSet: { firebaseTokens: { $each: normalizedTokens } }
-        },
-        { new: true }
-    );
+    const user = await BaseAuth.findById(userId).select("firebaseTokens");
+    if (!user) return;
+
+    const existingTokens = Array.isArray(user.firebaseTokens) ? user.firebaseTokens : [];
+    const incomingTokenSet = new Set(normalizedTokens);
+    const mergedTokens = [
+        ...existingTokens.filter(
+            (token) => typeof token === "string" && !incomingTokenSet.has(token)
+        ),
+        ...normalizedTokens,
+    ];
+
+    user.firebaseTokens = mergedTokens.slice(-5);
+    await user.save();
 }
 
 const saveRefreshToken = async (userId, refreshToken) => {
     if (!refreshToken) return;
 
-    await BaseAuth.findByIdAndUpdate(
-        userId,
-        {
-            $addToSet: { refreshTokens: refreshToken }
-        },
-        { new: true }
-    );
+    const user = await BaseAuth.findById(userId).select("refreshTokens");
+    if (!user) return;
+
+    const existingTokens = Array.isArray(user.refreshTokens) ? user.refreshTokens : [];
+    const mergedTokens = [
+        ...existingTokens.filter((token) => token !== refreshToken),
+        refreshToken,
+    ];
+
+    user.refreshTokens = mergedTokens.slice(-5);
+    await user.save();
 }
 
 const removeFirebaseTokenAndRefressToken = async (userData) => {

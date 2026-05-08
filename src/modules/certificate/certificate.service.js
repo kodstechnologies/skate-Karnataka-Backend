@@ -89,8 +89,8 @@ const get_all_templates_service = async () => {
 // Return the active template (used by the generate flow and the admin
 // settings panel to pre-populate the current active template).
 // ---------------------------------------------------------------------------
-const get_template_service = async () => {
-    const template = await get_template_repository();
+const get_template_service = async (id) => {
+    const template = await get_template_repository(id);
     if (!template) return null;
     return {
         pdfTemplateUrl: template.pdfUrl,
@@ -113,22 +113,9 @@ const get_template_by_id_service = async (id) => {
     };
 };
 
-const getColor = (colorStr) => {
-    switch (colorStr) {
-        case "white":
-            return rgb(1, 1, 1);
-        case "darkBlue":
-            return rgb(0.1, 0.2, 0.4);
-        case "darkYellow":
-            return rgb(0.8, 0.6, 0);
-        default:
-            return rgb(0, 0, 0);
-    }
-};
 
-const generate_certificate_service = async (userData) => {
-    console.log("service Generating certificate for userData:", userData);
-    const template = await get_template_service();
+const generate_certificate_service = async (userData,temp_id) => {
+    const template = await get_template_service(temp_id);
     if (!template || !template.pdfTemplateUrl) {
         throw new Error("No active certificate template found. Please set a template as active before generating.");
     }

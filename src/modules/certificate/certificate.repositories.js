@@ -87,8 +87,8 @@ const get_all_templates_repository = async () => {
  * Return the single template currently marked as active.
  * Used by the PDF generation service.
  */
-const get_template_repository = async () => {
-    return await CertificateTemplate.findOne({ isActive: true });
+const get_template_repository = async (id) => {
+    return await CertificateTemplate.findById(id);
 };
 
 /**

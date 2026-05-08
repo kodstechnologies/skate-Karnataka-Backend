@@ -5,8 +5,66 @@ import { sendOTPToEmail } from "../../util/otp/emailOtp.js";
 import { sendOTPToPhone } from "../../util/otp/phoneOtp.js";
 import { District } from "../district/district.model.js";
 import { Club } from "../club/club.model.js";
+import { BaseAuth } from "./baseAuth.model.js";
 import SkatingEventCategory from "../event/SkatingEventCategory.model.js";
-import {checkEmailOTP, checkOtp, checkPhoneOTP, isExist, isExistEmail, isExistPhone, registerUser_repositories, removeFirebaseTokenAndRefressToken, removeOldEmailOtp, removeOldPhoneOtp, saveEmailOtp, saveFirebaseToken, savePhoneOTP, saveRefreshToken} from "./auth.repositories.js";
+import { checkEmailOTP, checkOtp, checkPhoneOTP, isExist, isExistEmail, isExistPhone, registerUser_repositories, removeFirebaseTokenAndRefressToken, removeOldEmailOtp, removeOldPhoneOtp, saveEmailOtp, saveFirebaseToken, savePhoneOTP, saveRefreshToken } from "./auth.repositories.js";
+
+const ROLE_PREFIX_MAP = {
+    Skater: "S",
+    Parent: "P",
+    School: "SC",
+    Academy: "A",
+    State: "ST",
+    Official: "O",
+    Admin: "AD",
+    Guest: "G",
+    Club: "CL",
+    District: "D",
+    skater: "S",
+    parent: "P",
+    school: "SC",
+    academy: "A",
+    state: "ST",
+    official: "O",
+    admin: "AD",
+    guest: "G",
+    club: "CL",
+    district: "D",
+};
+
+const generateKrsaIdCandidate = (role) => {
+    const random = Math.floor(100000 + Math.random() * 900000);
+    const prefix = ROLE_PREFIX_MAP[role] || "U";
+    return `KRSA${random}${prefix}`;
+};
+
+const getUniqueKrsaId = async (role) => {
+    let attempts = 0;
+
+    while (attempts < 20) {
+        const candidate = generateKrsaIdCandidate(role);
+        const exists = await BaseAuth.exists({ krsaId: candidate });
+        if (!exists) {
+            return candidate;
+        }
+        attempts += 1;
+    }
+
+    throw new AppError("Failed to generate KRSA ID", 500);
+};
+
+const ensureKrsaIdIfMissing = async (user) => {
+    if (user?.krsaId) {
+        return user;
+    }
+
+    const generatedKrsaId = await getUniqueKrsaId(user?.role);
+    await BaseAuth.collection.updateOne(
+        { _id: user._id, $or: [{ krsaId: { $exists: false } }, { krsaId: null }, { krsaId: "" }] },
+        { $set: { krsaId: generatedKrsaId } }
+    );
+    return await BaseAuth.findById(user._id);
+};
 
 const RegisterUserService = async (userData) => {
     const selectedClubId = userData.club;
@@ -135,16 +193,17 @@ const verifyPhoneOTPService = async (data) => {
 const LoginUserService = async (identifier) => {
     const otp = generateRandomNumber();
     const createLoginResult = async (user) => {
-        console.log(user,"====")
-        const accessToken = generateAccessToken(user);
-        const refreshToken = generateRefreshToken(user);
-        await saveRefreshToken(user._id, refreshToken);
+        const userWithKrsaId = await ensureKrsaIdIfMissing(user);
+        const accessToken = generateAccessToken(userWithKrsaId);
+        const refreshToken = generateRefreshToken(userWithKrsaId);
+        await saveRefreshToken(userWithKrsaId._id, refreshToken);
 
         return {
-            id: user._id,
+            id: userWithKrsaId._id,
             // verify: user.verify,
-            type: user.role,
+            type: userWithKrsaId.role,
             identifier: identifier,
+            krsaId: userWithKrsaId.krsaId,
             // accessToken,
             // refreshToken,
         };
@@ -202,7 +261,7 @@ const VerifyOTPService = async (userData) => {
     if (!user) {
         throw new AppError("User not found after OTP verification", 404);
     }
-    
+
     // console.log(user, "user")
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
@@ -274,7 +333,7 @@ export {
     // afterLoginFormOfficialService,
     RefreshTokenService,
     LogoutUserService,
- 
+
     GetUserProfileService,
     GetDigitalIDCardService,
     GetAchievementsService,

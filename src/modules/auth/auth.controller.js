@@ -65,7 +65,7 @@ const verifyPhoneOTP = asyncHandler(async (req, res) => {
 
 const LoginUser = asyncHandler(async (req, res) => {
     const result = await LoginUserService(req.body.identifier);
-    // console.log("🚀 ~ result:", result)
+    console.log("🚀 ~ result:", result)
     return res
         .status(200)
         .json(

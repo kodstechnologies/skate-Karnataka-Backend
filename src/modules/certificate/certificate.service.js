@@ -1,30 +1,14 @@
 import {
-    create_certificate_repositories,
-    display_all_certificate_repositories,
-    getKRSAID,
     create_template_repository,
     update_template_repository,
     set_active_template_repository,
     get_all_templates_repository,
     get_template_repository,
     get_template_by_id_repository,
-    get_certificate_by_id_repository,
-    get_user_by_krsa_repository,
 } from "./certificate.repositories.js";
 import { putObject } from "../../util/aws/putObject.js";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import axios from "axios";
-
-const create_certificate_services = async (data) => {
-    await create_certificate_repositories(data);
-};
-
-const display_all_certificate_service = async ({ id, page, limit }) => {
-    console.log(id, page, limit, "=====");
-
-    const krsaID = await getKRSAID(id);
-    return await display_all_certificate_repositories(krsaID, page, limit);
-};
 
 // ---------------------------------------------------------------------------
 // Create a brand-new template.
@@ -330,30 +314,14 @@ const generate_certificate_service = async (userData,temp_id) => {
     };
     const uploadRes = await putObject(fileToUpload, "certificates");
 
-    const userRecord = await get_user_by_krsa_repository(userData.winnerKRSAId);
-    const certData = {
+    return {
         winnerKRSAId: userData.winnerKRSAId,
-        userId:       userRecord?._id || null,
         pdfUrl:       uploadRes.url,
         filename:     uploadRes.key || `certificates/certificate_${userData.winnerKRSAId}.pdf`,
     };
-    await create_certificate_repositories(certData);
-    return certData;
-};
-
-
-
-const download_certificate_service = async (id) => {
-    const certificate = await get_certificate_by_id_repository(id);
-    if (!certificate || !certificate.pdfUrl) {
-        throw new Error("Certificate not found or PDF not generated yet");
-    }
-    return certificate;
 };
 
 export {
-    create_certificate_services,
-    display_all_certificate_service,
     create_template_service,
     update_template_service,
     set_active_template_service,
@@ -361,5 +329,4 @@ export {
     get_template_service,
     get_template_by_id_service,
     generate_certificate_service,
-    download_certificate_service,
 };

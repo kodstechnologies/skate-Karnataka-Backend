@@ -90,6 +90,8 @@ const eventSchema = new mongoose.Schema(
     entryFee: {
       type: String,
     }
+
+
     ,
     colorOne: {
       type: String,
@@ -103,6 +105,8 @@ const eventSchema = new mongoose.Schema(
       type: String,
       default: "#FFFFFF" // white text (best for dark backgrounds)
     }
+
+    
   },
   {
     timestamps: true,

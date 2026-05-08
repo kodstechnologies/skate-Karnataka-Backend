@@ -58,7 +58,30 @@ const participantSchema = new mongoose.Schema(
         },
       },
     ],
-     
+
+    // apply  ================
+
+    skaterApply: {
+      type: Boolean,
+      default: false
+    },
+    clubAllow: {
+      type: Boolean,
+      default: false
+    },
+
+    districtAllow: {
+      type: Boolean,
+      default: false
+    },
+
+    stateAllow: {
+      type: Boolean,
+      default: false
+    },
+
+    // =====================
+
     paymentStatus: {
       type: String,
       enum: ["pending", "paid", "failed"],

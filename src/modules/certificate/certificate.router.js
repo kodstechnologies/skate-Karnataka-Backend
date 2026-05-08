@@ -8,8 +8,6 @@ import {
     getTemplate,
     getTemplateById,
     generateCertificate,
-    downloadCertificate,
-    displayAllCertificate,
 } from "./certificate.controller.js";
 import multer from "multer";
 
@@ -33,7 +31,5 @@ router.get("/v1/template", authenticate(["Admin"]), getTemplate);
 
 // ── Certificate generation & download ───────────────────────────────────────
 router.post("/v1/generate", generateCertificate);
-router.get("/v1/download/:id", authenticate(["Admin", "Skater"]), downloadCertificate);
-router.get("/v1/certificates", authenticate(["Admin", "Skater"]), displayAllCertificate);
 
 export default router;

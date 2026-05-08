@@ -279,36 +279,51 @@ const saveFirebaseToken = async (userData) => {
 
     if (!normalizedTokens.length) return;
 
-    const user = await BaseAuth.findById(userId).select("firebaseTokens");
-    if (!user) return;
+    await BaseAuth.findByIdAndUpdate(
+        userId,
+        {
+            $pull: { firebaseTokens: { $in: normalizedTokens } },
+        },
+        { new: false }
+    );
 
-    const existingTokens = Array.isArray(user.firebaseTokens) ? user.firebaseTokens : [];
-    const incomingTokenSet = new Set(normalizedTokens);
-    const mergedTokens = [
-        ...existingTokens.filter(
-            (token) => typeof token === "string" && !incomingTokenSet.has(token)
-        ),
-        ...normalizedTokens,
-    ];
-
-    user.firebaseTokens = mergedTokens.slice(-5);
-    await user.save();
+    await BaseAuth.findByIdAndUpdate(
+        userId,
+        {
+            $push: {
+                firebaseTokens: {
+                    $each: normalizedTokens,
+                    $slice: -5,
+                },
+            },
+        },
+        { new: false }
+    );
 }
 
 const saveRefreshToken = async (userId, refreshToken) => {
     if (!refreshToken) return;
 
-    const user = await BaseAuth.findById(userId).select("refreshTokens");
-    if (!user) return;
+    await BaseAuth.findByIdAndUpdate(
+        userId,
+        {
+            $pull: { refreshTokens: refreshToken },
+        },
+        { new: false }
+    );
 
-    const existingTokens = Array.isArray(user.refreshTokens) ? user.refreshTokens : [];
-    const mergedTokens = [
-        ...existingTokens.filter((token) => token !== refreshToken),
-        refreshToken,
-    ];
-
-    user.refreshTokens = mergedTokens.slice(-5);
-    await user.save();
+    await BaseAuth.findByIdAndUpdate(
+        userId,
+        {
+            $push: {
+                refreshTokens: {
+                    $each: [refreshToken],
+                    $slice: -5,
+                },
+            },
+        },
+        { new: false }
+    );
 }
 
 const removeFirebaseTokenAndRefressToken = async (userData) => {

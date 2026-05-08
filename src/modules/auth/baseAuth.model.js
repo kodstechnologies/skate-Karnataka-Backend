@@ -111,6 +111,16 @@ BaseAuthSchema.pre("save", async function () {
     Guest: "G",
     Club: "CL",
     District: "D",
+    admin: "AD",
+    skater: "S",
+    parent: "P",
+    school: "SC",
+    academy: "A",
+    state: "ST",
+    official: "O",
+    guest: "G",
+    club: "CL",
+    district: "D",
   };
 
   const prefix = rolePrefixMap[this.role] || "U";

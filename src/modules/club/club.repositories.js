@@ -554,28 +554,93 @@ const isApplyRepository = async (id) => {
     return skater?.clubStatus;
 }
 
+const isAlreadyAppliedToClubRepository = async (skaterId, clubId) => {
+    const club = await Club.findOne({
+        $or: [{ _id: clubId }, { members: clubId }],
+    })
+        .select("_id")
+        .lean();
+
+    if (!club) {
+        throw new AppError("Club not found", 404);
+    }
+
+    const skater = await Skater.findOne({
+        _id: skaterId,
+        applyClub: club._id,
+    })
+        .select("_id")
+        .lean();
+
+    return !!skater;
+}
+
 const approve_join_club_repositories = async (skaterId, ClubId) => {
-    await Skater.findByIdAndUpdate(
-        skaterId,
+    const club = await Club.findOne({
+        $or: [{ _id: ClubId }, { members: ClubId }],
+    })
+        .select("_id")
+        .lean();
+
+    if (!club) {
+        throw new AppError("Club not found", 404);
+    }
+
+    const updatedSkater = await Skater.findOneAndUpdate(
         {
-            club: ClubId,
+            _id: skaterId,
+            applyClub: club._id,
+            clubStatus: "apply",
+        },
+        {
+            club: club._id,
             clubStatus: "join",
             applyClub: [],
         },
         { new: true }
-    )
+    );
+
+    if (!updatedSkater) {
+        throw new AppError("Skater join application not found for this club", 404);
+    }
+
+    return updatedSkater;
 }
 
 export const reject_join_club_repositories = async (skaterId, clubId) => {
-    const skater = await Skater.findByIdAndUpdate(
-        skaterId,
+    const club = await Club.findOne({
+        $or: [{ _id: clubId }, { members: clubId }],
+    })
+        .select("_id")
+        .lean();
+
+    if (!club) {
+        throw new AppError("Club not found", 404);
+    }
+
+    const skater = await Skater.findOneAndUpdate(
+        {
+            _id: skaterId,
+            $or: [
+                { applyClub: club._id },
+                { club: club._id },
+            ],
+        },
         {
             $pull: {
-                applyClub: clubId
-            }
+                applyClub: club._id,
+            },
+            $set: {
+                clubStatus: "leave",
+                club: null,
+            },
         },
         { new: true }
     );
+
+    if (!skater) {
+        throw new AppError("Join application not found for this club", 404);
+    }
 
     return skater;
 };
@@ -661,6 +726,7 @@ export {
     isExistClubRepository,
     apply_club_repositories,
     isApplyRepository,
+    isAlreadyAppliedToClubRepository,
     approve_join_club_repositories,
     apply_leave_repository,
     approve_leave_club_repositories,

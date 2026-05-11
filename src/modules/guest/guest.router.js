@@ -92,7 +92,13 @@ router.get(
   validate(displayFeedbackQueryValidation),
   displayFeedback
 );
-router.post("/v1/feed-back", validate(addFeedBackValidation), addFeedBack);
+router.post(
+  "/v1/feed-back",
+  upload.single("file"),
+  uploadToS3("feedback", { file: "file" }),
+  validate(addFeedBackValidation),
+  addFeedBack
+);
 
 // news ======================
 

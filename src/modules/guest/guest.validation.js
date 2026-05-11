@@ -32,6 +32,9 @@ export const addContactUSValidation = {
 
 export const addFeedBackValidation = {
   body: Joi.object({
+    file: Joi.string().uri().allow("").optional().messages({
+      "string.uri": "File must be a valid URL",
+    }),
     fullName: Joi.string().trim().min(3).max(50).required().messages({
       "string.empty": "Full name is required",
       "any.required": "Full name is required",

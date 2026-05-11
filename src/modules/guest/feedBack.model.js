@@ -17,7 +17,7 @@ const feedBackSchema = new mongoose.Schema(
         message: {
             type: String,
         },
-        img: {
+        file: {
             type: String,
             default: "",
         },

@@ -73,6 +73,129 @@ export const authenticate = (allowedRoles = []) => {
   };
 };
 
+const pickBearerToken = (authHeader) => {
+  if (!authHeader) return null;
+  return authHeader.startsWith("Bearer ")
+    ? authHeader.split(" ")[1]
+    : authHeader;
+};
+
+const trimRefreshToken = (raw) => {
+  if (raw == null || raw === "") return null;
+  if (typeof raw === "string") {
+    const t = raw.trim();
+    return t.length ? t : null;
+  }
+  return null;
+};
+
+/**
+ * For logout: accept a valid access token, or (if missing/expired) a refresh token
+ * in body (refreshTokens / refreshToken), x-refresh-token header, or refresh_token cookie.
+ */
+export const authenticateLogout = (allowedRoles = []) => {
+  return async (req, res, next) => {
+    try {
+      let accessToken = pickBearerToken(req.headers.authorization);
+      if (!accessToken && req.cookies?.access_token) {
+        accessToken = req.cookies.access_token;
+      }
+
+      let user = null;
+
+      if (accessToken) {
+        try {
+          const decoded = jwt.verify(accessToken, process.env.JWT_ACCESS_SECRET);
+          const decodedUserId = decoded?.id || decoded?._id || decoded?.userId;
+          user = decodedUserId ? await BaseAuth.findById(decodedUserId) : null;
+        } catch (e) {
+          if (e.name !== "TokenExpiredError" && e.name !== "JsonWebTokenError") {
+            if (e instanceof AppError) return next(e);
+            throw e;
+          }
+        }
+      }
+
+      if (!user) {
+        let refreshToken =
+          trimRefreshToken(req.body?.refreshTokens) ||
+          trimRefreshToken(req.body?.refreshToken);
+
+        if (!refreshToken && req.headers["x-refresh-token"]) {
+          refreshToken = trimRefreshToken(req.headers["x-refresh-token"]);
+        }
+        if (!refreshToken && req.cookies?.refresh_token) {
+          refreshToken = trimRefreshToken(req.cookies.refresh_token);
+        }
+
+        if (!refreshToken) {
+          return next(
+            new AppError(
+              "Access token or valid refresh token required (e.g. Authorization Bearer access token, or refreshTokens in JSON body)",
+              401
+            )
+          );
+        }
+
+        try {
+          const decoded = jwt.verify(
+            refreshToken,
+            process.env.JWT_REFRESH_SECRET
+          );
+          const decodedUserId = decoded?.id || decoded?._id || decoded?.userId;
+          const u = decodedUserId ? await BaseAuth.findById(decodedUserId) : null;
+          if (
+            !u ||
+            !Array.isArray(u.refreshTokens) ||
+            !u.refreshTokens.includes(refreshToken)
+          ) {
+            return next(new AppError("Invalid refresh token", 401));
+          }
+          user = u;
+        } catch (e) {
+          if (e instanceof AppError) return next(e);
+          if (e.name === "TokenExpiredError") {
+            return next(new AppError("Refresh token expired", 401));
+          }
+          if (e.name === "JsonWebTokenError") {
+            return next(new AppError("Invalid refresh token", 401));
+          }
+          return next(new AppError("Authentication failed", 401));
+        }
+      }
+
+      if (!user) {
+        return next(new AppError("User not found", 401));
+      }
+
+      if (allowedRoles.length) {
+        const userRole = (user.role || "").toLowerCase();
+        const isAllowed = allowedRoles.some(
+          (role) => role.toLowerCase() === userRole
+        );
+        if (!isAllowed) {
+          return next(new AppError("Forbidden: Insufficient permissions", 403));
+        }
+      }
+
+      req.user = user;
+      req.token = accessToken || null;
+      next();
+    } catch (error) {
+      if (error instanceof AppError) {
+        return next(error);
+      }
+      if (error.name === "TokenExpiredError") {
+        return next(new AppError("Access token expired", 401));
+      }
+      if (error.name === "JsonWebTokenError") {
+        return next(new AppError("Invalid token", 401));
+      }
+      return next(new AppError("Authentication failed", 401));
+    }
+  };
+};
+
 
 export const refreshAccessToken = asyncHandler(async (req, res) => {
 

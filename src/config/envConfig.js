@@ -5,6 +5,7 @@ dotenv.config();
 const PORT = process.env.PORT;
 const DB_NAME = process.env.DB_NAME;
 const NODE_ENV = process.env.NODE_ENV || "development";
+
 const CORS_ORIGIN = process.env.CORS_ORIGIN;
 
 // ================= DATABASE =================

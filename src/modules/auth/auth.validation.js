@@ -215,7 +215,7 @@ const VerifyOTPValidation = {
                 Joi.valid(null)
             )
             .optional(),
-      
+
     })
 };
 
@@ -268,11 +268,16 @@ const afterLoginGuestFormValidation = {
 
 const LogoutValidation = {
     body: Joi.object({
-        refreshToken: Joi.string().optional(),
-        refreshTokens: Joi.string().optional(),
-        firebaseToken: Joi.string().optional(),
-        firebaseTokens: Joi.string().optional(),
-    }).or("refreshToken", "refreshTokens", "firebaseToken", "firebaseTokens")
+        refreshTokens: Joi.string().optional().allow(""),
+        refreshToken: Joi.string().optional().allow(""),
+        firebaseTokens: Joi.alternatives()
+            .try(
+                Joi.string().allow(""),
+                Joi.array().items(Joi.string().allow("")),
+                Joi.valid(null)
+            )
+            .optional(),
+    }),
 };
 
 const RefreshTokenValidation = {

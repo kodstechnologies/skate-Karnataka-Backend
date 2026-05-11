@@ -1,7 +1,7 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
 import { formatDate } from "../../util/time/timeUtil.js";
-import {ContactSupportService, getAllSkatingEventCategoryNamesService, GetDigitalIDCardService, GetUserProfileService, LoginUserService, LogoutUserService, RegisterUserService, sendEmailOTPService, sendPhoneOTPService, ToggleNotificationsService, verifyEmailOTPService, VerifyOTPService, verifyPhoneOTPService} from "./auth.service.js";
+import {ContactSupportService, DeleteAccountService, getAllSkatingEventCategoryNamesService, GetDigitalIDCardService, GetUserProfileService, LoginUserService, LogoutUserService, RegisterUserService, sendEmailOTPService, sendPhoneOTPService, ToggleNotificationsService, verifyEmailOTPService, VerifyOTPService, verifyPhoneOTPService} from "./auth.service.js";
 
 const RegisterUser = asyncHandler(async (req, res) => {
     const result = await RegisterUserService(req.body);
@@ -96,6 +96,7 @@ const VerifyOTP = asyncHandler(async (req, res) => {
 const RefreshToken = asyncHandler(async (req, res) => { });
 
 const LogoutUser = asyncHandler(async (req, res) => {
+    console.log(req.body,"--")
     const refreshToken = req.body?.refreshToken ?? req.body?.refreshTokens;
     const firebaseToken = req.body?.firebaseToken ?? req.body?.firebaseTokens;
 
@@ -178,6 +179,19 @@ const GetAllSkatingEventCategoryNames = asyncHandler(async (_req, res) => {
         );
 });
 
+const DeleteUser = asyncHandler(async (req, res) => {
+    await DeleteAccountService(req.user);
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                null,
+                "Account deleted successfully"
+            )
+        );
+});
+
 export {
 RegisterUser,
 sendEmailOTP,
@@ -195,4 +209,5 @@ GetRankings,
 ToggleNotifications,
 ContactSupport,
 GetAllSkatingEventCategoryNames,
+DeleteUser,
 }

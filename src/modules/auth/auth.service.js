@@ -7,7 +7,7 @@ import { District } from "../district/district.model.js";
 import { Club } from "../club/club.model.js";
 import { BaseAuth } from "./baseAuth.model.js";
 import SkatingEventCategory from "../event/SkatingEventCategory.model.js";
-import { checkEmailOTP, checkOtp, checkPhoneOTP, isExist, isExistEmail, isExistPhone, registerUser_repositories, removeFirebaseTokenAndRefressToken, removeOldEmailOtp, removeOldPhoneOtp, saveEmailOtp, saveFirebaseToken, savePhoneOTP, saveRefreshToken } from "./auth.repositories.js";
+import { checkEmailOTP, checkOtp, checkPhoneOTP, deleteAccount, isExist, isExistEmail, isExistPhone, registerUser_repositories, removeFirebaseTokenAndRefressToken, removeOldEmailOtp, removeOldPhoneOtp, saveEmailOtp, saveFirebaseToken, savePhoneOTP, saveRefreshToken } from "./auth.repositories.js";
 
 const ROLE_PREFIX_MAP = {
     Skater: "S",
@@ -277,6 +277,7 @@ const VerifyOTPService = async (userData) => {
 
 const RefreshTokenService = async (req, res) => { };
 const LogoutUserService = async (userData) => {
+    console.log(userData)
     await removeFirebaseTokenAndRefressToken(userData);
     return true;
 };
@@ -297,6 +298,10 @@ const ToggleNotificationsService = async (userData) => {
 };
 const ContactSupportService = async (userData) => {
     return await getSupportContact(userData);
+};
+
+const DeleteAccountService = async (userData) => {
+    await deleteAccount(userData._id);
 };
 
 const getAllSkatingEventCategoryNamesService = async () => {
@@ -341,4 +346,5 @@ export {
     ToggleNotificationsService,
     ContactSupportService,
     getAllSkatingEventCategoryNamesService,
+    DeleteAccountService,
 }

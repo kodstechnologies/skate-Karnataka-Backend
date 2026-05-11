@@ -4,6 +4,8 @@ import {
     deleteMediaRepositories,
     displayAllMediaBasedOnSkaterRepositories,
     displayAllMediaRepositories,
+    resolveClubOwnerIdRepositories,
+    resolveDistrictOwnerIdRepositories,
     updateMediaRepositories,
 } from "./gallery.repositories.js";
 import { AppError } from "../../util/common/AppError.js";
@@ -15,11 +17,22 @@ const ownerTypeMap = {
     state: "state",
 };
 
-const getOwnerContext = (user) => {
+const getOwnerContext = async (user) => {
     const ownerType = ownerTypeMap[String(user?.role || "").toLowerCase()];
     if (!ownerType) {
         throw new AppError("Invalid uploader role for media", 400);
     }
+
+    if (ownerType === "club") {
+        const ownerId = await resolveClubOwnerIdRepositories(user?._id);
+        return { ownerType, ownerId };
+    }
+
+    if (ownerType === "district") {
+        const ownerId = await resolveDistrictOwnerIdRepositories(user?._id);
+        return { ownerType, ownerId };
+    }
+
     return { ownerType, ownerId: user?._id };
 };
 
@@ -39,12 +52,12 @@ export const displayAllMediaServices = async (type, page, limit) => {
 }
 
 export const basedOnRoleDisplayService = async (user, type, page, limit) => {
-    const { ownerType, ownerId } = getOwnerContext(user);
+    const { ownerType, ownerId } = await getOwnerContext(user);
     return await basedOnRoleDisplayRepositories({ ownerType, ownerId, type }, page, limit);
 }
 
 export const addMediaService = async (data, user) => {
-    const { ownerType, ownerId } = getOwnerContext(user);
+    const { ownerType, ownerId } = await getOwnerContext(user);
 
     await addMediaREpositories({
         ...data,
@@ -54,7 +67,7 @@ export const addMediaService = async (data, user) => {
 };
 
 export const updateMediaService = async (id, data, user) => {
-    const { ownerType, ownerId } = getOwnerContext(user);
+    const { ownerType, ownerId } = await getOwnerContext(user);
     const accessFilter = ["admin", "state"].includes(ownerType)
         ? {}
         : { ownerType, ownerId };
@@ -85,7 +98,7 @@ export const updateMediaService = async (id, data, user) => {
 };
 
 export const deleteMediaService = async (id, user) => {
-    const { ownerType, ownerId } = getOwnerContext(user);
+    const { ownerType, ownerId } = await getOwnerContext(user);
     const accessFilter = ["admin", "state"].includes(ownerType)
         ? {}
         : { ownerType, ownerId };

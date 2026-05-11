@@ -1,6 +1,7 @@
 import { AppError } from "../../util/common/AppError.js";
 import { paginate } from "../../util/common/paginate.js";
 import { Club } from "../club/club.model.js";
+import { District } from "../district/district.model.js";
 import { Skater } from "../skater/skater.model.js";
 import { Gallery } from "./gallery.model.js";
 
@@ -183,4 +184,32 @@ export const updateMediaRepositories = async (id, payload, accessFilter = {}) =>
 
 export const deleteMediaRepositories = async (id, accessFilter = {}) => {
   return Gallery.findOneAndDelete({ _id: id, ...accessFilter }).lean();
+};
+
+export const resolveClubOwnerIdRepositories = async (userId) => {
+  const club = await Club.findOne({
+    $or: [{ _id: userId }, { members: userId }],
+  })
+    .select("_id")
+    .lean();
+
+  if (!club) {
+    throw new AppError("Club not found for this token", 404);
+  }
+
+  return club._id;
+};
+
+export const resolveDistrictOwnerIdRepositories = async (userId) => {
+  const district = await District.findOne({
+    $or: [{ _id: userId }, { members: userId }],
+  })
+    .select("_id")
+    .lean();
+
+  if (!district) {
+    throw new AppError("District not found for this token", 404);
+  }
+
+  return district._id;
 };

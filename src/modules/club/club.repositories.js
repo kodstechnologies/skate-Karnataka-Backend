@@ -604,7 +604,7 @@ const display_existing_club_repositories = async (id) => {
     console.log(id, "----")
     const r = await Skater.findById(id).select("club").populate(
         "club",
-        "img name clubId districtName address about rank championships"
+        "img name clubId districtName officeAddress about rank championships"
     );
     return r;
 };

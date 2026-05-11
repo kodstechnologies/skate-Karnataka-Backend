@@ -260,7 +260,7 @@ const display_existing_club = asyncHandler(async (req, res) => {
         name: existingClub?.club?.name || "",
         clubId: existingClub?.club?.clubId || "",
         districtName: existingClub?.club?.districtName || "",
-        address: existingClub?.club?.address || "",
+        address: existingClub?.club?.officeAddress || "",
         medals: existingClub?.club?.championships || "", // mapped
         clubRank: existingClub?.club?.rank || "",        // mapped
         about: existingClub?.club?.about || "",

@@ -2,9 +2,9 @@ import { BaseAuth } from "../auth/baseAuth.model.js";
 import { Skater } from "./skater.model.js";
 
 const after_login_skater_form_repositories = async (data, id) => {
-    console.log(data, ",,,,",id)
+    console.log(data, ",,,,", id)
     const baseUser = await BaseAuth.findById(id).select("_id role").lean();
-    console.log(baseUser,"baseUser")
+    console.log(baseUser, "baseUser")
     if (!baseUser) {
         throw new Error("Skater not found");
     }
@@ -41,7 +41,13 @@ const after_login_skater_form_repositories = async (data, id) => {
 
     const updated = await Skater.findOneAndUpdate(
         { _id: id },
-        updateOperation,
+        {
+            ...updateOperation,
+            $set: {
+                ...setPayload,
+                clubStatus: "join",
+            },
+        },
         { returnDocument: "after", runValidators: true }
     )
         .populate("district")
@@ -70,8 +76,8 @@ const get_skater_digital_id_card_repositories = async (id) => {
     return profile;
 }
 
-const update_skater_profile_repositories = async(userData, updateData) =>{
-    
+const update_skater_profile_repositories = async (userData, updateData) => {
+
 }
 
 const delete_skater_repositories = async (userId) => {

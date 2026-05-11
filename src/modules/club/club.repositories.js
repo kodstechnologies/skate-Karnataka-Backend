@@ -609,6 +609,43 @@ const display_existing_club_repositories = async (id) => {
     return r;
 };
 
+const display_all_apply_skater_repositories = async (clubId) => {
+    const club = await Club.findOne({
+        $or: [{ _id: clubId }, { members: clubId }],
+    })
+        .select("_id")
+        .lean();
+
+    if (!club) {
+        throw new AppError("Club not found", 404);
+    }
+
+    const query = {
+        role: "Skater",
+        $or: [
+            {
+                applyClub: club._id,
+                clubStatus: "apply",
+            },
+            {
+                club: club._id,
+                clubStatus: "apply-leave",
+            },
+        ],
+    };
+
+    const skaters = await Skater.find(query)
+        .select("fullName phone gender photo krsaId clubStatus applyClub club")
+        .sort({ createdAt: -1 })
+        .lean();
+
+    return skaters.map((skater) => ({
+        ...skater,
+        status: skater.clubStatus,
+        clubId: club._id,
+    }));
+};
+
 export {
     allClubsInDbRepository,
     allClubsRepository,
@@ -627,5 +664,6 @@ export {
     approve_join_club_repositories,
     apply_leave_repository,
     approve_leave_club_repositories,
-    display_existing_club_repositories
+    display_existing_club_repositories,
+    display_all_apply_skater_repositories
 }

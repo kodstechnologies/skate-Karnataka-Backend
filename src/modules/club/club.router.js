@@ -1,7 +1,7 @@
 import express from "express";
 import { validate } from "../../middleware/validate.multiple.js";
 import { createClubValidation, editClubValidation } from "./club.validation.js";
-import { affiliatedDistrict, apply_club, apply_leave, applyForDistrict, approve_join_club, approve_leave_club, createNewClub, deleteClub, display_all_Club_basedOn_user_district, displayDistrictFullDetails, display_existing_club, displayAllClubs, displayAllClubsInDb, displayClubDashboard, displayClubProfile, displaySingleClub, exceptOwnDistrictDisplayAllDistrict, pendingApprovals, reject_join_club, removeAffiliation, reports, updateClub } from "./club.controller.js";
+import { affiliatedDistrict, apply_club, apply_leave, applyForDistrict, approve_join_club, approve_leave_club, createNewClub, deleteClub, display_all_Club_basedOn_user_district, display_all_apply_skater, displayDistrictFullDetails, display_existing_club, displayAllClubs, displayAllClubsInDb, displayClubDashboard, displayClubProfile, displaySingleClub, exceptOwnDistrictDisplayAllDistrict, pendingApprovals, reject_join_club, removeAffiliation, reports, updateClub } from "./club.controller.js";
 import { upload } from "../../middleware/multer.middleware.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
@@ -35,6 +35,7 @@ router.get("/v1/pending-approvals", authenticate(["Club"]), pendingApprovals);
 
 router.get("/v1/reports", authenticate(["Club"]), reports);
 
+// skater =====================================  1
 
 router.get("/v1/skater/display-existing-club",
     authenticate(["Skater"]),
@@ -51,6 +52,10 @@ router.get("/v1/apply-leave",
     authenticate(["Skater"]),
     apply_leave);
 
+
+
+// ===================== skater ============================ 2
+
 // approve for join
 router.get("/v1/approve-join/:id",
     authenticate(["Club"]),
@@ -63,6 +68,11 @@ router.get("/v1/reject-join/:id",
 
 // approve for leave
 router.get("/v1/approve-leave/:id", authenticate(["Club"]), approve_leave_club);
+
+router.get("/v1/display-all-apply-skater", authenticate(["Club"]), display_all_apply_skater)
+
+// ===================================================  club -> skater end ========= 3
+
 router.get("/v1/display-all", authenticate(["Admin", "State"]), displayAllClubsInDb);
 router.get("/v1/all/:id",
     displayAllClubs);

@@ -1,5 +1,5 @@
 import express from "express";
-import { afterLoginSkaterForm, DeleteSkater, GetAllSkatingEventCategories, GetSkaterDigitalIdCard, GetSkaterProfile, UpdateSkaterProfile } from "./skater.controller.js";
+import { afterLoginSkaterForm, DeleteSkater, getAllDiscipline, GetAllSkatingEventCategories, GetSkaterDigitalIdCard, GetSkaterProfile, UpdateSkaterProfile } from "./skater.controller.js";
 import { validate } from "../../middleware/validate.multiple.js";
 import { afterLoginSkaterFormValidation, UpdateProfileValidation } from "./skater.validation.js";
 import { upload } from "../../middleware/multer.middleware.js";
@@ -10,19 +10,22 @@ const router = express.Router();
 
 
 router.post(
-  "/v1/after-login-form/:id",
-  upload.fields([
-    { name: "img", maxCount: 1 },
-    { name: "document", maxCount: 10 }
-  ]),
-  uploadToS3("skaters", { img: "photo", document: "documents" }),
-  validate(afterLoginSkaterFormValidation),
-  afterLoginSkaterForm
+    "/v1/after-login-form/:id",
+    upload.fields([
+        { name: "img", maxCount: 1 },
+        { name: "document", maxCount: 10 }
+    ]),
+    uploadToS3("skaters", { img: "photo", document: "documents" }),
+    validate(afterLoginSkaterFormValidation),
+    afterLoginSkaterForm
 );
+
+
 
 // ===  category 
 
-router.get("/v1/category", GetAllSkatingEventCategories)
+router.get("/v1/category", GetAllSkatingEventCategories);
+router.get("/v1/discipline", getAllDiscipline);
 
 // profile ===
 

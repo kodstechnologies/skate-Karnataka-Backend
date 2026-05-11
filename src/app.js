@@ -21,6 +21,7 @@ import stateRouter from "./modules/state/state.router.js";
 import reportRouter from "./modules/report/report.router.js";
 import certificateRouter from "./modules/certificate/certificate.router.js";
 import paymentRouter from "./modules/payment/payment.router.js";
+import disciplineRouter from "./modules/discipline/discipline.router.js";
 import { CORS_ORIGIN } from "./config/envConfig.js";
 import { AppError } from "./util/common/AppError.js";
 import { globalErrorHandler } from "./util/globalErrorHandler.js";
@@ -76,6 +77,7 @@ app.use("/parent", parentRouter);
 app.use("/school", schoolRouter);
 
 // app.use("/coach", coachRouter);
+app.use("/discipline",disciplineRouter);
 app.use("/club", clubRouter);
 app.use("/district", districtRouter);
 app.use("/state",stateRouter);

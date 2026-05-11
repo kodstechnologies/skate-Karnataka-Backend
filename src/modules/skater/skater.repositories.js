@@ -1,4 +1,5 @@
 import { BaseAuth } from "../auth/baseAuth.model.js";
+import { DisciplineService } from "../discipline/discipline.model.js";
 import SkatingEventCategory from "../event/SkatingEventCategory.model.js";
 import { Skater } from "./skater.model.js";
 
@@ -97,6 +98,12 @@ const get_all_skating_event_categories_repositories = async () => {
     }));
 }
 
+const get_all_discipline_repositories = async () => {
+    return await DisciplineService.find({})
+        .sort({ createdAt: -1 })
+        .lean();
+}
+
 
 export {
     after_login_skater_form_repositories,
@@ -105,4 +112,5 @@ export {
     update_skater_profile_repositories,
     delete_skater_repositories,
     get_all_skating_event_categories_repositories,
+    get_all_discipline_repositories,
 }

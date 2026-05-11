@@ -29,7 +29,7 @@ const app = express();
 
 // parse json 
 app.use(express.json());
-app.use(express.urlencoded({ limit: '500mb' , extended: true }));
+app.use(express.urlencoded({ extended: true }));
 
 // Lightweight cookie parsing so auth middleware can read cookie tokens.
 app.use((req, _res, next) => {

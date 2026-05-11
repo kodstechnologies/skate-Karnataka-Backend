@@ -1,4 +1,5 @@
 import { BaseAuth } from "../auth/baseAuth.model.js";
+import SkatingEventCategory from "../event/SkatingEventCategory.model.js";
 import { Skater } from "./skater.model.js";
 
 const after_login_skater_form_repositories = async (data, id) => {
@@ -84,6 +85,18 @@ const delete_skater_repositories = async (userId) => {
     await BaseAuth.findByIdAndDelete(userId);
 }
 
+const get_all_skating_event_categories_repositories = async () => {
+    const categories = await SkatingEventCategory.find({})
+        .select("_id typeName")
+        .sort({ typeName: 1 })
+        .lean();
+
+    return categories.map((category) => ({
+        id: String(category._id),
+        name: category.typeName || "",
+    }));
+}
+
 
 export {
     after_login_skater_form_repositories,
@@ -91,4 +104,5 @@ export {
     get_skater_digital_id_card_repositories,
     update_skater_profile_repositories,
     delete_skater_repositories,
+    get_all_skating_event_categories_repositories,
 }

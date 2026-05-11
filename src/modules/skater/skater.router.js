@@ -1,5 +1,5 @@
 import express from "express";
-import { afterLoginSkaterForm, DeleteSkater, GetSkaterDigitalIdCard, GetSkaterProfile, UpdateSkaterProfile } from "./skater.controller.js";
+import { afterLoginSkaterForm, DeleteSkater, GetAllSkatingEventCategories, GetSkaterDigitalIdCard, GetSkaterProfile, UpdateSkaterProfile } from "./skater.controller.js";
 import { validate } from "../../middleware/validate.multiple.js";
 import { afterLoginSkaterFormValidation, UpdateProfileValidation } from "./skater.validation.js";
 import { upload } from "../../middleware/multer.middleware.js";
@@ -20,6 +20,9 @@ router.post(
   afterLoginSkaterForm
 );
 
+// ===  category 
+
+router.get("/v1/category", GetAllSkatingEventCategories)
 
 // profile ===
 

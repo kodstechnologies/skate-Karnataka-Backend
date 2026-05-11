@@ -1,5 +1,6 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
+import { ApiResponse } from "../../util/common/ApiResponse.js";
 import {
     uploadTemplate,
     updateTemplate,
@@ -15,13 +16,12 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 const router = express.Router();
 
-// ── Template CRUD ────────────────────────────────────────────────────────────
-// POST   /certificate/v1/template          → create a new template  [Admin]
-// PUT    /certificate/v1/template/:id      → update template by id  [Admin]
-// PATCH  /certificate/v1/template/:id/activate → set as active      [Admin]
-// GET    /certificate/v1/template          → get active template     [Admin]
-// GET    /certificate/v1/template/:id      → get template by id      [Admin]
-// GET    /certificate/v1/templates         → list all templates      [Admin]
+router.get("/v1/all", authenticate(["Skater"]), (_req, res) => {
+    return res
+        .status(200)
+        .json(new ApiResponse(200, [], "Dummy certificate list"));
+});
+
 router.post("/v1/template", authenticate(["Admin"]), upload.single("pdf"), uploadTemplate);
 router.put("/v1/template/:id", authenticate(["Admin"]), upload.single("pdf"), updateTemplate);
 router.patch("/v1/template/:id/activate", authenticate(["Admin"]), setActiveTemplate);

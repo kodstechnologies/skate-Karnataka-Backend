@@ -268,8 +268,8 @@ export const displayStateEventDetailsWithPodiumRepositories = async (eventId) =>
     return {
         ...event,
         podium: [
-            pick(1, "Bhanu"),
-            pick(2, "Prajwala"),
+            pick(1, "Nagraj"),
+            pick(2, "Bhanu"),
             pick(3, "Sangram"),
         ],
     };

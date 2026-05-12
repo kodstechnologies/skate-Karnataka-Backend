@@ -5,6 +5,7 @@ import {
     get_all_templates_repository,
     get_template_repository,
     get_template_by_id_repository,
+    list_skater_participants_for_certificate_repository,
 } from "./certificate.repositories.js";
 import { putObject } from "../../util/aws/putObject.js";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
@@ -95,6 +96,10 @@ const get_template_by_id_service = async (id) => {
         pdfTemplateUrl: template.pdfUrl,
         textLayout: template.layout || {},
     };
+};
+
+const get_skater_certificate_list_service = async (userId, page, limit) => {
+    return await list_skater_participants_for_certificate_repository(userId, page, limit);
 };
 
 
@@ -328,5 +333,6 @@ export {
     get_all_templates_service,
     get_template_service,
     get_template_by_id_service,
+    get_skater_certificate_list_service,
     generate_certificate_service,
 };

@@ -8,6 +8,7 @@ import {
     get_all_templates_service,
     get_template_service,
     get_template_by_id_service,
+    get_skater_certificate_list_service,
     generate_certificate_service,
 } from "./certificate.service.js";
 import {
@@ -133,6 +134,16 @@ const getTemplateById = asyncHandler(async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// getSkaterCertificateRows — paginated event rows for certificate UI (Skater)
+// Query: page, limit (via util/common/paginate.js)
+// ---------------------------------------------------------------------------
+const getSkaterCertificateRows = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 10 } = req.query;
+    const result = await get_skater_certificate_list_service(req.user._id, page, limit);
+    return res.status(200).json(new ApiResponse(200, result, "Certificate rows retrieved successfully"));
+});
+
+// ---------------------------------------------------------------------------
 // generateCertificate — UNCHANGED logic; only imports differ above
 // ---------------------------------------------------------------------------
 const generateCertificate = asyncHandler(async (req, res) => {
@@ -158,5 +169,6 @@ export {
     getAllTemplates,
     getTemplate,
     getTemplateById,
+    getSkaterCertificateRows,
     generateCertificate,
 };

@@ -1,4 +1,6 @@
 import { CertificateTemplate } from "./certificateTemplate.model.js";
+import { EventParticipant } from "../event/eventParticipant.model.js";
+import { paginate } from "../../util/common/paginate.js";
 
 
 /**
@@ -54,6 +56,47 @@ const get_template_by_id_repository = async (id) => {
     return await CertificateTemplate.findById(id);
 };
 
+/**
+ * Paginated event registrations for a skater, shaped for certificate UI.
+ */
+const list_skater_participants_for_certificate_repository = async (userId, page, limit) => {
+    const { skip, limit: perPage, page: currentPage } = paginate(page, limit);
+
+    const filter = { userId };
+
+    const [total, rows] = await Promise.all([
+        EventParticipant.countDocuments(filter),
+        EventParticipant.find(filter)
+            .populate({ path: "userId", select: "krsaId" })
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(perPage)
+            .lean(),
+    ]);
+
+    const data = rows.map((p) => ({
+        _id: p._id,
+        winnerKRSAId: p.userId?.krsaId ?? null,
+        name: p.name ?? null,
+        division: p.division || p.ageGroup || null,
+        request: Boolean(p.skaterApply),
+        clubAllow: Boolean(p.clubAllow),
+        districtAllow: Boolean(p.districtAllow),
+        stateAllow: Boolean(p.stateAllow),
+        certificateID: p.certificateID ?? null,
+    }));
+
+    return {
+        data,
+        pagination: {
+            total,
+            page: currentPage,
+            limit: perPage,
+            totalPages: Math.ceil(total / perPage) || 0,
+        },
+    };
+};
+
 export {
     create_template_repository,
     update_template_repository,
@@ -61,4 +104,5 @@ export {
     get_all_templates_repository,
     get_template_repository,
     get_template_by_id_repository,
+    list_skater_participants_for_certificate_repository,
 };

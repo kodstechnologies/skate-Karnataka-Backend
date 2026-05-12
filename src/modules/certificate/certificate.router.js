@@ -1,6 +1,5 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
-import { ApiResponse } from "../../util/common/ApiResponse.js";
 import {
     uploadTemplate,
     updateTemplate,
@@ -8,6 +7,7 @@ import {
     getAllTemplates,
     getTemplate,
     getTemplateById,
+    getSkaterCertificateRows,
     generateCertificate,
 } from "./certificate.controller.js";
 import multer from "multer";
@@ -16,11 +16,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 const router = express.Router();
 
-router.get("/v1/all", authenticate(["Skater"]), (_req, res) => {
-    return res
-        .status(200)
-        .json(new ApiResponse(200, [], "Dummy certificate list"));
-});
+router.get("/v1/all", authenticate(["Skater"]), getSkaterCertificateRows);
 
 router.post("/v1/template", authenticate(["Admin"]), upload.single("pdf"), uploadTemplate);
 router.put("/v1/template/:id", authenticate(["Admin"]), upload.single("pdf"), updateTemplate);

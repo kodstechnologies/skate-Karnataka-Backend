@@ -23,6 +23,19 @@ const participantSchema = new mongoose.Schema(
       required: true,
     },
 
+    division: {
+      type: String,
+      trim: true,
+    },
+
+    certificateID: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
+      immutable: true,
+    },
+
     // 🔥 MULTIPLE CATEGORIES WITH RESULT
     categories: [
       {
@@ -90,6 +103,24 @@ const participantSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+participantSchema.pre("save", async function () {
+  if (this.certificateID) return;
+
+  let attempts = 0;
+  while (attempts < 15) {
+    const num = Math.floor(100000 + Math.random() * 900000);
+    const newId = `CERT${num}`;
+    const exists = await this.constructor.findOne({ certificateID: newId }).lean();
+    if (!exists) {
+      this.certificateID = newId;
+      return;
+    }
+    attempts++;
+  }
+
+  throw new Error("Failed to generate certificate ID");
+});
 
 export const EventParticipant = mongoose.model(
   "EventParticipant",

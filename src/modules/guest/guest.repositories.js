@@ -297,7 +297,7 @@ export const displayGuestStateMediaRepositories = async ({ page, limit }) => {
 };
 
 export const displayGuestStateMediaDetailsRepositories = async (id) => {
-    return Gallery.findOne({ _id: id, ownerType: "state" })
+    return Gallery.findOne({ _id: id, ownerType: {$in : ["state","admin"]} })
         .select("_id imageUrl videoUrl title about ownerType createdAt")
         .lean();
 };

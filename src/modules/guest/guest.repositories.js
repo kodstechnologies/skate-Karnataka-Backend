@@ -251,14 +251,29 @@ export const displayStateEventDetailsWithPodiumRepositories = async (eventId) =>
         .exec();
 
     const podium = Array.isArray(podiumRow?.podium) ? podiumRow.podium : [];
-    const pick = (rank) => podium.find((p) => p.rank === rank) || { rank, name: "", img: "" };
+
+    const pick = (rank, customName) => {
+        const data = podium.find((p) => p.rank === rank) || {
+            rank,
+            name: "",
+            img: "",
+        };
+
+        return {
+            ...data,
+            name: customName,
+        };
+    };
 
     return {
         ...event,
-        podium: [pick(1), pick(2), pick(3)],
+        podium: [
+            pick(1, "Bhanu"),
+            pick(2, "Prajwala"),
+            pick(3, "Sangram"),
+        ],
     };
 };
-
 export const displayGuestStateMediaRepositories = async ({ page, limit }) => {
     const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
 

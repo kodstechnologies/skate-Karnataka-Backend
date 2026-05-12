@@ -464,7 +464,7 @@ const createClubRepository = async (data) => {
         skaters,
         rank,
         championships,
-        verify: true,
+   
     });
 
     console.log(club, "===/////");

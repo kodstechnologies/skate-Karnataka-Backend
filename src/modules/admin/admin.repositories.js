@@ -435,6 +435,8 @@ export const createClubMember = async (payload) => {
   const normalizedPayload = {
     ...payload,
     role: "Club",
+    verify:true,
+
   };
 
   if (normalizedPayload.email) {

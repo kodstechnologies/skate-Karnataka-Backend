@@ -6,7 +6,10 @@ import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
 
 const router = express.Router()
 
+// skater ============================
 router.get("/v1/based-on-skater", authenticate(["Skater"]),  displayAllMediaBasedOnSkater);
+
+// =====================
 router.get("/v1/all", authenticate(["Admin","State"]),  displayAllMedia);
 router.get("/v1", authenticate(["Admin","Club", "District", "State"]),basedOnRoleDisplay)
 router.post("/v1", authenticate(["Admin","Club", "District", "State"]),

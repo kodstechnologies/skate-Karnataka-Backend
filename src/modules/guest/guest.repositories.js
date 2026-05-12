@@ -278,7 +278,7 @@ export const displayGuestStateMediaRepositories = async ({ page, limit }) => {
     const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
 
     const query = {
-        ownerType: {$in :["state","admin"]},
+        ownerType: { $in: ["state", "admin"] },
         $or: [
             { imageUrl: { $nin: [null, ""] } },
             { videoUrl: { $nin: [null, ""] } },
@@ -287,8 +287,9 @@ export const displayGuestStateMediaRepositories = async ({ page, limit }) => {
 
     const [total, data] = await Promise.all([
         Gallery.countDocuments(query),
+
         Gallery.find(query)
-            .select("_id imageUrl videoUrl")
+            .select("_id imageUrl videoUrl title about ownerType createdAt")
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(pageLimit)
@@ -300,8 +301,12 @@ export const displayGuestStateMediaRepositories = async ({ page, limit }) => {
             _id: item._id,
             imageUrl: item.imageUrl || null,
             videoUrl: item.videoUrl || null,
-            type: item?.videoUrl ? "video" : "image",
+            type: item.videoUrl ? "video" : "image",
+            title: item.title || "",
+            about: item.about || "",
+            ownerType: item.ownerType || "",
         })),
+
         pagination: {
             total,
             page: currentPage,

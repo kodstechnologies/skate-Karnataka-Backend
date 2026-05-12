@@ -263,7 +263,7 @@ export const displayGuestStateMediaRepositories = async ({ page, limit }) => {
     const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
 
     const query = {
-        ownerType: "state",
+        ownerType: {$in :["state","admin"]},
         $or: [
             { imageUrl: { $nin: [null, ""] } },
             { videoUrl: { $nin: [null, ""] } },

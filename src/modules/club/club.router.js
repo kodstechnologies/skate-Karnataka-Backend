@@ -52,6 +52,11 @@ router.get("/v1/apply-leave",
     authenticate(["Skater"]),
     apply_leave);
 
+router.get(
+    "/v1/user-district-clubs",
+    authenticate(["Skater"]),
+    display_all_Club_basedOn_user_district
+);
 
 
 // ===================== skater ============================ 2
@@ -77,26 +82,22 @@ router.get("/v1/display-all", authenticate(["Admin", "State"]), displayAllClubsI
 router.get("/v1/all/:id",
     displayAllClubs);
 router.post("/v1",
-    authenticate(["Admin","State"]),
+    authenticate(["Admin", "State"]),
     upload.single("img"),
     uploadToS3("clubs"),
     validate(createClubValidation),
     createNewClub);
 // Static path must be registered before /v1/:id or Express will treat "user-district-clubs" as an id.
-router.get(
-    "/v1/user-district-clubs",
-    authenticate(["Skater"]),
-    display_all_Club_basedOn_user_district
-);
+
 router.get("/v1/:id",
     displaySingleClub);
 router.patch("/v1/:id",
     upload.single("img"),
-     authenticate(["Admin","State"]),
+    authenticate(["Admin", "State"]),
     validate(editClubValidation),
     updateClub);
 router.delete("/v1/:id",
-     authenticate(["Admin","State"]),
+    authenticate(["Admin", "State"]),
     deleteClub);
 
 

@@ -1,6 +1,7 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
+import { AppError } from "../../util/common/AppError.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js"
-import { create_report_service, get_skater_report_service, getClubReportsSkater, getDistrictReportsSkater, getStateReportsSkater, inProgressClubReportsServices, resolveClubReportsServices, resolveDistrictReportsServices, update_status_service } from "./report.service.js";
+import { create_report_service, get_skater_report_service, getClubReportsForUser, getDistrictReportsForUser, getStateReportsForUser, inProgressClubReportsServices, resolveClubDocumentIdForReports, resolveClubReportsServices, resolveDistrictReportsServices, updateClubReportClubService, updateDistrictReportDistrictService, updateStateReportStateService, update_status_service } from "./report.service.js";
 
 const createReport = asyncHandler(async (req, res) => {
     const id = req.user._id;
@@ -44,12 +45,12 @@ const getSkaterReports = asyncHandler(async (req, res) => {
 });
 
 const getClubReports = asyncHandler(async (req, res) => {
-    const id = req.user._id;
     const { page = 1, limit = 10 } = req.query;
 
-    const result = await getClubReportsSkater(id, page, limit);
+    const result = await getClubReportsForUser(req.user, page, limit);
 
     const reports = result.data.map((item) => ({
+        id: item._id,
         complainedBy: item.complainedBy?.fullName ?? "",
         reportType: item.reportType ?? "",
         message: item.message ?? "",
@@ -58,6 +59,8 @@ const getClubReports = asyncHandler(async (req, res) => {
         districtName: item.districtName ?? "",
         krsaId: item.krsaId ?? "",
         status: item.status ?? "",
+        clubStatus: item.clubStatus ?? "pending",
+        clubMessage: item.clubMessage ?? "",
     }));
 
     return res.status(200).json(
@@ -72,39 +75,159 @@ const getClubReports = asyncHandler(async (req, res) => {
     );
 });
 
-const getDistrictReports = asyncHandler(async (req, res) => {
-    const id = req.user._id;
-
-    const data = await getDistrictReportsSkater(id);
-
-
+const updateClubReport = asyncHandler(async (req, res) => {
+    const { reportId, clubStatus, message } = req.body;
+    const updated = await updateClubReportClubService(req.user, {
+        reportId,
+        clubStatus,
+        message,
+    });
 
     return res.status(200).json(
-        new ApiResponse(200, reports, "District report display successfully") // ✅ FIXED
+        new ApiResponse(
+            200,
+            {
+                id: updated._id,
+                clubStatus: updated.clubStatus,
+                clubMessage: updated.clubMessage ?? "",
+            },
+            "Club report updated successfully"
+        )
+    );
+});
+
+const getDistrictReports = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 10 } = req.query;
+    const result = await getDistrictReportsForUser(req.user, page, limit);
+
+    const reports = result.data.map((item) => ({
+        id: item._id,
+        complainedBy: item.complainedBy?.fullName ?? "",
+        reportType: item.reportType ?? "",
+        message: item.message ?? "",
+        clubName: item.clubName ?? "",
+        skaterName: item.skaterName ?? "",
+        districtName: item.districtName ?? "",
+        krsaId: item.krsaId ?? "",
+        status: item.status ?? "",
+        clubStatus: item.clubStatus ?? "pending",
+        districtStatus: item.districtStatus ?? "pending",
+        districtMessage: item.districtMessage ?? "",
+        createdAt: item.createdAt,
+    }));
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                reports,
+                pagination: result.pagination,
+            },
+            "District report display successfully"
+        )
+    );
+});
+
+const updateDistrictReport = asyncHandler(async (req, res) => {
+    const { reportId, districtStatus, message } = req.body;
+    const updated = await updateDistrictReportDistrictService(req.user, {
+        reportId,
+        districtStatus,
+        message,
+    });
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                id: updated._id,
+                districtStatus: updated.districtStatus,
+                districtMessage: updated.districtMessage ?? "",
+            },
+            "District report updated successfully"
+        )
     );
 });
 
 const getStateReports = asyncHandler(async (req, res) => {
-    const id = req.user._id;
-    const report = await getStateReportsSkater(id);
+    const { page = 1, limit = 10 } = req.query;
+    const result = await getStateReportsForUser(req.user, page, limit);
+
+    const reports = result.data.map((item) => ({
+        id: item._id,
+        complainedBy: item.complainedBy?.fullName ?? "",
+        reportType: item.reportType ?? "",
+        message: item.message ?? "",
+        clubName: item.clubName ?? "",
+        skaterName: item.skaterName ?? "",
+        districtName: item.districtName ?? "",
+        krsaId: item.krsaId ?? "",
+        status: item.status ?? "",
+        clubStatus: item.clubStatus ?? "pending",
+        districtStatus: item.districtStatus ?? "pending",
+        stateStatus: item.StateStatus ?? "pending",
+        clubMessage: item.clubMessage ?? "",
+        districtMessage: item.districtMessage ?? "",
+        stateMessage: item.stateMessage ?? "",
+        createdAt: item.createdAt,
+    }));
+
     return res.status(200).json(
-        new ApiResponse(200, report, "State report display successfully")
+        new ApiResponse(
+            200,
+            {
+                reports,
+                pagination: result.pagination,
+            },
+            "State report display successfully"
+        )
     );
-})
+});
+
+const updateStateReport = asyncHandler(async (req, res) => {
+    const { reportId, stateStatus, message } = req.body;
+    const updated = await updateStateReportStateService(req.user, {
+        reportId,
+        stateStatus,
+        message,
+    });
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                id: updated._id,
+                stateStatus: updated.StateStatus ?? "pending",
+                stateMessage: updated.stateMessage ?? "",
+            },
+            "State report updated successfully"
+        )
+    );
+});
 
 export const resolveClubReports = asyncHandler(async (req, res) => {
-    const clubId = req.user._id;
+    const clubDocId = await resolveClubDocumentIdForReports(req.user);
+    if (!clubDocId) {
+        throw new AppError("Club not found or you are not linked to a club", 404);
+    }
     const {id} = req.params;
-    await resolveClubReportsServices(id, clubId)
+    await resolveClubReportsServices(id, clubDocId)
     return res.status(200).json(
         new ApiResponse(200, null, "Resolve club successfully")
     )
 })
 
 export const inProgressClubReports = asyncHandler(async (req, res) => {
-    const clubId = req.user._id;
+    const role = (req.user.role || "").toLowerCase();
+    let clubDocId = req.user._id;
+    if (role === "club") {
+        clubDocId = await resolveClubDocumentIdForReports(req.user);
+        if (!clubDocId) {
+            throw new AppError("Club not found or you are not linked to a club", 404);
+        }
+    }
     const { id } = req.params;
-    await inProgressClubReportsServices(id, clubId);
+    await inProgressClubReportsServices(id, clubDocId);
     return res.status(200).json(
         new ApiResponse(200, null, "Club report moved to inprogress successfully")
     );
@@ -129,6 +252,9 @@ export {
     updateStatus,
     getSkaterReports,
     getClubReports,
+    updateClubReport,
     getDistrictReports,
-    getStateReports
+    updateDistrictReport,
+    getStateReports,
+    updateStateReport
 }

@@ -37,7 +37,22 @@ const reportSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["pending", "solved", "inprogress","notSolved"],
+      enum: ["pending", "solved", "inprogress", "notSolved"],
+      default: "pending",
+    },
+    clubStatus: {
+      type: String,
+      enum: ["pending", "solved", "inprogress", "notSolved"],
+      default: "pending",
+    },
+    districtStatus: {
+      type: String,
+      enum: ["pending", "solved", "inprogress", "notSolved"],
+      default: "pending",
+    },
+    StateStatus: {
+      type: String,
+      enum: ["pending", "solved", "inprogress", "notSolved"],
       default: "pending",
     },
     idClub: {
@@ -52,6 +67,18 @@ const reportSchema = new mongoose.Schema(
     isState: {
       type: Boolean,
       default: false
+    },
+    clubMessage: {
+      type: String,
+      default: "",
+    },
+    districtMessage: {
+      type: String,
+      default: ""
+    },
+    stateMessage: {
+      type: String,
+      default: ""
     },
   },
   {

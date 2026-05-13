@@ -1,8 +1,8 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
-import { createReport, getClubReports, getDistrictReports, getSkaterReports, getStateReports, inProgressClubReports, resolveClubReports, resolveDistrictReports, resolveStateReports, updateStatus } from "./report.controller.js";
+import { createReport, getClubReports, getDistrictReports, getSkaterReports, getStateReports, updateClubReport, updateDistrictReport, updateStateReport, updateStatus } from "./report.controller.js";
 import { validate } from "../../middleware/validate.multiple.js";
-import { create_report_validation } from "./report.validation.js";
+import { create_report_validation, update_club_report_validation, update_district_report_validation, update_state_report_validation } from "./report.validation.js";
 
 const router = express.Router()
 
@@ -12,18 +12,32 @@ router.get("/v1/skater-reports", authenticate(["Skater"]), getSkaterReports);
 router.patch("/v1/:id", authenticate(["Skater"]), updateStatus);
 
 // ==============================
-router.get("/v1/club-inprogress/:id", authenticate(["Club","District","State","Admin"]), inProgressClubReports);
+router.get("/v1/club", authenticate(["Club", "Skater"]), getClubReports);
+router.post(
+    "/v1/club",
+    authenticate(["Club"]),
+    validate(update_club_report_validation),
+    updateClubReport
+);
 
-router.get("/v1/club", authenticate(["Club"]), getClubReports);
-router.get("/v1/club-resolved/:id", authenticate(["Club"]), resolveClubReports);
 
-
+// ========================= district
 router.get("/v1/district", authenticate(["District"]), getDistrictReports);
-router.get("/v1/district-resolved/:id", authenticate(["District"]), resolveDistrictReports);
+router.post(
+    "/v1/district",
+    authenticate(["District"]),
+    validate(update_district_report_validation),
+    updateDistrictReport
+);
+// ===================== state
 
-router.get("/v1/state", authenticate(["State","Admin"]), getStateReports);
-router.get("/v1/state-resolved/:id", authenticate(["State","Admin"]), resolveStateReports);
-
+router.get("/v1/state", authenticate(["State", "Admin"]), getStateReports);
+router.post(
+    "/v1/state",
+    authenticate(["State", "Admin"]),
+    validate(update_state_report_validation),
+    updateStateReport
+);
 
 // router.patch("/:" , edit_report);
 // router.delete("/:id", delete_report);

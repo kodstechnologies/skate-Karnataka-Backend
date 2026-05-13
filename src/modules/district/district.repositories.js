@@ -558,7 +558,7 @@ export const displayDashboardDataRepository = async (id) => {
       }
     },
 
-    latestEvent : latestEvent || ""
+    latestEvent: latestEvent ?? null,
   };
 };
 

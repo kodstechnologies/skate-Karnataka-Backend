@@ -7,6 +7,9 @@ import {
   displayAllDistrictsByStateService,
   displayAllSkatersByStateService,
   displaySkaterByIdForStateService,
+  displayClubByIdForStateService,
+  displayClubSkatersForStateService,
+  displayClubSkaterByIdForStateService,
   displayDashboardService,
   displayProfileService,
   displayAllStateService,
@@ -105,6 +108,36 @@ export const displayAllSkatersByState = asyncHandler(async (req, res) => {
 export const displaySkaterById = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const skater = await displaySkaterByIdForStateService(id);
+  return res.status(200).json(
+    new ApiResponse(200, skater, "Skater details fetched successfully")
+  );
+});
+
+export const displayClubById = asyncHandler(async (req, res) => {
+  const { clubId } = req.params;
+  console.log(clubId,"clubId==");
+  const club = await displayClubByIdForStateService(clubId);
+  return res.status(200).json(
+    new ApiResponse(200, club, "Club details fetched successfully")
+  );
+});
+
+export const displayClubSkaters = asyncHandler(async (req, res) => {
+  const { clubId } = req.params;
+  const { page = 1, limit = 10, search = "" } = req.query;
+  const result = await displayClubSkatersForStateService(clubId, {
+    page: Number(page),
+    limit: Number(limit),
+    search,
+  });
+  return res.status(200).json(
+    new ApiResponse(200, result, "Club skaters fetched successfully")
+  );
+});
+
+export const displayClubSkaterById = asyncHandler(async (req, res) => {
+  const { clubId, skaterId } = req.params;
+  const skater = await displayClubSkaterByIdForStateService(clubId, skaterId);
   return res.status(200).json(
     new ApiResponse(200, skater, "Skater details fetched successfully")
   );

@@ -73,6 +73,50 @@ export const authenticate = (allowedRoles = []) => {
   };
 };
 
+/** 24-char hex MongoDB ObjectId string */
+const looksLikeMongoObjectId = (value) =>
+  typeof value === "string" && /^[a-fA-F0-9]{24}$/.test(value);
+
+/**
+ * After authenticate(["Admin", "State", "Club"]), allow Admin/State for any clubId,
+ * or Club only when :clubId matches their account _id or clubId field.
+ */
+export const ensureStateAdminOrOwnClub = (paramName = "clubId") => {
+  return (req, res, next) => {
+    const user = req.user;
+    if (!user) {
+      return next(new AppError("Authentication required", 401));
+    }
+
+    const role = (user.role || "").toLowerCase();
+    if (role === "admin" || role === "state") {
+      return next();
+    }
+
+    if (role === "club") {
+      const raw = String(req.params[paramName] || "").trim();
+      if (!raw) {
+        return next(new AppError("Forbidden: Insufficient permissions", 403));
+      }
+
+      const matchById =
+        looksLikeMongoObjectId(raw) && String(user._id) === raw;
+      const matchByClubId =
+        user.clubId != null && String(user.clubId).trim() === raw;
+
+      if (matchById || matchByClubId) {
+        return next();
+      }
+
+      return next(
+        new AppError("Forbidden: You can only access your own club", 403)
+      );
+    }
+
+    return next(new AppError("Forbidden: Insufficient permissions", 403));
+  };
+};
+
 const pickBearerToken = (authHeader) => {
   if (!authHeader) return null;
   return authHeader.startsWith("Bearer ")

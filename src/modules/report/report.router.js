@@ -2,7 +2,7 @@ import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import { createReport, getClubReports, getDistrictReports, getSkaterReports, getStateReports, updateClubReport, updateDistrictReport, updateStateReport, updateStatus } from "./report.controller.js";
 import { validate } from "../../middleware/validate.multiple.js";
-import { create_report_validation, update_club_report_validation, update_district_report_validation, update_skater_status_validation, update_state_report_validation } from "./report.validation.js";
+import { create_report_validation, state_reports_list_validation, update_club_report_validation, update_district_report_validation, update_skater_status_validation, update_state_report_validation } from "./report.validation.js";
 
 const router = express.Router()
 
@@ -31,7 +31,12 @@ router.patch(
 );
 // ===================== state
 
-router.get("/v1/state", authenticate(["State", "Admin"]), getStateReports);
+router.get(
+    "/v1/state",
+    authenticate(["State", "Admin"]),
+    validate(state_reports_list_validation),
+    getStateReports
+);
 router.patch(
     "/v1/state/:id",
     authenticate(["State", "Admin"]),

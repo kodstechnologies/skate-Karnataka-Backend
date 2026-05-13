@@ -278,6 +278,155 @@ const skaterDetailSelect =
 const looksLikeMongoObjectId = (value) =>
   typeof value === "string" && /^[a-fA-F0-9]{24}$/.test(value);
 
+const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const resolveClubLeanByParam = async (clubIdParam, select) => {
+  const raw = String(clubIdParam || "").trim();
+  if (!raw) {
+    return null;
+  }
+
+  const sel =
+    select ||
+    "_id clubId name img officeAddress about districtName rank championships district";
+
+  let club = null;
+  if (looksLikeMongoObjectId(raw)) {
+    club = await Club.findById(raw)
+      .select(sel)
+      .populate("district", "_id name")
+      .lean();
+  }
+  if (!club) {
+    club = await Club.findOne({ clubId: raw })
+      .select(sel)
+      .populate("district", "_id name")
+      .lean();
+  }
+  return club;
+};
+
+export const getClubDetailByIdForStateRepository = async (clubIdParam) => {
+  const club = await resolveClubLeanByParam(
+    clubIdParam,
+    "_id clubId name img officeAddress about districtName rank championships district"
+  );
+  if (!club) {
+    return null;
+  }
+
+  const totalSkaters = await Skater.countDocuments({ club: club._id });
+
+  return {
+    district: {
+      _id: club.district?._id ?? null,
+      name: club.district?.name ?? "",
+    },
+    clubId: club.clubId || String(club._id),
+    name: club.name || "",
+    img: club.img || "",
+    officeAddress: club.officeAddress || "",
+    about: club.about || "",
+    districtName: club.districtName || "",
+    rank: club.rank || 0,
+    championships: club.championships || 0,
+    totalSkaterCount: totalSkaters,
+  };
+};
+
+export const getClubSkatersByClubIdForStateRepository = async (
+  clubIdParam,
+  { page, limit, search }
+) => {
+  const club = await resolveClubLeanByParam(clubIdParam, "_id name");
+  if (!club) {
+    return null;
+  }
+
+  const pagination = paginate(page, limit);
+  const term = String(search || "").trim();
+  const filter = { club: club._id, role: "Skater" };
+
+  if (term) {
+    filter.fullName = { $regex: escapeRegExp(term), $options: "i" };
+  }
+
+  const [total, data] = await Promise.all([
+    Skater.countDocuments(filter),
+    Skater.find(filter)
+      .select("_id fullName photo club")
+      .populate("club", "_id name")
+      .sort({ createdAt: -1 })
+      .skip(pagination.skip)
+      .limit(pagination.limit)
+      .lean(),
+  ]);
+
+  return {
+    club: {
+      _id: club._id,
+      name: club.name || "",
+    },
+    data: data.map((skater) => ({
+      _id: skater._id,
+      name: skater.fullName || "",
+      img: skater.photo || "",
+      club: {
+        _id: skater.club?._id || null,
+        name: skater.club?.name || "",
+      },
+    })),
+    pagination: {
+      total,
+      page: pagination.page,
+      limit: pagination.limit,
+      totalPages: Math.ceil(total / pagination.limit) || 1,
+    },
+  };
+};
+
+export const getClubSkaterByIdsForStateRepository = async (clubIdParam, skaterIdParam) => {
+  const club = await resolveClubLeanByParam(clubIdParam, "_id");
+  if (!club) {
+    return null;
+  }
+
+  const raw = String(skaterIdParam || "").trim();
+  if (!raw) {
+    return null;
+  }
+
+  let skater = null;
+  if (looksLikeMongoObjectId(raw)) {
+    skater = await Skater.findById(raw)
+      .select(`${skaterDetailSelect} club`)
+      .populate("district", "name")
+      .lean();
+  }
+  if (!skater) {
+    skater = await Skater.findOne({ krsaId: raw })
+      .select(`${skaterDetailSelect} club`)
+      .populate("district", "name")
+      .lean();
+  }
+
+  if (!skater || String(skater.club) !== String(club._id)) {
+    return null;
+  }
+
+  return {
+    fullName: skater.fullName ?? "",
+    profile: skater.profile ?? "",
+    phone: skater.phone ?? "",
+    address: skater.address ?? "",
+    districtName: skater.district?.name ?? "",
+    gender: skater.gender ?? "",
+    email: skater.email ?? "",
+    krsaId: skater.krsaId ?? "",
+    rank: 0,
+  };
+};
+
 export const getSkaterByIdForStateRepository = async (id) => {
   const raw = String(id || "").trim();
   if (!raw) {

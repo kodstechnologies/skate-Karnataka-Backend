@@ -177,16 +177,10 @@ const getStateReports = asyncHandler(async (req, res) => {
         createdAt: item.createdAt,
     }));
 
-    return res.status(200).json(
-        new ApiResponse(
-            200,
-            {
-                reports,
-                pagination: result.pagination,
-            },
-            "State report display successfully"
-        )
-    );
+    return res.status(200).json({
+        ...new ApiResponse(200, reports, "State report display successfully"),
+        pagination: result.pagination,
+    });
 });
 
 const updateStateReport = asyncHandler(async (req, res) => {

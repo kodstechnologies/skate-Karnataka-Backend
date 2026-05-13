@@ -7,6 +7,9 @@ import {
   displayAllDistrictsByState,
   displayAllSkatersByState,
   displaySkaterById,
+  displayClubById,
+  displayClubSkaters,
+  displayClubSkaterById,
   displayAllState,
   displayDashboard,
   displayProfile,
@@ -21,7 +24,7 @@ import {
 } from "./state.validation.js";
 import { upload } from "../../middleware/multer.middleware.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
-import { authenticate } from "../../middleware/auth.middleware.js";
+import { authenticate, ensureStateAdminOrOwnClub } from "../../middleware/auth.middleware.js";
 import { displayDistrictClubDetails, displayDistrictClubs, displayDistrictDetails, displayDistrictEvents, displayDistricts, displayDistrictSkaters } from "../guest/guest.controller.js";
 const router = express.Router();
 
@@ -55,7 +58,7 @@ router.get(
   displayDistrictSkaters
 );
 router.get(
-  "/v1/skater/:id",
+  "/v1/district/:districtId/skater/:id",
   authenticate(["Admin", "State"]),
   displaySkaterById
 );
@@ -68,16 +71,34 @@ router.get(
 
 // ======================== total club =================
 
-// router.get(
-//   "/v1/club",
-//   authenticate(["Admin", "State"]),
-//   displayDistricts
-// );
-// router.get(
-//   "/v1/club/:districtId",
-  
-//   displayDistrictDetails
-// );
+router.get(
+  "/v1/club",
+  authenticate(["Admin", "State"]),
+  validate(stateListQueryValidation),
+  displayAllClubsByState
+);
+router.get(
+  "/v1/club/:clubId",
+  authenticate(["Admin", "State"]),
+  displayClubById
+);
+
+router.get(
+  "/v1/club/:clubId/skater",
+  authenticate(["Admin", "State", "Club"]),
+  ensureStateAdminOrOwnClub("clubId"),
+  validate(stateListQueryValidation),
+  displayClubSkaters
+);
+
+router.get(
+  "/v1/club/:clubId/skater/:skaterId",
+  authenticate(["Admin", "State", "Club"]),
+  ensureStateAdminOrOwnClub("clubId"),
+  displayClubSkaterById
+);
+
+
 
 
 // ==================

@@ -62,10 +62,18 @@ const update_state_report_validation = {
     }),
 };
 
+const state_reports_list_validation = {
+    query: Joi.object({
+        page: Joi.number().integer().min(1).default(1),
+        limit: Joi.number().integer().min(1).max(100).default(10),
+    }),
+};
+
 export {
     create_report_validation,
     update_skater_status_validation,
     update_club_report_validation,
     update_district_report_validation,
     update_state_report_validation,
+    state_reports_list_validation,
 }

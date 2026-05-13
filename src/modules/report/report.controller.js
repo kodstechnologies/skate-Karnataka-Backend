@@ -13,7 +13,7 @@ const createReport = asyncHandler(async (req, res) => {
 
 const updateStatus = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { status } = req.query;
+    const { status } = req.body;
     await update_status_service(id, status);
 
     const message =
@@ -76,7 +76,8 @@ const getClubReports = asyncHandler(async (req, res) => {
 });
 
 const updateClubReport = asyncHandler(async (req, res) => {
-    const { reportId, clubStatus, message } = req.body;
+    const { id: reportId } = req.params;
+    const { clubStatus, message } = req.body;
     const updated = await updateClubReportClubService(req.user, {
         reportId,
         clubStatus,
@@ -111,6 +112,7 @@ const getDistrictReports = asyncHandler(async (req, res) => {
         krsaId: item.krsaId ?? "",
         status: item.status ?? "",
         clubStatus: item.clubStatus ?? "pending",
+        clubMessage: item.clubMessage ?? "",
         districtStatus: item.districtStatus ?? "pending",
         districtMessage: item.districtMessage ?? "",
         createdAt: item.createdAt,
@@ -129,9 +131,11 @@ const getDistrictReports = asyncHandler(async (req, res) => {
 });
 
 const updateDistrictReport = asyncHandler(async (req, res) => {
-    const { reportId, districtStatus, message } = req.body;
+    const { id: reportId } = req.params;
+    const { status, districtStatus, message } = req.body;
     const updated = await updateDistrictReportDistrictService(req.user, {
         reportId,
+        status,
         districtStatus,
         message,
     });
@@ -141,6 +145,7 @@ const updateDistrictReport = asyncHandler(async (req, res) => {
             200,
             {
                 id: updated._id,
+                status: updated.status ?? "",
                 districtStatus: updated.districtStatus,
                 districtMessage: updated.districtMessage ?? "",
             },
@@ -185,7 +190,8 @@ const getStateReports = asyncHandler(async (req, res) => {
 });
 
 const updateStateReport = asyncHandler(async (req, res) => {
-    const { reportId, stateStatus, message } = req.body;
+    const { id: reportId } = req.params;
+    const { stateStatus, message } = req.body;
     const updated = await updateStateReportStateService(req.user, {
         reportId,
         stateStatus,

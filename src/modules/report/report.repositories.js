@@ -33,13 +33,15 @@ const create_report_repositories = async (skaterId, data, club) => {
 
 
 const update_status_repositories = async (id, status) => {
-    const solveReport = await Report.updateMany(
-        { id },
-        {
-            status
-        }
-    );
+    const updated = await Report.findByIdAndUpdate(
+        id,
+        { $set: { status } },
+        { new: true, runValidators: true }
+    ).lean();
 
+    if (!updated) {
+        throw new AppError("Report not found", 404);
+    }
 };
 
 const get_skater_report_repositories = async (
@@ -155,7 +157,7 @@ export const getDistrictReportsRepositories = async (districtDocId, page, limit)
 
     const data = await Report.find(query)
         .select(
-            "reportType message clubName skaterName districtName krsaId status districtStatus districtMessage clubStatus complainedBy createdAt"
+            "reportType message clubName skaterName districtName krsaId status districtStatus districtMessage clubStatus clubMessage complainedBy createdAt"
         )
         .populate("complainedBy", "fullName")
         .sort({ createdAt: -1 })
@@ -179,9 +181,15 @@ export const getDistrictReportsRepositories = async (districtDocId, page, limit)
 export const updateDistrictReportDistrictRepositories = async (
     reportId,
     districtClubIds,
-    { districtStatus, districtMessage }
+    { status, districtStatus, districtMessage }
 ) => {
-    const $set = { districtStatus };
+    const $set = {};
+    if (status !== undefined) {
+        $set.status = status;
+    }
+    if (districtStatus !== undefined) {
+        $set.districtStatus = districtStatus;
+    }
     if (districtMessage !== undefined) {
         $set.districtMessage = districtMessage;
     }
@@ -219,6 +227,7 @@ export const getStateReportsRepositories = async (page, limit) => {
         .limit(perPage)
         .lean();
 
+     
     const total = await Report.countDocuments(query);
 
     return {
@@ -257,7 +266,6 @@ export const resolveClubReportsRepositories = async (id, clubId) => {
         {
             $set: {
                 status: "solved",
-                idClub: true,
                 statusUpdatedAt: new Date(),
             },
         },

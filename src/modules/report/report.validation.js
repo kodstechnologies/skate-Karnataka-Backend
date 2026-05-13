@@ -22,25 +22,41 @@ const create_report_validation = {
     }),
 };
 
-const update_club_report_validation = {
+const update_skater_status_validation = {
+    params: Joi.object({
+        id: objectIdString.required(),
+    }),
     body: Joi.object({
-        reportId: objectIdString.required(),
+        status: reportStatusEnum.required(),
+    }),
+};
+
+const update_club_report_validation = {
+    params: Joi.object({
+        id: objectIdString.required(),
+    }),
+    body: Joi.object({
         clubStatus: reportStatusEnum.required(),
         message: Joi.string().trim().max(5000).allow("").optional(),
     }),
 };
 
 const update_district_report_validation = {
-    body: Joi.object({
-        reportId: objectIdString.required(),
-        districtStatus: reportStatusEnum.required(),
-        message: Joi.string().trim().max(5000).allow("").optional(),
+    params: Joi.object({
+        id: objectIdString.required(),
     }),
+    body: Joi.object({
+        status: reportStatusEnum.optional(),
+        districtStatus: reportStatusEnum.optional(),
+        message: Joi.string().trim().max(5000).allow("").optional(),
+    }).or("status", "districtStatus"),
 };
 
 const update_state_report_validation = {
+    params: Joi.object({
+        id: objectIdString.required(),
+    }),
     body: Joi.object({
-        reportId: objectIdString.required(),
         stateStatus: reportStatusEnum.required(),
         message: Joi.string().trim().max(5000).allow("").optional(),
     }),
@@ -48,6 +64,7 @@ const update_state_report_validation = {
 
 export {
     create_report_validation,
+    update_skater_status_validation,
     update_club_report_validation,
     update_district_report_validation,
     update_state_report_validation,

@@ -57,7 +57,7 @@ export const getDistrictReportsForUser = async (user, page, limit) => {
     return getDistrictReportsRepositories(districtDocId, page, limit);
 };
 
-export const updateDistrictReportDistrictService = async (user, { reportId, districtStatus, message }) => {
+export const updateDistrictReportDistrictService = async (user, { reportId, status, districtStatus, message }) => {
     const role = (user.role || "").toLowerCase();
     if (role !== "district") {
         throw new AppError("Only district accounts can update district report status", 403);
@@ -73,7 +73,13 @@ export const updateDistrictReportDistrictService = async (user, { reportId, dist
         throw new AppError("No clubs linked to this district", 404);
     }
 
-    const payload = { districtStatus };
+    const payload = {};
+    if (status !== undefined) {
+        payload.status = status;
+    }
+    if (districtStatus !== undefined) {
+        payload.districtStatus = districtStatus;
+    }
     if (message !== undefined) {
         payload.districtMessage = message;
     }

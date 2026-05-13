@@ -6,6 +6,7 @@ import {
   displayAllClubsByState,
   displayAllDistrictsByState,
   displayAllSkatersByState,
+  displaySkaterById,
   displayAllState,
   displayDashboard,
   displayProfile,
@@ -21,16 +22,74 @@ import {
 import { upload } from "../../middleware/multer.middleware.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
+import { displayDistrictClubDetails, displayDistrictClubs, displayDistrictDetails, displayDistrictEvents, displayDistricts, displayDistrictSkaters } from "../guest/guest.controller.js";
 const router = express.Router();
 
-router.get("/v1/dashboard", 
-     authenticate(["State"]),
-     displayDashboard
+
+// ======================== total district =================
+
+router.get(
+  "/v1/district",
+  authenticate(["Admin", "State"]),
+  displayDistricts
+);
+router.get(
+  "/v1/district/:districtId",
+  authenticate(["Admin", "State"]),
+  displayDistrictDetails
+);
+
+router.get(
+  "/v1/district/:districtId/club",
+authenticate(["Admin", "State"]),
+  displayDistrictClubs
+);
+router.get(
+  "/v1/district/:districtId/club/:clubId",
+  authenticate(["Admin", "State"]),
+  displayDistrictClubDetails
+);
+router.get(
+  "/v1/district/:districtId/skater",
+  authenticate(["Admin", "State"]),
+  displayDistrictSkaters
+);
+router.get(
+  "/v1/skater/:id",
+  authenticate(["Admin", "State"]),
+  displaySkaterById
+);
+router.get(
+  "/v1/district/:districtId/event",
+  authenticate(["Admin", "State"]),
+  displayDistrictEvents
+);
+
+
+// ======================== total club =================
+
+// router.get(
+//   "/v1/club",
+//   authenticate(["Admin", "State"]),
+//   displayDistricts
+// );
+// router.get(
+//   "/v1/club/:districtId",
+  
+//   displayDistrictDetails
+// );
+
+
+// ==================
+
+router.get("/v1/dashboard",
+  authenticate(["State"]),
+  displayDashboard
 )
 
-router.get("/v1/profile", 
-     authenticate(["State"]),
-     displayProfile
+router.get("/v1/profile",
+  authenticate(["State"]),
+  displayProfile
 )
 
 // 🔹 Get all states
@@ -88,5 +147,19 @@ router.delete("/v1/:id",
   authenticate(["Admin"]),
   deleteState
 );
+
+// ======================== total club =================
+
+// ======================== total skater =================
+
+
+
+
+// ======================== total skater =================
+// ======================== total skater =================
+// ======================== total skater =================
+// ======================== total skater =================
+// ======================== total skater =================
+
 
 export default router;

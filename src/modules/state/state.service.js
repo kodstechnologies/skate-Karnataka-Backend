@@ -5,6 +5,7 @@ import {
   getAllClubsByStateRepository,
   getAllDistrictsByStateRepository,
   getAllSkatersByStateRepository,
+  getSkaterByIdForStateRepository,
   getAllStateRepository,
   getSingleStateWithDistrictsRepository,
   isStateExistByNameRepository,
@@ -59,4 +60,12 @@ export const displayAllClubsByStateService = async ({ page, limit, search }) => 
 
 export const displayAllSkatersByStateService = async ({ page, limit, search }) => {
   return getAllSkatersByStateRepository({ page, limit, search });
+};
+
+export const displaySkaterByIdForStateService = async (skaterId) => {
+  const skater = await getSkaterByIdForStateRepository(skaterId);
+  if (!skater) {
+    throw new AppError("Skater not found", 404);
+  }
+  return skater;
 };

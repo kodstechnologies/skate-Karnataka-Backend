@@ -6,6 +6,7 @@ import {
   displayAllClubsByStateService,
   displayAllDistrictsByStateService,
   displayAllSkatersByStateService,
+  displaySkaterByIdForStateService,
   displayDashboardService,
   displayProfileService,
   displayAllStateService,
@@ -98,6 +99,14 @@ export const displayAllSkatersByState = asyncHandler(async (req, res) => {
 
   return res.status(200).json(
     new ApiResponse(200, result, "All skaters fetched successfully")
+  );
+});
+
+export const displaySkaterById = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const skater = await displaySkaterByIdForStateService(id);
+  return res.status(200).json(
+    new ApiResponse(200, skater, "Skater details fetched successfully")
   );
 });
 

@@ -271,3 +271,46 @@ export const getAllSkatersByStateRepository = async ({ page, limit, search = "" 
     },
   };
 };
+
+const skaterDetailSelect =
+  "fullName profile phone address district gender email krsaId";
+
+const looksLikeMongoObjectId = (value) =>
+  typeof value === "string" && /^[a-fA-F0-9]{24}$/.test(value);
+
+export const getSkaterByIdForStateRepository = async (id) => {
+  const raw = String(id || "").trim();
+  if (!raw) {
+    return null;
+  }
+
+  let skater = null;
+  if (looksLikeMongoObjectId(raw)) {
+    skater = await Skater.findById(raw)
+      .select(skaterDetailSelect)
+      .populate("district", "name")
+      .lean();
+  }
+  if (!skater) {
+    skater = await Skater.findOne({ krsaId: raw })
+      .select(skaterDetailSelect)
+      .populate("district", "name")
+      .lean();
+  }
+
+  if (!skater) {
+    return null;
+  }
+
+  return {
+    fullName: skater.fullName ?? "",
+    profile: skater.profile ?? "",
+    phone: skater.phone ?? "",
+    address: skater.address ?? "",
+    districtName: skater.district?.name ?? "",
+    gender: skater.gender ?? "",
+    email: skater.email ?? "",
+    krsaId: skater.krsaId ?? "",
+    rank: 0,
+  };
+};

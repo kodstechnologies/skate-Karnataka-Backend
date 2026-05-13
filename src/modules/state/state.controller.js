@@ -106,8 +106,8 @@ export const displayAllSkatersByState = asyncHandler(async (req, res) => {
 });
 
 export const displaySkaterById = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const skater = await displaySkaterByIdForStateService(id);
+  const skaterId = req.params.skaterId ?? req.params.id;
+  const skater = await displaySkaterByIdForStateService(skaterId);
   return res.status(200).json(
     new ApiResponse(200, skater, "Skater details fetched successfully")
   );

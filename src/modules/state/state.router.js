@@ -98,8 +98,20 @@ router.get(
   displayClubSkaterById
 );
 
+// ======================== total skater =================
+// Must stay above GET /v1/:id so /v1/skater is not matched as id = "skater".
 
-
+router.get(
+  "/v1/skater",
+  authenticate(["Admin", "State"]),
+  validate(stateListQueryValidation),
+  displayAllSkatersByState
+);
+router.get(
+  "/v1/skater/:skaterId",
+  authenticate(["Admin", "State"]),
+  displaySkaterById
+);
 
 // ==================
 
@@ -169,9 +181,6 @@ router.delete("/v1/:id",
   deleteState
 );
 
-// ======================== total club =================
-
-// ======================== total skater =================
 
 
 

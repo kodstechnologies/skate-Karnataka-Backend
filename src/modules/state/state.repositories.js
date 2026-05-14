@@ -249,17 +249,21 @@ export const getAllSkatersByStateRepository = async ({ page, limit, search = "" 
     ];
   }
 
-  const [data, total] = await Promise.all([
+  const [rows, total] = await Promise.all([
     Skater.find(query)
-      .select("_id fullName profile phone email gender address district club krsaId")
-      .populate("district", "_id name")
-      .populate("club", "_id name clubId")
+      .select("_id fullName profile")
       .sort({ createdAt: -1 })
       .skip(pagination.skip)
       .limit(pagination.limit)
       .lean(),
     Skater.countDocuments(query),
   ]);
+
+  const data = rows.map((s) => ({
+    _id: s._id,
+    fullName: s.fullName ?? "",
+    profile: s.profile ?? "",
+  }));
 
   return {
     data,

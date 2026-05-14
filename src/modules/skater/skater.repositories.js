@@ -96,7 +96,13 @@ const get_all_skating_event_categories_repositories = async () => {
         id: String(category._id),
         name: category.typeName || "",
     }));
-}
+};
+
+const get_all_skating_event_categories_full_repositories = async () => {
+    return await SkatingEventCategory.find({})
+        .sort({ typeName: 1 })
+        .lean();
+};
 
 const get_all_discipline_repositories = async () => {
     return await DisciplineService.find({})
@@ -112,5 +118,6 @@ export {
     update_skater_profile_repositories,
     delete_skater_repositories,
     get_all_skating_event_categories_repositories,
+    get_all_skating_event_categories_full_repositories,
     get_all_discipline_repositories,
 }

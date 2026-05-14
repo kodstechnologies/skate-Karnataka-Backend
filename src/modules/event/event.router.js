@@ -19,8 +19,17 @@ import {
 } from "./event.validation.js";
 import { upload } from "../../middleware/multer.middleware.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
+import { GetAllSkatingEventCategories } from "../skater/skater.controller.js";
 
 const router = express.Router();
+
+// ==================  categories display 
+
+router.get("/v1/category", 
+      authenticate(["Skater","Club","District","State", "Admin"]),
+    GetAllSkatingEventCategories);
+
+// ======================
 
 router.get("/v1/club", authenticate(["Club"]), clubRelatedEventDisplay);
 router.post(
@@ -30,7 +39,17 @@ router.post(
     validate(create_club_event_validation),
     createClubEvent
 );
-
+router.patch(
+    "/v1/club/:id",
+    authenticate(["Club"]),
+    validate(update_event_validation),
+    edit_event
+);
+router.delete(
+    "/v1/club/:id",
+    authenticate(["Club"]),
+    delete_event
+);
 // district =====
 
 router.get("/v1/district", authenticate(["District"]), districtRelatedEventDisplay);
@@ -40,6 +59,18 @@ router.post(
     upload.single("image"),
     validate(create_district_event_validation),
     createDistrictEvent
+);
+
+router.patch(
+    "/v1/district/:id",
+    authenticate(["District"]),
+    validate(update_event_validation),
+    edit_event
+);
+router.delete(
+    "/v1/district/:id",
+    authenticate(["District"]),
+    delete_event
 );
 // display latest event 
 

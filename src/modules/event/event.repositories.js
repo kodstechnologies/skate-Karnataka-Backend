@@ -15,6 +15,23 @@ const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const normalizeAttendanceStatus = (status) =>
   status === "apsent" ? "absent" : status;
 
+/** Club JWT is usually a member (BaseAuth _id listed on `Club.members`); events store the Club document _id in `eventFor`. */
+const resolveClubIdForClubAuthUser = async (authUserId) => {
+  let resolvedClubId = authUserId;
+
+  const clubByMember = await Club.findOne({
+    members: new mongoose.Types.ObjectId(authUserId),
+  })
+    .select("_id")
+    .lean();
+
+  if (clubByMember?._id) {
+    resolvedClubId = clubByMember._id;
+  }
+
+  return resolvedClubId;
+};
+
 const displayAllEventRepository = async ({ page, limit }) => {
 
   const { skip, limit: pageLimit, page: currentPage } =
@@ -488,13 +505,14 @@ export const updateEventParticipantTimingBySkaterRepository = async (
 
 
 export const clubRelatedEventDisplayRepositories = async (
-  clubId,
+  authUserId,
   { page, limit }
 ) => {
-console.log("pppppppppppp")
+  const resolvedClubId = await resolveClubIdForClubAuthUser(authUserId);
+
   const query = {
     eventType: "Club",
-    eventFor: new mongoose.Types.ObjectId(clubId),
+    eventFor: new mongoose.Types.ObjectId(resolvedClubId),
   };
 
   const {
@@ -523,17 +541,7 @@ console.log("pppppppppppp")
 };
 
 export const createClubEventRepositories = async (clubId, data) => {
-  let resolvedClubId = clubId;
-
-  const clubByMember = await Club.findOne({
-    members: new mongoose.Types.ObjectId(clubId),
-  })
-    .select("_id")
-    .lean();
-
-  if (clubByMember?._id) {
-    resolvedClubId = clubByMember._id;
-  }
+  const resolvedClubId = await resolveClubIdForClubAuthUser(clubId);
 
   const payload = {
     ...data,

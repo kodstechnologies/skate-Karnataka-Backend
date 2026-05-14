@@ -1,7 +1,7 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
 import { formatDate } from "../../util/time/timeUtil.js";
-import { after_login_form_skater_service, deleteUser_skater_service, get_all_discipline_service, get_all_skating_event_categories_service, get_skater_digital_id_card_service, get_skater_profile_service, update_skater_profile_service,  } from "./skater.service.js";
+import { after_login_form_skater_service, deleteUser_skater_service, get_all_discipline_service, get_all_skating_event_categories_full_service, get_all_skating_event_categories_service, get_skater_digital_id_card_service, get_skater_profile_service, update_skater_profile_service } from "./skater.service.js";
 
 const afterLoginSkaterForm = asyncHandler(async (req, res) => {
     const { id } = req.params;
@@ -84,6 +84,15 @@ const GetAllSkatingEventCategories = asyncHandler(async (_req, res) => {
         .json(new ApiResponse(200, categories, "Skating categories fetched successfully"));
 });
 
+const GetAllSkatingEventCategoriesFull = asyncHandler(async (_req, res) => {
+    const categories = await get_all_skating_event_categories_full_service();
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, categories, "All skating event category records fetched successfully")
+        );
+});
+
 const getAllDiscipline = asyncHandler(async (_req, res) => {
     const disciplines = await get_all_discipline_service();
     return res
@@ -98,5 +107,6 @@ GetSkaterDigitalIdCard,
 UpdateSkaterProfile,
 DeleteSkater,
 GetAllSkatingEventCategories,
+GetAllSkatingEventCategoriesFull,
 getAllDiscipline,
 }

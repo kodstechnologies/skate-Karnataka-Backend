@@ -89,10 +89,19 @@ const eventSchema = new mongoose.Schema(
     },
     entryFee: {
       type: String,
-    }
+    },
 
+    // 🛼 Skating event categories (multiple SkatingEventCategory documents)
+    skatingEventCategories: {
+      type: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "SkatingEventCategory",
+        },
+      ],
+      default: [],
+    },
 
-    ,
     colorOne: {
       type: String,
       default: "#6A11CB" // primary (purple)

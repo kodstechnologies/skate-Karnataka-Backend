@@ -22,9 +22,9 @@ const display_latest_event = asyncHandler(async (req, res) => {
 // =============================== club  
 
 export const clubRelatedEventDisplay = asyncHandler(async (req, res) => {
-    const clubId = req.user._id;
+    const tokenUserId = req.user._id;
     const { page = 1, limit = 10 } = req.query;
-    const events = await clubRelatedEventDisplayService(clubId, { page, limit });
+    const events = await clubRelatedEventDisplayService(tokenUserId, { page, limit });
     return res.status(200).json({
         statusCode: 200,
         data: events.data || [],

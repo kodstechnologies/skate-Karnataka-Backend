@@ -1,6 +1,6 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
-import { clubRelatedEventDisplay, createClubEvent, create_event, delete_event, display_all_event_based_on_user, display_latest_event, displayAllEvents, displayEventById, edit_event, createDistrictEvent, districtRelatedEventDisplay, stateEventResult, stateRelatedEventDisplay, stateEventSkatersSummary, updateStateSkaterTime, createStateEvent, createEventCategory, deleteEventCategory, getEventCategories, getEventCategoryById, updateEventCategory, createRegisterForm, getRegisterFormById, getRegisterFormByUserId } from "./event.controller.js";
+import { clubRelatedEventDisplay, createClubEvent, create_event, delete_event, display_all_event_based_on_user, display_latest_event, displayAllEvents, displayEventById, displaySkaterEventFullDetails, edit_event, createDistrictEvent, districtRelatedEventDisplay, stateEventResult, stateRelatedEventDisplay, stateEventSkatersSummary, updateStateSkaterTime, createStateEvent, createEventCategory, deleteEventCategory, getEventCategories, getEventCategoryById, updateEventCategory, createRegisterForm, getRegisterFormById, getRegisterFormByUserId } from "./event.controller.js";
 import { validate } from "../../middleware/validate.multiple.js";
 import {
     create_event_category_validation,
@@ -123,12 +123,6 @@ router.delete(
 );
 // =============================
 
-router.get("/v1/latest-event", authenticate(["Skater"]), display_latest_event);
-
-// display all event based on state , district , club 
-
-router.get("/v1/user-all-events", authenticate(["Skater"]), display_all_event_based_on_user);
-
 
 router.get("/v1/display",
     displayAllEvents);
@@ -172,6 +166,21 @@ router.patch(
     updateEventCategory
 );
 router.delete("/v1/event-categories/:id", authenticate(["State", "Admin"]), deleteEventCategory);
+
+// ======================= skater event 
+
+router.get("/v1/latest-event", authenticate(["Skater"]), display_latest_event);
+
+// display all event based on state , district , club 
+
+router.get("/v1/user-all-events", authenticate(["Skater"]), display_all_event_based_on_user);
+
+router.get(
+    "/v1/event-full-details/:id",
+    authenticate(["Skater"]),
+    displaySkaterEventFullDetails
+);
+
 
 // ================================== skater register 
 

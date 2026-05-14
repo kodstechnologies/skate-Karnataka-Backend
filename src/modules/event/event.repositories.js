@@ -761,6 +761,75 @@ const displaySingleEventRepository = async (id) => {
   return event;
 };
 
+/**
+ * Skater-only event detail: same visibility as latest-event (all State events + District/Club for skater's district/club).
+ * `name` is the organizer: State/District/Club document `name` (State defaults to schema default e.g. Karnataka).
+ */
+export const getSkaterEventFullDetailsDtoRepository = async (eventId, skaterUserId) => {
+  const user =
+    (await Skater.findById(skaterUserId).select("district club").lean()) ||
+    (await BaseAuth.findById(skaterUserId).select("district").lean());
+
+  if (!user) {
+    return null;
+  }
+
+  const userDistrict = user.district;
+  const userClub = user.club;
+
+  const rawId = String(eventId || "").trim();
+  if (!rawId || !mongoose.Types.ObjectId.isValid(rawId)) {
+    return null;
+  }
+
+  const event = await Event.findById(rawId).populate("eventFor", "name").lean();
+
+  if (!event) {
+    return null;
+  }
+
+  const ownerRaw = event.eventFor?._id ?? event.eventFor;
+  const ownerId = ownerRaw != null ? String(ownerRaw) : null;
+
+  if (event.eventType === "State") {
+    // visible to all skaters (matches display_latest_event_repositories)
+  } else if (event.eventType === "District") {
+    if (!userDistrict || ownerId !== String(userDistrict)) {
+      return null;
+    }
+  } else if (event.eventType === "Club") {
+    if (!userClub || ownerId !== String(userClub)) {
+      return null;
+    }
+  } else {
+    return null;
+  }
+
+  const name =
+    event.eventType === "State"
+      ? event.eventFor?.name || "Karnataka"
+      : event.eventFor?.name || "";
+
+  return {
+    header: event.header ?? "",
+    registerStartDate: event.registerStartDate,
+    registerEndDate: event.registerEndDate,
+    eventStartDate: event.eventStartDate,
+    eventEndDate: event.eventEndDate,
+    eventStartTime: event.eventStartTime ?? "",
+    eventEndTime: event.eventEndTime ?? "",
+    about: event.about ?? "",
+    address: event.address ?? "",
+    eventType: event.eventType,
+    name,
+    status: event.status,
+    entryFee: event.entryFee ?? "",
+    colorOne: event.colorOne ?? "#6A11CB",
+    colorTwo: event.colorTwo ?? "#2575FC",
+    textColor: event.textColor ?? "#FFFFFF",
+  };
+};
+
 /** Same fetch as display single, but keeps populated `eventFor` for authorization. */
 export const getStateEventFullDetailsByIdRepository = async (eventId) => {
   return Event.findById(eventId).populate("eventFor", "name").lean();

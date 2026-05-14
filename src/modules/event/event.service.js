@@ -1,6 +1,6 @@
 import { AppError } from "../../util/common/AppError.js";
 import { State } from "../state/state.model.js";
-import { createEventCategoryRepository, createRegisterFormRepository, deleteEventCategoryRepository, displaySingleEventRepository, displayAllEventRepository, create_event_repositories, edit_event_repositories, delete_event_repositories, display_latest_event_repositories, display_all_event_based_on_user_repositories, clubRelatedEventDisplayRepositories, createClubEventRepositories, districtRelatedEventDisplayRepositories, createDistrictEventRepositories, getRegisterFormByIdRepository, getRegisterFormByUserIdRepository, stateRelatedEventDisplayRepositories, createStateEventRepositories, getAllEventCategoriesRepository, getEventCategoryByIdRepository, updateEventCategoryRepository, getStateEventFullDetailsByIdRepository, getStateEventResultsRepository, listEventSkatersBasicByEventIdRepository, listEventSkatersByEventIdRepository, updateEventParticipantTimingBySkaterRepository } from "./event.repositories.js";
+import { createEventCategoryRepository, createRegisterFormRepository, deleteEventCategoryRepository, displaySingleEventRepository, displayAllEventRepository, create_event_repositories, edit_event_repositories, delete_event_repositories, display_latest_event_repositories, display_all_event_based_on_user_repositories, clubRelatedEventDisplayRepositories, createClubEventRepositories, districtRelatedEventDisplayRepositories, createDistrictEventRepositories, getRegisterFormByIdRepository, getRegisterFormByUserIdRepository, stateRelatedEventDisplayRepositories, createStateEventRepositories, getAllEventCategoriesRepository, getEventCategoryByIdRepository, updateEventCategoryRepository, getStateEventFullDetailsByIdRepository, getStateEventResultsRepository, listEventSkatersBasicByEventIdRepository, listEventSkatersByEventIdRepository, updateEventParticipantTimingBySkaterRepository, getSkaterEventFullDetailsDtoRepository } from "./event.repositories.js";
 
 const displayEventServer = async (data) => {
 
@@ -235,6 +235,14 @@ export const createRegisterFormService = async (userId, payload) => {
         ...payload,
         userId,
     });
+};
+
+export const displaySkaterEventFullDetailsService = async (eventId, skaterUserId) => {
+    const dto = await getSkaterEventFullDetailsDtoRepository(eventId, skaterUserId);
+    if (!dto) {
+        throw new AppError("Event not found", 404);
+    }
+    return dto;
 };
 
 const displaySingleEventDetailsServer = async (id) => {

@@ -405,12 +405,14 @@ export const getClubSkaterByIdsForStateRepository = async (clubIdParam, skaterId
     skater = await Skater.findById(raw)
       .select(`${skaterDetailSelect} club`)
       .populate("district", "name")
+      .populate("club", "name clubId")
       .lean();
   }
   if (!skater) {
     skater = await Skater.findOne({ krsaId: raw })
       .select(`${skaterDetailSelect} club`)
       .populate("district", "name")
+      .populate("club", "name clubId")
       .lean();
   }
 
@@ -428,6 +430,7 @@ export const getClubSkaterByIdsForStateRepository = async (clubIdParam, skaterId
     email: skater.email ?? "",
     krsaId: skater.krsaId ?? "",
     rank: 0,
+    clubName: skater.club?.name ?? "",
   };
 };
 
@@ -440,14 +443,16 @@ export const getSkaterByIdForStateRepository = async (id) => {
   let skater = null;
   if (looksLikeMongoObjectId(raw)) {
     skater = await Skater.findById(raw)
-      .select(skaterDetailSelect)
+      .select(`${skaterDetailSelect} club`)
       .populate("district", "name")
+      .populate("club", "name clubId")
       .lean();
   }
   if (!skater) {
     skater = await Skater.findOne({ krsaId: raw })
-      .select(skaterDetailSelect)
+      .select(`${skaterDetailSelect} club`)
       .populate("district", "name")
+      .populate("club", "name clubId")
       .lean();
   }
 
@@ -465,5 +470,6 @@ export const getSkaterByIdForStateRepository = async (id) => {
     email: skater.email ?? "",
     krsaId: skater.krsaId ?? "",
     rank: 0,
+    clubName: skater.club?.name ?? "",
   };
 };

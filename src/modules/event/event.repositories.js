@@ -674,6 +674,41 @@ export const createDistrictEventRepositories = async (districtUserId, data) => {
   return event;
 };
 
+/**
+ * For each lean event, replace `skatingEventCategories` id list with `{ _id, typeName }[]` (same order).
+ */
+export const enrichLeanEventsSkatingCategoryNames = async (events) => {
+  if (!Array.isArray(events) || events.length === 0) {
+    return events;
+  }
+  const idSet = new Set();
+  for (const ev of events) {
+    for (const id of ev.skatingEventCategories || []) {
+      const s = String(id);
+      if (mongoose.Types.ObjectId.isValid(s)) idSet.add(s);
+    }
+  }
+  if (idSet.size === 0) {
+    return events.map((ev) => ({ ...ev, skatingEventCategories: [] }));
+  }
+  const objectIds = [...idSet].map((id) => new mongoose.Types.ObjectId(id));
+  const docs = await SkatingEventCategory.find({ _id: { $in: objectIds } })
+    .select("_id typeName")
+    .lean();
+  const byId = new Map(docs.map((d) => [String(d._id), d]));
+
+  return events.map((ev) => ({
+    ...ev,
+    skatingEventCategories: (ev.skatingEventCategories || []).map((id) => {
+      const key = String(id);
+      const doc = byId.get(key);
+      return doc
+        ? { _id: doc._id, typeName: doc.typeName ?? "" }
+        : { _id: id, typeName: null };
+    }),
+  }));
+};
+
 export const stateRelatedEventDisplayRepositories = async (stateId, { page, limit, search }) => {
   const query = { eventType: "State" };
   if (stateId) {
@@ -698,12 +733,14 @@ export const stateRelatedEventDisplayRepositories = async (stateId, { page, limi
 
   const total = await Event.countDocuments(query);
 
+  const data = await enrichLeanEventsSkatingCategoryNames(events);
+
   return {
     total,
     page: currentPage,
     limit: pageLimit,
     totalPages: Math.ceil(total / pageLimit),
-    data: events,
+    data,
   };
 };
 

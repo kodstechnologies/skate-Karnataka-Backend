@@ -1,4 +1,5 @@
 import { AppError } from "../../util/common/AppError.js";
+import { BaseAuth } from "../auth/baseAuth.model.js";
 import { State } from "../state/state.model.js";
 import { createEventCategoryRepository, createRegisterFormRepository, deleteEventCategoryRepository, displaySingleEventRepository, displayAllEventRepository, create_event_repositories, edit_event_repositories, delete_event_repositories, display_latest_event_repositories, display_all_event_based_on_user_repositories, clubRelatedEventDisplayRepositories, createClubEventRepositories, districtRelatedEventDisplayRepositories, createDistrictEventRepositories, enrichLeanEventsSkatingCategoryNames, getRegisterFormByIdRepository, getRegisterFormByUserIdRepository, stateRelatedEventDisplayRepositories, createStateEventRepositories, getAllEventCategoriesRepository, getEventCategoryByIdRepository, updateEventCategoryRepository, getStateEventFullDetailsByIdRepository, getStateEventResultsRepository, listEventSkatersBasicByEventIdRepository, listEventSkatersByEventIdRepository, updateEventParticipantTimingBySkaterRepository, getSkaterEventFullDetailsDtoRepository, getSkaterEventFormCategoryDetailsRepository } from "./event.repositories.js";
 
@@ -33,6 +34,42 @@ export const districtRelatedEventDisplayService = async (districtUserId, query) 
 export const createDistrictEventService = async (districtUserId, data) => {
     return await createDistrictEventRepositories(districtUserId, data);
 }
+
+const assertUserCanAccessDistrictEvent = async (eventId, userId) => {
+    const event = await getStateEventFullDetailsByIdRepository(eventId);
+    if (!event) {
+        throw new AppError("Event not found", 404);
+    }
+    if (event.eventType !== "District") {
+        throw new AppError("Event not found", 404);
+    }
+    const user = await BaseAuth.findById(userId).select("district").lean();
+    const districtId = user?.district || userId;
+    const districtIdStr = districtId != null ? String(districtId) : null;
+    const ownerId =
+        event.eventFor && typeof event.eventFor === "object" && event.eventFor._id
+            ? event.eventFor._id.toString()
+            : event.eventFor != null
+              ? String(event.eventFor)
+              : null;
+    if (!districtIdStr || !ownerId || ownerId !== districtIdStr) {
+        throw new AppError("Forbidden", 403);
+    }
+    return event;
+};
+
+export const districtEventFullDetailsService = async (eventId, { userId }) => {
+    const event = await assertUserCanAccessDistrictEvent(eventId, userId);
+    const [enriched] = await enrichLeanEventsSkatingCategoryNames([event]);
+    const skatersSummary = await listEventSkatersBasicByEventIdRepository(eventId);
+    const payload = { ...enriched };
+    if (payload.eventFor && typeof payload.eventFor === "object" && "name" in payload.eventFor) {
+        payload.eventFor = payload.eventFor.name;
+    }
+    payload.skaterCount = skatersSummary.skaterCount;
+    payload.skaters = skatersSummary.skaters;
+    return payload;
+};
 
 export const stateRelatedEventDisplayService = async (stateId, query) => {
     return await stateRelatedEventDisplayRepositories(stateId, query);

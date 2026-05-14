@@ -53,6 +53,11 @@ router.delete(
 // district =====
 
 router.get("/v1/district", authenticate(["District"]), districtRelatedEventDisplay);
+router.get(
+    "/v1/district/:id",
+    authenticate(["District"]),
+    districtRelatedEventDisplay
+);
 router.post(
     "/v1/district",
     authenticate(["District"]),

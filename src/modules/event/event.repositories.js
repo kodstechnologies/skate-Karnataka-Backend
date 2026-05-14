@@ -600,6 +600,7 @@ export const districtRelatedEventDisplayRepositories = async (districtUserId, { 
   const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
 
   const events = await Event.find(query)
+    .select(EVENT_CARD_LIST_PROJECTION)
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(pageLimit)
@@ -607,12 +608,15 @@ export const districtRelatedEventDisplayRepositories = async (districtUserId, { 
 
   const total = await Event.countDocuments(query);
 
+  const enriched = await enrichLeanEventsSkatingCategoryNames(events);
+  const data = enriched.map(toEventCardListItem);
+
   return {
     total,
     page: currentPage,
     limit: pageLimit,
     totalPages: Math.ceil(total / pageLimit),
-    data: events,
+    data,
   };
 };
 
@@ -709,11 +713,11 @@ export const enrichLeanEventsSkatingCategoryNames = async (events) => {
   }));
 };
 
-/** Public fields for `GET /event/v1/state` list (cards / table rows). */
-const STATE_EVENT_LIST_PROJECTION =
+/** Public fields for state/district event list cards (`GET .../v1/state`, `GET .../v1/district`). */
+const EVENT_CARD_LIST_PROJECTION =
   "_id header eventStartDate eventEndDate colorOne colorTwo textColor skatingEventCategories status address eventType";
 
-const toStateEventListItem = (ev) => ({
+const toEventCardListItem = (ev) => ({
   _id: ev._id,
   header: ev.header ?? "",
   eventStartDate: ev.eventStartDate ?? null,
@@ -724,7 +728,7 @@ const toStateEventListItem = (ev) => ({
   skatingEventCategories: ev.skatingEventCategories ?? [],
   status: ev.status ?? "coming_soon",
   address: ev.address ?? "",
-  eventType: ev.eventType ?? "State",
+  eventType: ev.eventType ?? "",
 });
 
 export const stateRelatedEventDisplayRepositories = async (stateId, { page, limit, search }) => {
@@ -744,7 +748,7 @@ export const stateRelatedEventDisplayRepositories = async (stateId, { page, limi
   const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
 
   const events = await Event.find(query)
-    .select(STATE_EVENT_LIST_PROJECTION)
+    .select(EVENT_CARD_LIST_PROJECTION)
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(pageLimit)
@@ -753,7 +757,7 @@ export const stateRelatedEventDisplayRepositories = async (stateId, { page, limi
   const total = await Event.countDocuments(query);
 
   const enriched = await enrichLeanEventsSkatingCategoryNames(events);
-  const data = enriched.map(toStateEventListItem);
+  const data = enriched.map(toEventCardListItem);
 
   return {
     total,
@@ -948,10 +952,14 @@ export const getSkaterEventFormCategoryDetailsRepository = async (eventId, skate
   return { ...meta, skatingEventCategories };
 };
 
-/** Same fetch as display single, but keeps populated `eventFor` for authorization. */
-export const getStateEventFullDetailsByIdRepository = async (eventId) => {
+/** Event by id with `eventFor` populated (State / District / Club all expose `name`). */
+export const getEventByIdPopulatingEventForNameRepository = async (eventId) => {
   return Event.findById(eventId).populate("eventFor", "name").lean();
 };
+
+/** Same fetch as display single, but keeps populated `eventFor` for authorization. */
+export const getStateEventFullDetailsByIdRepository =
+  getEventByIdPopulatingEventForNameRepository;
 
 const display_latest_event_repositories = async (userId) => {
   // ✅ Get skater profile first (contains club), fallback to BaseAuth

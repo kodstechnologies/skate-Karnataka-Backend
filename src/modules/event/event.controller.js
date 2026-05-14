@@ -1,7 +1,7 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { AppError } from "../../util/common/AppError.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { clubRelatedEventDisplayService, createClubEventService, createDistrictEventService, createEventCategoryService, createRegisterFormService, createStateEventService, create_event_schema, deleteEventCategoryService, delete_event_schema, display_all_event_based_on_user_service, display_latest_event_server, displayEventServer, displaySingleEventDetailsServer, displaySkaterEventFullDetailsService, districtRelatedEventDisplayService, edit_event_schema, getAllEventCategoriesService, getEventCategoryByIdService, getRegisterFormByIdService, getRegisterFormByUserIdService, stateEventResultsService, stateRelatedEventDisplayService, stateEventFullDetailsService, stateEventSkatersSummaryService, updateEventCategoryService, updateStateEventSkaterTimeService } from "./event.service.js";
+import { clubRelatedEventDisplayService, createClubEventService, createDistrictEventService, createEventCategoryService, createRegisterFormService, createStateEventService, create_event_schema, deleteEventCategoryService, delete_event_schema, display_all_event_based_on_user_service, display_latest_event_server, displayEventServer, displaySingleEventDetailsServer, displaySkaterEventFullDetailsService, displaySkaterEventFormCategoryDetailsService, districtRelatedEventDisplayService, edit_event_schema, getAllEventCategoriesService, getEventCategoryByIdService, getRegisterFormByIdService, getRegisterFormByUserIdService, stateEventResultsService, stateRelatedEventDisplayService, stateEventFullDetailsService, stateEventSkatersSummaryService, updateEventCategoryService, updateStateEventSkaterTimeService } from "./event.service.js";
 import { initiateRazorpayPaymentServices } from "../payment/payment.services.js";
 
 
@@ -303,6 +303,14 @@ export const displaySkaterEventFullDetails = asyncHandler(async (req, res) => {
     const payload = await displaySkaterEventFullDetailsService(id, req.user._id);
     return res.status(200).json(
         new ApiResponse(200, payload, "Event full details fetched successfully")
+    );
+});
+
+export const displaySkaterEventFormCategoryDetails = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const payload = await displaySkaterEventFormCategoryDetailsService(id, req.user._id);
+    return res.status(200).json(
+        new ApiResponse(200, payload, "Event category form details fetched successfully")
     );
 });
 

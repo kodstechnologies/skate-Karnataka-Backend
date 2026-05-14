@@ -762,10 +762,10 @@ const displaySingleEventRepository = async (id) => {
 };
 
 /**
- * Skater-only event detail: same visibility as latest-event (all State events + District/Club for skater's district/club).
- * `name` is the organizer: State/District/Club document `name` (State defaults to schema default e.g. Karnataka).
+ * Event lean doc if the skater may see it (State / own district / own club), else null.
+ * @param {string|null|undefined} select - optional mongoose `.select()` projection
  */
-export const getSkaterEventFullDetailsDtoRepository = async (eventId, skaterUserId) => {
+const fetchEventLeanIfSkaterAccessible = async (eventId, skaterUserId, select) => {
   const user =
     (await Skater.findById(skaterUserId).select("district club").lean()) ||
     (await BaseAuth.findById(skaterUserId).select("district").lean());
@@ -782,7 +782,11 @@ export const getSkaterEventFullDetailsDtoRepository = async (eventId, skaterUser
     return null;
   }
 
-  const event = await Event.findById(rawId).populate("eventFor", "name").lean();
+  let q = Event.findById(rawId).populate("eventFor", "name");
+  if (select) {
+    q = q.select(select);
+  }
+  const event = await q.lean();
 
   if (!event) {
     return null;
@@ -802,6 +806,19 @@ export const getSkaterEventFullDetailsDtoRepository = async (eventId, skaterUser
       return null;
     }
   } else {
+    return null;
+  }
+
+  return event;
+};
+
+/**
+ * Skater-only event detail: same visibility as latest-event (all State events + District/Club for skater's district/club).
+ * `name` is the organizer: State/District/Club document `name` (State defaults to schema default e.g. Karnataka).
+ */
+export const getSkaterEventFullDetailsDtoRepository = async (eventId, skaterUserId) => {
+  const event = await fetchEventLeanIfSkaterAccessible(eventId, skaterUserId, null);
+  if (!event) {
     return null;
   }
 
@@ -828,6 +845,50 @@ export const getSkaterEventFullDetailsDtoRepository = async (eventId, skaterUser
     colorTwo: event.colorTwo ?? "#2575FC",
     textColor: event.textColor ?? "#FFFFFF",
   };
+};
+
+/**
+ * Full SkatingEventCategory documents for this event, in the same order as `event.skatingEventCategories`.
+ */
+export const getSkaterEventFormCategoryDetailsRepository = async (eventId, skaterUserId) => {
+  const event = await fetchEventLeanIfSkaterAccessible(
+    eventId,
+    skaterUserId,
+    "skatingEventCategories eventType eventFor header entryFee"
+  );
+  if (!event) {
+    return null;
+  }
+
+  const skater =
+    (await Skater.findById(skaterUserId).select("fullName krsaId").lean()) ||
+    (await BaseAuth.findById(skaterUserId).select("fullName krsaId").lean());
+
+  const meta = {
+    eventId: event._id,
+    eventName: event.header ?? "",
+    entryFee: event.entryFee ?? "",
+    skaterName: skater?.fullName ?? "",
+    krsaId: skater?.krsaId ?? "",
+  };
+
+  const orderedIds = (event.skatingEventCategories || [])
+    .map((id) => String(id))
+    .filter((id) => mongoose.Types.ObjectId.isValid(id));
+
+  if (orderedIds.length === 0) {
+    return { ...meta, skatingEventCategories: [] };
+  }
+
+  const objectIds = orderedIds.map((id) => new mongoose.Types.ObjectId(id));
+  const docs = await SkatingEventCategory.find({ _id: { $in: objectIds } }).lean();
+
+  const byId = new Map(docs.map((doc) => [String(doc._id), doc]));
+  const skatingEventCategories = orderedIds
+    .map((id) => byId.get(id))
+    .filter(Boolean);
+
+  return { ...meta, skatingEventCategories };
 };
 
 /** Same fetch as display single, but keeps populated `eventFor` for authorization. */

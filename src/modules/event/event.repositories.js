@@ -709,6 +709,24 @@ export const enrichLeanEventsSkatingCategoryNames = async (events) => {
   }));
 };
 
+/** Public fields for `GET /event/v1/state` list (cards / table rows). */
+const STATE_EVENT_LIST_PROJECTION =
+  "_id header eventStartDate eventEndDate colorOne colorTwo textColor skatingEventCategories status address eventType";
+
+const toStateEventListItem = (ev) => ({
+  _id: ev._id,
+  header: ev.header ?? "",
+  eventStartDate: ev.eventStartDate ?? null,
+  eventEndDate: ev.eventEndDate ?? null,
+  colorOne: ev.colorOne ?? "#6A11CB",
+  colorTwo: ev.colorTwo ?? "#2575FC",
+  textColor: ev.textColor ?? "#FFFFFF",
+  skatingEventCategories: ev.skatingEventCategories ?? [],
+  status: ev.status ?? "coming_soon",
+  address: ev.address ?? "",
+  eventType: ev.eventType ?? "State",
+});
+
 export const stateRelatedEventDisplayRepositories = async (stateId, { page, limit, search }) => {
   const query = { eventType: "State" };
   if (stateId) {
@@ -726,6 +744,7 @@ export const stateRelatedEventDisplayRepositories = async (stateId, { page, limi
   const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
 
   const events = await Event.find(query)
+    .select(STATE_EVENT_LIST_PROJECTION)
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(pageLimit)
@@ -733,7 +752,8 @@ export const stateRelatedEventDisplayRepositories = async (stateId, { page, limi
 
   const total = await Event.countDocuments(query);
 
-  const data = await enrichLeanEventsSkatingCategoryNames(events);
+  const enriched = await enrichLeanEventsSkatingCategoryNames(events);
+  const data = enriched.map(toStateEventListItem);
 
   return {
     total,

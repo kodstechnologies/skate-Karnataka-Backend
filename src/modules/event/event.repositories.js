@@ -734,7 +734,7 @@ export const enrichLeanEventsSkatingCategoryNames = async (events) => {
   }));
 };
 
-/** Public fields for event list cards (`GET .../v1/state`, `GET .../v1/district`, `GET .../v1/club`, `GET .../v1/user-all-events`). */
+/** Public fields for event list cards (`GET .../v1/state`, `GET .../v1/district`, `GET .../v1/club`, `GET .../v1/user-all-events`, `GET .../v1/latest-event`). */
 const EVENT_CARD_LIST_PROJECTION =
   "_id header eventStartDate eventEndDate colorOne colorTwo textColor skatingEventCategories status address eventType";
 
@@ -1008,38 +1008,15 @@ const display_latest_event_repositories = async (userId) => {
     ],
   };
 
-  // ✅ Get latest event
   const event = await Event.findOne(query)
+    .select(EVENT_CARD_LIST_PROJECTION)
     .sort({ createdAt: -1 })
-    .populate("eventFor", "name")
     .lean();
 
   if (!event) return null;
 
-  // ✅ Return cleaned response directly
-  return {
-    id: event._id,
-    header: event.header,
-    image: event.image
-      ? `${event.image}`
-      : "",
-    registerStartDate: event.registerStartDate,
-    registerEndDate: event.registerEndDate,
-    eventStartDate: event.eventStartDate,
-    eventEndDate: event.eventEndDate,
-    eventStartTime: event.eventStartTime,
-    eventEndTime: event.eventEndTime,
-    address: event.address,
-    eventType: event.eventType,
-    eventForName:
-      event.eventType === "State"
-        ? "State"
-        : event.eventFor?.name || "N/A",
-    status: event.status,
-    colorOne: event.colorOne,
-    colorTwo: event.colorTwo,
-    textColor: event.textColor,
-  };
+  const [enriched] = await enrichLeanEventsSkatingCategoryNames([event]);
+  return toEventCardListItem(enriched);
 };
 const create_event_repositories = async (data) => {
   const event = await Event.create(data);

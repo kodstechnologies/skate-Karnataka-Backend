@@ -510,9 +510,26 @@ export const clubRelatedEventDisplayRepositories = async (
 ) => {
   const resolvedClubId = await resolveClubIdForClubAuthUser(authUserId);
 
+  const club = await Club.findById(resolvedClubId).select("district").lean();
+  const districtId = club?.district;
+
+  /** Same visibility as skater latest / user-all-events: State + District (club's district) + this club's events. */
   const query = {
-    eventType: "Club",
-    eventFor: new mongoose.Types.ObjectId(resolvedClubId),
+    $or: [
+      { eventType: "State" },
+      ...(districtId
+        ? [
+            {
+              eventType: "District",
+              eventFor: new mongoose.Types.ObjectId(districtId),
+            },
+          ]
+        : []),
+      {
+        eventType: "Club",
+        eventFor: new mongoose.Types.ObjectId(resolvedClubId),
+      },
+    ],
   };
 
   const {
@@ -522,15 +539,19 @@ export const clubRelatedEventDisplayRepositories = async (
   } = paginate(page,limit);
 
   const events = await Event.find(query)
-    .sort({ createdAt:-1 })
+    .select(EVENT_CARD_LIST_PROJECTION)
+    .sort({ createdAt: -1 })
     .skip(skip)
     .limit(pageLimit)
     .lean();
 
   const total = await Event.countDocuments(query);
 
+  const enriched = await enrichLeanEventsSkatingCategoryNames(events);
+  const data = enriched.map(toEventCardListItem);
+
   return {
-    data: events,
+    data,
     pagination: {
       total,
       page: currentPage,
@@ -713,7 +734,7 @@ export const enrichLeanEventsSkatingCategoryNames = async (events) => {
   }));
 };
 
-/** Public fields for state/district event list cards (`GET .../v1/state`, `GET .../v1/district`). */
+/** Public fields for state/district/club event list cards (`GET .../v1/state`, `GET .../v1/district`, `GET .../v1/club`). */
 const EVENT_CARD_LIST_PROJECTION =
   "_id header eventStartDate eventEndDate colorOne colorTwo textColor skatingEventCategories status address eventType";
 

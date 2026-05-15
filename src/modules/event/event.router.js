@@ -1,6 +1,6 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
-import { clubRelatedEventDisplay, createClubEvent, create_event, delete_event, display_all_event_based_on_user, display_latest_event, displayAllEvents, displayEventById, displaySkaterEventFullDetails, displaySkaterEventFormCategoryDetails, edit_event, createDistrictEvent, districtRelatedEventDisplay, stateEventResult, stateRelatedEventDisplay, stateEventSkatersSummary, updateStateSkaterTime, createStateEvent, createEventCategory, deleteEventCategory, getEventCategories, getEventCategoryById, updateEventCategory, createRegisterForm, getRegisterFormById, getRegisterFormByUserId } from "./event.controller.js";
+import { clubRelatedEventDisplay, createClubEvent, create_event, delete_event, display_all_event_based_on_user, display_latest_event, displayAllEvents, displayEventById, displaySkaterEventFullDetails, displaySkaterEventFormCategoryDetails, edit_event, createDistrictEvent, districtRelatedEventDisplay, givenPoint, stateEventResult, stateRelatedEventDisplay, stateEventSkatersSummary, updateStateSkaterTime, createStateEvent, createEventCategory, deleteEventCategory, getEventCategories, getEventCategoryById, updateEventCategory, createRegisterForm, getRegisterFormById, getRegisterFormByUserId } from "./event.controller.js";
 import { validate } from "../../middleware/validate.multiple.js";
 import {
     create_event_category_validation,
@@ -9,6 +9,7 @@ import {
     create_event_validation,
     create_state_event_validation,
     eventCategoryListQueryValidation,
+    given_point_validation,
     register_form_validation,
     state_skater_time_update_validation,
     stateEventResultQueryValidation,
@@ -204,6 +205,14 @@ router.post(
     createRegisterForm
 );
 
+// ===================== given point (Club / District / State / Admin)
+
+router.post(
+    "/v1/given-point",
+    authenticate(["Club", "District", "State", "Admin"]),
+    validate(given_point_validation),
+    givenPoint
+);
 
 // ======================== all SkatingEventCategory
 // router.get("/")

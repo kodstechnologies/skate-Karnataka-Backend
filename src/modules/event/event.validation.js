@@ -178,6 +178,49 @@ const state_skater_time_update_validation = {
         }),
 };
 
+const given_point_validation = {
+    body: Joi.object({
+        eventId: objectIdString.required(),
+        skaterId: objectIdString.optional(),
+        registrationId: objectIdString.optional(),
+        categories: Joi.array()
+            .items(
+                Joi.object({
+                    name: Joi.string().trim().min(1).required(),
+                    timeTaken: Joi.number().allow(null).optional(),
+                    rank: Joi.number().integer().allow(null).optional(),
+                    isDisqualified: Joi.boolean().optional(),
+                    remarks: Joi.string().trim().allow("").optional(),
+                    attendanceStatus: Joi.string()
+                        .trim()
+                        .lowercase()
+                        .valid("pending", "attend", "absent", "absent")
+                        .optional(),
+                })
+            )
+            .min(1)
+            .required(),
+    })
+        .xor("skaterId", "registrationId")
+        .custom((value, helpers) => {
+            const hasUpdateField = (value.categories || []).some(
+                (c) =>
+                    c.timeTaken !== undefined ||
+                    c.rank !== undefined ||
+                    c.isDisqualified !== undefined ||
+                    c.remarks !== undefined ||
+                    c.attendanceStatus !== undefined
+            );
+            if (!hasUpdateField) {
+                return helpers.error("any.custom", {
+                    message:
+                        "At least one category must include timeTaken, rank, isDisqualified, remarks, or attendanceStatus",
+                });
+            }
+            return value;
+        }),
+};
+
 const create_event_validation = {
     body: Joi.object({
         header: Joi.string()
@@ -457,6 +500,7 @@ const register_form_validation = {
 
 export {
     state_skater_time_update_validation,
+    given_point_validation,
     create_event_validation,
     create_club_event_validation,
     create_district_event_validation,

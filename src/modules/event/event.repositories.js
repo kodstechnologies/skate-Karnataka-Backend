@@ -734,7 +734,7 @@ export const enrichLeanEventsSkatingCategoryNames = async (events) => {
   }));
 };
 
-/** Public fields for state/district/club event list cards (`GET .../v1/state`, `GET .../v1/district`, `GET .../v1/club`). */
+/** Public fields for event list cards (`GET .../v1/state`, `GET .../v1/district`, `GET .../v1/club`, `GET .../v1/user-all-events`). */
 const EVENT_CARD_LIST_PROJECTION =
   "_id header eventStartDate eventEndDate colorOne colorTwo textColor skatingEventCategories status address eventType";
 
@@ -1089,12 +1089,8 @@ const display_all_event_based_on_user_repositories = async (userId, { page, limi
 
   const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
 
-  // ✅ Fetch + Populate dynamic ref
   const events = await Event.find(query)
-    .populate({
-      path: "eventFor",
-      select: "name districtName clubName", // based on your models
-    })
+    .select(EVENT_CARD_LIST_PROJECTION)
     .sort({ eventStartDate: 1 })
     .skip(skip)
     .limit(pageLimit)
@@ -1102,40 +1098,15 @@ const display_all_event_based_on_user_repositories = async (userId, { page, limi
 
   const total = await Event.countDocuments(query);
 
-  // ✅ Format response (IMPORTANT 🔥)
-  const formattedEvents = events.map((event) => ({
-    id: event._id,
-    header: event.header,
-    image: event.image,
-    registerStartDate: event.registerStartDate,
-    registerEndDate: event.registerEndDate,
-    eventStartDate: event.eventStartDate,
-    eventEndDate: event.eventEndDate,
-    eventStartTime: event.eventStartTime,
-    eventEndTime: event.eventEndTime,
-    address: event.address,
-    eventType: event.eventType,
-    colorOne: event.colorOne,
-    colorTwo: event.colorTwo,
-    textColor: event.textColor,
-
-    // 👇 get name dynamically
-    eventForName:
-      event.eventType === "State"
-        ? "State"
-        : event.eventType === "District"
-          ? event.eventFor?.name || event.eventFor?.districtName || "N/A"
-          : event.eventType === "Club"
-            ? event.eventFor?.name || event.eventFor?.clubName || "N/A"
-            : "N/A",
-  }));
+  const enriched = await enrichLeanEventsSkatingCategoryNames(events);
+  const data = enriched.map(toEventCardListItem);
 
   return {
     total,
     page: currentPage,
     limit: pageLimit,
     totalPages: Math.ceil(total / pageLimit),
-    data: formattedEvents,
+    data,
   };
 };
 export {

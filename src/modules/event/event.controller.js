@@ -403,10 +403,8 @@ export const getRegisterFormById = asyncHandler(async (req, res) => {
 });
 
 export const createRegisterForm = asyncHandler(async (req, res) => {
-    // const userId = req.user._id;
-    const userId = "69f9d0fe923f8c560847aa01";
+    const userId = req.user._id;
     const result = await createRegisterFormService(userId, req.body);
-    console.log(result,"====")
     const payment = await initiateRazorpayPaymentServices({
         userId,
         participantId: result?._id,

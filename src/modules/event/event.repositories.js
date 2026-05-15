@@ -1039,9 +1039,7 @@ const delete_event_repositories = async (id) => {
 
 
 const display_all_event_based_on_user_repositories = async (userId, { page, limit }) => {
-  console.log(userId,"userId===")
-  // ✅ Get skater profile first (contains club), fallback to BaseAuth
-  const user = (await Skater.findById(userId).select("district club").lean())
+  const user = (await Skater.findById(userId).select("district club category").lean())
     || (await BaseAuth.findById(userId).select("district").lean());
 
   if (!user) {
@@ -1050,21 +1048,36 @@ const display_all_event_based_on_user_repositories = async (userId, { page, limi
 
   const userDistrict = user.district;
   const userClub = user.club;
-
-  // ✅ Query
-  const query = {
-    $or: [
-      { eventType: "State" },
-      ...(userDistrict
-        ? [{ eventType: "District", eventFor: userDistrict }]
-        : []),
-      ...(userClub
-        ? [{ eventType: "Club", eventFor: userClub }]
-        : []),
-    ],
-  };
+  const skaterCategory = user.category;
 
   const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+
+  if (!skaterCategory) {
+    return {
+      total: 0,
+      page: currentPage,
+      limit: pageLimit,
+      totalPages: 0,
+      data: [],
+    };
+  }
+
+  const query = {
+    $and: [
+      {
+        $or: [
+          { eventType: "State" },
+          ...(userDistrict
+            ? [{ eventType: "District", eventFor: userDistrict }]
+            : []),
+          ...(userClub
+            ? [{ eventType: "Club", eventFor: userClub }]
+            : []),
+        ],
+      },
+      { skatingEventCategories: skaterCategory },
+    ],
+  };
 
   const events = await Event.find(query)
     .select(EVENT_CARD_LIST_PROJECTION)

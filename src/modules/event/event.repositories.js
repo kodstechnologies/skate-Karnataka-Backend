@@ -904,6 +904,8 @@ export const getSkaterEventFullDetailsDtoRepository = async (eventId, skaterUser
     return null;
   }
 
+  const [enriched] = await enrichLeanEventsSkatingCategoryNames([event]);
+
   const name =
     event.eventType === "State"
       ? event.eventFor?.name || "Karnataka"
@@ -927,6 +929,7 @@ export const getSkaterEventFullDetailsDtoRepository = async (eventId, skaterUser
     colorOne: event.colorOne ?? "#6A11CB",
     colorTwo: event.colorTwo ?? "#2575FC",
     textColor: event.textColor ?? "#FFFFFF",
+    skatingEventCategories: enriched.skatingEventCategories ?? [],
   };
 };
 

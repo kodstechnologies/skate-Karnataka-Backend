@@ -16,7 +16,7 @@ const normalizeAttendanceStatus = (status) =>
   status === "apsent" ? "absent" : status;
 
 /** Club JWT is usually a member (BaseAuth _id listed on `Club.members`); events store the Club document _id in `eventFor`. */
-const resolveClubIdForClubAuthUser = async (authUserId) => {
+export const resolveClubIdForClubAuthUser = async (authUserId) => {
   let resolvedClubId = authUserId;
 
   const clubByMember = await Club.findOne({
@@ -910,6 +910,7 @@ export const getSkaterEventFullDetailsDtoRepository = async (eventId, skaterUser
       : event.eventFor?.name || "";
 
   return {
+    _id: event._id,
     header: event.header ?? "",
     registerStartDate: event.registerStartDate,
     registerEndDate: event.registerEndDate,

@@ -1,7 +1,8 @@
 import { AppError } from "../../util/common/AppError.js";
 import { BaseAuth } from "../auth/baseAuth.model.js";
 import { State } from "../state/state.model.js";
-import { createEventCategoryRepository, createRegisterFormRepository, deleteEventCategoryRepository, displaySingleEventRepository, displayAllEventRepository, create_event_repositories, edit_event_repositories, delete_event_repositories, display_latest_event_repositories, display_all_event_based_on_user_repositories, clubRelatedEventDisplayRepositories, createClubEventRepositories, districtRelatedEventDisplayRepositories, createDistrictEventRepositories, enrichLeanEventsSkatingCategoryNames, getRegisterFormByIdRepository, getRegisterFormByUserIdRepository, stateRelatedEventDisplayRepositories, createStateEventRepositories, getAllEventCategoriesRepository, getEventCategoryByIdRepository, updateEventCategoryRepository, getStateEventFullDetailsByIdRepository, getStateEventResultsRepository, listEventSkatersBasicByEventIdRepository, listEventSkatersByEventIdRepository, updateEventParticipantTimingBySkaterRepository, getSkaterEventFullDetailsDtoRepository, getSkaterEventFormCategoryDetailsRepository } from "./event.repositories.js";
+import { createEventCategoryRepository, createRegisterFormRepository, deleteEventCategoryRepository, displaySingleEventRepository, displayAllEventRepository, create_event_repositories, edit_event_repositories, delete_event_repositories, display_latest_event_repositories, display_all_event_based_on_user_repositories, clubRelatedEventDisplayRepositories, createClubEventRepositories, districtRelatedEventDisplayRepositories, createDistrictEventRepositories, enrichLeanEventsSkatingCategoryNames, getRegisterFormByIdRepository, getRegisterFormByUserIdRepository, stateRelatedEventDisplayRepositories, createStateEventRepositories, getAllEventCategoriesRepository, getEventCategoryByIdRepository, updateEventCategoryRepository, getStateEventFullDetailsByIdRepository, getStateEventResultsRepository, listEventSkatersBasicByEventIdRepository, listEventSkatersByEventIdRepository, updateEventParticipantTimingBySkaterRepository, getSkaterEventFullDetailsDtoRepository, getSkaterEventFormCategoryDetailsRepository, resolveClubIdForClubAuthUser } from "./event.repositories.js";
+import { Club } from "../club/club.model.js";
 
 const displayEventServer = async (data) => {
 
@@ -22,6 +23,61 @@ const displayEventServer = async (data) => {
 export const clubRelatedEventDisplayService = async (clubId, query) =>{
     return await clubRelatedEventDisplayRepositories(clubId, query);
 }
+
+/** State + District (club's district) + this club's events — same scope as `GET /event/v1/club` list. */
+const assertUserCanAccessClubScopedEvent = async (eventId, userId) => {
+    const event = await getStateEventFullDetailsByIdRepository(eventId);
+    if (!event) {
+        throw new AppError("Event not found", 404);
+    }
+
+    const resolvedClubId = await resolveClubIdForClubAuthUser(userId);
+    const clubRow = await Club.findById(resolvedClubId).select("district").lean();
+    if (!clubRow) {
+        throw new AppError("Club not found", 404);
+    }
+
+    const districtId =
+        clubRow.district != null ? String(clubRow.district) : null;
+    const clubIdStr = String(resolvedClubId);
+
+    const ownerRaw =
+        event.eventFor && typeof event.eventFor === "object" && event.eventFor._id
+            ? event.eventFor._id
+            : event.eventFor;
+    const ownerId = ownerRaw != null ? String(ownerRaw) : null;
+
+    if (event.eventType === "State") {
+        return event;
+    }
+    if (event.eventType === "District") {
+        if (districtId && ownerId === districtId) {
+            return event;
+        }
+        throw new AppError("Forbidden", 403);
+    }
+    if (event.eventType === "Club") {
+        if (ownerId === clubIdStr) {
+            return event;
+        }
+        throw new AppError("Forbidden", 403);
+    }
+
+    throw new AppError("Event not found", 404);
+};
+
+export const clubEventFullDetailsService = async (eventId, { userId }) => {
+    const event = await assertUserCanAccessClubScopedEvent(eventId, userId);
+    const [enriched] = await enrichLeanEventsSkatingCategoryNames([event]);
+    const skatersSummary = await listEventSkatersBasicByEventIdRepository(eventId);
+    const payload = { ...enriched };
+    if (payload.eventFor && typeof payload.eventFor === "object" && "name" in payload.eventFor) {
+        payload.eventFor = payload.eventFor.name;
+    }
+    payload.skaterCount = skatersSummary.skaterCount;
+    payload.skaters = skatersSummary.skaters;
+    return payload;
+};
 
 export const createClubEventService = async (clubId, data) => {
     return await createClubEventRepositories(clubId, data);

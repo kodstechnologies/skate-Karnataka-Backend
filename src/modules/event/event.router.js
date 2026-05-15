@@ -32,6 +32,7 @@ router.get("/v1/category",
 // ======================
 
 router.get("/v1/club", authenticate(["Club"]), clubRelatedEventDisplay);
+router.get("/v1/club/:id", authenticate(["Club"]), clubRelatedEventDisplay);
 router.post(
     "/v1/club",
     authenticate(["Club"]),

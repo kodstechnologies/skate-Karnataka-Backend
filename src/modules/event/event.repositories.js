@@ -933,8 +933,13 @@ export const getSkaterEventFullDetailsDtoRepository = async (eventId, skaterUser
   };
 };
 
+const toSkatingCategorySummary = (doc) =>
+  doc
+    ? { _id: doc._id, typeName: doc.typeName ?? "" }
+    : null;
+
 /**
- * Full SkatingEventCategory documents for this event, in the same order as `event.skatingEventCategories`.
+ * Event form details: skater `category` as `{ _id, typeName }`; event `skatingEventCategories` full documents.
  */
 export const getSkaterEventFormCategoryDetailsRepository = async (eventId, skaterUserId) => {
   const event = await fetchEventLeanIfSkaterAccessible(
@@ -947,7 +952,7 @@ export const getSkaterEventFormCategoryDetailsRepository = async (eventId, skate
   }
 
   const skater =
-    (await Skater.findById(skaterUserId).select("fullName krsaId").lean()) ||
+    (await Skater.findById(skaterUserId).select("fullName krsaId category").lean()) ||
     (await BaseAuth.findById(skaterUserId).select("fullName krsaId").lean());
 
   const meta = {
@@ -962,19 +967,37 @@ export const getSkaterEventFormCategoryDetailsRepository = async (eventId, skate
     .map((id) => String(id))
     .filter((id) => mongoose.Types.ObjectId.isValid(id));
 
-  if (orderedIds.length === 0) {
-    return { ...meta, skatingEventCategories: [] };
+  const skaterCategoryId =
+    skater?.category && mongoose.Types.ObjectId.isValid(String(skater.category))
+      ? String(skater.category)
+      : null;
+
+  let skatingEventCategories = [];
+  if (orderedIds.length > 0) {
+    const objectIds = orderedIds.map((id) => new mongoose.Types.ObjectId(id));
+    const docs = await SkatingEventCategory.find({ _id: { $in: objectIds } }).lean();
+    const byId = new Map(docs.map((doc) => [String(doc._id), doc]));
+    skatingEventCategories = orderedIds
+      .map((id) => byId.get(id))
+      .filter(Boolean);
   }
 
-  const objectIds = orderedIds.map((id) => new mongoose.Types.ObjectId(id));
-  const docs = await SkatingEventCategory.find({ _id: { $in: objectIds } }).lean();
+  let category = null;
+  if (skaterCategoryId) {
+    const fromEventList = skatingEventCategories.find(
+      (doc) => String(doc._id) === skaterCategoryId
+    );
+    if (fromEventList) {
+      category = toSkatingCategorySummary(fromEventList);
+    } else {
+      const doc = await SkatingEventCategory.findById(skaterCategoryId)
+        .select("_id typeName")
+        .lean();
+      category = toSkatingCategorySummary(doc);
+    }
+  }
 
-  const byId = new Map(docs.map((doc) => [String(doc._id), doc]));
-  const skatingEventCategories = orderedIds
-    .map((id) => byId.get(id))
-    .filter(Boolean);
-
-  return { ...meta, skatingEventCategories };
+  return { ...meta, category, skatingEventCategories };
 };
 
 /** Event by id with `eventFor` populated (State / District / Club all expose `name`). */

@@ -480,20 +480,36 @@ const eventCategoryListQueryValidation = {
     }),
 };
 
+const registerCategoryItem = Joi.alternatives().try(
+    Joi.string().trim().min(1),
+    Joi.object({
+        name: Joi.string().trim().min(1).required(),
+        timeTaken: Joi.number().allow(null),
+        rank: Joi.number().integer().allow(null),
+        isDisqualified: Joi.boolean().optional(),
+        remarks: Joi.string().trim().allow("").optional(),
+    })
+);
+
 const register_form_validation = {
     body: Joi.object({
         eventId: Joi.string().trim().pattern(/^[0-9a-fA-F]{24}$/).required(),
-        name: Joi.string().trim().min(1).required(),
+        name: Joi.string().trim().min(1).optional(),
         ageGroup: Joi.string().trim().required(),
-        categories: Joi.array().items(
-            Joi.object({
-                name: Joi.string().trim().min(1).required(),
-                timeTaken: Joi.number().allow(null),
-                rank: Joi.number().integer().allow(null),
-                isDisqualified: Joi.boolean().optional(),
-                remarks: Joi.string().trim().allow("").optional(),
-            })
-        ).min(1).required(),
+        categoriesId: Joi.string()
+            .trim()
+            .allow("")
+            .optional()
+            .custom((value, helpers) => {
+                if (!value) return undefined;
+                if (!/^[0-9a-fA-F]{24}$/.test(value)) {
+                    return helpers.error("any.invalid", {
+                        message: "categoriesId must be a valid 24-character hex id",
+                    });
+                }
+                return value;
+            }),
+        categories: Joi.array().items(registerCategoryItem).min(1).required(),
         paymentStatus: Joi.string().valid("pending", "paid", "failed").optional(),
     }),
 };

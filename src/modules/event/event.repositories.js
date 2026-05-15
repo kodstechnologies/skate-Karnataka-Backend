@@ -137,6 +137,7 @@ export const getRegisterFormByIdRepository = async (id, userId) => {
       : null,
     eventId: item.eventId?._id || null,
     name: item.name || "",
+    categoriesId: item.categoriesId || null,
     ageGroup: item.ageGroup,
     categories: (item.categories || []).map((category) => ({
       ...category,

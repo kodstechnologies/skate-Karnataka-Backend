@@ -23,6 +23,11 @@ const participantSchema = new mongoose.Schema(
       required: true,
     },
 
+    categoriesId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "SkatingEventCategory",
+    },
+
     division: {
       type: String,
       trim: true,

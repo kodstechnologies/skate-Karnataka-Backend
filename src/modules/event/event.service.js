@@ -418,11 +418,51 @@ export const getRegisterFormByIdService = async (id, userId) => {
     return registerForm;
 };
 
+const normalizeRegisterFormCategories = (categories = []) =>
+    categories
+        .map((item) => {
+            if (typeof item === "string") {
+                const name = item.trim();
+                return name ? { name } : null;
+            }
+            if (item && typeof item.name === "string" && item.name.trim()) {
+                return { ...item, name: item.name.trim() };
+            }
+            return null;
+        })
+        .filter(Boolean);
+
 export const createRegisterFormService = async (userId, payload) => {
-    return await createRegisterFormRepository({
-        ...payload,
+    const skater =
+        (await Skater.findById(userId).select("fullName").lean()) ||
+        (await BaseAuth.findById(userId).select("fullName").lean());
+
+    const name =
+        (typeof payload.name === "string" ? payload.name.trim() : "") ||
+        skater?.fullName?.trim() ||
+        "";
+
+    const categories = normalizeRegisterFormCategories(payload.categories);
+    if (categories.length === 0) {
+        throw new AppError("At least one category is required", 400);
+    }
+
+    const doc = {
+        eventId: payload.eventId,
         userId,
-    });
+        name,
+        ageGroup: payload.ageGroup,
+        categories,
+        paymentStatus: payload.paymentStatus,
+    };
+
+    const categoriesId =
+        typeof payload.categoriesId === "string" ? payload.categoriesId.trim() : "";
+    if (categoriesId && mongoose.Types.ObjectId.isValid(categoriesId)) {
+        doc.categoriesId = categoriesId;
+    }
+
+    return await createRegisterFormRepository(doc);
 };
 
 export const displaySkaterEventFullDetailsService = async (eventId, skaterUserId) => {

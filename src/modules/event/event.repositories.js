@@ -237,7 +237,7 @@ export const getAllRegisterDetailsByUserIdRepository = async (
   { page, limit }
 ) => {
   const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
-  const filter = { userId };
+  const filter = { userId, paymentStatus: "paid" };
 
   const [total, items] = await Promise.all([
     EventParticipant.countDocuments(filter),
@@ -271,6 +271,7 @@ export const getRegisterDetailsByEventIdRepository = async (eventId, userId) => 
   const item = await EventParticipant.findOne({
     eventId: eventObjectId,
     userId,
+    paymentStatus: "paid",
   })
     .populate(REGISTER_DETAILS_POPULATE)
     .lean();

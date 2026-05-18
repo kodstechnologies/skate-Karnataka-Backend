@@ -30,7 +30,19 @@ const academySchema = new mongoose.Schema({
   noOfTrainers: { type: String, default: 0 },
   trainerCertification: { type: String, default: "" },
 
+  RegistrationAddress: { type: String, default: "", trim: true },
+
+  img: { type: String, default: "", trim: true },
+
   documents: [
+    {
+      url: { type: String, trim: true },
+      name: { type: String, trim: true },
+      uploadedAt: { type: Date, default: Date.now },
+    },
+  ],
+
+  rosDocuments: [
     {
       url: { type: String, trim: true },
       name: { type: String, trim: true },

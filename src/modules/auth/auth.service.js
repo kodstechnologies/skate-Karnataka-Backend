@@ -114,6 +114,9 @@ const RegisterUserService = async (userData) => {
     if (normalizedRole === "school") {
         userData.role = "School";
     }
+    if (normalizedRole === "academy" || normalizedRole === "club") {
+        userData.role = "Academy";
+    }
     const user = await registerUser_repositories(userData);
 
     if (String(user.role || "").toLowerCase() === "district" && user.district) {

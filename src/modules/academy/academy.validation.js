@@ -30,8 +30,17 @@ const afterLoginClubFormValidation = {
             Joi.object({
                 url: Joi.string().uri().allow(""),
                 name: Joi.string().allow(""),
+                uploadedAt: Joi.date().optional(),
             })
         ),
+        rosDocuments: Joi.array().items(
+            Joi.object({
+                url: Joi.string().uri().allow(""),
+                name: Joi.string().allow(""),
+                uploadedAt: Joi.date().optional(),
+            })
+        ),
+        img: Joi.string().uri().allow("").optional(),
     }).min(1), // ✅ at least one field required
 };
 

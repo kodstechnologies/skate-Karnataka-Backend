@@ -21,11 +21,11 @@ export const uploadToS3 = (folder = "uploads", fieldMap = { img: "img" }) => {
         const { url, key } = await putObject(file, folder);
         const targetField = fieldMap[file.fieldname] || file.fieldname;
 
-        if (targetField === "documents") {
-          if (!Array.isArray(req.body.documents)) {
-            req.body.documents = [];
+        if (targetField === "documents" || targetField === "rosDocuments") {
+          if (!Array.isArray(req.body[targetField])) {
+            req.body[targetField] = [];
           }
-          req.body.documents.push({
+          req.body[targetField].push({
             url,
             name: file.originalname || "document",
             uploadedAt: new Date(),

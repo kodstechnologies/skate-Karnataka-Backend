@@ -1,25 +1,57 @@
+import { AppError } from "../../util/common/AppError.js";
+import { BaseAuth } from "../auth/baseAuth.model.js";
 import { Academy } from "./academy.model.js";
 import { paginate } from "../../util/common/paginate.js";
 import mongoose from "mongoose";
 import { District } from "../district/district.model.js";
 
-const afterLoginClubFormRepositories = async (data, id) => {
-    const updated = await Academy.findOneAndUpdate(
-        { _id: id, role: "Academy" },
-        {
-            $set: {
-                ...data,
-                verify: true,
-            },
-        },
-        { new: true, runValidators: true }
-    );
+const CLUB_ACADEMY_ROLES = ["Academy", "academy", "Club", "club"];
 
-    if (!updated) {
-        throw new Error("Academy not found or role mismatch");
+const afterLoginClubFormRepositories = async (data, id) => {
+    const existingUser = await BaseAuth.findOne({
+        _id: id,
+        role: { $in: CLUB_ACADEMY_ROLES },
+    })
+        .select("_id role")
+        .lean();
+
+    if (!existingUser) {
+        throw new AppError("Club not found", 404);
     }
 
-    return updated;
+    const { documents, rosDocuments, ...restData } = data;
+    const setPayload = {
+        ...restData,
+        role: "Academy",
+        verify: true,
+    };
+
+    const updateOperation = { $set: setPayload };
+
+    if (Array.isArray(documents) && documents.length > 0) {
+        updateOperation.$push = {
+            documents: { $each: documents },
+        };
+    }
+
+    if (Array.isArray(rosDocuments) && rosDocuments.length > 0) {
+        updateOperation.$push = {
+            ...(updateOperation.$push || {}),
+            rosDocuments: { $each: rosDocuments },
+        };
+    }
+
+    const updated = await BaseAuth.findByIdAndUpdate(id, updateOperation, {
+        new: true,
+        runValidators: true,
+    });
+
+    if (!updated) {
+        throw new AppError("Club not found", 404);
+    }
+
+    const populated = await Academy.findById(id).populate("district");
+    return populated || updated;
 };
 
 const displayAllAcademyRepositories = async ({

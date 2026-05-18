@@ -989,6 +989,14 @@ export const getSkaterEventFullDetailsDtoRepository = async (eventId, skaterUser
       ? event.eventFor?.name || "Karnataka"
       : event.eventFor?.name || "";
 
+  const paidRegistration = await EventParticipant.findOne({
+    userId: skaterUserId,
+    eventId: event._id,
+    paymentStatus: "paid",
+  })
+    .select("_id")
+    .lean();
+
   return {
     _id: event._id,
     header: event.header ?? "",
@@ -1008,6 +1016,7 @@ export const getSkaterEventFullDetailsDtoRepository = async (eventId, skaterUser
     colorTwo: event.colorTwo ?? "#2575FC",
     textColor: event.textColor ?? "#FFFFFF",
     skatingEventCategories: enriched.skatingEventCategories ?? [],
+    isRegister: Boolean(paidRegistration),
   };
 };
 
@@ -1157,7 +1166,19 @@ const display_latest_event_repositories = async (userId) => {
   if (!event) return null;
 
   const [enriched] = await enrichLeanEventsSkatingCategoryNames([event]);
-  return toEventCardListItem(enriched);
+
+  const paidRegistration = await EventParticipant.findOne({
+    userId,
+    eventId: event._id,
+    paymentStatus: "paid",
+  })
+    .select("_id")
+    .lean();
+
+  return {
+    ...toEventCardListItem(enriched),
+    isRegister: Boolean(paidRegistration),
+  };
 };
 const create_event_repositories = async (data) => {
   const event = await Event.create(data);

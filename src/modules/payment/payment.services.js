@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import axios from "axios";
 import { AppError } from "../../util/common/AppError.js";
+import { sendNotification } from "../../util/firebase/sendNotification.js";
 import { Payment } from "./payment.model.js";
 import { EventParticipant } from "../event/eventParticipant.model.js";
 import { Event } from "../event/event.model.js";
@@ -48,6 +49,31 @@ const verifySignature = (orderId, paymentId, signature) => {
 const markParticipantPayment = async (participantId, paymentStatus) => {
     if (!participantId) return;
     await EventParticipant.findByIdAndUpdate(participantId, { paymentStatus });
+};
+
+const sendEventRegistrationSuccessNotification = async ({
+    receiverId,
+    eventId,
+    participantId,
+}) => {
+    try {
+        const event = await Event.findById(eventId).select("header").lean();
+        const eventName = event?.header?.trim() || "your event";
+
+        await sendNotification({
+            receiverId,
+            title: "Registration successful",
+            body: `You're registered for "${eventName}". Payment received — we look forward to seeing you compete!`,
+            notificationType: "event",
+            data: {
+                type: "registration_success",
+                eventId: String(eventId),
+                participantId: participantId ? String(participantId) : "",
+            },
+        });
+    } catch (error) {
+        console.error("Registration success notification failed:", error?.message || error);
+    }
 };
 
 export const initiateRazorpayPaymentServices = async ({
@@ -157,9 +183,12 @@ export const verifyRazorpayPaymentServices = async ({
         throw new AppError("Payment order not found", 404);
     }
 
+    const wasAlreadySuccessful = payment.paymentStatus === "success";
+
+    let participant = null;
     if (payment.participantId) {
-        const participant = await EventParticipant.findById(payment.participantId)
-            .select("userId")
+        participant = await EventParticipant.findById(payment.participantId)
+            .select("userId eventId")
             .lean();
         // Do not block payment verification on ownership mismatch.
         // Signature validation is the primary trust check for this endpoint.
@@ -188,6 +217,18 @@ export const verifyRazorpayPaymentServices = async ({
     payment.razorpaySignature = razorpay_signature;
     await payment.save();
     await markParticipantPayment(payment.participantId, "paid");
+
+    if (!wasAlreadySuccessful) {
+        const receiverId = userId || participant?.userId;
+        const eventId = payment.eventId || participant?.eventId;
+        if (receiverId && eventId) {
+            await sendEventRegistrationSuccessNotification({
+                receiverId,
+                eventId,
+                participantId: payment.participantId,
+            });
+        }
+    }
 
     return {
         paymentStatus: payment.paymentStatus,

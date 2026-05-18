@@ -943,6 +943,111 @@ const toEventCardListItem = (ev) => ({
   eventType: ev.eventType ?? "",
 });
 
+const LIVE_EVENT_LIST_PROJECTION =
+  "_id header eventStartDate eventEndDate colorOne colorTwo textColor skatingEventCategories";
+
+/** Event is live when today falls between eventStartDate and eventEndDate (inclusive). */
+const getLiveEventDateFilter = () => {
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const endOfToday = new Date();
+  endOfToday.setHours(23, 59, 59, 999);
+
+  return {
+    eventStartDate: { $lte: endOfToday },
+    eventEndDate: { $gte: startOfToday },
+  };
+};
+
+const toLiveEventListItem = (ev) => ({
+  _id: ev._id,
+  header: ev.header ?? "",
+  eventStartDate: ev.eventStartDate ?? null,
+  eventEndDate: ev.eventEndDate ?? null,
+  colorOne: ev.colorOne ?? "#6A11CB",
+  colorTwo: ev.colorTwo ?? "#2575FC",
+  textColor: ev.textColor ?? "#FFFFFF",
+  skatingEventCategories: (ev.skatingEventCategories || []).map((cat) => ({
+    _id: cat._id,
+    name: cat.typeName ?? "",
+  })),
+});
+
+const buildLiveEventRoleFilter = async (role, userId) => {
+  const normalized = String(role || "").trim().toLowerCase();
+
+  if (normalized === "state") {
+    return {
+      eventType: "State",
+      eventFor: new mongoose.Types.ObjectId(userId),
+    };
+  }
+
+  if (normalized === "district") {
+    const districtUser = await BaseAuth.findById(userId).select("district").lean();
+    const districtId = districtUser?.district || userId;
+    return {
+      eventType: "District",
+      eventFor: new mongoose.Types.ObjectId(districtId),
+    };
+  }
+
+  if (normalized === "club") {
+    const resolvedClubId = await resolveClubIdForClubAuthUser(userId);
+    return {
+      eventType: "Club",
+      eventFor: new mongoose.Types.ObjectId(resolvedClubId),
+    };
+  }
+
+  if (normalized === "admin") {
+    return {};
+  }
+
+  return null;
+};
+
+export const getLiveEventsRepository = async (role, userId, { page, limit }) => {
+  const roleFilter = await buildLiveEventRoleFilter(role, userId);
+  if (roleFilter === null) {
+    return {
+      total: 0,
+      page: 1,
+      limit: paginate(page, limit).limit,
+      totalPages: 0,
+      data: [],
+    };
+  }
+
+  const query = {
+    ...getLiveEventDateFilter(),
+    ...roleFilter,
+  };
+
+  const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+
+  const [total, events] = await Promise.all([
+    Event.countDocuments(query),
+    Event.find(query)
+      .select(LIVE_EVENT_LIST_PROJECTION)
+      .sort({ eventStartDate: 1 })
+      .skip(skip)
+      .limit(pageLimit)
+      .lean(),
+  ]);
+
+  const enriched = await enrichLeanEventsSkatingCategoryNames(events);
+  const data = enriched.map(toLiveEventListItem);
+
+  return {
+    total,
+    page: currentPage,
+    limit: pageLimit,
+    totalPages: Math.ceil(total / pageLimit) || 0,
+    data,
+  };
+};
+
 export const stateRelatedEventDisplayRepositories = async (stateId, { page, limit, search }) => {
   const query = { eventType: "State" };
   if (stateId) {

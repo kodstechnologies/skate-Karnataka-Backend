@@ -1,7 +1,7 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { AppError } from "../../util/common/AppError.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { clubEventFullDetailsService, clubRelatedEventDisplayService, competitionAllSkaterService, competitionDetailsService, createClubEventService, createDistrictEventService, createEventCategoryService, createRegisterFormService, createStateEventService, create_event_schema, deleteEventCategoryService, delete_event_schema, display_all_event_based_on_user_service, display_latest_event_server, displayEventServer, displaySingleEventDetailsServer, displaySkaterEventFullDetailsService, displaySkaterEventFormCategoryDetailsService, districtEventFullDetailsService, districtRelatedEventDisplayService, edit_event_schema, givenPointEventService, getAllEventCategoriesService, getAllRegisterDetailsByUserIdService, getEventCategoryByIdService, getRegisterDetailsByEventIdService, getRegisterFormByIdService, getRegisterFormByUserIdService, stateEventResultsService, stateRelatedEventDisplayService, stateEventFullDetailsService, stateEventSkatersSummaryService, updateEventCategoryService, updateStateEventSkaterTimeService } from "./event.service.js";
+import { clubEventFullDetailsService, clubRelatedEventDisplayService, competitionAllSkaterService, competitionDetailsService, createClubEventService, createDistrictEventService, createEventCategoryService, createRegisterFormService, createStateEventService, create_event_schema, deleteEventCategoryService, delete_event_schema, display_all_event_based_on_user_service, display_latest_event_server, displayEventServer, displaySingleEventDetailsServer, displaySkaterEventFullDetailsService, displaySkaterEventFormCategoryDetailsService, districtEventFullDetailsService, districtRelatedEventDisplayService, edit_event_schema, getLiveEventsService, givenPointEventService, getAllEventCategoriesService, getAllRegisterDetailsByUserIdService, getEventCategoryByIdService, getRegisterDetailsByEventIdService, getRegisterFormByIdService, getRegisterFormByUserIdService, stateEventResultsService, stateRelatedEventDisplayService, stateEventFullDetailsService, stateEventSkatersSummaryService, updateEventCategoryService, updateStateEventSkaterTimeService } from "./event.service.js";
 import { initiateRazorpayPaymentServices } from "../payment/payment.services.js";
 
 
@@ -422,6 +422,14 @@ export const getRegisterFormById = asyncHandler(async (req, res) => {
     return res
         .status(200)
         .json(new ApiResponse(200, result, "Register form fetched successfully"));
+});
+
+export const displayLiveEvents = asyncHandler(async (req, res) => {
+    const { page, limit } = req.query;
+    const result = await getLiveEventsService(req.user, { page, limit });
+    return res.status(200).json(
+        new ApiResponse(200, result, "Live events fetched successfully")
+    );
 });
 
 export const getAllRegisterDetailsByUserId = asyncHandler(async (req, res) => {

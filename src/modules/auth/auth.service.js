@@ -120,6 +120,9 @@ const RegisterUserService = async (userData) => {
     if (normalizedRole === "official" || normalizedRole === "officials") {
         userData.role = "Official";
     }
+    if (normalizedRole === "guest") {
+        userData.role = "Guest";
+    }
     const user = await registerUser_repositories(userData);
 
     if (String(user.role || "").toLowerCase() === "district" && user.district) {

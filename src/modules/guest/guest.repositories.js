@@ -1,6 +1,8 @@
 import { ContactUS } from "./contactUs.model.js";
 import { FeedBack } from "./feedBack.model.js";
 import { Guest } from "./guest.model.js";
+import { BaseAuth } from "../auth/baseAuth.model.js";
+import { AppError } from "../../util/common/AppError.js";
 import { paginate } from "../../util/common/paginate.js";
 import { News } from "./news.model.js";
 import { Event } from "../event/event.model.js";
@@ -14,12 +16,32 @@ import { Skater } from "../skater/skater.model.js";
 import mongoose from "mongoose";
 import { Gallery } from "../gallery/gallery.model.js";
 
+const isGuestRole = (role) => {
+    const normalized = String(role ?? "").trim().toLowerCase();
+    return normalized === "" || normalized === "guest";
+};
+
 export const afterLoginGuestFormRepositories = async (data, id) => {
-    const updated = await Guest.findOneAndUpdate(
-        { _id: id, role: "Guest" },
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new AppError("Invalid guest id", 400);
+    }
+
+    const existingUser = await BaseAuth.findById(id).select("_id role").lean();
+
+    if (!existingUser) {
+        throw new AppError("Guest not found", 404);
+    }
+
+    if (!isGuestRole(existingUser.role)) {
+        throw new AppError("Guest not found or role mismatch", 400);
+    }
+
+    const updated = await BaseAuth.findByIdAndUpdate(
+        id,
         {
             $set: {
                 ...data,
+                role: "Guest",
                 verify: true,
             },
         },
@@ -27,10 +49,10 @@ export const afterLoginGuestFormRepositories = async (data, id) => {
     );
 
     if (!updated) {
-        throw new Error("Guest not found or role mismatch");
+        throw new AppError("Guest not found", 404);
     }
 
-    return updated;
+    return (await Guest.findById(id).lean()) || updated;
 };
 
 export const displayContactUsRepositories = async () => {

@@ -4,9 +4,9 @@ import { Skater } from "../skater/skater.model.js";
 import { School } from "../school/school.model.js";
 import { Academy } from "../academy/academy.model.js";
 import { Official } from "../official/official.model.js";
+import { Guest } from "../guest/guest.model.js";
 import { BaseAuth } from "./baseAuth.model.js";
 import { Otp } from "./otp.model.js";
-// import { Guest } from "./guest.model.js";
 // import { School } from "./school.model.js";
 // import { Official } from "./official.model.js";
 
@@ -31,6 +31,11 @@ const registerUser_repositories = async (userData) => {
     if (normalizedRole === "official" || normalizedRole === "officials") {
         userData.role = "Official";
         return await new Official(userData).save();
+    }
+
+    if (normalizedRole === "guest") {
+        userData.role = "Guest";
+        return await new Guest(userData).save();
     }
 
     const user = await new BaseAuth(userData).save();
@@ -189,28 +194,10 @@ const afterLoginClubFormRepositories = async (data, id) => {
 };
 
 const afterLoginGuestFormRepositories = async (data, id) => {
-    console.log(data, "====");
-    console.log(id, "ID");
-
-    const updated = await Guest.findOneAndUpdate(
-        { _id: id, role: "Guest" }, // ✅ correct filtering
-        {
-            $set: {
-                ...data,
-                verify: true,
-            },
-        },
-        {
-            new: true,
-            runValidators: true,
-        }
+    const { afterLoginGuestFormRepositories: updateGuestProfile } = await import(
+        "../guest/guest.repositories.js"
     );
-    console.log(updated, "updated")
-    if (!updated) {
-        throw new Error("Guest not found or role mismatch");
-    }
-
-    return updated;
+    return updateGuestProfile(data, id);
 };
 const afterLoginParentFormRepositories = async (data, id) => {
     console.log(data, "====");

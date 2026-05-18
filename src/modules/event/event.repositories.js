@@ -122,15 +122,26 @@ export const getRegisterFormByUserIdRepository = async (userId) => {
   }));
 };
 
-export const getRegisterFormByIdRepository = async (id, userId) => {
-  const item = await EventParticipant.findOne({ _id: id, userId })
-    .populate(
-      "eventId",
-      "header registerStartDate registerEndDate eventStartDate eventEndDate eventStartTime eventEndTime address eventType status"
-    )
-    .populate("userId", "phone countryCode")
-    .lean();
+const REGISTER_FORM_POPULATE = [
+  {
+    path: "eventId",
+    select:
+      "header registerStartDate registerEndDate eventStartDate eventEndDate eventStartTime eventEndTime address eventType status",
+  },
+  { path: "userId", select: "phone countryCode" },
+];
 
+const REGISTER_DETAILS_POPULATE = [
+  {
+    path: "eventId",
+    select:
+      "header about registerStartDate registerEndDate eventStartDate eventEndDate eventStartTime eventEndTime address eventType status entryFee colorOne colorTwo textColor",
+  },
+  { path: "userId", select: "phone countryCode fullName krsaId" },
+  { path: "categoriesId", select: "_id typeName" },
+];
+
+const formatRegisterFormDetails = (item) => {
   if (!item) return null;
 
   return {
@@ -164,6 +175,83 @@ export const getRegisterFormByIdRepository = async (id, userId) => {
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
   };
+};
+
+/** Slim payload for GET /v1/register-details/:eventId */
+const formatRegisterDetailsByEvent = (item) => {
+  if (!item) return null;
+
+  const skatingCategory = item.categoriesId;
+  const categoryRefId =
+    skatingCategory?._id ?? item.categoriesId ?? null;
+
+  return {
+    id: item._id,
+    phone: item.userId?.phone || "",
+    countryCode: item.userId?.countryCode || "+91",
+    krsaId: item.userId?.krsaId || "",
+    fullName: item.userId?.fullName || item.name || "",
+    event: item.eventId
+      ? {
+          id: item.eventId._id,
+          header: item.eventId.header || "",
+          about: item.eventId.about || "",
+          registerStartDate: item.eventId.registerStartDate || null,
+          registerEndDate: item.eventId.registerEndDate || null,
+          eventStartDate: item.eventId.eventStartDate || null,
+          eventEndDate: item.eventId.eventEndDate || null,
+          eventStartTime: item.eventId.eventStartTime || "",
+          eventEndTime: item.eventId.eventEndTime || "",
+          address: item.eventId.address || "",
+          eventType: item.eventId.eventType || "",
+          status: item.eventId.status || "",
+          entryFee: item.eventId.entryFee ?? "",
+          colorOne: item.eventId.colorOne ?? "#6A11CB",
+          colorTwo: item.eventId.colorTwo ?? "#2575FC",
+          textColor: item.eventId.textColor ?? "#FFFFFF",
+        }
+      : null,
+    categoriesId: categoryRefId
+      ? {
+          _id: categoryRefId,
+          name: skatingCategory?.typeName ?? "",
+        }
+      : null,
+    ageGroup: item.ageGroup,
+    // certificateID: item.certificateID || "",
+    categories: (item.categories || []).map((category) => ({
+      _id: category._id,
+      name: category.name || "",
+    })),
+    paymentStatus: item.paymentStatus,
+    isRegister: item.paymentStatus === "paid",
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+  };
+};
+
+export const getRegisterFormByIdRepository = async (id, userId) => {
+  const item = await EventParticipant.findOne({ _id: id, userId })
+    .populate(REGISTER_FORM_POPULATE)
+    .lean();
+
+  return formatRegisterFormDetails(item);
+};
+
+export const getRegisterDetailsByEventIdRepository = async (eventId, userId) => {
+  const eventObjectId = String(eventId || "").trim();
+  if (!mongoose.Types.ObjectId.isValid(eventObjectId)) {
+    return null;
+  }
+
+  const item = await EventParticipant.findOne({
+    eventId: eventObjectId,
+    userId,
+  })
+    .populate(REGISTER_DETAILS_POPULATE)
+    .lean();
+
+  return formatRegisterDetailsByEvent(item);
 };
 
 export const createRegisterFormRepository = async (payload) => {

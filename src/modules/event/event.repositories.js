@@ -1030,8 +1030,12 @@ export const getSkaterEventFormCategoryDetailsRepository = async (eventId, skate
   }
 
   const skater =
-    (await Skater.findById(skaterUserId).select("fullName krsaId category").lean()) ||
-    (await BaseAuth.findById(skaterUserId).select("fullName krsaId").lean());
+    (await Skater.findById(skaterUserId)
+      .select("fullName krsaId category phone countryCode")
+      .lean()) ||
+    (await BaseAuth.findById(skaterUserId)
+      .select("fullName krsaId phone countryCode")
+      .lean());
 
   const meta = {
     eventId: event._id,
@@ -1039,6 +1043,8 @@ export const getSkaterEventFormCategoryDetailsRepository = async (eventId, skate
     entryFee: event.entryFee ?? "",
     skaterName: skater?.fullName ?? "",
     krsaId: skater?.krsaId ?? "",
+    phone: skater?.phone ?? "",
+    countryCode: skater?.countryCode ?? "+91",
   };
 
   const orderedIds = (event.skatingEventCategories || [])

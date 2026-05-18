@@ -63,7 +63,13 @@ const officialSchema = new mongoose.Schema({
   },
 
   officialEmail: {
-    type: String
+    type: String,
+  },
+
+  img: {
+    type: String,
+    default: "",
+    trim: true,
   },
 
   documents: [

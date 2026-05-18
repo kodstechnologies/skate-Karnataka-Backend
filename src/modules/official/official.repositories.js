@@ -1,26 +1,53 @@
+import { AppError } from "../../util/common/AppError.js";
+import { BaseAuth } from "../auth/baseAuth.model.js";
 import { Official } from "./official.model.js";
 import { paginate } from "../../util/common/paginate.js";
 import mongoose from "mongoose";
 import { District } from "../district/district.model.js";
 import { Club } from "../club/club.model.js";
 
-const afterLoginOfficialFormRepositories = async (data, id) => {
-    const updated = await Official.findOneAndUpdate(
-        { _id: id, role: "Official" },
-        {
-            $set: {
-                ...data,
-                verify: true,
-            },
-        },
-        { new: true, runValidators: true }
-    );
+const OFFICIAL_ROLES = ["Official", "official", "officials"];
 
-    if (!updated) {
-        throw new Error("Official not found or role mismatch");
+const afterLoginOfficialFormRepositories = async (data, id) => {
+    const existingUser = await BaseAuth.findOne({
+        _id: id,
+        role: { $in: OFFICIAL_ROLES },
+    })
+        .select("_id role")
+        .lean();
+
+    if (!existingUser) {
+        throw new AppError("Official not found", 404);
     }
 
-    return updated;
+    const { documents, ...restData } = data;
+    const setPayload = {
+        ...restData,
+        role: "Official",
+        verify: true,
+    };
+
+    const updateOperation = { $set: setPayload };
+
+    if (Array.isArray(documents) && documents.length > 0) {
+        updateOperation.$push = {
+            documents: { $each: documents },
+        };
+    }
+
+    const updated = await BaseAuth.findByIdAndUpdate(id, updateOperation, {
+        new: true,
+        runValidators: true,
+    });
+
+    if (!updated) {
+        throw new AppError("Official not found", 404);
+    }
+
+    const populated = await Official.findById(id)
+        .populate("district")
+        .populate("club");
+    return populated || updated;
 };
 
 const displayAllOfficialRepositories = async ({

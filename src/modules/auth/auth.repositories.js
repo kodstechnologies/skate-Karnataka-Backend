@@ -3,6 +3,7 @@ import { generateRandomNumber } from "../../util/token/token.js";
 import { Skater } from "../skater/skater.model.js";
 import { School } from "../school/school.model.js";
 import { Academy } from "../academy/academy.model.js";
+import { Official } from "../official/official.model.js";
 import { BaseAuth } from "./baseAuth.model.js";
 import { Otp } from "./otp.model.js";
 // import { Guest } from "./guest.model.js";
@@ -25,6 +26,11 @@ const registerUser_repositories = async (userData) => {
     if (normalizedRole === "academy" || normalizedRole === "club") {
         userData.role = "Academy";
         return await new Academy(userData).save();
+    }
+
+    if (normalizedRole === "official" || normalizedRole === "officials") {
+        userData.role = "Official";
+        return await new Official(userData).save();
     }
 
     const user = await new BaseAuth(userData).save();

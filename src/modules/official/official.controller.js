@@ -11,7 +11,7 @@ const afterLoginOfficialForm = asyncHandler(async (req, res) => {
             new ApiResponse(
                 200,
                 null,
-                "Official from submitted successfully"
+                "Official form submitted successfully"
             )
         )
 })

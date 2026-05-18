@@ -1,6 +1,12 @@
 import {putObject} from "../util/aws/putObject.js"
 import { AppError } from "../util/common/AppError.js";
-export const uploadToS3 = (folder = "uploads", fieldMap = { img: "img" }) => {
+export const uploadToS3 = (
+  folder = "uploads",
+  fieldMap = { img: "img" },
+  options = {}
+) => {
+  const arrayTargets = new Set(options.arrayTargets || []);
+
   return async (req, res, next) => {
     try {
       if (!req.file && !req.files) return next();
@@ -33,21 +39,28 @@ export const uploadToS3 = (folder = "uploads", fieldMap = { img: "img" }) => {
           continue;
         }
 
-        if (targetField === "img") {
-          if (!Array.isArray(req.body.img)) {
+        if (targetField === "img" && !arrayTargets.has(targetField)) {
+          req.body[targetField] = url;
+          req.body[`${targetField}Key`] = key;
+          continue;
+        }
+
+        if (targetField === "img" || arrayTargets.has(targetField)) {
+          const arrayField = targetField;
+          if (!Array.isArray(req.body[arrayField])) {
             if (
-              req.body.img === undefined ||
-              req.body.img === null ||
-              req.body.img === ""
+              req.body[arrayField] === undefined ||
+              req.body[arrayField] === null ||
+              req.body[arrayField] === ""
             ) {
-              req.body.img = [];
+              req.body[arrayField] = [];
             } else {
-              req.body.img = Array.isArray(req.body.img)
-                ? [...req.body.img]
-                : [req.body.img];
+              req.body[arrayField] = Array.isArray(req.body[arrayField])
+                ? [...req.body[arrayField]]
+                : [req.body[arrayField]];
             }
           }
-          req.body.img.push(url);
+          req.body[arrayField].push(url);
           continue;
         }
 

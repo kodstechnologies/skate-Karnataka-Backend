@@ -271,7 +271,7 @@ router.post(
     { name: "logo", maxCount: 1 },
     { name: "img", maxCount: 20 },
   ]),
-  uploadToS3("about", { logo: "logo", img: "img" }),
+  uploadToS3("about", { logo: "logo", img: "img" }, { arrayTargets: ["img"] }),
   validate(addAboutValidation),
   addAbout
 );
@@ -282,7 +282,7 @@ router.patch(
     { name: "logo", maxCount: 1 },
     { name: "img", maxCount: 20 },
   ]),
-  uploadToS3("about", { logo: "logo", img: "img" }),
+  uploadToS3("about", { logo: "logo", img: "img" }, { arrayTargets: ["img"] }),
   validate(updateAboutValidation),
   editAbout
 );

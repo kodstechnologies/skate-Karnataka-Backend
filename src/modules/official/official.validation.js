@@ -42,7 +42,19 @@ const afterLoginOfficialFormValidation = {
         officiating: Joi.string().trim().allow("").optional(),
         officialContactNumber: Joi.string().trim().allow("").optional(),
         officialEmail: Joi.string().trim().email().allow("").optional(),
-        img: Joi.string().uri().allow("").optional(),
+        img: Joi.alternatives()
+            .try(Joi.string().uri(), Joi.array().items(Joi.string().uri()).min(1))
+            .optional()
+            .empty("")
+            .custom((value) => {
+                if (value === undefined || value === null || value === "") {
+                    return undefined;
+                }
+                if (Array.isArray(value)) {
+                    return value[value.length - 1];
+                }
+                return value;
+            }),
         documents: Joi.array()
             .items(
                 Joi.object({

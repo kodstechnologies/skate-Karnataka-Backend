@@ -137,7 +137,6 @@ const REGISTER_DETAILS_POPULATE = [
     select:
       "header about registerStartDate registerEndDate eventStartDate eventEndDate eventStartTime eventEndTime address eventType status entryFee colorOne colorTwo textColor",
   },
-  { path: "userId", select: "phone countryCode fullName krsaId" },
   { path: "categoriesId", select: "_id typeName" },
 ];
 
@@ -186,11 +185,6 @@ const formatRegisterDetailsByEvent = (item) => {
     skatingCategory?._id ?? item.categoriesId ?? null;
 
   return {
-    id: item._id,
-    phone: item.userId?.phone || "",
-    countryCode: item.userId?.countryCode || "+91",
-    krsaId: item.userId?.krsaId || "",
-    fullName: item.userId?.fullName || item.name || "",
     event: item.eventId
       ? {
           id: item.eventId._id,
@@ -236,6 +230,36 @@ export const getRegisterFormByIdRepository = async (id, userId) => {
     .lean();
 
   return formatRegisterFormDetails(item);
+};
+
+export const getAllRegisterDetailsByUserIdRepository = async (
+  userId,
+  { page, limit }
+) => {
+  const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+  const filter = { userId };
+
+  const [total, items] = await Promise.all([
+    EventParticipant.countDocuments(filter),
+    EventParticipant.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(pageLimit)
+      .populate(REGISTER_DETAILS_POPULATE)
+      .lean(),
+  ]);
+
+  const registrations = items
+    .map((item) => formatRegisterDetailsByEvent(item))
+    .filter(Boolean);
+
+  return {
+    total,
+    page: currentPage,
+    limit: pageLimit,
+    totalPages: Math.ceil(total / pageLimit) || 0,
+    registrations,
+  };
 };
 
 export const getRegisterDetailsByEventIdRepository = async (eventId, userId) => {

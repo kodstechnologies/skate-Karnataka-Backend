@@ -1230,7 +1230,26 @@ const display_all_event_based_on_user_repositories = async (userId, { page, limi
   const total = await Event.countDocuments(query);
 
   const enriched = await enrichLeanEventsSkatingCategoryNames(events);
-  const data = enriched.map(toEventCardListItem);
+
+  const paidEventIdSet = new Set();
+  if (events.length > 0) {
+    const paidParticipations = await EventParticipant.find({
+      userId,
+      eventId: { $in: events.map((e) => e._id) },
+      paymentStatus: "paid",
+    })
+      .select("eventId")
+      .lean();
+
+    for (const participation of paidParticipations) {
+      paidEventIdSet.add(String(participation.eventId));
+    }
+  }
+
+  const data = enriched.map((ev) => ({
+    ...toEventCardListItem(ev),
+    isRegister: paidEventIdSet.has(String(ev._id)),
+  }));
 
   return {
     total,

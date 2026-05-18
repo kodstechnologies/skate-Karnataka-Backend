@@ -977,10 +977,7 @@ const buildLiveEventRoleFilter = async (role, userId) => {
   const normalized = String(role || "").trim().toLowerCase();
 
   if (normalized === "state") {
-    return {
-      eventType: "State",
-      eventFor: new mongoose.Types.ObjectId(userId),
-    };
+    return { eventType: "State" };
   }
 
   if (normalized === "district") {

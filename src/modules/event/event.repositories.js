@@ -1224,6 +1224,9 @@ const display_all_event_based_on_user_repositories = async (userId, { page, limi
     };
   }
 
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+
   const query = {
     $and: [
       {
@@ -1238,6 +1241,7 @@ const display_all_event_based_on_user_repositories = async (userId, { page, limi
         ],
       },
       { skatingEventCategories: skaterCategory },
+      { registerEndDate: { $gte: startOfToday } },
     ],
   };
 

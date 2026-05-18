@@ -128,12 +128,15 @@ export const getRegisterFormByIdRepository = async (id, userId) => {
       "eventId",
       "header registerStartDate registerEndDate eventStartDate eventEndDate eventStartTime eventEndTime address eventType status"
     )
+    .populate("userId", "phone countryCode")
     .lean();
 
   if (!item) return null;
 
   return {
     id: item._id,
+    phone: item.userId?.phone || "",
+    countryCode: item.userId?.countryCode || "+91",
     event: item.eventId
       ? {
           id: item.eventId._id,

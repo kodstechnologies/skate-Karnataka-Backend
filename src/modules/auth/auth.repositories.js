@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { generateRandomNumber } from "../../util/token/token.js";
 import { Skater } from "../skater/skater.model.js";
+import { School } from "../school/school.model.js";
 import { BaseAuth } from "./baseAuth.model.js";
 import { Otp } from "./otp.model.js";
 // import { Guest } from "./guest.model.js";
@@ -13,6 +14,11 @@ const registerUser_repositories = async (userData) => {
     if (normalizedRole === "skater") {
         userData.role = "Skater";
         return await new Skater(userData).save();
+    }
+
+    if (normalizedRole === "school") {
+        userData.role = "School";
+        return await new School(userData).save();
     }
 
     const user = await new BaseAuth(userData).save();

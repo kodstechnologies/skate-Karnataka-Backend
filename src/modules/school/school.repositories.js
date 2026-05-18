@@ -1,14 +1,30 @@
+import { AppError } from "../../util/common/AppError.js";
+import { BaseAuth } from "../auth/baseAuth.model.js";
 import { School } from "./school.model.js";
 import { paginate } from "../../util/common/paginate.js";
 import mongoose from "mongoose";
 import { District } from "../district/district.model.js";
 
+const SCHOOL_ROLES = ["School", "school"];
+
 const afterLoginSchoolFormRepositories = async (data, id) => {
-    const updated = await School.findOneAndUpdate(
-        { _id: id, role: "School" },
+    const existingUser = await BaseAuth.findOne({
+        _id: id,
+        role: { $in: SCHOOL_ROLES },
+    })
+        .select("_id role")
+        .lean();
+
+    if (!existingUser) {
+        throw new AppError("School not found", 404);
+    }
+
+    const updated = await BaseAuth.findByIdAndUpdate(
+        id,
         {
             $set: {
                 ...data,
+                role: "School",
                 verify: true,
             },
         },
@@ -16,10 +32,11 @@ const afterLoginSchoolFormRepositories = async (data, id) => {
     );
 
     if (!updated) {
-        throw new Error("School not found or role mismatch");
+        throw new AppError("School not found", 404);
     }
 
-    return updated;
+    const populated = await School.findById(id).populate("district");
+    return populated || updated;
 };
 
 const displayAllSchoolRepositories = async ({

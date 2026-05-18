@@ -4,6 +4,8 @@ import { ContactSupport, DeleteUser, GetAchievements, GetAllSkatingEventCategory
 import { validate } from "../../middleware/validate.multiple.js";
 import { upload } from "../../middleware/multer.middleware.js";
 import { LoginValidation, LogoutValidation, RegisterValidation, sendEmailOTPValidation, sendPhoneOTPValidation, verifyEmailOTPValidation, VerifyOTPValidation, verifyPhoneOTPValidation } from "./auth.validation.js";
+import { afterLoginSchoolForm } from "../school/school.controller.js";
+import { afterLoginSchoolFormValidation } from "../school/school.validation.js";
 
 const router = express.Router();
 
@@ -74,5 +76,15 @@ router.delete("/delete",
     DeleteUser);
 
 router.get("/v1/all-skating-event-category", GetAllSkatingEventCategoryNames);
+
+router.post(
+    "/v1/after-login-school-form/:id",
+    upload.fields([
+        { name: "img", maxCount: 1 },
+        { name: "document", maxCount: 1 },
+    ]),
+    validate(afterLoginSchoolFormValidation),
+    afterLoginSchoolForm
+);
 
 export default router;

@@ -3,9 +3,8 @@ import { AppError } from "../../util/common/AppError.js";
 import { afterLoginSchoolFormRepositories, displayAllSchoolRepositories, displaySchoolFullDetailsRepositories } from "./school.repositories.js";
 
 const afterLoginFormSchoolService = async (data, id) => {
-    await afterLoginSchoolFormRepositories(data, id);
-
-}
+    return await afterLoginSchoolFormRepositories(data, id);
+};
 
 const displayAllSchoolService = async (query) => {
     const {

@@ -11,7 +11,7 @@ const afterLoginSchoolForm = asyncHandler(async (req, res) => {
             new ApiResponse(
                 200,
                 null,
-                "Parent from submitted successfully"
+                "School form submitted successfully"
             )
         )
 })

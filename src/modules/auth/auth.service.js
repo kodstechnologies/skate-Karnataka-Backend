@@ -108,6 +108,9 @@ const RegisterUserService = async (userData) => {
         throw new AppError("User already exists", 409);
     }
     delete userData.districtName;
+    if (normalizedRole === "skater") {
+        userData.role = "Skater";
+    }
     const user = await registerUser_repositories(userData);
 
     if (String(user.role || "").toLowerCase() === "district" && user.district) {

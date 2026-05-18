@@ -1,4 +1,5 @@
 import Joi from "joi";
+import { AGE_GROUPS } from "./SkatingEventCategory.model.js";
 
 const objectIdString = Joi.string()
     .trim()
@@ -178,47 +179,92 @@ const state_skater_time_update_validation = {
         }),
 };
 
-const given_point_validation = {
+export const competitionDetailsParamsValidation = {
+    params: Joi.object({
+        id: objectIdString.required(),
+    }),
+};
+
+const competitionAgeGroupLabel = Joi.string()
+    .trim()
+    .valid(...AGE_GROUPS.map((g) => g.label))
+    .messages({
+        "any.only": `ageGroup must be one of: ${AGE_GROUPS.map((g) => g.label).join(", ")}`,
+    });
+
+export const competitionAllSkaterValidation = {
     body: Joi.object({
         eventId: objectIdString.required(),
-        skaterId: objectIdString.optional(),
-        registrationId: objectIdString.optional(),
-        categories: Joi.array()
-            .items(
-                Joi.object({
-                    name: Joi.string().trim().min(1).required(),
-                    timeTaken: Joi.number().allow(null).optional(),
-                    rank: Joi.number().integer().allow(null).optional(),
-                    isDisqualified: Joi.boolean().optional(),
-                    remarks: Joi.string().trim().allow("").optional(),
-                    attendanceStatus: Joi.string()
-                        .trim()
-                        .lowercase()
-                        .valid("pending", "attend", "absent", "absent")
-                        .optional(),
-                })
-            )
-            .min(1)
-            .required(),
-    })
-        .xor("skaterId", "registrationId")
-        .custom((value, helpers) => {
-            const hasUpdateField = (value.categories || []).some(
-                (c) =>
-                    c.timeTaken !== undefined ||
-                    c.rank !== undefined ||
-                    c.isDisqualified !== undefined ||
-                    c.remarks !== undefined ||
-                    c.attendanceStatus !== undefined
-            );
-            if (!hasUpdateField) {
-                return helpers.error("any.custom", {
-                    message:
-                        "At least one category must include timeTaken, rank, isDisqualified, remarks, or attendanceStatus",
-                });
-            }
-            return value;
-        }),
+        skatingEventCategoryId: objectIdString.required(),
+        ageGroup: competitionAgeGroupLabel.required(),
+        name: Joi.string().trim().min(1).required(),
+        page: Joi.number().integer().min(1).default(1),
+        limit: Joi.number().integer().min(1).max(100).default(10),
+        search: Joi.string().trim().max(200).allow("").optional(),
+    }),
+};
+
+const givenPointCategoryItem = Joi.object({
+    name: Joi.string().trim().min(1).required(),
+    timeTaken: Joi.number().allow(null).optional(),
+    rank: Joi.number().integer().allow(null).optional(),
+    isDisqualified: Joi.boolean().optional(),
+    remarks: Joi.string().trim().allow("").optional(),
+    attendanceStatus: Joi.string()
+        .trim()
+        .lowercase()
+        .valid("pending", "attend", "absent")
+        .optional(),
+});
+
+const givenPointSkaterItem = Joi.object({
+    registrationId: objectIdString.optional(),
+    skaterId: objectIdString.optional(),
+    timeTaken: Joi.number().required(),
+    rank: Joi.number().integer().allow(null).optional(),
+    isDisqualified: Joi.boolean().optional(),
+    remarks: Joi.string().trim().allow("").optional(),
+}).xor("skaterId", "registrationId");
+
+const given_point_bulk_body = Joi.object({
+    eventId: objectIdString.required(),
+    skatingEventCategoryId: objectIdString.required(),
+    ageGroup: competitionAgeGroupLabel.required(),
+    name: Joi.string().trim().min(1).required(),
+    skaters: Joi.array().items(givenPointSkaterItem).min(1).required(),
+});
+
+const given_point_single_body = Joi.object({
+    eventId: objectIdString.required(),
+    skatingEventCategoryId: Joi.forbidden(),
+    ageGroup: Joi.forbidden(),
+    name: Joi.forbidden(),
+    skaters: Joi.forbidden(),
+    skaterId: objectIdString.optional(),
+    registrationId: objectIdString.optional(),
+    categories: Joi.array().items(givenPointCategoryItem).min(1).required(),
+})
+    .xor("skaterId", "registrationId")
+    .custom((value, helpers) => {
+        const hasUpdateField = (value.categories || []).some(
+            (c) =>
+                c.timeTaken !== undefined ||
+                c.rank !== undefined ||
+                c.isDisqualified !== undefined ||
+                c.remarks !== undefined ||
+                c.attendanceStatus !== undefined
+        );
+        if (!hasUpdateField) {
+            return helpers.error("any.custom", {
+                message:
+                    "At least one category must include timeTaken, rank, isDisqualified, remarks, or attendanceStatus",
+            });
+        }
+        return value;
+    });
+
+const given_point_validation = {
+    body: Joi.alternatives().try(given_point_bulk_body, given_point_single_body),
 };
 
 const create_event_validation = {

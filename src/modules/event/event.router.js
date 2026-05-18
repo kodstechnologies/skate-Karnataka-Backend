@@ -1,6 +1,6 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
-import { clubRelatedEventDisplay, createClubEvent, create_event, delete_event, display_all_event_based_on_user, display_latest_event, displayAllEvents, displayEventById, displaySkaterEventFullDetails, displaySkaterEventFormCategoryDetails, edit_event, createDistrictEvent, districtRelatedEventDisplay, givenPoint, stateEventResult, stateRelatedEventDisplay, stateEventSkatersSummary, updateStateSkaterTime, createStateEvent, createEventCategory, deleteEventCategory, getEventCategories, getEventCategoryById, updateEventCategory, createRegisterForm, getRegisterFormById, getRegisterFormByUserId } from "./event.controller.js";
+import { clubRelatedEventDisplay, competitionAllSkater, createClubEvent, create_event, delete_event, display_all_event_based_on_user, display_latest_event, displayAllEvents, displayEventById, displaySkaterEventFullDetails, displaySkaterEventFormCategoryDetails, displayCompetitionDetails, edit_event, createDistrictEvent, districtRelatedEventDisplay, givenPoint, stateEventResult, stateRelatedEventDisplay, stateEventSkatersSummary, updateStateSkaterTime, createStateEvent, createEventCategory, deleteEventCategory, getEventCategories, getEventCategoryById, updateEventCategory, createRegisterForm, getRegisterFormById, getRegisterFormByUserId } from "./event.controller.js";
 import { validate } from "../../middleware/validate.multiple.js";
 import {
     create_event_category_validation,
@@ -9,6 +9,8 @@ import {
     create_event_validation,
     create_state_event_validation,
     eventCategoryListQueryValidation,
+    competitionDetailsParamsValidation,
+    competitionAllSkaterValidation,
     given_point_validation,
     register_form_validation,
     state_skater_time_update_validation,
@@ -206,6 +208,20 @@ router.post(
 );
 
 // ===================== given point (Club / District / State / Admin)
+
+router.get(
+    "/v1/competition-details/:id",
+    authenticate(["Club", "District", "State", "Admin"]),
+    validate(competitionDetailsParamsValidation),
+    displayCompetitionDetails
+);
+
+router.post(
+    "/v1/competition-all-skater",
+    authenticate(["Club", "District", "State", "Admin"]),
+    validate(competitionAllSkaterValidation),
+    competitionAllSkater
+);
 
 router.post(
     "/v1/given-point",

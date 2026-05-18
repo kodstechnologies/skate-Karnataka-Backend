@@ -1,13 +1,20 @@
 import mongoose from "mongoose";
 import { generateRandomNumber } from "../../util/token/token.js";
+import { Skater } from "../skater/skater.model.js";
 import { BaseAuth } from "./baseAuth.model.js";
 import { Otp } from "./otp.model.js";
-// import { Skater } from "./skater.model.js";
 // import { Guest } from "./guest.model.js";
 // import { School } from "./school.model.js";
 // import { Official } from "./official.model.js";
 
 const registerUser_repositories = async (userData) => {
+    const normalizedRole = String(userData.role || "").toLowerCase();
+
+    if (normalizedRole === "skater") {
+        userData.role = "Skater";
+        return await new Skater(userData).save();
+    }
+
     const user = await new BaseAuth(userData).save();
     return user;
 };

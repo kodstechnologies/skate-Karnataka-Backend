@@ -15,6 +15,20 @@ const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const normalizeAttendanceStatus = (status) =>
   status === "apsent" ? "absent" : status;
 
+/** timeTaken 0 → absent; any other numeric time → attend; else keep current / pending. */
+const resolveAttendanceFromTimeTaken = (timeTaken, explicitStatus, currentStatus = "pending") => {
+  if (explicitStatus !== undefined) {
+    return normalizeAttendanceStatus(explicitStatus);
+  }
+  if (timeTaken === 0) {
+    return "absent";
+  }
+  if (timeTaken != null && typeof timeTaken === "number" && !Number.isNaN(timeTaken)) {
+    return "attend";
+  }
+  return currentStatus || "pending";
+};
+
 /** Club JWT is usually a member (BaseAuth _id listed on `Club.members`); events store the Club document _id in `eventFor`. */
 export const resolveClubIdForClubAuthUser = async (authUserId) => {
   let resolvedClubId = authUserId;
@@ -155,16 +169,21 @@ export const createRegisterFormRepository = async (payload) => {
 
 export const listEventSkatersByEventIdRepository = async (
   eventId,
-  { page, limit, search, ageGroup, categoryName }
+  { page, limit, search, ageGroup, categoryName, categoriesId, clubId }
 ) => {
   const oid = new mongoose.Types.ObjectId(eventId);
   const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
   const usersCol = BaseAuth.collection.name;
+  const skatersCol = Skater.collection.name;
 
   const initialMatch = { eventId: oid };
   const ageTerm = typeof ageGroup === "string" ? ageGroup.trim() : "";
   if (ageTerm) {
     initialMatch.ageGroup = ageTerm;
+  }
+
+  if (categoriesId && mongoose.Types.ObjectId.isValid(String(categoriesId))) {
+    initialMatch.categoriesId = new mongoose.Types.ObjectId(categoriesId);
   }
 
   const categoryTermRaw = typeof categoryName === "string" ? categoryName.trim() : "";
@@ -211,9 +230,27 @@ export const listEventSkatersByEventIdRepository = async (
           { "user.fullName": rx },
           { "user.phone": rx },
           { "user.email": rx },
+          { "user.krsaId": rx },
+          { name: rx },
         ],
       },
     });
+  }
+
+  if (clubId && mongoose.Types.ObjectId.isValid(String(clubId))) {
+    const clubOid = new mongoose.Types.ObjectId(clubId);
+    pipeline.push(
+      {
+        $lookup: {
+          from: skatersCol,
+          localField: "userId",
+          foreignField: "_id",
+          as: "skaterProfile",
+        },
+      },
+      { $unwind: { path: "$skaterProfile", preserveNullAndEmptyArrays: false } },
+      { $match: { "skaterProfile.club": clubOid } }
+    );
   }
 
   pipeline.push({
@@ -414,6 +451,37 @@ export const getStateEventResultsRepository = async (
   };
 };
 
+export const findEventParticipantForCompetitionUpdate = async ({
+  eventId,
+  registrationId,
+  skaterId,
+  categoriesId,
+  ageGroup,
+  categoryName,
+}) => {
+  const eventOid = new mongoose.Types.ObjectId(eventId);
+  const query = {
+    eventId: eventOid,
+    categoriesId: new mongoose.Types.ObjectId(categoriesId),
+    ageGroup: typeof ageGroup === "string" ? ageGroup.trim() : ageGroup,
+    categories: {
+      $elemMatch: {
+        name: typeof categoryName === "string" ? categoryName.trim() : categoryName,
+      },
+    },
+  };
+
+  if (registrationId) {
+    query._id = new mongoose.Types.ObjectId(registrationId);
+  } else if (skaterId) {
+    query.userId = new mongoose.Types.ObjectId(skaterId);
+  } else {
+    return null;
+  }
+
+  return EventParticipant.findOne(query).select("_id userId name ageGroup categories").lean();
+};
+
 export const updateEventParticipantTimingBySkaterRepository = async (
   { skaterId, registrationId },
   eventId,
@@ -484,9 +552,15 @@ export const updateEventParticipantTimingBySkaterRepository = async (
               : categoryObj.isDisqualified,
         remarks: incoming.remarks !== undefined ? incoming.remarks : categoryObj.remarks,
         attendanceStatus:
-          incoming.attendanceStatus !== undefined
-            ? normalizeAttendanceStatus(incoming.attendanceStatus)
-            : categoryObj.attendanceStatus || "pending",
+          incoming.timeTaken !== undefined
+            ? resolveAttendanceFromTimeTaken(
+                incoming.timeTaken,
+                incoming.attendanceStatus,
+                categoryObj.attendanceStatus
+              )
+            : incoming.attendanceStatus !== undefined
+              ? normalizeAttendanceStatus(incoming.attendanceStatus)
+              : categoryObj.attendanceStatus || "pending",
       };
     });
   } else if (typeof forceDisqualified === "boolean") {
@@ -999,6 +1073,37 @@ export const getSkaterEventFormCategoryDetailsRepository = async (eventId, skate
   }
 
   return { ...meta, category, skatingEventCategories };
+};
+
+/**
+ * Full SkatingEventCategory documents for an event (`skatingEventCategories` order preserved).
+ */
+export const getEventSkatingEventCategoriesFullRepository = async (eventId) => {
+  const event = await Event.findById(eventId)
+    .select("header skatingEventCategories eventType")
+    .lean();
+  if (!event) {
+    return null;
+  }
+
+  const orderedIds = (event.skatingEventCategories || [])
+    .map((id) => String(id))
+    .filter((id) => mongoose.Types.ObjectId.isValid(id));
+
+  let skatingEventCategories = [];
+  if (orderedIds.length > 0) {
+    const objectIds = orderedIds.map((id) => new mongoose.Types.ObjectId(id));
+    const docs = await SkatingEventCategory.find({ _id: { $in: objectIds } }).lean();
+    const byId = new Map(docs.map((doc) => [String(doc._id), doc]));
+    skatingEventCategories = orderedIds.map((id) => byId.get(id)).filter(Boolean);
+  }
+
+  return {
+    eventId: event._id,
+    eventName: event.header ?? "",
+    eventType: event.eventType ?? "",
+    skatingEventCategories,
+  };
 };
 
 /** Event by id with `eventFor` populated (State / District / Club all expose `name`). */

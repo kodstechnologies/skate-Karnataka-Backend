@@ -3,8 +3,10 @@ import mongoose from "mongoose";
 import { BaseAuth } from "../auth/baseAuth.model.js";
 import { State } from "../state/state.model.js";
 import { Skater } from "../skater/skater.model.js";
+import { Event } from "./event.model.js";
+import SkatingEventCategory from "./SkatingEventCategory.model.js";
 import { EventParticipant } from "./eventParticipant.model.js";
-import { createEventCategoryRepository, createRegisterFormRepository, deleteEventCategoryRepository, displaySingleEventRepository, displayAllEventRepository, create_event_repositories, edit_event_repositories, delete_event_repositories, display_latest_event_repositories, display_all_event_based_on_user_repositories, clubRelatedEventDisplayRepositories, createClubEventRepositories, districtRelatedEventDisplayRepositories, createDistrictEventRepositories, enrichLeanEventsSkatingCategoryNames, getRegisterFormByIdRepository, getRegisterFormByUserIdRepository, stateRelatedEventDisplayRepositories, createStateEventRepositories, getAllEventCategoriesRepository, getEventCategoryByIdRepository, updateEventCategoryRepository, getStateEventFullDetailsByIdRepository, getStateEventResultsRepository, listEventSkatersBasicByEventIdRepository, listEventSkatersByEventIdRepository, updateEventParticipantTimingBySkaterRepository, getSkaterEventFullDetailsDtoRepository, getSkaterEventFormCategoryDetailsRepository, resolveClubIdForClubAuthUser } from "./event.repositories.js";
+import { createEventCategoryRepository, createRegisterFormRepository, deleteEventCategoryRepository, displaySingleEventRepository, displayAllEventRepository, create_event_repositories, edit_event_repositories, delete_event_repositories, display_latest_event_repositories, display_all_event_based_on_user_repositories, clubRelatedEventDisplayRepositories, createClubEventRepositories, districtRelatedEventDisplayRepositories, createDistrictEventRepositories, enrichLeanEventsSkatingCategoryNames, findEventParticipantForCompetitionUpdate, getRegisterFormByIdRepository, getRegisterFormByUserIdRepository, stateRelatedEventDisplayRepositories, createStateEventRepositories, getAllEventCategoriesRepository, getEventCategoryByIdRepository, updateEventCategoryRepository, getStateEventFullDetailsByIdRepository, getStateEventResultsRepository, listEventSkatersBasicByEventIdRepository, listEventSkatersByEventIdRepository, updateEventParticipantTimingBySkaterRepository, getSkaterEventFullDetailsDtoRepository, getSkaterEventFormCategoryDetailsRepository, getEventSkatingEventCategoriesFullRepository, resolveClubIdForClubAuthUser } from "./event.repositories.js";
 import { Club } from "../club/club.model.js";
 
 const displayEventServer = async (data) => {
@@ -254,37 +256,242 @@ const assertEventForGivenPoint = async (eventId, reqUser) => {
     throw new AppError("Forbidden", 403);
 };
 
-export const givenPointEventService = async (reqUser, body) => {
-    const { eventId, skaterId, registrationId, categories } = body;
+export const competitionDetailsService = async (eventId, reqUser) => {
+    await assertEventForGivenPoint(eventId, reqUser);
+    const result = await getEventSkatingEventCategoriesFullRepository(eventId);
+    if (!result) {
+        throw new AppError("Event not found", 404);
+    }
+    return result;
+};
+
+const assertCompetitionCategoryOnEvent = async (
+    eventId,
+    skatingEventCategoryId,
+    ageGroup,
+    categoryName
+) => {
+    const event = await Event.findById(eventId)
+        .select("header skatingEventCategories colorOne colorTwo textColor")
+        .lean();
+    if (!event) {
+        throw new AppError("Event not found", 404);
+    }
+
+    const linkedIds = (event.skatingEventCategories || []).map((id) => String(id));
+    if (!linkedIds.includes(String(skatingEventCategoryId))) {
+        throw new AppError("Skating event category is not linked to this event", 400);
+    }
+
+    const skatingCategory = await SkatingEventCategory.findById(skatingEventCategoryId).lean();
+    if (!skatingCategory) {
+        throw new AppError("Skating event category not found", 404);
+    }
+
+    const ageGroupEntry = (skatingCategory.ageGroups || []).find(
+        (group) => group.label === ageGroup
+    );
+    if (!ageGroupEntry) {
+        throw new AppError("Age group not found for this skating event category", 400);
+    }
+
+    const categoryExists = (ageGroupEntry.categories || []).some(
+        (category) => String(category.name || "").trim() === categoryName
+    );
+    if (!categoryExists) {
+        throw new AppError("Category name not found for this age group", 400);
+    }
+
+    return {
+        eventName: event.header ?? "",
+        colorOne: event.colorOne ?? null,
+        colorTwo: event.colorTwo ?? null,
+        textColor: event.textColor ?? null,
+        skatingCategoryTypeName: skatingCategory.typeName ?? "",
+    };
+};
+
+export const competitionAllSkaterService = async (reqUser, body) => {
+    const {
+        eventId,
+        skatingEventCategoryId,
+        ageGroup,
+        name: categoryName,
+        page = 1,
+        limit = 10,
+        search = "",
+    } = body;
 
     await assertEventForGivenPoint(eventId, reqUser);
 
-    const role = String(reqUser.role || "").trim().toLowerCase();
+    const eventMeta = await assertCompetitionCategoryOnEvent(
+        eventId,
+        skatingEventCategoryId,
+        ageGroup,
+        categoryName
+    );
 
+    const role = String(reqUser.role || "").trim().toLowerCase();
+    let clubId = null;
     if (role === "club") {
-        const eventOid = new mongoose.Types.ObjectId(eventId);
-        const participant = await EventParticipant.findOne(
-            registrationId
-                ? {
-                      _id: new mongoose.Types.ObjectId(registrationId),
-                      eventId: eventOid,
-                  }
-                : {
-                      userId: new mongoose.Types.ObjectId(skaterId),
-                      eventId: eventOid,
-                  }
-        )
-            .select("_id userId")
-            .lean();
-        if (!participant) {
-            throw new AppError("Skater registration not found for this event", 404);
-        }
-        const resolvedClubId = await resolveClubIdForClubAuthUser(reqUser._id);
-        const skaterProfile = await Skater.findById(participant.userId).select("club").lean();
-        if (!skaterProfile?.club || String(skaterProfile.club) !== String(resolvedClubId)) {
-            throw new AppError("Forbidden: skater is not registered under your club", 403);
-        }
+        clubId = await resolveClubIdForClubAuthUser(reqUser._id);
     }
+
+    const list = await listEventSkatersByEventIdRepository(eventId, {
+        page,
+        limit,
+        search,
+        ageGroup,
+        categoryName,
+        categoriesId: skatingEventCategoryId,
+        clubId,
+    });
+
+    const data = (list.data || []).map((skater) => {
+        const matchedCategory = (skater.categories || []).find(
+            (category) => String(category.name || "").trim() === categoryName
+        );
+        return {
+            ...skater,
+            category: matchedCategory || null,
+        };
+    });
+
+    return {
+        eventId,
+        skatingEventCategoryId,
+        skatingCategoryTypeName: eventMeta.skatingCategoryTypeName,
+        ageGroup,
+        categoryName,
+        registeredCount: list.total ?? 0,
+        event: {
+            eventName: eventMeta.eventName,
+            colorOne: eventMeta.colorOne,
+            colorTwo: eventMeta.colorTwo,
+            textColor: eventMeta.textColor,
+        },
+        data,
+        pagination: {
+            total: list.total ?? 0,
+            page: list.page ?? (Number(page) || 1),
+            limit: list.limit ?? (Number(limit) || 10),
+            totalPages: list.totalPages ?? 0,
+        },
+    };
+};
+
+const assertClubCanAccessParticipant = async (reqUser, participant) => {
+    const role = String(reqUser.role || "").trim().toLowerCase();
+    if (role !== "club") {
+        return;
+    }
+    const resolvedClubId = await resolveClubIdForClubAuthUser(reqUser._id);
+    const skaterProfile = await Skater.findById(participant.userId).select("club").lean();
+    if (!skaterProfile?.club || String(skaterProfile.club) !== String(resolvedClubId)) {
+        throw new AppError("Forbidden: skater is not registered under your club", 403);
+    }
+};
+
+export const givenPointEventService = async (reqUser, body) => {
+    const { eventId } = body;
+
+    await assertEventForGivenPoint(eventId, reqUser);
+
+    if (Array.isArray(body.skaters) && body.skaters.length > 0) {
+        const {
+            skatingEventCategoryId,
+            ageGroup,
+            name: categoryName,
+            skaters,
+        } = body;
+
+        await assertCompetitionCategoryOnEvent(
+            eventId,
+            skatingEventCategoryId,
+            ageGroup,
+            categoryName
+        );
+
+        const updatedSkaters = [];
+
+        for (const skaterPayload of skaters) {
+            const { registrationId, skaterId, timeTaken, rank, isDisqualified, remarks } =
+                skaterPayload;
+
+            const participant = await findEventParticipantForCompetitionUpdate({
+                eventId,
+                registrationId,
+                skaterId,
+                categoriesId: skatingEventCategoryId,
+                ageGroup,
+                categoryName,
+            });
+
+            if (!participant) {
+                throw new AppError(
+                    `Skater registration not found for category "${categoryName}": ${registrationId || skaterId}`,
+                    404
+                );
+            }
+
+            await assertClubCanAccessParticipant(reqUser, participant);
+
+            const updated = await updateEventParticipantTimingBySkaterRepository(
+                {
+                    skaterId,
+                    registrationId: registrationId || String(participant._id),
+                },
+                eventId,
+                {
+                    categories: [
+                        {
+                            name: categoryName,
+                            timeTaken,
+                            rank,
+                            isDisqualified,
+                            remarks,
+                        },
+                    ],
+                }
+            );
+
+            if (updated) {
+                updatedSkaters.push(updated);
+            }
+        }
+
+        return {
+            eventId,
+            skatingEventCategoryId,
+            ageGroup,
+            categoryName,
+            updatedCount: updatedSkaters.length,
+            skaters: updatedSkaters,
+        };
+    }
+
+    const { skaterId, registrationId, categories } = body;
+
+    const eventOid = new mongoose.Types.ObjectId(eventId);
+    const participant = await EventParticipant.findOne(
+        registrationId
+            ? {
+                  _id: new mongoose.Types.ObjectId(registrationId),
+                  eventId: eventOid,
+              }
+            : {
+                  userId: new mongoose.Types.ObjectId(skaterId),
+                  eventId: eventOid,
+              }
+    )
+        .select("_id userId")
+        .lean();
+
+    if (!participant) {
+        throw new AppError("Skater registration not found for this event", 404);
+    }
+
+    await assertClubCanAccessParticipant(reqUser, participant);
 
     const updated = await updateEventParticipantTimingBySkaterRepository(
         { skaterId, registrationId },

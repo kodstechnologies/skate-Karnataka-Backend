@@ -1,4 +1,5 @@
 import { AppError } from "../../util/common/AppError.js";
+import { formatCompetitionTimeTakenFromSeconds } from "../../util/time/timeUtil.js";
 import mongoose from "mongoose";
 import { BaseAuth } from "../auth/baseAuth.model.js";
 import { State } from "../state/state.model.js";
@@ -345,12 +346,24 @@ export const competitionAllSkaterService = async (reqUser, body) => {
         clubId,
     });
 
+    const formatCategoryTimeTaken = (category) => {
+        if (!category) {
+            return category;
+        }
+        return {
+            ...category,
+            timeTaken: formatCompetitionTimeTakenFromSeconds(category.timeTaken),
+        };
+    };
+
     const data = (list.data || []).map((skater) => {
-        const matchedCategory = (skater.categories || []).find(
+        const categories = (skater.categories || []).map(formatCategoryTimeTaken);
+        const matchedCategory = categories.find(
             (category) => String(category.name || "").trim() === categoryName
         );
         return {
             ...skater,
+            categories,
             category: matchedCategory || null,
         };
     });

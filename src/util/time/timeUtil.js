@@ -186,6 +186,28 @@ const parseCompetitionTimeTakenToSeconds = (value) => {
     return minutes * 60 + seconds + milliseconds / 1000;
 };
 
+/**
+ * Format stored seconds as "minutes:seconds:milliseconds" (e.g. 480 → "08:00:00").
+ */
+const formatCompetitionTimeTakenFromSeconds = (totalSeconds) => {
+    if (totalSeconds === null || totalSeconds === undefined) {
+        return null;
+    }
+
+    if (typeof totalSeconds !== "number" || Number.isNaN(totalSeconds)) {
+        return null;
+    }
+
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = Math.floor(totalSeconds % 60);
+    const milliseconds = Math.round((totalSeconds % 1) * 1000);
+
+    const pad2 = (value) => String(value).padStart(2, "0");
+    const minutePart = minutes < 100 ? pad2(minutes) : String(minutes);
+
+    return `${minutePart}:${pad2(seconds)}:${pad2(milliseconds)}`;
+};
+
 export {
     now,
     toISO,
@@ -195,4 +217,5 @@ export {
     diffInMinutes,
     timeAgo,
     parseCompetitionTimeTakenToSeconds,
+    formatCompetitionTimeTakenFromSeconds,
 };

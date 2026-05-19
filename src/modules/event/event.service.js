@@ -356,17 +356,10 @@ export const competitionAllSkaterService = async (reqUser, body) => {
         };
     };
 
-    const data = (list.data || []).map((skater) => {
-        const categories = (skater.categories || []).map(formatCategoryTimeTaken);
-        const matchedCategory = categories.find(
-            (category) => String(category.name || "").trim() === categoryName
-        );
-        return {
-            ...skater,
-            categories,
-            category: matchedCategory || null,
-        };
-    });
+    const data = (list.data || []).map((skater) => ({
+        ...skater,
+        categories: (skater.categories || []).map(formatCategoryTimeTaken),
+    }));
 
     return {
         eventId,
@@ -429,6 +422,16 @@ export const givenPointEventService = async (reqUser, body) => {
             const { registrationId, timeTaken, rank, isDisqualified, remarks } =
                 skaterPayload;
 
+            const hasUpdateField =
+                timeTaken !== undefined ||
+                rank !== undefined ||
+                isDisqualified !== undefined ||
+                remarks !== undefined;
+
+            if (!hasUpdateField) {
+                continue;
+            }
+
             const participant = await findEventParticipantForCompetitionUpdate({
                 eventId,
                 registrationId,
@@ -446,21 +449,27 @@ export const givenPointEventService = async (reqUser, body) => {
 
             await assertClubCanAccessParticipant(reqUser, participant);
 
+            const categoryUpdate = { name: categoryName };
+            if (timeTaken !== undefined) {
+                categoryUpdate.timeTaken = timeTaken;
+            }
+            if (rank !== undefined) {
+                categoryUpdate.rank = rank;
+            }
+            if (isDisqualified !== undefined) {
+                categoryUpdate.isDisqualified = isDisqualified;
+            }
+            if (remarks !== undefined) {
+                categoryUpdate.remarks = remarks;
+            }
+
             const updated = await updateEventParticipantTimingBySkaterRepository(
                 {
                     registrationId: registrationId || String(participant._id),
                 },
                 eventId,
                 {
-                    categories: [
-                        {
-                            name: categoryName,
-                            timeTaken,
-                            rank,
-                            isDisqualified,
-                            remarks,
-                        },
-                    ],
+                    categories: [categoryUpdate],
                 }
             );
 

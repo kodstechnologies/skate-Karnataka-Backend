@@ -233,10 +233,25 @@ const givenPointCategoryItem = Joi.object({
 const givenPointSkaterItem = Joi.object({
     registrationId: objectIdString.required(),
     skaterId: objectIdString.optional(),
-    timeTaken: competitionTimeTaken.required(),
+    timeTaken: competitionTimeTaken.optional(),
     rank: Joi.number().integer().allow(null).optional(),
     isDisqualified: Joi.boolean().optional(),
     remarks: Joi.string().trim().allow("").optional(),
+}).custom((value, helpers) => {
+    const hasUpdateField =
+        value.timeTaken !== undefined ||
+        value.rank !== undefined ||
+        value.isDisqualified !== undefined ||
+        value.remarks !== undefined;
+
+    if (!hasUpdateField) {
+        return helpers.error("any.custom", {
+            message:
+                "Each skater must include at least one of timeTaken, rank, isDisqualified, or remarks",
+        });
+    }
+
+    return value;
 });
 
 const given_point_bulk_body = Joi.object({
@@ -245,6 +260,22 @@ const given_point_bulk_body = Joi.object({
     ageGroup: competitionAgeGroupLabel.required(),
     name: Joi.string().trim().min(1).required(),
     skaters: Joi.array().items(givenPointSkaterItem).min(1).required(),
+}).custom((value, helpers) => {
+    const hasUpdatableSkater = (value.skaters || []).some(
+        (skater) =>
+            skater.timeTaken !== undefined ||
+            skater.rank !== undefined ||
+            skater.isDisqualified !== undefined ||
+            skater.remarks !== undefined
+    );
+
+    if (!hasUpdatableSkater) {
+        return helpers.error("any.custom", {
+            message: "At least one skater must include a field to update",
+        });
+    }
+
+    return value;
 });
 
 const given_point_single_body = Joi.object({

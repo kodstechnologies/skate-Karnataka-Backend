@@ -648,37 +648,45 @@ export const updateEventParticipantTimingBySkaterRepository = async (
       );
     }
 
-    participant.categories = participant.categories.map((category) => {
-      const categoryObj = category.toObject();
-      const incoming = inputByName.get(String(categoryObj.name || "").trim());
+    let categoriesTouched = false;
+
+    for (const category of participant.categories) {
+      const incoming = inputByName.get(String(category.name || "").trim());
       if (!incoming) {
-        return categoryObj;
+        continue;
       }
 
-      return {
-        ...categoryObj,
-        timeTaken:
-          incoming.timeTaken !== undefined ? incoming.timeTaken : categoryObj.timeTaken,
-        rank: incoming.rank !== undefined ? incoming.rank : categoryObj.rank,
-        isDisqualified:
-          incoming.isDisqualified !== undefined
-            ? incoming.isDisqualified
-            : typeof forceDisqualified === "boolean"
-              ? forceDisqualified
-              : categoryObj.isDisqualified,
-        remarks: incoming.remarks !== undefined ? incoming.remarks : categoryObj.remarks,
-        attendanceStatus:
-          incoming.timeTaken !== undefined
-            ? resolveAttendanceFromTimeTaken(
-                incoming.timeTaken,
-                incoming.attendanceStatus,
-                categoryObj.attendanceStatus
-              )
-            : incoming.attendanceStatus !== undefined
-              ? normalizeAttendanceStatus(incoming.attendanceStatus)
-              : categoryObj.attendanceStatus || "pending",
-      };
-    });
+      categoriesTouched = true;
+
+      if (incoming.timeTaken !== undefined) {
+        category.timeTaken = incoming.timeTaken;
+        category.attendanceStatus = resolveAttendanceFromTimeTaken(
+          incoming.timeTaken,
+          incoming.attendanceStatus,
+          category.attendanceStatus
+        );
+      } else if (incoming.attendanceStatus !== undefined) {
+        category.attendanceStatus = normalizeAttendanceStatus(incoming.attendanceStatus);
+      }
+
+      if (incoming.rank !== undefined) {
+        category.rank = incoming.rank;
+      }
+
+      if (incoming.isDisqualified !== undefined) {
+        category.isDisqualified = incoming.isDisqualified;
+      } else if (typeof forceDisqualified === "boolean") {
+        category.isDisqualified = forceDisqualified;
+      }
+
+      if (incoming.remarks !== undefined) {
+        category.remarks = incoming.remarks;
+      }
+    }
+
+    if (categoriesTouched) {
+      participant.markModified("categories");
+    }
   } else if (typeof forceDisqualified === "boolean") {
     participant.categories = participant.categories.map((category) => ({
       ...category.toObject(),

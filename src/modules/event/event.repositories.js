@@ -46,6 +46,51 @@ export const resolveClubIdForClubAuthUser = async (authUserId) => {
   return resolvedClubId;
 };
 
+/**
+ * Skater-visible events: all State + District (club's district) + Club (skater's club).
+ * District is resolved from the club document, not the skater profile.
+ */
+export const resolveSkaterEventScope = async (userId) => {
+  const skater = await Skater.findById(userId).select("club category").lean();
+  if (!skater) {
+    return null;
+  }
+
+  let districtId = null;
+  const clubId = skater.club || null;
+
+  if (clubId) {
+    const club = await Club.findById(clubId).select("district").lean();
+    districtId = club?.district || null;
+  }
+
+  return {
+    skaterCategory: skater.category || null,
+    clubId,
+    districtId,
+  };
+};
+
+const buildSkaterVisibleEventsOrClause = ({ clubId, districtId }) => {
+  const clauses = [{ eventType: "State" }];
+
+  if (districtId) {
+    clauses.push({
+      eventType: "District",
+      eventFor: new mongoose.Types.ObjectId(String(districtId)),
+    });
+  }
+
+  if (clubId) {
+    clauses.push({
+      eventType: "Club",
+      eventFor: new mongoose.Types.ObjectId(String(clubId)),
+    });
+  }
+
+  return clauses;
+};
+
 const displayAllEventRepository = async ({ page, limit }) => {
 
   const { skip, limit: pageLimit, page: currentPage } =
@@ -1149,16 +1194,12 @@ const displaySingleEventRepository = async (id) => {
  * @param {string|null|undefined} select - optional mongoose `.select()` projection
  */
 const fetchEventLeanIfSkaterAccessible = async (eventId, skaterUserId, select) => {
-  const user =
-    (await Skater.findById(skaterUserId).select("district club").lean()) ||
-    (await BaseAuth.findById(skaterUserId).select("district").lean());
-
-  if (!user) {
+  const scope = await resolveSkaterEventScope(skaterUserId);
+  if (!scope) {
     return null;
   }
 
-  const userDistrict = user.district;
-  const userClub = user.club;
+  const { clubId, districtId } = scope;
 
   const rawId = String(eventId || "").trim();
   if (!rawId || !mongoose.Types.ObjectId.isValid(rawId)) {
@@ -1179,13 +1220,13 @@ const fetchEventLeanIfSkaterAccessible = async (eventId, skaterUserId, select) =
   const ownerId = ownerRaw != null ? String(ownerRaw) : null;
 
   if (event.eventType === "State") {
-    // visible to all skaters (matches display_latest_event_repositories)
+    // All state events (including admin-created) are visible to every skater.
   } else if (event.eventType === "District") {
-    if (!userDistrict || ownerId !== String(userDistrict)) {
+    if (!districtId || ownerId !== String(districtId)) {
       return null;
     }
   } else if (event.eventType === "Club") {
-    if (!userClub || ownerId !== String(userClub)) {
+    if (!clubId || ownerId !== String(clubId)) {
       return null;
     }
   } else {
@@ -1357,28 +1398,13 @@ export const getStateEventFullDetailsByIdRepository =
   getEventByIdPopulatingEventForNameRepository;
 
 const display_latest_event_repositories = async (userId) => {
-  // ✅ Get skater profile first (contains club), fallback to BaseAuth
-  const user = (await Skater.findById(userId).select("district club").lean())
-    || (await BaseAuth.findById(userId).select("district").lean());
-
-  if (!user) {
+  const scope = await resolveSkaterEventScope(userId);
+  if (!scope) {
     throw new Error("User not found");
   }
 
-  const userDistrict = user.district;
-  const userClub = user.club;
-
-  // ✅ Build query
   const query = {
-    $or: [
-      { eventType: "State" },
-      ...(userDistrict
-        ? [{ eventType: "District", eventFor: userDistrict }]
-        : []),
-      ...(userClub
-        ? [{ eventType: "Club", eventFor: userClub }]
-        : []),
-    ],
+    $or: buildSkaterVisibleEventsOrClause(scope),
   };
 
   const event = await Event.findOne(query)
@@ -1424,16 +1450,12 @@ const delete_event_repositories = async (id) => {
 
 
 const display_all_event_based_on_user_repositories = async (userId, { page, limit }) => {
-  const user = (await Skater.findById(userId).select("district club category").lean())
-    || (await BaseAuth.findById(userId).select("district").lean());
-
-  if (!user) {
+  const scope = await resolveSkaterEventScope(userId);
+  if (!scope) {
     throw new Error("User not found");
   }
 
-  const userDistrict = user.district;
-  const userClub = user.club;
-  const skaterCategory = user.category;
+  const { skaterCategory, clubId, districtId } = scope;
 
   const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
 
@@ -1452,17 +1474,7 @@ const display_all_event_based_on_user_repositories = async (userId, { page, limi
 
   const query = {
     $and: [
-      {
-        $or: [
-          { eventType: "State" },
-          ...(userDistrict
-            ? [{ eventType: "District", eventFor: userDistrict }]
-            : []),
-          ...(userClub
-            ? [{ eventType: "Club", eventFor: userClub }]
-            : []),
-        ],
-      },
+      { $or: buildSkaterVisibleEventsOrClause({ clubId, districtId }) },
       { skatingEventCategories: skaterCategory },
       { registerEndDate: { $gte: startOfToday } },
     ],

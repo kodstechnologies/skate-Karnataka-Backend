@@ -150,7 +150,8 @@ const assertUserCanAccessStateEvent = async (
     }
     const normalizedRole = String(role || "").trim().toLowerCase();
     const isAdmin = normalizedRole === "admin" || normalizedRole === "superadmin";
-    if (!isAdmin && enforceOwnership) {
+    const isStateMember = normalizedRole === "state";
+    if (!isAdmin && !isStateMember && enforceOwnership) {
         const ownerId =
             event.eventFor && typeof event.eventFor === "object" && event.eventFor._id
                 ? event.eventFor._id.toString()
@@ -248,10 +249,7 @@ const assertEventForGivenPoint = async (eventId, reqUser) => {
         if (event.eventType !== "State") {
             throw new AppError("Forbidden", 403);
         }
-        return assertUserCanAccessStateEvent(eventId, {
-            role: reqUser.role,
-            userId: reqUser._id,
-        });
+        return event;
     }
     throw new AppError("Forbidden", 403);
 };
@@ -727,6 +725,19 @@ const edit_event_schema = async (id, data) => {
 }
 
 const delete_event_schema = async (id) => {
+    const event = await Event.findById(id).select("_id").lean();
+    if (!event) {
+        throw new AppError("Event not found", 404);
+    }
+
+    const registeredCount = await EventParticipant.countDocuments({ eventId: id });
+    if (registeredCount > 0) {
+        throw new AppError(
+            "Cannot delete event: skaters are already registered for this event",
+            400
+        );
+    }
+
     await delete_event_repositories(id);
 }
 

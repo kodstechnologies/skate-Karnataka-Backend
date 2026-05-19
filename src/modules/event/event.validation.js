@@ -1,5 +1,6 @@
 import Joi from "joi";
 import { AGE_GROUPS } from "./SkatingEventCategory.model.js";
+import { parseCompetitionTimeTakenToSeconds } from "../../util/time/timeUtil.js";
 
 const objectIdString = Joi.string()
     .trim()
@@ -204,9 +205,21 @@ export const competitionAllSkaterValidation = {
     }),
 };
 
+const competitionTimeTaken = Joi.alternatives()
+    .try(Joi.number(), Joi.string().trim().min(1))
+    .custom((value, helpers) => {
+        try {
+            return parseCompetitionTimeTakenToSeconds(value);
+        } catch (err) {
+            return helpers.error("any.invalid", {
+                message: err.message || "Invalid timeTaken",
+            });
+        }
+    });
+
 const givenPointCategoryItem = Joi.object({
     name: Joi.string().trim().min(1).required(),
-    timeTaken: Joi.number().allow(null).optional(),
+    timeTaken: competitionTimeTaken.allow(null).optional(),
     rank: Joi.number().integer().allow(null).optional(),
     isDisqualified: Joi.boolean().optional(),
     remarks: Joi.string().trim().allow("").optional(),
@@ -218,13 +231,13 @@ const givenPointCategoryItem = Joi.object({
 });
 
 const givenPointSkaterItem = Joi.object({
-    registrationId: objectIdString.optional(),
+    registrationId: objectIdString.required(),
     skaterId: objectIdString.optional(),
-    timeTaken: Joi.number().required(),
+    timeTaken: competitionTimeTaken.required(),
     rank: Joi.number().integer().allow(null).optional(),
     isDisqualified: Joi.boolean().optional(),
     remarks: Joi.string().trim().allow("").optional(),
-}).xor("skaterId", "registrationId");
+});
 
 const given_point_bulk_body = Joi.object({
     eventId: objectIdString.required(),

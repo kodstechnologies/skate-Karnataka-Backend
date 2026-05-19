@@ -140,7 +140,53 @@ const timeAgo = (value) => {
 // 5 min ago
 
 // =====================================
-export  {
+
+/**
+ * Parse competition time to total seconds (stored in DB).
+ * Accepts a number (already seconds) or "minutes:seconds:milliseconds" string, e.g. "4:21:30".
+ */
+const parseCompetitionTimeTakenToSeconds = (value) => {
+    if (value === null || value === undefined) {
+        return null;
+    }
+
+    if (typeof value === "number") {
+        if (Number.isNaN(value)) {
+            throw new Error("timeTaken must be a valid number");
+        }
+        return value;
+    }
+
+    if (typeof value !== "string") {
+        throw new Error('timeTaken must be a number or "minutes:seconds:milliseconds" string');
+    }
+
+    const trimmed = value.trim();
+    if (!trimmed) {
+        throw new Error("timeTaken cannot be empty");
+    }
+
+    if (/^\d+(\.\d+)?$/.test(trimmed)) {
+        return Number(trimmed);
+    }
+
+    const parts = trimmed.split(":").map((part) => part.trim());
+    if (parts.length !== 3) {
+        throw new Error('timeTaken must be in "minutes:seconds:milliseconds" format (e.g. "4:21:30")');
+    }
+
+    const minutes = Number(parts[0]);
+    const seconds = Number(parts[1]);
+    const milliseconds = Number(parts[2]);
+
+    if ([minutes, seconds, milliseconds].some((n) => Number.isNaN(n) || n < 0)) {
+        throw new Error("timeTaken minutes, seconds, and milliseconds must be non-negative numbers");
+    }
+
+    return minutes * 60 + seconds + milliseconds / 1000;
+};
+
+export {
     now,
     toISO,
     formatDate,
@@ -148,4 +194,5 @@ export  {
     formatDateTime,
     diffInMinutes,
     timeAgo,
+    parseCompetitionTimeTakenToSeconds,
 };

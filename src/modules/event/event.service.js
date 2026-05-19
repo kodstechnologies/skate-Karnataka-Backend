@@ -413,13 +413,12 @@ export const givenPointEventService = async (reqUser, body) => {
         const updatedSkaters = [];
 
         for (const skaterPayload of skaters) {
-            const { registrationId, skaterId, timeTaken, rank, isDisqualified, remarks } =
+            const { registrationId, timeTaken, rank, isDisqualified, remarks } =
                 skaterPayload;
 
             const participant = await findEventParticipantForCompetitionUpdate({
                 eventId,
                 registrationId,
-                skaterId,
                 categoriesId: skatingEventCategoryId,
                 ageGroup,
                 categoryName,
@@ -427,7 +426,7 @@ export const givenPointEventService = async (reqUser, body) => {
 
             if (!participant) {
                 throw new AppError(
-                    `Skater registration not found for category "${categoryName}": ${registrationId || skaterId}`,
+                    `Skater registration not found for category "${categoryName}": ${registrationId}`,
                     404
                 );
             }
@@ -436,7 +435,6 @@ export const givenPointEventService = async (reqUser, body) => {
 
             const updated = await updateEventParticipantTimingBySkaterRepository(
                 {
-                    skaterId,
                     registrationId: registrationId || String(participant._id),
                 },
                 eventId,
@@ -491,10 +489,11 @@ export const givenPointEventService = async (reqUser, body) => {
 
     await assertClubCanAccessParticipant(reqUser, participant);
 
+    const resolvedRegistrationId = registrationId || String(participant._id);
     const updated = await updateEventParticipantTimingBySkaterRepository(
-        { skaterId, registrationId },
+        { registrationId: resolvedRegistrationId },
         eventId,
-        { eventId, skaterId, registrationId, categories }
+        { eventId, registrationId: resolvedRegistrationId, categories }
     );
     if (!updated) {
         throw new AppError("Skater registration not found for this event", 404);

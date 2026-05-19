@@ -356,10 +356,17 @@ export const competitionAllSkaterService = async (reqUser, body) => {
         };
     };
 
-    const data = (list.data || []).map((skater) => ({
-        ...skater,
-        categories: (skater.categories || []).map(formatCategoryTimeTaken),
-    }));
+    const data = (list.data || []).map((skater) => {
+        const categories = (skater.categories || []).map(formatCategoryTimeTaken);
+        const matchedCategory = categories.find(
+            (category) => String(category.name || "").trim() === categoryName
+        );
+        return {
+            ...skater,
+            categories,
+            category: matchedCategory || null,
+        };
+    });
 
     return {
         eventId,

@@ -1,6 +1,6 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { acceptClubService, createNewDistrictService, displayAllApplyService, displayDashboardData, displayDistrictProfileServices, displaySkaterDetailsService, displayTotalClubsService, displayTotalSkatersService, districtClubDetailsService, districtDeletedService, districtUnLinkClubService, getAllDistrictService, leaveClubService, rejectClubService, singleDistrictAllClubNameService, singleDistrictSkatersService, updateDistrictService } from "./district.service.js";
+import { acceptClubService, createNewDistrictService, displayAllApplyService, displayDashboardData, displayDistrictProfileServices, displaySkaterDetailsService, displayTotalClubsService, displayTotalSkatersService, districtClubDetailsService, districtClubSkatersService, districtDeletedService, districtUnLinkClubService, getAllDistrictService, leaveClubService, rejectClubService, singleDistrictAllClubNameService, singleDistrictSkatersService, updateDistrictService } from "./district.service.js";
 
 const displayAllDistrict = asyncHandler(async (req, res) => {
   const districts = await getAllDistrictService();
@@ -137,6 +137,20 @@ const districtClubDetails = asyncHandler(async (req, res) => {
   );
 });
 
+const displayDistrictClubSkaters = asyncHandler(async (req, res) => {
+  const districtMemberId = req.user?._id;
+  const { id: clubId } = req.params;
+  const { page = 1, limit = 10 } = req.query;
+  const result = await districtClubSkatersService(districtMemberId, clubId, {
+    page: Number(page),
+    limit: Number(limit),
+  });
+
+  return res.status(200).json(
+    new ApiResponse(200, result, "Club skaters fetched successfully")
+  );
+});
+
 const displaySkaterDetails = asyncHandler(async (req, res) => {
   const { id: skaterId } = req.params;
   console.log(skaterId,"skaterId====")
@@ -188,7 +202,7 @@ export {
   displayTotalClubs,
   displayTotalSkater,
   displayAllApply,
-  districtClubDetails
-  ,
+  districtClubDetails,
+  displayDistrictClubSkaters,
   displaySkaterDetails
 }

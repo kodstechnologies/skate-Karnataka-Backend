@@ -242,14 +242,43 @@ const districtTotalClubsRepository = async (id, { page, limit }) => {
   const clubs = await Club.find({
     _id: { $in: clubIds }
   })
-    .select("_id name address img skaters")
+    .select("_id name address img")
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(pageLimit)
     .lean();
 
+  const pageClubIds = clubs.map((club) => club._id);
+  const skaterCounts = pageClubIds.length
+    ? await Skater.aggregate([
+        {
+          $match: {
+            club: { $in: pageClubIds },
+            clubStatus: "join",
+          },
+        },
+        {
+          $group: {
+            _id: "$club",
+            count: { $sum: 1 },
+          },
+        },
+      ])
+    : [];
+
+  const skaterCountByClub = new Map(
+    skaterCounts.map((item) => [String(item._id), item.count])
+  );
+
+  const data = clubs.map((club) => ({
+    _id: club._id,
+    name: club.name,
+    img: club.img,
+    skaters: skaterCountByClub.get(String(club._id)) ?? 0,
+  }));
+
   return {
-    data: clubs,
+    data,
 
     pagination: {
       total: totalClubs,
@@ -408,6 +437,71 @@ const districtUnLinkClubRepository = async ({ districtMemberId, clubId }) => {
     districtId: district._id,
     clubId,
     unlinked: true,
+  };
+};
+
+const districtClubSkatersRepository = async (districtMemberId, clubId, { page, limit }) => {
+  const districtUser = await BaseAuth.findById(districtMemberId)
+    .select("district")
+    .lean();
+
+  if (!districtUser?.district) {
+    throw new AppError("District Id not found in user", 404);
+  }
+
+  const district = await District.findById(districtUser.district)
+    .select("_id club")
+    .lean();
+
+  if (!district) {
+    throw new AppError("District not found", 404);
+  }
+
+  const club = await Club.findById(clubId).select("_id district").lean();
+
+  if (!club) {
+    throw new AppError("Club not found", 404);
+  }
+
+  const belongsToDistrict =
+    String(club.district || "") === String(district._id) ||
+    (district.club || []).some((id) => String(id) === String(clubId));
+
+  if (!belongsToDistrict) {
+    throw new AppError("Club is not linked with this district", 403);
+  }
+
+  const {
+    skip,
+    limit: pageLimit,
+    page: currentPage,
+  } = paginate(page, limit);
+
+  const filter = { club: club._id, role: "Skater" };
+
+  const [total, skaters] = await Promise.all([
+    Skater.countDocuments(filter),
+    Skater.find(filter)
+      .select("_id fullName photo krsaId")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(pageLimit)
+      .lean(),
+  ]);
+
+  return {
+    data: skaters.map((skater) => ({
+      id: skater._id,
+      name: skater.fullName || "",
+      photo: skater.photo || "",
+      krsaId: skater.krsaId || "",
+    })),
+    pagination: {
+      total,
+      page: currentPage,
+      limit: pageLimit,
+      totalPages: Math.ceil(total / pageLimit) || 1,
+    },
   };
 };
 
@@ -617,5 +711,6 @@ export {
   displayAllApplyRepository,
   districtUnLinkClubRepository,
   districtClubDetailsRepository,
+  districtClubSkatersRepository,
   displaySkaterDetailsRepository
 }

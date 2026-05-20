@@ -1,5 +1,5 @@
 import { AppError } from "../../util/common/AppError.js";
-import { acceptClubJoinRepository, acceptClubLeaveRepository, createDistrict, displayAllApplyRepository, displayDashboardDataRepository, displayDistrictProfileRepository, displaySkaterDetailsRepository, districtClubDetailsRepository, districtDeletedRepository, districtTotalClubsRepository, districtTotalSkatersRepository, districtUnLinkClubRepository, districtUpdateRepository, getAllDistrict, isDistrictAvailable, isDistrictExist, rejectClubJoinRepository, singleDistrictRepository, singleDistrictSkatersRepository } from "./district.repositories.js";
+import { acceptClubJoinRepository, acceptClubLeaveRepository, createDistrict, displayAllApplyRepository, displayDashboardDataRepository, displayDistrictProfileRepository, displaySkaterDetailsRepository, districtClubDetailsRepository, districtClubSkatersRepository, districtDeletedRepository, districtTotalClubsRepository, districtTotalSkatersRepository, districtUnLinkClubRepository, districtUpdateRepository, getAllDistrict, isDistrictAvailable, isDistrictExist, rejectClubJoinRepository, singleDistrictRepository, singleDistrictSkatersRepository } from "./district.repositories.js";
 
 const getAllDistrictService = async () => {
     return await getAllDistrict();
@@ -108,6 +108,14 @@ const districtClubDetailsService = async ({ clubId }) => {
     return await districtClubDetailsRepository({ clubId });
 };
 
+const districtClubSkatersService = async (districtMemberId, clubId, { page, limit }) => {
+    if (!districtMemberId || !clubId) {
+        throw new AppError("district member id and club id are required", 400);
+    }
+
+    return await districtClubSkatersRepository(districtMemberId, clubId, { page, limit });
+};
+
 const displaySkaterDetailsService = async (skaterId) => {
     if (!skaterId) {
         throw new AppError("skater id is required", 400);
@@ -146,5 +154,6 @@ export {
     displayAllApplyService,
     districtUnLinkClubService,
     districtClubDetailsService,
+    districtClubSkatersService,
     displaySkaterDetailsService
 }

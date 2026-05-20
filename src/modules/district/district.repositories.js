@@ -390,6 +390,103 @@ const displayAllApplyRepository = async (districtMemberId, { page, limit }) => {
   };
 };
 
+const resolveDistrictFromMember = async (districtMemberId) => {
+  const districtUser = await BaseAuth.findById(districtMemberId)
+    .select("district")
+    .lean();
+
+  const districtId = districtUser?.district || districtMemberId;
+
+  const district = await District.findOne({
+    $or: [{ _id: districtId }, { members: districtMemberId }],
+  })
+    .select("_id name")
+    .lean();
+
+  if (!district) {
+    throw new AppError("District not found for this member", 404);
+  }
+
+  return district;
+};
+
+export const displayApplyAllClubRepository = async (
+  districtMemberId,
+  { page, limit } = {}
+) => {
+  const district = await resolveDistrictFromMember(districtMemberId);
+  const districtOid = district._id;
+  const districtIdStr = String(districtOid);
+
+  const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+
+  const filter = {
+    $or: [
+      { applyDistrict: districtOid },
+      { district: districtOid, districtStatus: "apply-leave" },
+    ],
+  };
+
+  const clubs = await Club.find(filter)
+    .select("_id clubId name img address district districtName districtStatus applyDistrict createdAt")
+    .sort({ createdAt: -1 })
+    .lean();
+
+  const seen = new Set();
+  const mapped = [];
+
+  for (const club of clubs) {
+    const clubIdStr = String(club._id);
+    if (seen.has(clubIdStr)) continue;
+    seen.add(clubIdStr);
+
+    const inApplyDistrict = (club.applyDistrict || []).some(
+      (id) => String(id) === districtIdStr
+    );
+    const isLeaveRequest =
+      String(club.district || "") === districtIdStr &&
+      club.districtStatus === "apply-leave";
+
+    let requestType = "join";
+    if (isLeaveRequest && inApplyDistrict) {
+      requestType = "join-and-leave";
+    } else if (isLeaveRequest) {
+      requestType = "leave";
+    }
+
+    mapped.push({
+      id: club._id,
+      clubId: club.clubId || "",
+      name: club.name || "",
+      img: club.img || "",
+      address: club.address || "",
+      districtName: club.districtName || district.name || "",
+      districtStatus: club.districtStatus || "",
+      requestType,
+      applyDistrict: (club.applyDistrict || []).map((id) => String(id)),
+      createdAt: club.createdAt,
+    });
+  }
+
+  const total = mapped.length;
+  const data = mapped.slice(skip, skip + pageLimit);
+
+  return {
+    district: {
+      id: district._id,
+      name: district.name || "",
+    },
+    total,
+    data,
+    pagination: {
+      total,
+      page: currentPage,
+      limit: pageLimit,
+      totalPages: Math.ceil(total / pageLimit) || 0,
+    },
+  };
+};
+
 const districtUnLinkClubRepository = async ({ districtMemberId, clubId }) => {
   const district = await District.findOne({
     $or: [{ _id: districtMemberId }, { members: districtMemberId }],

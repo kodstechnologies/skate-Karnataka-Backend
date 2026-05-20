@@ -1,5 +1,5 @@
 import { AppError } from "../../util/common/AppError.js";
-import { acceptClubJoinRepository, acceptClubLeaveRepository, createDistrict, displayAllApplyRepository, displayDashboardDataRepository, displayDistrictProfileRepository, displaySkaterDetailsRepository, districtClubDetailsRepository, districtClubSkatersRepository, districtDeletedRepository, districtTotalClubsRepository, districtTotalSkatersRepository, districtUnLinkClubRepository, districtUpdateRepository, getAllDistrict, isDistrictAvailable, isDistrictExist, rejectClubJoinRepository, singleDistrictRepository, singleDistrictSkatersRepository } from "./district.repositories.js";
+import { acceptClubJoinRepository, acceptClubLeaveRepository, createDistrict, displayAllApplyRepository, displayApplyAllClubRepository, displayDashboardDataRepository, displayDistrictProfileRepository, displaySkaterDetailsRepository, districtClubDetailsRepository, districtClubSkatersRepository, districtDeletedRepository, districtTotalClubsRepository, districtTotalSkatersRepository, districtUnLinkClubRepository, districtUpdateRepository, getAllDistrict, isDistrictAvailable, isDistrictExist, rejectClubJoinRepository, singleDistrictRepository, singleDistrictSkatersRepository } from "./district.repositories.js";
 
 const getAllDistrictService = async () => {
     return await getAllDistrict();
@@ -90,6 +90,14 @@ const displayAllApplyService = async (districtMemberId, { page, limit }) => {
     }
 
     return await displayAllApplyRepository(districtMemberId, { page, limit });
+};
+
+export const displayApplyAllClubService = async (districtMemberId, { page, limit } = {}) => {
+    if (!districtMemberId) {
+        throw new AppError("district member id is required", 400);
+    }
+
+    return await displayApplyAllClubRepository(districtMemberId, { page, limit });
 };
 
 const districtUnLinkClubService = async ({ districtMemberId, clubId }) => {

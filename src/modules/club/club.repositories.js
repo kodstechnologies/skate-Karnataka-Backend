@@ -164,65 +164,82 @@ export const displayDistrictFullDetailsRepository = async (districtId) => {
     };
 };
 
+const hasDistrictRef = (district) =>
+    district != null && String(district).trim() !== "";
+
 export const applyForDistrictRepository = async (
-   memberOrClubId,
-   districtId
+    memberOrClubId,
+    districtId
 ) => {
+    const district = await District.findById(districtId)
+        .select("_id name")
+        .lean();
 
- const district = await District.findById(districtId)
-   .select("_id name");
+    if (!district) {
+        throw new AppError("District not found", 404);
+    }
 
- if(!district){
-   throw new AppError("District not found",404);
- }
+    const club = await Club.findOne({
+        $or: [{ _id: memberOrClubId }, { members: memberOrClubId }],
+    })
+        .select("_id district districtName districtStatus applyDistrict")
+        .lean();
 
- // find club either by club id OR member id
- const club = await Club.findOne({
-    $or:[
-      {_id: memberOrClubId},
-      {members: memberOrClubId}
-    ]
- });
-console.log(club,"club")
- if(!club){
-   throw new AppError(
-     "Club or club membership not found",
-     404
-   );
- }
+    if (!club) {
+        throw new AppError("Club or club membership not found", 404);
+    }
 
- if (
-   club.district &&
-   club.districtStatus === "join"
- ){
-   throw new AppError(
-      "Already affiliated",
-      400
-   );
- }
+    const requestedDistrictId = String(district._id);
+    const existingDistrictId = hasDistrictRef(club.district)
+        ? String(club.district)
+        : null;
 
- const updatedClub =
- await Club.findByIdAndUpdate(
-   club._id,
-   {
-     $addToSet:{
-       applyDistrict: district._id
-     },
-     $set:{
-       districtStatus:"apply"
-     }
-   },
-   {new:true}
- );
+    const alreadyInApplyList = (club.applyDistrict || []).some(
+        (id) => String(id) === requestedDistrictId
+    );
 
- return {
-   clubId: updatedClub._id,
-   appliedDistrictCount:
-      updatedClub.applyDistrict.length,
-   districtStatus:
-      updatedClub.districtStatus
- };
+    if (
+        existingDistrictId === requestedDistrictId ||
+        alreadyInApplyList
+    ) {
+        return {
+            alreadyApplied: true,
+            message: "Already applied",
+            clubId: club._id,
+            districtId: district._id,
+            districtName: district.name || club.districtName || "",
+            districtStatus: club.districtStatus || "",
+        };
+    }
 
+    if (existingDistrictId && club.districtStatus === "join") {
+        throw new AppError("Already affiliated with a district", 400);
+    }
+
+    const updatedClub = await Club.findByIdAndUpdate(
+        club._id,
+        {
+            $addToSet: {
+                applyDistrict: district._id,
+            },
+            $set: {
+                districtStatus: "apply",
+            },
+        },
+        { new: true }
+    )
+        .select("_id districtStatus applyDistrict")
+        .lean();
+
+    return {
+        alreadyApplied: false,
+        message: "District application submitted successfully",
+        clubId: updatedClub._id,
+        districtId: district._id,
+        districtName: district.name || "",
+        appliedDistrictCount: updatedClub.applyDistrict?.length ?? 0,
+        districtStatus: updatedClub.districtStatus,
+    };
 };
 
 export const removeAffiliationRepository = async (clubId) => {

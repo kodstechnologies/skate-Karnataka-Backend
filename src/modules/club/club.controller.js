@@ -58,10 +58,12 @@ const applyForDistrict = asyncHandler(async (req, res) => {
     const clubId = req.user._id;
     const { id } = req.params;
     const result = await applyForDistrictService(clubId, id);
+    const message =
+        result?.alreadyApplied
+            ? "Already applied"
+            : "District application submitted successfully";
 
-    return res.status(200).json(
-        new ApiResponse(200, result, "District application submitted successfully")
-    );
+    return res.status(200).json(new ApiResponse(200, result, message));
 });
 
 const removeAffiliation = asyncHandler(async (req, res) => {

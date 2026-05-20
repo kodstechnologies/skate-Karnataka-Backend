@@ -40,6 +40,10 @@ router.get("/v1/dashboard",
     authenticate(["Club"]),
     displayClubDashboard
 )
+
+
+// =====================
+
 router.get("/v1/profile", authenticate(["Club"]), displayClubProfile);
 router.get("/v1/affiliated-district", authenticate(["Club"]), affiliatedDistrict);
 router.get("/v1/pending-approvals", authenticate(["Club"]), pendingApprovals);

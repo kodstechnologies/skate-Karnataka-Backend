@@ -1,7 +1,7 @@
 import express from "express";
 import { validate } from "../../middleware/validate.multiple.js";
 import { addSkaterValidation, createClubValidation, editClubValidation } from "./club.validation.js";
-import { addSkaterByClub, affiliatedDistrict, apply_club, apply_leave, applyForDistrict, approve_join_club, approve_leave_club, createNewClub, deleteClub, display_all_Club_basedOn_user_district, display_all_apply_skater, displayDistrictFullDetails, display_existing_club, displayAllClubs, displayAllClubsInDb, displayClubDashboard, displayClubProfile, displaySingleClub, exceptOwnDistrictDisplayAllDistrict, pendingApprovals, reject_join_club, removeAffiliation, reports, updateClub } from "./club.controller.js";
+import { addSkaterByClub, affiliatedDistrict, apply_club, apply_leave, applyForDistrict, approve_join_club, approve_leave_club, createNewClub, deleteClub, display_all_Club_basedOn_user_district, display_all_apply_skater, display_all_club_skater, display_club_skater_details, displayDistrictFullDetails, display_existing_club, displayAllClubs, displayAllClubsInDb, displayClubDashboard, displayClubProfile, displaySingleClub, exceptOwnDistrictDisplayAllDistrict, pendingApprovals, reject_join_club, remove_skater_from_club, removeAffiliation, reports, updateClub } from "./club.controller.js";
 import { upload } from "../../middleware/multer.middleware.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
@@ -28,6 +28,9 @@ router.post("/v1/add-skater",
 );
 
 // ============ skater club ===================
+router.get("/v1/display-all-skater", authenticate(["Club"]), display_all_club_skater);
+router.get("/v1/club-skater-details/:id", authenticate(["Club"]), display_club_skater_details);
+router.get("/v1/remove-skater/:id", authenticate(["Club"]), remove_skater_from_club);
 
 router.get("/v1/display-all-district", authenticate(["Club"]), exceptOwnDistrictDisplayAllDistrict);
 router.get("/v1/display-district-full-details/:id", displayDistrictFullDetails);

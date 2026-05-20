@@ -1,7 +1,7 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { AppError } from "../../util/common/AppError.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { addSkaterByClubService, affiliatedDistrictService, allClubService, allClubsInDbService, apply_club_service, apply_leave_service, applyForDistrictService, approve_join_club_service, approve_leave_club_service, clubsByUserDistrictService, createClubService, deleteClubSchema, display_all_apply_skater_service, displayDistrictFullDetailsService, display_existing_club_service, displayClubDashboardService, displayClubProfileService, displaySingleClubService, exceptOwnDistrictDisplayAllDistrictService, pendingApprovalsServices, reject_join_club_service, removeAffiliationService, reportServices, updateClubDetailsService } from "./club.service.js";
+import { addSkaterByClubService, affiliatedDistrictService, allClubService, allClubsInDbService, apply_club_service, apply_leave_service, applyForDistrictService, approve_join_club_service, approve_leave_club_service, clubsByUserDistrictService, createClubService, deleteClubSchema, display_all_apply_skater_service, display_all_club_skater_service, display_club_skater_details_service, displayDistrictFullDetailsService, display_existing_club_service, displayClubDashboardService, displayClubProfileService, displaySingleClubService, exceptOwnDistrictDisplayAllDistrictService, pendingApprovalsServices, reject_join_club_service, remove_skater_from_club_service, removeAffiliationService, reportServices, updateClubDetailsService } from "./club.service.js";
 
 const displayClubDashboard = asyncHandler(async (req, res) => {
     const id = req.user._id;
@@ -295,6 +295,39 @@ const addSkaterByClub = asyncHandler(async (req, res) => {
     );
 });
 
+const display_all_club_skater = asyncHandler(async (req, res) => {
+    const clubMemberId = req.user._id;
+    const { page = 1, limit = 10 } = req.query;
+    const result = await display_all_club_skater_service(clubMemberId, {
+        page,
+        limit,
+    });
+
+    return res.status(200).json(
+        new ApiResponse(200, result, "Club skaters fetched successfully")
+    );
+});
+
+const display_club_skater_details = asyncHandler(async (req, res) => {
+    const clubMemberId = req.user._id;
+    const { id } = req.params;
+    const result = await display_club_skater_details_service(clubMemberId, id);
+
+    return res.status(200).json(
+        new ApiResponse(200, result, "Skater details fetched successfully")
+    );
+});
+
+const remove_skater_from_club = asyncHandler(async (req, res) => {
+    const clubMemberId = req.user._id;
+    const { id } = req.params;
+    const result = await remove_skater_from_club_service(clubMemberId, id);
+
+    return res.status(200).json(
+        new ApiResponse(200, result, "Skater removed from club successfully")
+    );
+});
+
 export {
     displayClubDashboard,
     displayClubProfile,
@@ -316,5 +349,8 @@ export {
     approve_leave_club,
     display_existing_club,
     display_all_apply_skater,
+    display_all_club_skater,
+    display_club_skater_details,
+    remove_skater_from_club,
     addSkaterByClub,
 }

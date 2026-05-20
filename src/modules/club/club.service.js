@@ -1,5 +1,5 @@
 import { AppError } from "../../util/common/AppError.js";
-import { addSkaterByClubRepository, affiliatedDistrictRepository, allClubsInDbRepository, allClubsRepository, apply_club_repositories, apply_leave_repository, applyForDistrictRepository, approve_join_club_repositories, approve_leave_club_repositories, clubIdStoreinDestrict, clubsByDistrictPaginatedRepository, createClubRepository, deleteClubDetails, display_all_apply_skater_repositories, display_existing_club_repositories, displayClubDashboardRepositories, displayClubProfileRepositories, displayDistrictFullDetailsRepository, displayFullDetailsOfClub, exceptOwnDistrictDisplayAllDistrictRepository, isAlreadyAppliedToClubRepository, isApplyRepository, isExistClub, isThisClubExist, pendingApprovalsRepositories, reject_join_club_repositories, removeAffiliationRepository, updateClubDetails } from "./club.repositories.js";
+import { addSkaterByClubRepository, affiliatedDistrictRepository, allClubsInDbRepository, allClubsRepository, apply_club_repositories, apply_leave_repository, applyForDistrictRepository, approve_join_club_repositories, approve_leave_club_repositories, clubIdStoreinDestrict, clubsByDistrictPaginatedRepository, createClubRepository, deleteClubDetails, display_all_apply_skater_repositories, display_all_club_skater_repositories, display_club_skater_details_repositories, display_existing_club_repositories, displayClubDashboardRepositories, displayClubProfileRepositories, displayDistrictFullDetailsRepository, displayFullDetailsOfClub, exceptOwnDistrictDisplayAllDistrictRepository, isAlreadyAppliedToClubRepository, isApplyRepository, isExistClub, isThisClubExist, pendingApprovalsRepositories, reject_join_club_repositories, remove_skater_from_club_repositories, removeAffiliationRepository, updateClubDetails } from "./club.repositories.js";
 
 
 const mapCreateClubError = (error) => {
@@ -248,6 +248,21 @@ const display_existing_club_service = async (id) => {
 
 const display_all_apply_skater_service = async (clubId) => {
     return await display_all_apply_skater_repositories(clubId);
+};
+
+export const display_all_club_skater_service = async (clubMemberId, query = {}) => {
+    return await display_all_club_skater_repositories(clubMemberId, query);
+};
+
+export const display_club_skater_details_service = async (
+    clubMemberId,
+    skaterId
+) => {
+    return await display_club_skater_details_repositories(clubMemberId, skaterId);
+};
+
+export const remove_skater_from_club_service = async (clubMemberId, skaterId) => {
+    return await remove_skater_from_club_repositories(clubMemberId, skaterId);
 };
 
 export const addSkaterByClubService = async (clubMemberId, skaterData) => {

@@ -783,6 +783,165 @@ const clubHasDistrict = (district) => {
     return value !== "";
 };
 
+const CLUB_SKATER_LIST_STATUSES = ["join", "apply-leave"];
+
+export const display_all_club_skater_repositories = async (
+    clubMemberId,
+    { page, limit } = {}
+) => {
+    const club = await resolveClubIdFromClubMember(clubMemberId);
+    const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+
+    const filter = {
+        club: club._id,
+        role: "Skater",
+        clubStatus: { $in: CLUB_SKATER_LIST_STATUSES },
+    };
+
+    const [total, skaters] = await Promise.all([
+        Skater.countDocuments(filter),
+        Skater.find(filter)
+            .select("fullName photo profile krsaId createdAt")
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(pageLimit)
+            .lean(),
+    ]);
+
+    return {
+        clubId: club._id,
+        clubName: club.name || "",
+        data: skaters.map((skater) => ({
+            id: skater._id,
+            name: skater.fullName || "",
+            profile: skater.photo || skater.profile || "",
+            krsaId: skater.krsaId || "",
+        })),
+        pagination: {
+            total,
+            page: currentPage,
+            limit: pageLimit,
+            totalPages: Math.ceil(total / pageLimit) || 0,
+        },
+    };
+};
+
+export const display_club_skater_details_repositories = async (
+    clubMemberId,
+    skaterId
+) => {
+    const club = await resolveClubIdFromClubMember(clubMemberId);
+    const rawId = String(skaterId || "").trim();
+
+    if (!rawId) {
+        throw new AppError("Skater id is required", 400);
+    }
+
+    const skater = await Skater.findOne({
+        _id: rawId,
+        club: club._id,
+        role: "Skater",
+    })
+        .select("-refreshTokens -firebaseTokens")
+        .populate("club", "name clubId img districtName")
+        .populate("category", "typeName")
+        .populate("applyClub", "name clubId")
+        .lean();
+
+    if (!skater) {
+        throw new AppError("Skater not found in this club", 404);
+    }
+
+    return {
+        id: skater._id,
+        fullName: skater.fullName || "",
+        phone: skater.phone || "",
+        countryCode: skater.countryCode || "+91",
+        email: skater.email || "",
+        gender: skater.gender || "",
+        address: skater.address || "",
+        photo: skater.photo || "",
+        profile: skater.profile || skater.photo || "",
+        krsaId: skater.krsaId || "",
+        dob: skater.dob || null,
+        rsfiId: skater.rsfiId || "",
+        aadharNumber: skater.aadharNumber || "",
+        discipline: skater.discipline || "",
+        parent: skater.parent || "",
+        bloodGroup: skater.bloodGroup || "",
+        school: skater.school || "",
+        grade: skater.grade || "",
+        signature: skater.signature || "",
+        clubStatus: skater.clubStatus || "",
+        verify: Boolean(skater.verify),
+        category: skater.category
+            ? {
+                  _id: skater.category._id,
+                  typeName: skater.category.typeName || "",
+              }
+            : null,
+        club: skater.club
+            ? {
+                  _id: skater.club._id,
+                  name: skater.club.name || "",
+                  clubId: skater.club.clubId || "",
+                  img: skater.club.img || "",
+                  districtName: skater.club.districtName || "",
+              }
+            : null,
+        applyClub: (skater.applyClub || []).map((item) => ({
+            _id: item?._id,
+            name: item?.name || "",
+            clubId: item?.clubId || "",
+        })),
+        documents: skater.documents || [],
+        createdAt: skater.createdAt,
+        updatedAt: skater.updatedAt,
+    };
+};
+
+export const remove_skater_from_club_repositories = async (
+    clubMemberId,
+    skaterId
+) => {
+    const club = await resolveClubIdFromClubMember(clubMemberId);
+    const rawId = String(skaterId || "").trim();
+
+    if (!rawId) {
+        throw new AppError("Skater id is required", 400);
+    }
+
+    const updated = await Skater.findOneAndUpdate(
+        {
+            _id: rawId,
+            club: club._id,
+            role: "Skater",
+        },
+        {
+            $set: {
+                club: null,
+                clubStatus: "apply",
+            },
+            $pull: { applyClub: club._id },
+        },
+        { new: true }
+    )
+        .select("_id fullName krsaId club clubStatus")
+        .lean();
+
+    if (!updated) {
+        throw new AppError("Skater not found in this club", 404);
+    }
+
+    return {
+        id: updated._id,
+        fullName: updated.fullName || "",
+        krsaId: updated.krsaId || "",
+        club: "",
+        clubStatus: updated.clubStatus || "apply",
+    };
+};
+
 export const addSkaterByClubRepository = async (clubMemberId, skaterData) => {
     const club = await Club.findOne({
         $or: [{ _id: clubMemberId }, { members: clubMemberId }],
@@ -863,5 +1022,5 @@ export {
     apply_leave_repository,
     approve_leave_club_repositories,
     display_existing_club_repositories,
-    display_all_apply_skater_repositories
+    display_all_apply_skater_repositories,
 }

@@ -482,12 +482,28 @@ export const listEventSkatersBasicByEventIdRepository = async (eventId) => {
     .populate("userId", "fullName krsaId phone email")
     .lean();
 
-  const skaters = participants.map((participant) => ({
-    name: participant.name || participant.userId?.fullName || "",
-    krsaId: participant.userId?.krsaId || "",
-    phone: participant.userId?.phone || "",
-    email: participant.userId?.email || "",
-  }));
+  const uniqueSkaters = new Map();
+  for (const participant of participants) {
+    const dedupeKey =
+      String(participant.userId?._id || "").trim() ||
+      String(participant.userId?.krsaId || "").trim() ||
+      String(participant.userId?.email || "").trim() ||
+      String(participant.userId?.phone || "").trim() ||
+      String(participant.name || "").trim();
+
+    if (!dedupeKey || uniqueSkaters.has(dedupeKey)) {
+      continue;
+    }
+
+    uniqueSkaters.set(dedupeKey, {
+      name: participant.name || participant.userId?.fullName || "",
+      krsaId: participant.userId?.krsaId || "",
+      phone: participant.userId?.phone || "",
+      email: participant.userId?.email || "",
+    });
+  }
+
+  const skaters = Array.from(uniqueSkaters.values());
 
   return {
     skaterCount: skaters.length,

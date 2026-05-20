@@ -712,6 +712,74 @@ const display_all_apply_skater_repositories = async (clubId) => {
     }));
 };
 
+const clubHasDistrict = (district) => {
+    if (district === null || district === undefined) {
+        return false;
+    }
+    const value = String(district).trim();
+    return value !== "";
+};
+
+export const addSkaterByClubRepository = async (clubMemberId, skaterData) => {
+    const club = await Club.findOne({
+        $or: [{ _id: clubMemberId }, { members: clubMemberId }],
+    })
+        .select("_id name district districtName")
+        .lean();
+
+    if (!club) {
+        throw new AppError("Club not found for this club member", 404);
+    }
+
+    if (!clubHasDistrict(club.district)) {
+        throw new AppError(
+            "Cannot add skater. Club is not under any district",
+            403
+        );
+    }
+
+    const { fullName, phone, address, gender, email } = skaterData;
+
+    const [existingPhone, existingEmail] = await Promise.all([
+        BaseAuth.findOne({ phone }).select("_id").lean(),
+        BaseAuth.findOne({ email: email.toLowerCase() }).select("_id").lean(),
+    ]);
+
+    if (existingPhone) {
+        throw new AppError("This phone number is already registered", 409);
+    }
+    if (existingEmail) {
+        throw new AppError("This email is already in use", 409);
+    }
+
+    const skater = await new Skater({
+        fullName: fullName.trim(),
+        phone: phone.trim(),
+        address: address.trim(),
+        gender: gender.toLowerCase(),
+        email: email.toLowerCase().trim(),
+        district: club.district,
+        club: club._id,
+        clubStatus: "join",
+        role: "Skater",
+        verify: true,
+    }).save();
+
+    return {
+        id: skater._id,
+        krsaId: skater.krsaId || "",
+        fullName: skater.fullName || "",
+        phone: skater.phone || "",
+        email: skater.email || "",
+        address: skater.address || "",
+        gender: skater.gender || "",
+        district: club.district,
+        districtName: club.districtName || "",
+        club: club._id,
+        clubName: club.name || "",
+    };
+};
+
 export {
     allClubsInDbRepository,
     allClubsRepository,

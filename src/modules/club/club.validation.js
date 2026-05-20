@@ -32,7 +32,56 @@ const editClubValidation = {
 }
 
 
+const addSkaterValidation = {
+    body: Joi.object({
+        fullName: Joi.string()
+            .trim()
+            .min(3)
+            .max(50)
+            .required()
+            .messages({
+                "string.empty": "Full name is required",
+                "any.required": "Full name is required",
+            }),
+        phone: Joi.string()
+            .trim()
+            .pattern(/^[6-9]\d{9}$/)
+            .required()
+            .messages({
+                "string.pattern.base": "Phone must be a valid 10-digit Indian number",
+                "any.required": "Phone is required",
+            }),
+        address: Joi.string()
+            .trim()
+            .min(5)
+            .max(200)
+            .required()
+            .messages({
+                "string.empty": "Address is required",
+                "any.required": "Address is required",
+            }),
+        gender: Joi.string()
+            .valid("male", "female", "other")
+            .lowercase()
+            .required()
+            .messages({
+                "any.only": "Gender must be male, female, or other",
+                "any.required": "Gender is required",
+            }),
+        email: Joi.string()
+            .trim()
+            .email()
+            .lowercase()
+            .required()
+            .messages({
+                "string.email": "Please enter a valid email address",
+                "any.required": "Email is required",
+            }),
+    }),
+};
+
 export {
     createClubValidation,
-    editClubValidation
+    editClubValidation,
+    addSkaterValidation,
 }

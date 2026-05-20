@@ -1,7 +1,7 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { AppError } from "../../util/common/AppError.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { affiliatedDistrictService, allClubService, allClubsInDbService, apply_club_service, apply_leave_service, applyForDistrictService, approve_join_club_service, approve_leave_club_service, clubsByUserDistrictService, createClubService, deleteClubSchema, display_all_apply_skater_service, displayDistrictFullDetailsService, display_existing_club_service, displayClubDashboardService, displayClubProfileService, displaySingleClubService, exceptOwnDistrictDisplayAllDistrictService, pendingApprovalsServices, reject_join_club_service, removeAffiliationService, reportServices, updateClubDetailsService } from "./club.service.js";
+import { addSkaterByClubService, affiliatedDistrictService, allClubService, allClubsInDbService, apply_club_service, apply_leave_service, applyForDistrictService, approve_join_club_service, approve_leave_club_service, clubsByUserDistrictService, createClubService, deleteClubSchema, display_all_apply_skater_service, displayDistrictFullDetailsService, display_existing_club_service, displayClubDashboardService, displayClubProfileService, displaySingleClubService, exceptOwnDistrictDisplayAllDistrictService, pendingApprovalsServices, reject_join_club_service, removeAffiliationService, reportServices, updateClubDetailsService } from "./club.service.js";
 
 const displayClubDashboard = asyncHandler(async (req, res) => {
     const id = req.user._id;
@@ -280,6 +280,15 @@ const display_all_apply_skater = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, skaters, "Applied skaters fetched successfully"));
 });
 
+const addSkaterByClub = asyncHandler(async (req, res) => {
+    const clubMemberId = req.user._id;
+    const result = await addSkaterByClubService(clubMemberId, req.body);
+
+    return res.status(201).json(
+        new ApiResponse(201, result, "Skater added successfully")
+    );
+});
+
 export {
     displayClubDashboard,
     displayClubProfile,
@@ -301,4 +310,5 @@ export {
     approve_leave_club,
     display_existing_club,
     display_all_apply_skater,
+    addSkaterByClub,
 }

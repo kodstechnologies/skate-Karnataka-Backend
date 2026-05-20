@@ -7,3 +7,4 @@ const router = express.Router();
 router.get("/v1", authenticate(["Skater","Parent","School","Academy","State","Official","Admin","Guest","Club","District"]), displayAllNotification);
 
 export default router;
+

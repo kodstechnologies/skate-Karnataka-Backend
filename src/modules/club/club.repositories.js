@@ -19,21 +19,25 @@ export const displayClubDashboardRepositories = async ({ clubId }) => {
         throw new AppError("Club not found", 404);
     }
 
-    // 2️⃣ Total Skaters
-    const totalSkaters = await Skater.countDocuments({
+    const skaterFilter = {
         club: club._id,
-        discipline: "join",
-    });
+        clubStatus: { $in: ["join", "apply-leave"] },
+        role: "Skater",
+    };
 
-    // 3️⃣ Latest Joined Skaters
-    const latestSkaters = await Skater.find({
-        club: club._id,
-        discipline: "join",
-    })
-        .select("fullName createdAt photo")
+    const totalSkaters = await Skater.countDocuments(skaterFilter);
+
+    const latestSkatersRaw = await Skater.find(skaterFilter)
+        .select("fullName photo profile krsaId createdAt")
         .sort({ createdAt: -1 })
-        .limit(1)
+        .limit(5)
         .lean();
+
+    const latestSkaters = latestSkatersRaw.map((skater) => ({
+        name: skater.fullName || "",
+        profile: skater.photo || skater.profile || "",
+        krsaId: skater.krsaId || "",
+    }));
 
     return {
         clubName: club?.name || null,
@@ -675,41 +679,100 @@ const display_existing_club_repositories = async (id) => {
     return r;
 };
 
-const display_all_apply_skater_repositories = async (clubId) => {
+const resolveClubIdFromClubMember = async (clubMemberId) => {
     const club = await Club.findOne({
-        $or: [{ _id: clubId }, { members: clubId }],
+        $or: [{ _id: clubMemberId }, { members: clubMemberId }],
     })
-        .select("_id")
+        .select("_id name")
         .lean();
 
     if (!club) {
-        throw new AppError("Club not found", 404);
+        throw new AppError("Club not found for this token", 404);
     }
 
-    const query = {
+    return club;
+};
+
+const formatApplySkaterRow = (skater, resolvedClub, requestType) => ({
+    id: skater._id,
+    fullName: skater.fullName || "",
+    phone: skater.phone || "",
+    countryCode: skater.countryCode || "+91",
+    email: skater.email || "",
+    gender: skater.gender || "",
+    photo: skater.photo || "",
+    krsaId: skater.krsaId || "",
+    address: skater.address || "",
+    clubStatus: skater.clubStatus || "",
+    requestType,
+    club: skater.club
+        ? {
+              _id: skater.club._id ?? skater.club,
+              name: skater.club.name ?? "",
+          }
+        : null,
+    applyClub: (skater.applyClub || []).map((item) => ({
+        _id: item?._id ?? item,
+        name: item?.name ?? "",
+    })),
+    resolvedClub: {
+        _id: resolvedClub._id,
+        name: resolvedClub.name || "",
+    },
+    createdAt: skater.createdAt,
+});
+
+const display_all_apply_skater_repositories = async (clubMemberId) => {
+    const club = await resolveClubIdFromClubMember(clubMemberId);
+    const clubOid = club._id;
+
+    const skaters = await Skater.find({
         role: "Skater",
         $or: [
-            {
-                applyClub: club._id,
-                clubStatus: "apply",
-            },
-            {
-                club: club._id,
-                clubStatus: "apply-leave",
-            },
+            { applyClub: clubOid },
+            { club: clubOid, clubStatus: "apply-leave" },
         ],
-    };
-
-    const skaters = await Skater.find(query)
-        .select("fullName phone gender photo krsaId clubStatus applyClub club")
+    })
+        .select(
+            "fullName phone countryCode email gender photo krsaId address clubStatus applyClub club createdAt"
+        )
+        .populate("club", "name")
+        .populate("applyClub", "name")
         .sort({ createdAt: -1 })
         .lean();
 
-    return skaters.map((skater) => ({
-        ...skater,
-        status: skater.clubStatus,
+    const clubIdStr = String(clubOid);
+    const seen = new Set();
+    const data = [];
+
+    for (const skater of skaters) {
+        const skaterId = String(skater._id);
+        if (seen.has(skaterId)) continue;
+        seen.add(skaterId);
+
+        const inApplyClub = (skater.applyClub || []).some(
+            (item) => String(item?._id ?? item) === clubIdStr
+        );
+        const isLeaveRequest =
+            String(skater.club?._id ?? skater.club ?? "") === clubIdStr &&
+            skater.clubStatus === "apply-leave";
+
+        let requestType = "join";
+        if (isLeaveRequest && inApplyClub) {
+            requestType = "join-and-leave";
+        } else if (isLeaveRequest) {
+            requestType = "leave";
+        }
+
+        data.push(formatApplySkaterRow(skater, club, requestType));
+    }
+
+    return {
         clubId: club._id,
-    }));
+        clubName: club.name || "",
+        total: data.length,
+        skaters: data,
+    };
 };
 
 const clubHasDistrict = (district) => {

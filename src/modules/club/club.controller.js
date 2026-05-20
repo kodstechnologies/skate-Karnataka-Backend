@@ -272,12 +272,18 @@ const display_existing_club = asyncHandler(async (req, res) => {
 });
 
 const display_all_apply_skater = asyncHandler(async (req, res) => {
-    const clubId = req.user._id;
-    const skaters = await display_all_apply_skater_service(clubId);
+    const clubMemberId = req.user._id;
+    const result = await display_all_apply_skater_service(clubMemberId);
 
     return res
         .status(200)
-        .json(new ApiResponse(200, skaters, "Applied skaters fetched successfully"));
+        .json(
+            new ApiResponse(
+                200,
+                result,
+                "Join and leave applications fetched successfully"
+            )
+        );
 });
 
 const addSkaterByClub = asyncHandler(async (req, res) => {

@@ -8,40 +8,40 @@ import { Event } from "../event/event.model.js";
 import { paginate } from "../../util/common/paginate.js";
 
 const getAllDistrict = async () => {
-    return await District.find().select("_id name").lean();
+  return await District.find().select("_id name").lean();
 }
 const isDistrictExist = async (name) => {
-    return await District.findOne({ name });
+  return await District.findOne({ name });
 }
 const createDistrict = async (data) => {
-    await District.create(data);
+  await District.create(data);
 }
 
-const isDistrictAvailable = async(id) =>{
-    return await District.findById(id).select("name");
+const isDistrictAvailable = async (id) => {
+  return await District.findById(id).select("name");
 }
 
-const singleDistrictRepository = async(id) =>{
-    const district = await District.findById(id)
-      .select("_id name members")
-      .populate("members", "_id fullName phone email role krsaId gender address")
-      .lean();
+const singleDistrictRepository = async (id) => {
+  const district = await District.findById(id)
+    .select("_id name members")
+    .populate("members", "_id fullName phone email role krsaId gender address")
+    .lean();
 
-    if (!district) return null;
+  if (!district) return null;
 
-    const clubs = await Club.find({ district: id }).select("_id name").lean();
+  const clubs = await Club.find({ district: id }).select("_id name").lean();
 
-    return {
-      _id: district._id,
-      name: district.name,
-      totalUsers: (district.members || []).length,
-      members: district.members || [],
-      totalClubs: clubs.length,
-      clubs: clubs.map((club) => ({
-        _id: club._id,
-        name: club.name,
-      })),
-    };
+  return {
+    _id: district._id,
+    name: district.name,
+    totalUsers: (district.members || []).length,
+    members: district.members || [],
+    totalClubs: clubs.length,
+    clubs: clubs.map((club) => ({
+      _id: club._id,
+      name: club.name,
+    })),
+  };
 }
 
 const districtUpdateRepository = async (id, data) => {
@@ -93,7 +93,7 @@ const districtDeletedRepository = async (id) => {
 };
 
 const acceptClubJoinRepository = async ({ clubId, districtId }) => {
-  
+
   const district = await District.findOne({
     $or: [{ _id: districtId }, { members: districtId }],
   })
@@ -214,12 +214,12 @@ const singleDistrictSkatersRepository = async (id) => {
   };
 };
 
-const districtTotalClubsRepository = async (id,{ page, limit }) => {
+const districtTotalClubsRepository = async (id, { page, limit }) => {
 
   const districtUser = await BaseAuth.findById(id).select("district");
 
   if (!districtUser || !districtUser.district) {
-    throw new AppError("District Id not found in user",404);
+    throw new AppError("District Id not found in user", 404);
   }
 
   const district = await District.findById(districtUser.district)
@@ -227,7 +227,7 @@ const districtTotalClubsRepository = async (id,{ page, limit }) => {
     .lean();
 
   if (!district) {
-    throw new AppError("District not found",404);
+    throw new AppError("District not found", 404);
   }
 
   const clubIds = district.club || [];
@@ -237,13 +237,13 @@ const districtTotalClubsRepository = async (id,{ page, limit }) => {
     skip,
     limit: pageLimit,
     page: currentPage
-  } = paginate(page,limit);
+  } = paginate(page, limit);
 
   const clubs = await Club.find({
-      _id: { $in: clubIds }
-    })
+    _id: { $in: clubIds }
+  })
     .select("_id name address img skaters")
-    .sort({ createdAt:-1 })
+    .sort({ createdAt: -1 })
     .skip(skip)
     .limit(pageLimit)
     .lean();
@@ -260,14 +260,14 @@ const districtTotalClubsRepository = async (id,{ page, limit }) => {
   };
 };
 
-const districtTotalSkatersRepository = async (id,{ page, limit }) => {
+const districtTotalSkatersRepository = async (id, { page, limit }) => {
 
   const districtUser = await BaseAuth.findById(id)
     .select("district")
     .lean();
 
   if (!districtUser || !districtUser.district) {
-    throw new AppError("District Id not found in user",404);
+    throw new AppError("District Id not found in user", 404);
   }
 
   const district = await District.findById(districtUser.district)
@@ -275,7 +275,7 @@ const districtTotalSkatersRepository = async (id,{ page, limit }) => {
     .lean();
 
   if (!district) {
-    throw new AppError("District not found",404);
+    throw new AppError("District not found", 404);
   }
 
   const clubIds = district.club || [];
@@ -288,12 +288,12 @@ const districtTotalSkatersRepository = async (id,{ page, limit }) => {
     skip,
     limit: pageLimit,
     page: currentPage
-  } = paginate(page,limit);
+  } = paginate(page, limit);
 
   const skaters = await Skater.find(query)
     .select("_id krsaId fullName address photo club")
-    .populate("club","_id name")
-    .sort({ createdAt:-1 })
+    .populate("club", "_id name")
+    .sort({ createdAt: -1 })
     .skip(skip)
     .limit(pageLimit)
     .lean();
@@ -301,15 +301,17 @@ const districtTotalSkatersRepository = async (id,{ page, limit }) => {
   const totalSkaters = await Skater.countDocuments(query);
 
   return {
-    data: skaters.map((skater)=>({
-      skaterId: skater.krsaId || skater._id,
+    data: skaters.map((skater) => ({
+
+      skaterId: skater._id || "",
+      krsaId: skater.krsaId || "",
       img: skater.photo || "",
       name: skater.fullName || "",
       address: skater.address || "",
       clubName: skater.club?.name || ""
     })),
 
-    pagination:{
+    pagination: {
       total: totalSkaters,
       page: currentPage,
       limit: pageLimit,
@@ -425,8 +427,8 @@ const districtClubDetailsRepository = async ({ clubId }) => {
   }
 
   const totalSkaters = await Skater.countDocuments({
-      club: club._id,
-      clubStatus: "join"
+    club: club._id,
+    clubStatus: "join"
   });
 
   return {
@@ -475,7 +477,7 @@ export const displayDashboardDataRepository = async (id) => {
   const districtUser = await BaseAuth.findById(id).select("district");
 
   if (!districtUser || !districtUser.district) {
-    throw new AppError("District Id not found",404);
+    throw new AppError("District Id not found", 404);
   }
 
   const districtId = districtUser.district;
@@ -485,7 +487,7 @@ export const displayDashboardDataRepository = async (id) => {
     .lean();
 
   if (!district) {
-    throw new AppError("District not found",404);
+    throw new AppError("District not found", 404);
   }
 
   const clubIds = district.club || [];
@@ -510,46 +512,46 @@ export const displayDashboardDataRepository = async (id) => {
       $match: {
         ownClub: { $in: clubIds },
         status: {
-          $in: ["pending","inprogress","notSolved"]
+          $in: ["pending", "inprogress", "notSolved"]
         }
       }
     },
     {
-      $group:{
-        _id:"$status",
-        count:{ $sum:1 }
+      $group: {
+        _id: "$status",
+        count: { $sum: 1 }
       }
     }
   ]);
 
-  let pending=0;
-  let inprogress=0;
-  let notSolved=0;
+  let pending = 0;
+  let inprogress = 0;
+  let notSolved = 0;
 
-  reportStats.forEach(item=>{
-    if(item._id==="pending") pending=item.count;
-    if(item._id==="inprogress") inprogress=item.count;
-    if(item._id==="notSolved") notSolved=item.count;
+  reportStats.forEach(item => {
+    if (item._id === "pending") pending = item.count;
+    if (item._id === "inprogress") inprogress = item.count;
+    if (item._id === "notSolved") notSolved = item.count;
   });
 
   // Latest event
   const latestEvent = await Event.findOne({
-    eventType:"District",
-    eventFor:districtId
+    eventType: "District",
+    eventFor: districtId
   })
-  .sort({createdAt:-1})
-  .lean();
+    .sort({ createdAt: -1 })
+    .lean();
 
   return {
     districtId,
     districtName: district.name,
 
-    dashboard:{
+    dashboard: {
       totalClubs,
       totalSkaters,
       pendingApprovals, // 🔥 new count
 
-      reports:{
+      reports: {
         pending,
         inprogress,
         notSolved,
@@ -570,19 +572,19 @@ export const displayDistrictProfileRepository = async (id) => {
     .lean();
 
   if (!districtUser || !districtUser.district) {
-    throw new AppError("District Id not found in user",404);
+    throw new AppError("District Id not found in user", 404);
   }
 
   const district = await District.findById(
-      districtUser.district
-    )
+    districtUser.district
+  )
     .select(
       "_id name img officeAddress about presidentName rank championships"
     )
     .lean();
 
   if (!district) {
-    throw new AppError("District not found",404);
+    throw new AppError("District not found", 404);
   }
 
   return {
@@ -599,21 +601,21 @@ export const displayDistrictProfileRepository = async (id) => {
 };
 
 export {
-    getAllDistrict,
-    isDistrictExist,
-    createDistrict,
-    isDistrictAvailable,
-    singleDistrictRepository,
-    districtUpdateRepository,
-    districtDeletedRepository,
-    acceptClubJoinRepository,
-    acceptClubLeaveRepository,
-    rejectClubJoinRepository,
-    singleDistrictSkatersRepository,
-    districtTotalClubsRepository,
-    districtTotalSkatersRepository,
-    displayAllApplyRepository,
-    districtUnLinkClubRepository,
-    districtClubDetailsRepository,
-    displaySkaterDetailsRepository
+  getAllDistrict,
+  isDistrictExist,
+  createDistrict,
+  isDistrictAvailable,
+  singleDistrictRepository,
+  districtUpdateRepository,
+  districtDeletedRepository,
+  acceptClubJoinRepository,
+  acceptClubLeaveRepository,
+  rejectClubJoinRepository,
+  singleDistrictSkatersRepository,
+  districtTotalClubsRepository,
+  districtTotalSkatersRepository,
+  displayAllApplyRepository,
+  districtUnLinkClubRepository,
+  districtClubDetailsRepository,
+  displaySkaterDetailsRepository
 }

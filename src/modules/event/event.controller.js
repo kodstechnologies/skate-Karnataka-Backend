@@ -1,7 +1,7 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { AppError } from "../../util/common/AppError.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { clubEventFullDetailsService, clubRelatedEventDisplayService, competitionAllSkaterService, competitionDetailsService, createClubEventService, createDistrictEventService, createEventCategoryService, createRegisterFormService, createStateEventService, create_event_schema, deleteEventCategoryService, delete_event_schema, display_all_event_based_on_user_service, display_latest_event_server, displayEventServer, displaySingleEventDetailsServer, displaySkaterEventFullDetailsService, displaySkaterEventFormCategoryDetailsService, districtEventFullDetailsService, districtRelatedEventDisplayService, edit_event_schema, getLiveEventsService, givenPointEventService, getAllEventCategoriesService, getAllRegisterDetailsByUserIdService, getEventCategoryByIdService, getRegisterDetailsByEventIdService, getRegisterFormByIdService, getRegisterFormByUserIdService, stateEventResultsService, stateRelatedEventDisplayService, stateEventFullDetailsService, stateEventSkatersSummaryService, updateEventCategoryService, updateStateEventSkaterTimeService } from "./event.service.js";
+import { applyCertificationBySkaterService, approveCertificationByRoleService, clubEventFullDetailsService, clubRelatedEventDisplayService, competitionAllSkaterService, competitionDetailsService, createClubEventService, createDistrictEventService, createEventCategoryService, createRegisterFormService, createStateEventService, create_event_schema, deleteEventCategoryService, delete_event_schema, display_all_event_based_on_user_service, display_latest_event_server, displayCertificationApplicationsService, displayEventServer, displaySingleEventDetailsServer, displaySkaterEventFullDetailsService, displaySkaterEventFormCategoryDetailsService, districtEventFullDetailsService, districtRelatedEventDisplayService, edit_event_schema, getAllPlayedEventsBySkaterService, getLiveEventsService, givenPointEventService, getAllEventCategoriesService, getAllRegisterDetailsByUserIdService, getEventCategoryByIdService, getRegisterDetailsByEventIdService, getRegisterFormByIdService, getRegisterFormByUserIdService, stateEventResultsService, stateRelatedEventDisplayService, stateEventFullDetailsService, stateEventSkatersSummaryService, updateEventCategoryService, updateStateEventSkaterTimeService } from "./event.service.js";
 import { initiateRazorpayPaymentServices } from "../payment/payment.services.js";
 
 
@@ -461,6 +461,39 @@ export const createRegisterForm = asyncHandler(async (req, res) => {
     return res
         .status(201)
         .json(new ApiResponse(201, { registration: result, payment }, "Register form submitted successfully"));
+});
+
+export const applyCertificationBySkater = asyncHandler(async (req, res) => {
+    const updated = await applyCertificationBySkaterService(req.params.id, req.user._id);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, updated, "Certification applied successfully"));
+});
+
+export const displayAllPlayedEventBySkater = asyncHandler(async (req, res) => {
+    const data = await getAllPlayedEventsBySkaterService(req.user._id);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, data, "Played events fetched successfully"));
+});
+
+export const displayApplications = asyncHandler(async (req, res) => {
+    const data = await displayCertificationApplicationsService(req.user);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, data, "Applications fetched successfully"));
+});
+
+export const approveCertification = asyncHandler(async (req, res) => {
+    const participantId = req.query.id;
+    if (!participantId) {
+        throw new AppError("Participant id is required in query (?id=...)", 400);
+    }
+
+    const data = await approveCertificationByRoleService(req.user, participantId);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, data, "Certification approved successfully"));
 });
 
 

@@ -327,6 +327,276 @@ export const getRegisterDetailsByEventIdRepository = async (eventId, userId) => 
   return formatRegisterDetailsByEvent(item);
 };
 
+const parseEventEndDateTime = (eventEndDate, eventEndTime) => {
+  if (!eventEndDate) return null;
+
+  const endDate = new Date(eventEndDate);
+  if (Number.isNaN(endDate.getTime())) return null;
+
+  const rawTime = String(eventEndTime || "").trim();
+  if (!rawTime) {
+    endDate.setHours(23, 59, 59, 999);
+    return endDate;
+  }
+
+  const match = rawTime.match(/^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i);
+  if (!match) {
+    endDate.setHours(23, 59, 59, 999);
+    return endDate;
+  }
+
+  let hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const meridian = (match[3] || "").toUpperCase();
+
+  if (meridian === "PM" && hours < 12) hours += 12;
+  if (meridian === "AM" && hours === 12) hours = 0;
+
+  endDate.setHours(hours, minutes, 0, 0);
+  return endDate;
+};
+
+export const applyCertificationBySkaterRepository = async (participantId, userId) => {
+  if (!mongoose.Types.ObjectId.isValid(String(participantId || ""))) {
+    return null;
+  }
+
+  return EventParticipant.findOneAndUpdate(
+    { _id: participantId, userId: new mongoose.Types.ObjectId(userId) },
+    { $set: { skaterApply: true } },
+    { new: true }
+  )
+    .select("_id eventId userId skaterApply updatedAt")
+    .lean();
+};
+
+export const getAllPlayedEventsBySkaterRepository = async (userId) => {
+  const rows = await EventParticipant.find({
+    userId: new mongoose.Types.ObjectId(userId),
+    eventId: { $exists: true },
+  })
+    .select("eventId userId skaterApply paymentStatus createdAt")
+    .populate({
+      path: "eventId",
+      select: "header eventType eventStartDate eventEndDate eventEndTime address status",
+    })
+    .sort({ createdAt: -1 })
+    .lean();
+
+  const now = new Date();
+  const seenEventIds = new Set();
+
+  const data = [];
+  for (const row of rows) {
+    const event = row.eventId;
+    if (!event?._id) continue;
+
+    const endDateTime = parseEventEndDateTime(event.eventEndDate, event.eventEndTime);
+    if (!endDateTime || now <= endDateTime) continue;
+
+    const eventIdStr = String(event._id);
+    if (seenEventIds.has(eventIdStr)) continue;
+    seenEventIds.add(eventIdStr);
+
+    data.push({
+      participantId: row._id,
+      eventId: event._id,
+      eventName: event.header || "",
+      eventType: event.eventType || "",
+      eventStartDate: event.eventStartDate || null,
+      eventEndDate: event.eventEndDate || null,
+      eventEndTime: event.eventEndTime || "",
+      address: event.address || "",
+      status: event.status || "",
+      skaterApply: Boolean(row.skaterApply),
+      paymentStatus: row.paymentStatus || "pending",
+    });
+  }
+
+  return data;
+};
+
+export const displayCertificationApplicationsRepository = async (reqUser) => {
+  const role = String(reqUser?.role || "").trim().toLowerCase();
+  const baseMatch = { skaterApply: true };
+
+  if (role === "district" || role === "state" || role === "admin") {
+    baseMatch.clubAllow = true;
+  }
+  if (role === "state" || role === "admin") {
+    baseMatch.districtAllow = true;
+  }
+
+  const pipeline = [{ $match: baseMatch }];
+
+  pipeline.push(
+    {
+      $lookup: {
+        from: Event.collection.name,
+        localField: "eventId",
+        foreignField: "_id",
+        as: "event",
+      },
+    },
+    { $unwind: { path: "$event", preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        from: BaseAuth.collection.name,
+        localField: "userId",
+        foreignField: "_id",
+        as: "user",
+      },
+    },
+    { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        from: Skater.collection.name,
+        localField: "userId",
+        foreignField: "_id",
+        as: "skaterProfile",
+      },
+    },
+    { $unwind: { path: "$skaterProfile", preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        from: Club.collection.name,
+        localField: "skaterProfile.club",
+        foreignField: "_id",
+        as: "club",
+      },
+    },
+    { $unwind: { path: "$club", preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        from: District.collection.name,
+        localField: "club.district",
+        foreignField: "_id",
+        as: "district",
+      },
+    },
+    { $unwind: { path: "$district", preserveNullAndEmptyArrays: true } }
+  );
+
+  if (role === "club") {
+    const resolvedClubId = await resolveClubIdForClubAuthUser(reqUser._id);
+    pipeline.push({
+      $match: { "skaterProfile.club": new mongoose.Types.ObjectId(resolvedClubId) },
+    });
+  } else if (role === "district") {
+    const districtUser = await BaseAuth.findById(reqUser._id).select("district").lean();
+    const districtId = districtUser?.district || reqUser._id;
+    pipeline.push({
+      $match: { "club.district": new mongoose.Types.ObjectId(districtId) },
+    });
+  }
+
+  pipeline.push(
+    { $sort: { createdAt: -1 } },
+    {
+      $project: {
+        _id: 0,
+        participantId: "$_id",
+        event: {
+          _id: "$event._id",
+          header: { $ifNull: ["$event.header", ""] },
+          eventType: { $ifNull: ["$event.eventType", ""] },
+          eventStartDate: "$event.eventStartDate",
+          eventEndDate: "$event.eventEndDate",
+        },
+        skater: {
+          _id: "$user._id",
+          fullName: { $ifNull: ["$user.fullName", "$name"] },
+          krsaId: { $ifNull: ["$user.krsaId", ""] },
+          phone: { $ifNull: ["$user.phone", ""] },
+        },
+        club: {
+          _id: "$club._id",
+          name: { $ifNull: ["$club.name", ""] },
+        },
+        district: {
+          _id: "$district._id",
+          name: { $ifNull: ["$district.name", ""] },
+        },
+        ageGroup: { $ifNull: ["$ageGroup", ""] },
+        skaterApply: { $toBool: "$skaterApply" },
+        clubAllow: { $toBool: "$clubAllow" },
+        districtAllow: { $toBool: "$districtAllow" },
+        stateAllow: { $toBool: "$stateAllow" },
+        paymentStatus: { $ifNull: ["$paymentStatus", "pending"] },
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    }
+  );
+
+  return EventParticipant.aggregate(pipeline);
+};
+
+export const approveCertificationByRoleRepository = async (reqUser, participantId) => {
+  if (!mongoose.Types.ObjectId.isValid(String(participantId || ""))) {
+    return null;
+  }
+
+  const role = String(reqUser?.role || "").trim().toLowerCase();
+  const participant = await EventParticipant.findById(participantId)
+    .select("userId skaterApply clubAllow districtAllow stateAllow")
+    .lean();
+
+  if (!participant) {
+    return null;
+  }
+
+  const skaterProfile = await Skater.findById(participant.userId).select("club").lean();
+  if (!skaterProfile?.club) {
+    throw new AppError("Skater club not found", 404);
+  }
+
+  const club = await Club.findById(skaterProfile.club).select("district").lean();
+  if (!club) {
+    throw new AppError("Club not found", 404);
+  }
+
+  const update = {};
+
+  if (role === "club") {
+    const resolvedClubId = await resolveClubIdForClubAuthUser(reqUser._id);
+    if (String(skaterProfile.club) !== String(resolvedClubId)) {
+      throw new AppError("Forbidden", 403);
+    }
+    if (!participant.skaterApply) {
+      throw new AppError("Skater has not applied for certification", 400);
+    }
+    update.clubAllow = true;
+  } else if (role === "district") {
+    const districtUser = await BaseAuth.findById(reqUser._id).select("district").lean();
+    const districtId = districtUser?.district || reqUser._id;
+    if (String(club.district || "") !== String(districtId)) {
+      throw new AppError("Forbidden", 403);
+    }
+    if (!participant.clubAllow) {
+      throw new AppError("Club approval is pending", 400);
+    }
+    update.districtAllow = true;
+  } else if (role === "state" || role === "admin") {
+    if (!participant.districtAllow) {
+      throw new AppError("District approval is pending", 400);
+    }
+    update.stateAllow = true;
+  } else {
+    throw new AppError("Forbidden", 403);
+  }
+
+  const updated = await EventParticipant.findByIdAndUpdate(
+    participantId,
+    { $set: update },
+    { new: true }
+  )
+    .select("_id userId skaterApply clubAllow districtAllow stateAllow updatedAt")
+    .lean();
+
+  return updated;
+};
+
 export const createRegisterFormRepository = async (payload) => {
   return await EventParticipant.create(payload);
 };

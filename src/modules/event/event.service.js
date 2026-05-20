@@ -7,7 +7,7 @@ import { Skater } from "../skater/skater.model.js";
 import { Event } from "./event.model.js";
 import SkatingEventCategory from "./SkatingEventCategory.model.js";
 import { EventParticipant } from "./eventParticipant.model.js";
-import { createEventCategoryRepository, createRegisterFormRepository, deleteEventCategoryRepository, displaySingleEventRepository, displayAllEventRepository, create_event_repositories, edit_event_repositories, delete_event_repositories, display_latest_event_repositories, display_all_event_based_on_user_repositories, clubRelatedEventDisplayRepositories, createClubEventRepositories, districtRelatedEventDisplayRepositories, createDistrictEventRepositories, enrichLeanEventsSkatingCategoryNames, findEventParticipantForCompetitionUpdate, getAllRegisterDetailsByUserIdRepository, getLiveEventsRepository, getRegisterDetailsByEventIdRepository, getRegisterFormByIdRepository, getRegisterFormByUserIdRepository, stateRelatedEventDisplayRepositories, createStateEventRepositories, getAllEventCategoriesRepository, getEventCategoryByIdRepository, updateEventCategoryRepository, getStateEventFullDetailsByIdRepository, getStateEventResultsRepository, listEventSkatersBasicByEventIdRepository, listEventSkatersByEventIdRepository, updateEventParticipantTimingBySkaterRepository, getSkaterEventFullDetailsDtoRepository, getSkaterEventFormCategoryDetailsRepository, getEventSkatingEventCategoriesFullRepository, resolveClubIdForClubAuthUser } from "./event.repositories.js";
+import { applyCertificationBySkaterRepository, approveCertificationByRoleRepository, createEventCategoryRepository, createRegisterFormRepository, deleteEventCategoryRepository, displayCertificationApplicationsRepository, displaySingleEventRepository, displayAllEventRepository, create_event_repositories, edit_event_repositories, delete_event_repositories, display_latest_event_repositories, display_all_event_based_on_user_repositories, clubRelatedEventDisplayRepositories, createClubEventRepositories, districtRelatedEventDisplayRepositories, createDistrictEventRepositories, enrichLeanEventsSkatingCategoryNames, findEventParticipantForCompetitionUpdate, getAllPlayedEventsBySkaterRepository, getAllRegisterDetailsByUserIdRepository, getLiveEventsRepository, getRegisterDetailsByEventIdRepository, getRegisterFormByIdRepository, getRegisterFormByUserIdRepository, stateRelatedEventDisplayRepositories, createStateEventRepositories, getAllEventCategoriesRepository, getEventCategoryByIdRepository, updateEventCategoryRepository, getStateEventFullDetailsByIdRepository, getStateEventResultsRepository, listEventSkatersBasicByEventIdRepository, listEventSkatersByEventIdRepository, updateEventParticipantTimingBySkaterRepository, getSkaterEventFullDetailsDtoRepository, getSkaterEventFormCategoryDetailsRepository, getEventSkatingEventCategoriesFullRepository, resolveClubIdForClubAuthUser } from "./event.repositories.js";
 import { Club } from "../club/club.model.js";
 
 const displayEventServer = async (data) => {
@@ -718,6 +718,39 @@ export const createRegisterFormService = async (userId, payload) => {
     }
 
     return await createRegisterFormRepository(doc);
+};
+
+export const applyCertificationBySkaterService = async (participantId, userId) => {
+    const updated = await applyCertificationBySkaterRepository(participantId, userId);
+    if (!updated) {
+        throw new AppError("Participant not found", 404);
+    }
+    return updated;
+};
+
+export const getAllPlayedEventsBySkaterService = async (userId) => {
+    return await getAllPlayedEventsBySkaterRepository(userId);
+};
+
+export const displayCertificationApplicationsService = async (reqUser) => {
+    const role = String(reqUser?.role || "").trim().toLowerCase();
+    if (!["club", "district", "state", "admin"].includes(role)) {
+        throw new AppError("Forbidden", 403);
+    }
+    return await displayCertificationApplicationsRepository(reqUser);
+};
+
+export const approveCertificationByRoleService = async (reqUser, participantId) => {
+    const role = String(reqUser?.role || "").trim().toLowerCase();
+    if (!["club", "district", "state", "admin"].includes(role)) {
+        throw new AppError("Forbidden", 403);
+    }
+
+    const updated = await approveCertificationByRoleRepository(reqUser, participantId);
+    if (!updated) {
+        throw new AppError("Participant not found", 404);
+    }
+    return updated;
 };
 
 export const displaySkaterEventFullDetailsService = async (eventId, skaterUserId) => {

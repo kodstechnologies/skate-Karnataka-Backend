@@ -1,5 +1,5 @@
 import express from "express";
-import { afterLoginSkaterForm, DeleteSkater, getAllDiscipline, GetAllSkatingEventCategoriesFull, GetSkaterDigitalIdCard, GetSkaterProfile, UpdateSkaterProfile } from "./skater.controller.js";
+import { afterLoginSkaterForm, DeleteSkater, getAllDiscipline, GetAllSkatingEventCategoriesFull, GetSkaterDigitalIdCard, GetSkaterProfile, GetSkaterResults, UpdateSkaterProfile } from "./skater.controller.js";
 import { validate } from "../../middleware/validate.multiple.js";
 import { afterLoginSkaterFormValidation, UpdateProfileValidation } from "./skater.validation.js";
 import { upload } from "../../middleware/multer.middleware.js";
@@ -52,5 +52,9 @@ router.get("/v1/digital-id-card",
     authenticate(["Skater"]),
     GetSkaterDigitalIdCard);
 
+// result =====================
+router.get("/v1/results",
+    authenticate(["Skater"]),
+    GetSkaterResults);
 
 export default router;

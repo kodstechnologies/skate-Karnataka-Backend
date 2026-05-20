@@ -1,7 +1,7 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
 import { formatDate } from "../../util/time/timeUtil.js";
-import { after_login_form_skater_service, deleteUser_skater_service, get_all_discipline_service, get_all_skating_event_categories_full_service, get_all_skating_event_categories_service, get_skater_digital_id_card_service, get_skater_profile_service, update_skater_profile_service } from "./skater.service.js";
+import { after_login_form_skater_service, deleteUser_skater_service, get_all_discipline_service, get_all_skating_event_categories_full_service, get_all_skating_event_categories_service, get_skater_digital_id_card_service, get_skater_profile_service, get_skater_results_service, update_skater_profile_service } from "./skater.service.js";
 
 const afterLoginSkaterForm = asyncHandler(async (req, res) => {
     const { id } = req.params;
@@ -100,6 +100,13 @@ const getAllDiscipline = asyncHandler(async (_req, res) => {
         .json(new ApiResponse(200, disciplines, "Disciplines fetched successfully"));
 });
 
+const GetSkaterResults = asyncHandler(async (req, res) => {
+    const results = await get_skater_results_service(req.user._id);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, results, "Skater results fetched successfully"));
+});
+
 export {
 afterLoginSkaterForm,
 GetSkaterProfile,
@@ -109,4 +116,5 @@ DeleteSkater,
 GetAllSkatingEventCategories,
 GetAllSkatingEventCategoriesFull,
 getAllDiscipline,
+GetSkaterResults,
 }

@@ -1,6 +1,9 @@
 import { AppError } from "../../util/common/AppError.js";
 import { BaseAuth } from "../auth/baseAuth.model.js";
 import { DisciplineService } from "../discipline/discipline.model.js";
+import { Event } from "../event/event.model.js";
+import { EventParticipant } from "../event/eventParticipant.model.js";
+import { resolveSkaterEventScope } from "../event/event.repositories.js";
 import SkatingEventCategory from "../event/SkatingEventCategory.model.js";
 import { Skater } from "./skater.model.js";
 
@@ -148,6 +151,87 @@ const get_all_discipline_repositories = async () => {
         .lean();
 }
 
+const get_skater_results_repositories = async (userId) => {
+    const scope = await resolveSkaterEventScope(userId);
+    if (!scope) {
+        throw new AppError("Skater not found", 404);
+    }
+
+    const eventScope = [{ eventType: "State" }];
+    if (scope.clubId) {
+        eventScope.push({ eventType: "Club", eventFor: scope.clubId });
+    }
+    if (scope.districtId) {
+        eventScope.push({ eventType: "District", eventFor: scope.districtId });
+    }
+
+    const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+
+    const events = await Event.find({
+        $or: eventScope,
+        eventEndDate: { $lte: twoDaysAgo },
+    })
+        .select("_id header eventType eventStartDate eventEndDate")
+        .sort({ eventEndDate: -1 })
+        .lean();
+
+    if (events.length === 0) {
+        return [];
+    }
+
+    const eventIds = events.map((event) => event._id);
+    const participants = await EventParticipant.find({
+        userId,
+        eventId: { $in: eventIds },
+        paymentStatus: "paid",
+    })
+        .select("eventId ageGroup categories")
+        .lean();
+
+    const eventById = new Map(events.map((event) => [String(event._id), event]));
+    const groupedByCategory = new Map();
+
+    for (const participant of participants) {
+        const event = eventById.get(String(participant.eventId));
+        if (!event) continue;
+
+        for (const category of participant.categories || []) {
+            const categoryName = String(category?.name || "").trim();
+            if (!categoryName) continue;
+
+            if (!groupedByCategory.has(categoryName)) {
+                groupedByCategory.set(categoryName, []);
+            }
+
+            groupedByCategory.get(categoryName).push({
+                eventId: event._id,
+                eventName: event.header || "",
+                eventType: event.eventType || "",
+                eventStartDate: event.eventStartDate || null,
+                eventEndDate: event.eventEndDate || null,
+                ageGroup: participant.ageGroup || "",
+                timeTaken: category.timeTaken ?? null,
+                rank: category.rank ?? null,
+                isDisqualified: Boolean(category.isDisqualified),
+                remarks: category.remarks || "",
+                attendanceStatus: category.attendanceStatus || "pending",
+            });
+        }
+    }
+
+    return Array.from(groupedByCategory.entries())
+        .map(([categoryName, results]) => ({
+            categoryName,
+            totalResults: results.length,
+            results: results.sort((a, b) => {
+                const aEnd = a.eventEndDate ? new Date(a.eventEndDate).getTime() : 0;
+                const bEnd = b.eventEndDate ? new Date(b.eventEndDate).getTime() : 0;
+                return bEnd - aEnd;
+            }),
+        }))
+        .sort((a, b) => a.categoryName.localeCompare(b.categoryName));
+}
+
 
 export {
     after_login_skater_form_repositories,
@@ -158,4 +242,5 @@ export {
     get_all_skating_event_categories_repositories,
     get_all_skating_event_categories_full_repositories,
     get_all_discipline_repositories,
+    get_skater_results_repositories,
 }

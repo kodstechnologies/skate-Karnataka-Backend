@@ -31,8 +31,6 @@ const resolveAttendanceFromTimeTaken = (timeTaken, explicitStatus, currentStatus
 
 /** Club JWT is usually a member (BaseAuth _id listed on `Club.members`); events store the Club document _id in `eventFor`. */
 export const resolveClubIdForClubAuthUser = async (authUserId) => {
-  let resolvedClubId = authUserId;
-
   const clubByMember = await Club.findOne({
     members: new mongoose.Types.ObjectId(authUserId),
   })
@@ -40,10 +38,15 @@ export const resolveClubIdForClubAuthUser = async (authUserId) => {
     .lean();
 
   if (clubByMember?._id) {
-    resolvedClubId = clubByMember._id;
+    return clubByMember._id;
   }
 
-  return resolvedClubId;
+  const clubById = await Club.findById(authUserId).select("_id").lean();
+  if (clubById?._id) {
+    return clubById._id;
+  }
+
+  throw new AppError("Club not found for this token", 403);
 };
 
 /**
@@ -753,27 +756,9 @@ export const clubRelatedEventDisplayRepositories = async (
   { page, limit }
 ) => {
   const resolvedClubId = await resolveClubIdForClubAuthUser(authUserId);
-
-  const club = await Club.findById(resolvedClubId).select("district").lean();
-  const districtId = club?.district;
-
-  /** Same visibility as skater latest / user-all-events: State + District (club's district) + this club's events. */
   const query = {
-    $or: [
-      { eventType: "State" },
-      ...(districtId
-        ? [
-            {
-              eventType: "District",
-              eventFor: new mongoose.Types.ObjectId(districtId),
-            },
-          ]
-        : []),
-      {
-        eventType: "Club",
-        eventFor: new mongoose.Types.ObjectId(resolvedClubId),
-      },
-    ],
+    eventType: "Club",
+    eventFor: new mongoose.Types.ObjectId(resolvedClubId),
   };
 
   const {

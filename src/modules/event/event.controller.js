@@ -478,19 +478,23 @@ export const displayAllPlayedEventBySkater = asyncHandler(async (req, res) => {
 });
 
 export const displayApplications = asyncHandler(async (req, res) => {
-    const data = await displayCertificationApplicationsService(req.user);
+    const { page, limit } = req.query;
+    const result = await displayCertificationApplicationsService(req.user, {
+        page,
+        limit,
+    });
     return res
         .status(200)
-        .json(new ApiResponse(200, data, "Applications fetched successfully"));
+        .json(new ApiResponse(200, result, "Applications fetched successfully"));
 });
 
 export const approveCertification = asyncHandler(async (req, res) => {
-    const participantId = req.query.id;
-    if (!participantId) {
-        throw new AppError("Participant id is required in query (?id=...)", 400);
-    }
+    const participantId = req.params.id;
 
     const data = await approveCertificationByRoleService(req.user, participantId);
+    if (!data) {
+        throw new AppError("Participant not found", 404);
+    }
     return res
         .status(200)
         .json(new ApiResponse(200, data, "Certification approved successfully"));

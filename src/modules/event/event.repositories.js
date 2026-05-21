@@ -417,7 +417,11 @@ export const getAllPlayedEventsBySkaterRepository = async (userId) => {
   return data;
 };
 
-export const displayCertificationApplicationsRepository = async (reqUser) => {
+export const displayCertificationApplicationsRepository = async (
+  reqUser,
+  { page = 1, limit = 10 } = {}
+) => {
+  const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
   const role = String(reqUser?.role || "").trim().toLowerCase();
   const baseMatch = { skaterApply: true };
 
@@ -491,46 +495,71 @@ export const displayCertificationApplicationsRepository = async (reqUser) => {
     });
   }
 
+  const projectStage = {
+    $project: {
+      _id: 0,
+      participantId: "$_id",
+      event: {
+        _id: "$event._id",
+        header: { $ifNull: ["$event.header", ""] },
+        eventType: { $ifNull: ["$event.eventType", ""] },
+        eventStartDate: "$event.eventStartDate",
+        eventEndDate: "$event.eventEndDate",
+      },
+      skater: {
+        _id: "$user._id",
+        fullName: { $ifNull: ["$user.fullName", "$name"] },
+        krsaId: { $ifNull: ["$user.krsaId", ""] },
+        phone: { $ifNull: ["$user.phone", ""] },
+      },
+      club: {
+        _id: "$club._id",
+        name: { $ifNull: ["$club.name", ""] },
+      },
+      district: {
+        _id: "$district._id",
+        name: { $ifNull: ["$district.name", ""] },
+      },
+      ageGroup: { $ifNull: ["$ageGroup", ""] },
+      skaterApply: { $toBool: "$skaterApply" },
+      clubAllow: { $toBool: "$clubAllow" },
+      districtAllow: { $toBool: "$districtAllow" },
+      stateAllow: { $toBool: "$stateAllow" },
+      paymentStatus: { $ifNull: ["$paymentStatus", "pending"] },
+      createdAt: 1,
+      updatedAt: 1,
+    },
+  };
+
   pipeline.push(
     { $sort: { createdAt: -1 } },
     {
+      $facet: {
+        data: [{ $skip: skip }, { $limit: pageLimit }, projectStage],
+        totalCount: [{ $count: "count" }],
+      },
+    },
+    {
       $project: {
-        _id: 0,
-        participantId: "$_id",
-        event: {
-          _id: "$event._id",
-          header: { $ifNull: ["$event.header", ""] },
-          eventType: { $ifNull: ["$event.eventType", ""] },
-          eventStartDate: "$event.eventStartDate",
-          eventEndDate: "$event.eventEndDate",
-        },
-        skater: {
-          _id: "$user._id",
-          fullName: { $ifNull: ["$user.fullName", "$name"] },
-          krsaId: { $ifNull: ["$user.krsaId", ""] },
-          phone: { $ifNull: ["$user.phone", ""] },
-        },
-        club: {
-          _id: "$club._id",
-          name: { $ifNull: ["$club.name", ""] },
-        },
-        district: {
-          _id: "$district._id",
-          name: { $ifNull: ["$district.name", ""] },
-        },
-        ageGroup: { $ifNull: ["$ageGroup", ""] },
-        skaterApply: { $toBool: "$skaterApply" },
-        clubAllow: { $toBool: "$clubAllow" },
-        districtAllow: { $toBool: "$districtAllow" },
-        stateAllow: { $toBool: "$stateAllow" },
-        paymentStatus: { $ifNull: ["$paymentStatus", "pending"] },
-        createdAt: 1,
-        updatedAt: 1,
+        data: 1,
+        total: { $ifNull: [{ $arrayElemAt: ["$totalCount.count", 0] }, 0] },
       },
     }
   );
 
-  return EventParticipant.aggregate(pipeline);
+  const [result] = await EventParticipant.aggregate(pipeline);
+  const total = result?.total ?? 0;
+  const data = Array.isArray(result?.data) ? result.data : [];
+
+  return {
+    data,
+    pagination: {
+      total,
+      page: currentPage,
+      limit: pageLimit,
+      totalPages: Math.ceil(total / pageLimit) || 0,
+    },
+  };
 };
 
 export const approveCertificationByRoleRepository = async (reqUser, participantId) => {

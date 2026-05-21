@@ -783,12 +783,18 @@ export const getAllPlayedEventsBySkaterService = async (userId) => {
     return await getAllPlayedEventsBySkaterRepository(userId);
 };
 
-export const displayCertificationApplicationsService = async (reqUser) => {
+export const displayCertificationApplicationsService = async (
+    reqUser,
+    { page, limit } = {}
+) => {
     const role = String(reqUser?.role || "").trim().toLowerCase();
     if (!["club", "district", "state", "admin"].includes(role)) {
         throw new AppError("Forbidden", 403);
     }
-    return await displayCertificationApplicationsRepository(reqUser);
+    return await displayCertificationApplicationsRepository(reqUser, {
+        page,
+        limit,
+    });
 };
 
 export const approveCertificationByRoleService = async (reqUser, participantId) => {

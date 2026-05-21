@@ -534,7 +534,7 @@ const clubsByDistrictPaginatedRepository = async (districtId, { page, limit }) =
     const filter = { district: districtId };
 
     const clubs = await Club.find(filter)
-        .select("_id name img address districtStatus")
+        .select("_id name img address districtStatus districtName")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(pageLimit)
@@ -549,6 +549,67 @@ const clubsByDistrictPaginatedRepository = async (districtId, { page, limit }) =
         totalPages: Math.ceil(total / pageLimit) || 0,
         data: clubs,
     };
+};
+
+const SKATER_IN_CLUB_STATUSES = ["join", "apply-leave"];
+
+const allClubsPaginatedForSkaterRepository = async ({ page, limit }) => {
+    const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+
+    const [clubs, total] = await Promise.all([
+        Club.find({})
+            .select("_id name img address districtStatus districtName")
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(pageLimit)
+            .lean(),
+        Club.countDocuments({}),
+    ]);
+
+    return {
+        total,
+        page: currentPage,
+        limit: pageLimit,
+        totalPages: Math.ceil(total / pageLimit) || 0,
+        data: clubs,
+        scope: "all",
+    };
+};
+
+/** Joined skater: clubs in their club's district; left/no club: all clubs. */
+const clubsForSkaterUserRepository = async (userId, { page, limit }) => {
+    const skater = await Skater.findById(userId).select("club clubStatus").lean();
+
+    if (!skater) {
+        throw new AppError("Skater not found", 404);
+    }
+
+    const status = String(skater.clubStatus || "").trim();
+    const inClub =
+        skater.club &&
+        SKATER_IN_CLUB_STATUSES.includes(status);
+
+    if (inClub) {
+        const clubDoc = await Club.findById(skater.club).select("district districtName").lean();
+        if (!clubDoc?.district) {
+            throw new AppError("Joined club has no district assigned", 400);
+        }
+
+        const result = await clubsByDistrictPaginatedRepository(clubDoc.district, {
+            page,
+            limit,
+        });
+
+        return {
+            ...result,
+            scope: "district",
+            districtId: clubDoc.district,
+            districtName: clubDoc.districtName || "",
+            joinedClubId: skater.club,
+        };
+    }
+
+    return await allClubsPaginatedForSkaterRepository({ page, limit });
 };
 
 const isExistClubRepository = async (id) => {
@@ -1032,6 +1093,7 @@ export {
     updateClubDetails,
     deleteClubDetails,
     clubsByDistrictPaginatedRepository,
+    clubsForSkaterUserRepository,
     isExistClubRepository,
     apply_club_repositories,
     isApplyRepository,

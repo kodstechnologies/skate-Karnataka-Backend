@@ -604,6 +604,26 @@ const register_form_validation = {
     }),
 };
 
+export const displayApplicationsQueryValidation = {
+    query: Joi.object({
+        page: Joi.number().integer().min(1).default(1),
+        limit: Joi.number().integer().min(1).max(100).default(10),
+    }),
+};
+
+export const approveCertificationParamsValidation = {
+    params: Joi.object({
+        id: Joi.string()
+            .trim()
+            .pattern(/^[0-9a-fA-F]{24}$/)
+            .required()
+            .messages({
+                "string.pattern.base":
+                    "id must be the EventParticipant _id (24-character hex)",
+            }),
+    }),
+};
+
 export {
     state_skater_time_update_validation,
     given_point_validation,

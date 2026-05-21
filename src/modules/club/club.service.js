@@ -1,5 +1,5 @@
 import { AppError } from "../../util/common/AppError.js";
-import { addSkaterByClubRepository, affiliatedDistrictRepository, allClubsInDbRepository, allClubsRepository, apply_club_repositories, apply_leave_repository, applyForDistrictRepository, approve_join_club_repositories, approve_leave_club_repositories, clubIdStoreinDestrict, clubsByDistrictPaginatedRepository, createClubRepository, deleteClubDetails, display_all_apply_skater_repositories, display_all_club_skater_repositories, display_club_skater_details_repositories, display_existing_club_repositories, displayClubDashboardRepositories, displayClubProfileRepositories, displayDistrictFullDetailsRepository, displayFullDetailsOfClub, exceptOwnDistrictDisplayAllDistrictRepository, isAlreadyAppliedToClubRepository, isApplyRepository, isExistClub, isThisClubExist, pendingApprovalsRepositories, reject_join_club_repositories, remove_skater_from_club_repositories, removeAffiliationRepository, updateClubDetails } from "./club.repositories.js";
+import { addSkaterByClubRepository, affiliatedDistrictRepository, allClubsInDbRepository, allClubsRepository, apply_club_repositories, apply_leave_repository, applyForDistrictRepository, approve_join_club_repositories, approve_leave_club_repositories, clubIdStoreinDestrict, clubsForSkaterUserRepository, createClubRepository, deleteClubDetails, display_all_apply_skater_repositories, display_all_club_skater_repositories, display_club_skater_details_repositories, display_existing_club_repositories, displayClubDashboardRepositories, displayClubProfileRepositories, displayDistrictFullDetailsRepository, displayFullDetailsOfClub, exceptOwnDistrictDisplayAllDistrictRepository, isAlreadyAppliedToClubRepository, isApplyRepository, isExistClub, isThisClubExist, pendingApprovalsRepositories, reject_join_club_repositories, remove_skater_from_club_repositories, removeAffiliationRepository, updateClubDetails } from "./club.repositories.js";
 
 
 const mapCreateClubError = (error) => {
@@ -155,10 +155,11 @@ const deleteClubSchema = async (id) => {
 }
 
 const clubsByUserDistrictService = async (user, { page, limit }) => {
-    if (!user?.district) {
-        throw new AppError("User has no district assigned", 400);
+    const userId = user?._id || user?.id;
+    if (!userId) {
+        throw new AppError("User not authenticated", 401);
     }
-    return await clubsByDistrictPaginatedRepository(user.district, { page, limit });
+    return await clubsForSkaterUserRepository(userId, { page, limit });
 };
 
 const apply_club_service = async (clubId, userID) => {

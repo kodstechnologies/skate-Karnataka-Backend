@@ -202,13 +202,12 @@ const display_all_Club_basedOn_user_district = asyncHandler(async (req, res) => 
         limit: limit ?? 5,
     });
 
-    return res.status(200).json(
-        new ApiResponse(
-            200,
-            result,
-            "Clubs in your district fetched successfully"
-        )
-    );
+    const message =
+        result?.scope === "all"
+            ? "All clubs fetched successfully"
+            : "Clubs in your district fetched successfully";
+
+    return res.status(200).json(new ApiResponse(200, result, message));
 });
 
 const apply_club = asyncHandler(async (req, res) => {

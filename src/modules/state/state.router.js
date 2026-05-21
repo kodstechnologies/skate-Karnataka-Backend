@@ -26,6 +26,8 @@ import { upload } from "../../middleware/multer.middleware.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
 import { authenticate, ensureStateAdminOrOwnClub } from "../../middleware/auth.middleware.js";
 import { displayDistrictClubDetails, displayDistrictClubs, displayDistrictDetails, displayDistrictEvents, displayDistricts, displayDistrictSkaters } from "../guest/guest.controller.js";
+import { displayApplications } from "../event/event.controller.js";
+
 const router = express.Router();
 
 
@@ -160,6 +162,16 @@ router.get(
   displayAllSkatersByState
 );
 
+// ======================== display application =================
+// Must stay above GET /v1/:id so /v1/display-applications is not matched as id.
+
+router.get(
+  "/v1/display-applications",
+  authenticate(["Admin", "State"]),
+  validate(stateListQueryValidation),
+  displayApplications
+);
+
 // 🔹 Get single state + all districts inside it
 router.get("/v1/:id",
   authenticate(["Admin", "State"]),
@@ -180,16 +192,5 @@ router.delete("/v1/:id",
   authenticate(["Admin"]),
   deleteState
 );
-
-
-
-
-
-// ======================== total skater =================
-// ======================== total skater =================
-// ======================== total skater =================
-// ======================== total skater =================
-// ======================== total skater =================
-
 
 export default router;

@@ -19,6 +19,8 @@ import {
     stateEventSkatersListQueryValidation,
     update_event_category_validation,
     update_event_validation,
+    displayApplicationsQueryValidation,
+    approveCertificationParamsValidation,
 } from "./event.validation.js";
 import { upload } from "../../middleware/multer.middleware.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
@@ -239,8 +241,18 @@ router.post(
 );
 
 // ======================== approve certification 
-router.get("/v1/approve-certification", authenticate(["Club", "District", "State", "Admin"]), approveCertification);
-router.get("/v1/display-applications", authenticate(["Club", "District", "State", "Admin"]), displayApplications);
+router.get(
+    "/v1/approve-certification/:id",
+    authenticate(["Club", "District", "State", "Admin"]),
+    validate(approveCertificationParamsValidation),
+    approveCertification
+);
+router.get(
+    "/v1/display-applications",
+    authenticate(["Club", "District", "State", "Admin"]),
+    validate(displayApplicationsQueryValidation),
+    displayApplications
+);
 router.get("/v1/apply-certification/:id", authenticate(["Skater"]), applyCertificationBySkater);
 router.get("/v1/display-all-played-event", authenticate(["Skater"]), displayAllPlayedEventBySkater);
 export default router;

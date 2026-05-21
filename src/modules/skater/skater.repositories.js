@@ -348,16 +348,24 @@ const parseEventEndDateTime = (eventEndDate, eventEndTime) => {
 };
 
 const get_skater_results_event_repositories = async (userId) => {
+    if (!mongoose.Types.ObjectId.isValid(String(userId))) {
+        return [];
+    }
+
+    const skaterUserId = new mongoose.Types.ObjectId(String(userId));
     const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
     const now = new Date();
 
-    const participants = await EventParticipant.find({ userId })
+    const participants = await EventParticipant.find({
+        userId: skaterUserId,
+        eventId: { $exists: true, $ne: null },
+    })
         .populate({
             path: "eventId",
             select:
                 "header eventType eventStartDate eventEndDate eventStartTime eventEndTime address status colorOne colorTwo textColor",
         })
-        .select("eventId ageGroup categories paymentStatus createdAt")
+        .select("userId eventId ageGroup categories paymentStatus createdAt")
         .sort({ createdAt: -1 })
         .lean();
 
@@ -365,6 +373,11 @@ const get_skater_results_event_repositories = async (userId) => {
     const events = [];
 
     for (const participant of participants) {
+        const rowUserId = participant.userId?._id ?? participant.userId;
+        if (!rowUserId || String(rowUserId) !== String(skaterUserId)) {
+            continue;
+        }
+
         const event = participant.eventId;
         if (!event?._id) continue;
 
@@ -386,6 +399,7 @@ const get_skater_results_event_repositories = async (userId) => {
 
         events.push({
             participantId: participant._id,
+            isRegistered: true,
             eventId: event._id,
             eventName: event.header || "",
             eventType: event.eventType || "",
@@ -484,8 +498,15 @@ const get_skater_results_by_event_repositories = async (
 
     const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
 
+    const skaterUserId = mongoose.Types.ObjectId.isValid(String(userId))
+        ? new mongoose.Types.ObjectId(String(userId))
+        : null;
+    if (!skaterUserId) {
+        throw new AppError("You are not registered for this event", 404);
+    }
+
     const participant = await EventParticipant.findOne({
-        userId,
+        userId: skaterUserId,
         eventId,
         paymentStatus: "paid",
     })

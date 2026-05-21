@@ -105,7 +105,13 @@ const GetSkaterResultsEvent = asyncHandler(async (req, res) => {
     return res
         .status(200)
         .json(
-            new ApiResponse(200, events, "Skater played events fetched successfully")
+            new ApiResponse(
+                200,
+                events,
+                events.length
+                    ? "Registered events fetched successfully"
+                    : "No registered events found for this skater"
+            )
         );
 });
 

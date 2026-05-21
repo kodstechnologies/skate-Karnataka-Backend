@@ -10,6 +10,7 @@ import { State } from "../state/state.model.js";
 import mongoose from "mongoose";
 import { sendNotification } from "../../util/firebase/sendNotification.js";
 import { AppError } from "../../util/common/AppError.js";
+import { assignCompetitionRanks } from "../../util/competition/rankUtil.js";
 
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const normalizeAttendanceStatus = (status) =>
@@ -744,6 +745,143 @@ export const listEventSkatersByEventIdRepository = async (
   };
 };
 
+export const listCompetitionCategoryRankingsRepository = async (
+  eventId,
+  { ageGroup, categoryName, categoriesId, clubId }
+) => {
+  const categoryTermRaw =
+    typeof categoryName === "string" ? categoryName.trim() : "";
+  if (!categoryTermRaw) {
+    return { results: [], topThree: [] };
+  }
+
+  const oid = new mongoose.Types.ObjectId(eventId);
+  const initialMatch = { eventId: oid };
+
+  const ageTerm = typeof ageGroup === "string" ? ageGroup.trim() : "";
+  if (ageTerm) {
+    initialMatch.ageGroup = ageTerm;
+  }
+
+  if (categoriesId && mongoose.Types.ObjectId.isValid(String(categoriesId))) {
+    initialMatch.categoriesId = new mongoose.Types.ObjectId(categoriesId);
+  }
+
+  const disqualifiedTagMatch = categoryTermRaw.match(/^(.*)\+\s*d$/i);
+  const categoryLabel = disqualifiedTagMatch
+    ? disqualifiedTagMatch[1].trim()
+    : categoryTermRaw;
+
+  if (categoryLabel) {
+    initialMatch.categories = {
+      $elemMatch: disqualifiedTagMatch
+        ? { name: categoryLabel, isDisqualified: true }
+        : { name: categoryLabel },
+    };
+  }
+
+  let participants = await EventParticipant.find(initialMatch)
+    .select("name userId categories")
+    .populate("userId", "fullName krsaId")
+    .lean();
+
+  if (clubId && mongoose.Types.ObjectId.isValid(String(clubId))) {
+    const clubOid = new mongoose.Types.ObjectId(clubId);
+    const userIds = participants
+      .map((row) => row.userId?._id || row.userId)
+      .filter((id) => id && mongoose.Types.ObjectId.isValid(String(id)));
+
+    if (userIds.length === 0) {
+      return { results: [], topThree: [] };
+    }
+
+    const skatersInClub = await Skater.find({
+      _id: { $in: userIds },
+      club: clubOid,
+    })
+      .select("_id")
+      .lean();
+
+    const allowedIds = new Set(skatersInClub.map((row) => String(row._id)));
+    participants = participants.filter((row) =>
+      allowedIds.has(String(row.userId?._id || row.userId))
+    );
+  }
+
+  const results = [];
+
+  for (const participant of participants) {
+    const category = (participant.categories || []).find(
+      (row) => String(row?.name || "").trim() === categoryLabel
+    );
+    if (!category) continue;
+
+    results.push({
+      registrationId: participant._id,
+      userId: participant.userId?._id || participant.userId || null,
+      participantName:
+        participant.name || participant.userId?.fullName || "",
+      krsaId: participant.userId?.krsaId || "",
+      timeTaken: category.timeTaken ?? null,
+      isDisqualified: Boolean(category.isDisqualified),
+    });
+  }
+
+  return assignCompetitionRanks(results);
+};
+
+export const recalculateAndPersistCategoryRanksRepository = async ({
+  eventId,
+  categoriesId,
+  ageGroup,
+  categoryName,
+}) => {
+  const categoryLabel = String(categoryName || "").trim();
+  if (!categoryLabel) return;
+
+  const { results } = await listCompetitionCategoryRankingsRepository(eventId, {
+    ageGroup,
+    categoryName: categoryLabel,
+    categoriesId,
+    clubId: null,
+  });
+
+  const rankByRegistrationId = new Map(
+    results.map((row) => [String(row.registrationId), row.rank])
+  );
+
+  const eventOid = new mongoose.Types.ObjectId(eventId);
+  const match = {
+    eventId: eventOid,
+    ageGroup: typeof ageGroup === "string" ? ageGroup.trim() : ageGroup,
+    categories: { $elemMatch: { name: categoryLabel } },
+  };
+
+  if (categoriesId && mongoose.Types.ObjectId.isValid(String(categoriesId))) {
+    match.categoriesId = new mongoose.Types.ObjectId(categoriesId);
+  }
+
+  const participants = await EventParticipant.find(match);
+
+  for (const participant of participants) {
+    const rank = rankByRegistrationId.get(String(participant._id)) ?? null;
+    let changed = false;
+
+    for (const category of participant.categories) {
+      if (String(category.name || "").trim() !== categoryLabel) continue;
+      if (category.rank !== rank) {
+        category.rank = rank;
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      participant.markModified("categories");
+      await participant.save();
+    }
+  }
+};
+
 export const listEventSkatersBasicByEventIdRepository = async (eventId) => {
   const participants = await EventParticipant.find({
     eventId: new mongoose.Types.ObjectId(eventId),
@@ -856,35 +994,13 @@ export const getStateEventResultsRepository = async (
   }
 
   const groups = Array.from(grouped.values()).map((group) => {
-    const sorted = [...group.results].sort((a, b) => {
-      if (a.isDisqualified !== b.isDisqualified) {
-        return a.isDisqualified ? 1 : -1;
-      }
-
-      const aTime = typeof a.timeTaken === "number" ? a.timeTaken : null;
-      const bTime = typeof b.timeTaken === "number" ? b.timeTaken : null;
-
-      if (aTime === null && bTime === null) return 0;
-      if (aTime === null) return 1;
-      if (bTime === null) return -1;
-      return aTime - bTime;
-    });
-
-    let runningRank = 0;
-    for (const row of sorted) {
-      const hasValidTime = typeof row.timeTaken === "number";
-      if (row.isDisqualified || !hasValidTime) {
-        row.rank = null;
-      } else {
-        runningRank += 1;
-        row.rank = runningRank;
-      }
-    }
+    const { results: ranked, topThree } = assignCompetitionRanks(group.results);
 
     return {
       ...group,
-      totalSkaters: sorted.length,
-      results: sorted,
+      totalSkaters: ranked.length,
+      topThree,
+      results: ranked,
     };
   });
 

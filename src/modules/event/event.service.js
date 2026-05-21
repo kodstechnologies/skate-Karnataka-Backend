@@ -7,7 +7,7 @@ import { Skater } from "../skater/skater.model.js";
 import { Event } from "./event.model.js";
 import SkatingEventCategory from "./SkatingEventCategory.model.js";
 import { EventParticipant } from "./eventParticipant.model.js";
-import { applyCertificationBySkaterRepository, approveCertificationByRoleRepository, createEventCategoryRepository, createRegisterFormRepository, deleteEventCategoryRepository, displayCertificationApplicationsRepository, displaySingleEventRepository, displayAllEventRepository, create_event_repositories, edit_event_repositories, delete_event_repositories, display_latest_event_repositories, display_all_event_based_on_user_repositories, clubRelatedEventDisplayRepositories, createClubEventRepositories, districtRelatedEventDisplayRepositories, createDistrictEventRepositories, enrichLeanEventsSkatingCategoryNames, findEventParticipantForCompetitionUpdate, getAllPlayedEventsBySkaterRepository, getAllRegisterDetailsByUserIdRepository, getLiveEventsRepository, getRegisterDetailsByEventIdRepository, getRegisterFormByIdRepository, getRegisterFormByUserIdRepository, stateRelatedEventDisplayRepositories, createStateEventRepositories, getAllEventCategoriesRepository, getEventCategoryByIdRepository, updateEventCategoryRepository, getStateEventFullDetailsByIdRepository, getStateEventResultsRepository, listEventSkatersBasicByEventIdRepository, listEventSkatersByEventIdRepository, updateEventParticipantTimingBySkaterRepository, getSkaterEventFullDetailsDtoRepository, getSkaterEventFormCategoryDetailsRepository, getEventSkatingEventCategoriesFullRepository, resolveClubIdForClubAuthUser } from "./event.repositories.js";
+import { applyCertificationBySkaterRepository, approveCertificationByRoleRepository, createEventCategoryRepository, createRegisterFormRepository, deleteEventCategoryRepository, displayCertificationApplicationsRepository, displaySingleEventRepository, displayAllEventRepository, create_event_repositories, edit_event_repositories, delete_event_repositories, display_latest_event_repositories, display_all_event_based_on_user_repositories, clubRelatedEventDisplayRepositories, createClubEventRepositories, districtRelatedEventDisplayRepositories, createDistrictEventRepositories, enrichLeanEventsSkatingCategoryNames, findEventParticipantForCompetitionUpdate, getAllPlayedEventsBySkaterRepository, getAllRegisterDetailsByUserIdRepository, getLiveEventsRepository, getRegisterDetailsByEventIdRepository, getRegisterFormByIdRepository, getRegisterFormByUserIdRepository, stateRelatedEventDisplayRepositories, createStateEventRepositories, getAllEventCategoriesRepository, getEventCategoryByIdRepository, updateEventCategoryRepository, getStateEventFullDetailsByIdRepository, getStateEventResultsRepository, listCompetitionCategoryRankingsRepository, listEventSkatersBasicByEventIdRepository, listEventSkatersByEventIdRepository, recalculateAndPersistCategoryRanksRepository, updateEventParticipantTimingBySkaterRepository, getSkaterEventFullDetailsDtoRepository, getSkaterEventFormCategoryDetailsRepository, getEventSkatingEventCategoriesFullRepository, resolveClubIdForClubAuthUser } from "./event.repositories.js";
 import { Club } from "../club/club.model.js";
 
 const displayEventServer = async (data) => {
@@ -336,28 +336,57 @@ export const competitionAllSkaterService = async (reqUser, body) => {
         clubId = await resolveClubIdForClubAuthUser(reqUser._id);
     }
 
-    const list = await listEventSkatersByEventIdRepository(eventId, {
-        page,
-        limit,
-        search,
-        ageGroup,
-        categoryName,
-        categoriesId: skatingEventCategoryId,
-        clubId,
-    });
+    const [list, rankings] = await Promise.all([
+        listEventSkatersByEventIdRepository(eventId, {
+            page,
+            limit,
+            search,
+            ageGroup,
+            categoryName,
+            categoriesId: skatingEventCategoryId,
+            clubId,
+        }),
+        listCompetitionCategoryRankingsRepository(eventId, {
+            ageGroup,
+            categoryName,
+            categoriesId: skatingEventCategoryId,
+            clubId,
+        }),
+    ]);
 
-    const formatCategoryTimeTaken = (category) => {
+    const rankByRegistrationId = new Map(
+        (rankings.results || []).map((row) => [
+            String(row.registrationId),
+            row.rank ?? null,
+        ])
+    );
+
+    const formatCategoryTimeTaken = (category, registrationId) => {
         if (!category) {
             return category;
         }
+        const rank = rankByRegistrationId.get(String(registrationId)) ?? null;
         return {
             ...category,
+            rank,
             timeTaken: formatCompetitionTimeTakenFromSeconds(category.timeTaken),
         };
     };
 
+    const formatTopThreeRow = (row) => ({
+        rank: row.rank,
+        registrationId: row.registrationId,
+        userId: row.userId,
+        participantName: row.participantName,
+        krsaId: row.krsaId,
+        timeTaken: formatCompetitionTimeTakenFromSeconds(row.timeTaken),
+    });
+
     const data = (list.data || []).map((skater) => {
-        const categories = (skater.categories || []).map(formatCategoryTimeTaken);
+        const registrationId = skater.registrationId || skater._id;
+        const categories = (skater.categories || []).map((category) =>
+            formatCategoryTimeTaken(category, registrationId)
+        );
         const matchedCategory = categories.find(
             (category) => String(category.name || "").trim() === categoryName
         );
@@ -375,6 +404,7 @@ export const competitionAllSkaterService = async (reqUser, body) => {
         ageGroup,
         categoryName,
         registeredCount: list.total ?? 0,
+        topThree: (rankings.topThree || []).map(formatTopThreeRow),
         event: {
             eventName: eventMeta.eventName,
             colorOne: eventMeta.colorOne,
@@ -485,12 +515,33 @@ export const givenPointEventService = async (reqUser, body) => {
             }
         }
 
+        await recalculateAndPersistCategoryRanksRepository({
+            eventId,
+            categoriesId: skatingEventCategoryId,
+            ageGroup,
+            categoryName,
+        });
+
+        const rankings = await listCompetitionCategoryRankingsRepository(eventId, {
+            ageGroup,
+            categoryName,
+            categoriesId: skatingEventCategoryId,
+            clubId: null,
+        });
+
         return {
             eventId,
             skatingEventCategoryId,
             ageGroup,
             categoryName,
             updatedCount: updatedSkaters.length,
+            topThree: (rankings.topThree || []).map((row) => ({
+                rank: row.rank,
+                registrationId: row.registrationId,
+                participantName: row.participantName,
+                krsaId: row.krsaId,
+                timeTaken: formatCompetitionTimeTakenFromSeconds(row.timeTaken),
+            })),
             skaters: updatedSkaters,
         };
     }

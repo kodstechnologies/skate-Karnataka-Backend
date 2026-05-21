@@ -113,6 +113,20 @@ const assertUniqueContactForUpdate = async (id, payload, existingUser) => {
 
 const SKATER_ROLES = ["Skater", "skater"];
 
+const SKATER_OBJECT_ID_FIELDS = ["category", "discipline", "district", "club"];
+
+const castSkaterObjectIdFields = (payload) => {
+    for (const field of SKATER_OBJECT_ID_FIELDS) {
+        const value = payload[field];
+        if (value == null || value === "") continue;
+
+        const raw = String(value).trim();
+        if (mongoose.Types.ObjectId.isValid(raw)) {
+            payload[field] = new mongoose.Types.ObjectId(raw);
+        }
+    }
+};
+
 const assertDisciplineExists = async (disciplineId) => {
     if (!disciplineId) return;
 
@@ -123,14 +137,19 @@ const assertDisciplineExists = async (disciplineId) => {
 };
 
 const after_login_skater_form_repositories = async (data, id) => {
-    const existingUser = await BaseAuth.findOne({
-        _id: id,
-        role: { $in: SKATER_ROLES },
-    })
+    const existingUser = await BaseAuth.findById(id)
         .select("_id role phone email")
         .lean();
 
     if (!existingUser) {
+        throw new AppError("Skater not found", 404);
+    }
+
+    const normalizedRole = String(existingUser.role || "").trim().toLowerCase();
+    if (
+        normalizedRole &&
+        !SKATER_ROLES.map((role) => role.toLowerCase()).includes(normalizedRole)
+    ) {
         throw new AppError("Skater not found", 404);
     }
 
@@ -145,6 +164,8 @@ const after_login_skater_form_repositories = async (data, id) => {
         await assertDisciplineExists(setPayload.discipline);
     }
 
+    castSkaterObjectIdFields(setPayload);
+
     await assertUniqueContactForUpdate(id, setPayload, existingUser);
 
     if (data?.club) {
@@ -152,6 +173,10 @@ const after_login_skater_form_repositories = async (data, id) => {
     } else {
         setPayload.clubStatus = "join";
     }
+
+    delete setPayload.img;
+    delete setPayload.imgKey;
+    delete setPayload.photoKey;
 
     const updateOperation = { $set: setPayload };
 
@@ -163,7 +188,8 @@ const after_login_skater_form_repositories = async (data, id) => {
 
     const updated = await BaseAuth.findByIdAndUpdate(id, updateOperation, {
         new: true,
-        runValidators: true,
+        runValidators: false,
+        strict: false,
     });
 
     if (!updated) {
@@ -173,8 +199,15 @@ const after_login_skater_form_repositories = async (data, id) => {
     const populated = await Skater.findById(id)
         .populate("district")
         .populate("club")
-        .populate("discipline", "name");
-    return populated || updated;
+        .populate("category", "typeName")
+        .lean();
+
+    const profile = populated ?? updated.toObject?.() ?? updated;
+
+    return {
+        ...profile,
+        disciplineName: await resolveDisciplineName(profile?.discipline),
+    };
 };
 
 const attachDisciplineName = async (profile) => {

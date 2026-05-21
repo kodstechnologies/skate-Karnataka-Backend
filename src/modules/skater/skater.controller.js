@@ -4,6 +4,7 @@ import { formatDate } from "../../util/time/timeUtil.js";
 import { after_login_form_skater_service, deleteUser_skater_service, get_all_discipline_service, get_all_skating_event_categories_full_service, get_all_skating_event_categories_service, get_skater_digital_id_card_service, get_skater_profile_service, get_skater_results_service, update_skater_profile_service } from "./skater.service.js";
 
 const afterLoginSkaterForm = asyncHandler(async (req, res) => {
+    console.log("🚀 ~ req.body:", req.body)
     const { id } = req.params;
     await after_login_form_skater_service(req.body, id);
     return res

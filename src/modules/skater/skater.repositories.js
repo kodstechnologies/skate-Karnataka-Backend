@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import { AppError } from "../../util/common/AppError.js";
 import { BaseAuth } from "../auth/baseAuth.model.js";
 import { DisciplineService } from "../discipline/discipline.model.js";
+import { Discipline } from "../guest/disciplines.model.js";
 import { listCompetitionCategoryRankingsRepository } from "../event/event.repositories.js";
 import { sortCompetitionByTime } from "../../util/competition/rankUtil.js";
 import { EventParticipant } from "../event/eventParticipant.model.js";
@@ -22,7 +23,7 @@ const toDisciplineId = (discipline) => {
     }
 
     if (typeof discipline === "object") {
-        if (discipline.name) {
+        if (discipline.name || discipline.title) {
             return null;
         }
         return discipline._id ?? discipline.id ?? null;
@@ -31,20 +32,39 @@ const toDisciplineId = (discipline) => {
     return discipline;
 };
 
+const findDisciplineById = async (disciplineId) => {
+    if (!disciplineId || !mongoose.Types.ObjectId.isValid(String(disciplineId))) {
+        return null;
+    }
+
+    const service = await DisciplineService.findById(disciplineId)
+        .select("name")
+        .lean();
+    if (service?.name) {
+        return { name: service.name };
+    }
+
+    const guest = await Discipline.findById(disciplineId).select("title").lean();
+    if (guest?.title) {
+        return { name: guest.title };
+    }
+
+    return null;
+};
+
 const resolveDisciplineName = async (discipline) => {
     if (!discipline) return "";
 
-    if (typeof discipline === "object" && discipline.name) {
-        return discipline.name;
+    if (typeof discipline === "object") {
+        if (discipline.name) return discipline.name;
+        if (discipline.title) return discipline.title;
     }
 
     const disciplineId = toDisciplineId(discipline);
-    if (!disciplineId || !mongoose.Types.ObjectId.isValid(String(disciplineId))) {
-        return typeof discipline === "string" ? discipline : "";
-    }
+    const record = await findDisciplineById(disciplineId);
+    if (record?.name) return record.name;
 
-    const doc = await DisciplineService.findById(disciplineId).select("name").lean();
-    return doc?.name || "";
+    return typeof discipline === "string" ? discipline : "";
 };
 
 const assertUniqueContactForUpdate = async (id, payload, existingUser) => {
@@ -96,8 +116,8 @@ const SKATER_ROLES = ["Skater", "skater"];
 const assertDisciplineExists = async (disciplineId) => {
     if (!disciplineId) return;
 
-    const exists = await DisciplineService.exists({ _id: disciplineId });
-    if (!exists) {
+    const record = await findDisciplineById(disciplineId);
+    if (!record) {
         throw new AppError("Discipline not found", 404);
     }
 };
@@ -212,10 +232,24 @@ const get_all_skating_event_categories_full_repositories = async () => {
 };
 
 const get_all_discipline_repositories = async () => {
-    return await DisciplineService.find({})
-        .sort({ createdAt: -1 })
-        .lean();
-}
+    const [services, guests] = await Promise.all([
+        DisciplineService.find({}).select("_id name").sort({ name: 1 }).lean(),
+        Discipline.find({}).select("_id title").sort({ title: 1 }).lean(),
+    ]);
+
+    return [
+        ...services.map((row) => ({
+            _id: row._id,
+            name: row.name,
+            source: "service",
+        })),
+        ...guests.map((row) => ({
+            _id: row._id,
+            name: row.title,
+            source: "guest",
+        })),
+    ];
+};
 
 /** Skater results podium: fastest times first, including placeholder (600s) finishers. */
 const buildSkaterPodiumTopThree = (results = []) =>

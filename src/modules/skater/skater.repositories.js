@@ -5,6 +5,7 @@ import { DisciplineService } from "../discipline/discipline.model.js";
 import { Discipline } from "../guest/disciplines.model.js";
 import { listCompetitionCategoryRankingsRepository } from "../event/event.repositories.js";
 import { sortCompetitionByTime } from "../../util/competition/rankUtil.js";
+import { formatCompetitionTimeTakenFromSeconds } from "../../util/time/timeUtil.js";
 import { EventParticipant } from "../event/eventParticipant.model.js";
 import SkatingEventCategory from "../event/SkatingEventCategory.model.js";
 import { Skater } from "./skater.model.js";
@@ -284,6 +285,19 @@ const get_all_discipline_repositories = async () => {
     ];
 };
 
+const withTimeDisplay = (seconds) => {
+    if (seconds === null || seconds === undefined) {
+        return { timeTaken: null, timeDisplay: null };
+    }
+    if (typeof seconds !== "number" || Number.isNaN(seconds)) {
+        return { timeTaken: null, timeDisplay: null };
+    }
+    return {
+        timeTaken: seconds,
+        timeDisplay: formatCompetitionTimeTakenFromSeconds(seconds),
+    };
+};
+
 /** Skater results podium: fastest times first, including placeholder (600s) finishers. */
 const buildSkaterPodiumTopThree = (results = []) =>
     [...results]
@@ -301,7 +315,7 @@ const buildSkaterPodiumTopThree = (results = []) =>
             name: row.participantName || "",
             krsaId: row.krsaId || "",
             rank: index + 1,
-            timeTaken: row.timeTaken ?? null,
+            ...withTimeDisplay(row.timeTaken ?? null),
         }));
 
 const parseEventEndDateTime = (eventEndDate, eventEndTime) => {
@@ -422,7 +436,7 @@ const mapCategoryLeaderboard = (results = []) =>
                 : null,
             name: row.participantName || "",
             krsaId: row.krsaId || "",
-            timeTaken: row.timeTaken,
+            ...withTimeDisplay(row.timeTaken),
         }));
 
 const buildCategoryResultBlock = async (
@@ -445,7 +459,7 @@ const buildCategoryResultBlock = async (
     return {
         eventNo: null,
         name: categoryLabel,
-        timeTaken: registeredCategory.timeTaken ?? null,
+        ...withTimeDisplay(registeredCategory.timeTaken ?? null),
         rank: registeredCategory.rank ?? null,
         isDisqualified: Boolean(registeredCategory.isDisqualified),
         remarks: registeredCategory.remarks || "",
@@ -544,7 +558,7 @@ const get_skater_results_by_event_repositories = async (
             totalParticipants: block.totalParticipants,
             totalWithTime: block.totalWithTime,
             myResult: {
-                timeTaken: block.timeTaken,
+                ...withTimeDisplay(block.timeTaken),
                 rank: block.rank,
                 isDisqualified: block.isDisqualified,
                 attendanceStatus: block.attendanceStatus,

@@ -4,6 +4,7 @@ import { AppError } from "../../util/common/AppError.js";
 import { District } from "../district/district.model.js";
 import { Skater } from "../skater/skater.model.js";
 import { Event } from "../event/event.model.js";
+import { EventParticipant } from "../event/eventParticipant.model.js";
 import { Club } from "./club.model.js";
 import { BaseAuth } from "../auth/baseAuth.model.js";
 
@@ -771,38 +772,22 @@ const resolveClubIdFromClubMember = async (clubMemberId) => {
     return club;
 };
 
-const formatApplySkaterRow = (skater, resolvedClub, requestType) => ({
-    id: skater._id,
-    fullName: skater.fullName || "",
-    phone: skater.phone || "",
-    countryCode: skater.countryCode || "+91",
-    email: skater.email || "",
-    gender: skater.gender || "",
-    photo: skater.photo || "",
-    krsaId: skater.krsaId || "",
-    address: skater.address || "",
-    clubStatus: skater.clubStatus || "",
-    requestType,
-    club: skater.club
-        ? {
-              _id: skater.club._id ?? skater.club,
-              name: skater.club.name ?? "",
-          }
-        : null,
-    applyClub: (skater.applyClub || []).map((item) => ({
-        _id: item?._id ?? item,
-        name: item?.name ?? "",
-    })),
-    resolvedClub: {
-        _id: resolvedClub._id,
-        name: resolvedClub.name || "",
-    },
-    createdAt: skater.createdAt,
+const formatApplyListItem = (type, id, fullName, sortAt) => ({
+    type,
+    id,
+    fullName: fullName || "",
+    sortAt,
 });
 
-const display_all_apply_skater_repositories = async (clubMemberId) => {
+const display_all_apply_skater_repositories = async (
+    clubMemberId,
+    { page = 1, limit = 10 } = {}
+) => {
+    const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
     const club = await resolveClubIdFromClubMember(clubMemberId);
     const clubOid = club._id;
+    const clubIdStr = String(clubOid);
+    const data = [];
 
     const skaters = await Skater.find({
         role: "Skater",
@@ -811,23 +796,14 @@ const display_all_apply_skater_repositories = async (clubMemberId) => {
             { club: clubOid, clubStatus: "apply-leave" },
         ],
     })
-        .select(
-            "fullName phone countryCode email gender photo krsaId address clubStatus applyClub club createdAt"
-        )
-        .populate("club", "name")
-        .populate("applyClub", "name")
+        .select("fullName applyClub club clubStatus createdAt")
         .sort({ createdAt: -1 })
         .lean();
 
-    const clubIdStr = String(clubOid);
-    const seen = new Set();
-    const data = [];
+    const seenClubRequests = new Set();
 
     for (const skater of skaters) {
         const skaterId = String(skater._id);
-        if (seen.has(skaterId)) continue;
-        seen.add(skaterId);
-
         const inApplyClub = (skater.applyClub || []).some(
             (item) => String(item?._id ?? item) === clubIdStr
         );
@@ -835,21 +811,90 @@ const display_all_apply_skater_repositories = async (clubMemberId) => {
             String(skater.club?._id ?? skater.club ?? "") === clubIdStr &&
             skater.clubStatus === "apply-leave";
 
-        let requestType = "join";
-        if (isLeaveRequest && inApplyClub) {
-            requestType = "join-and-leave";
-        } else if (isLeaveRequest) {
-            requestType = "leave";
+        if (isLeaveRequest) {
+            const key = `leave:${skaterId}`;
+            if (!seenClubRequests.has(key)) {
+                seenClubRequests.add(key);
+                data.push(
+                    formatApplyListItem(
+                        "leave",
+                        skater._id,
+                        skater.fullName,
+                        skater.createdAt
+                    )
+                );
+            }
+            continue;
         }
 
-        data.push(formatApplySkaterRow(skater, club, requestType));
+        if (inApplyClub) {
+            const key = `join:${skaterId}`;
+            if (!seenClubRequests.has(key)) {
+                seenClubRequests.add(key);
+                data.push(
+                    formatApplyListItem(
+                        "join",
+                        skater._id,
+                        skater.fullName,
+                        skater.createdAt
+                    )
+                );
+            }
+        }
     }
 
+    const clubMemberIds = await Skater.find({
+        role: "Skater",
+        $or: [{ club: clubOid }, { applyClub: clubOid }],
+    })
+        .select("_id")
+        .lean();
+
+    const memberIdList = clubMemberIds.map((row) => row._id);
+
+    if (memberIdList.length > 0) {
+        const certificationApplications = await EventParticipant.find({
+            userId: { $in: memberIdList },
+            skaterApply: true,
+            clubAllow: false,
+        })
+            .populate("userId", "fullName")
+            .sort({ updatedAt: -1 })
+            .lean();
+
+        for (const participant of certificationApplications) {
+            const skater = participant.userId;
+            if (!skater?._id) continue;
+
+            data.push(
+                formatApplyListItem(
+                    "applyCertificate",
+                    participant._id,
+                    skater.fullName,
+                    participant.updatedAt || participant.createdAt
+                )
+            );
+        }
+    }
+
+    data.sort((a, b) => new Date(b.sortAt).getTime() - new Date(a.sortAt).getTime());
+
+    const total = data.length;
+    const paged = data.slice(skip, skip + pageLimit).map(({ sortAt, ...row }) => row);
+
+    const countByType = (type) => data.filter((row) => row.type === type).length;
+
     return {
-        clubId: club._id,
-        clubName: club.name || "",
-        total: data.length,
-        skaters: data,
+        total,
+        page: currentPage,
+        limit: pageLimit,
+        totalPages: Math.ceil(total / pageLimit) || 0,
+        counts: {
+            join: countByType("join"),
+            leave: countByType("leave"),
+            applyCertificate: countByType("applyCertificate"),
+        },
+        data: paged,
     };
 };
 

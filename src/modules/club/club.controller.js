@@ -274,7 +274,11 @@ const display_existing_club = asyncHandler(async (req, res) => {
 
 const display_all_apply_skater = asyncHandler(async (req, res) => {
     const clubMemberId = req.user._id;
-    const result = await display_all_apply_skater_service(clubMemberId);
+    const { page, limit } = req.query;
+    const result = await display_all_apply_skater_service(clubMemberId, {
+        page,
+        limit,
+    });
 
     return res
         .status(200)
@@ -282,7 +286,7 @@ const display_all_apply_skater = asyncHandler(async (req, res) => {
             new ApiResponse(
                 200,
                 result,
-                "Join and leave applications fetched successfully"
+                "Club and certification applications fetched successfully"
             )
         );
 });

@@ -247,8 +247,8 @@ const display_existing_club_service = async (id) => {
     return await display_existing_club_repositories(id);
 }
 
-const display_all_apply_skater_service = async (clubId) => {
-    return await display_all_apply_skater_repositories(clubId);
+const display_all_apply_skater_service = async (clubId, { page, limit } = {}) => {
+    return await display_all_apply_skater_repositories(clubId, { page, limit });
 };
 
 export const display_all_club_skater_service = async (clubMemberId, query = {}) => {

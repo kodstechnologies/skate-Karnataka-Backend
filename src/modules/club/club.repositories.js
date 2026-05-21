@@ -862,6 +862,7 @@ export const display_club_skater_details_repositories = async (
         .select("-refreshTokens -firebaseTokens")
         .populate("club", "name clubId img districtName")
         .populate("category", "typeName")
+        .populate("discipline", "name")
         .populate("applyClub", "name clubId")
         .lean();
 
@@ -883,7 +884,7 @@ export const display_club_skater_details_repositories = async (
         dob: skater.dob || null,
         rsfiId: skater.rsfiId || "",
         aadharNumber: skater.aadharNumber || "",
-        discipline: skater.discipline || "",
+        discipline: skater.discipline?.name || "",
         parent: skater.parent || "",
         bloodGroup: skater.bloodGroup || "",
         school: skater.school || "",

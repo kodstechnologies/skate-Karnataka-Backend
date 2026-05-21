@@ -19,7 +19,9 @@ const afterLoginSkaterFormValidation = {
         category: Joi.string()
             .trim()
             .pattern(/^[0-9a-fA-F]{24}$/),
-        discipline: Joi.string(),
+        discipline: Joi.string()
+            .trim()
+            .pattern(/^[0-9a-fA-F]{24}$/),
 
         address: Joi.string().max(200),
 

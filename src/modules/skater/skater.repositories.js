@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { AppError } from "../../util/common/AppError.js";
 import { BaseAuth } from "../auth/baseAuth.model.js";
 import { DisciplineService } from "../discipline/discipline.model.js";
@@ -8,6 +9,43 @@ import SkatingEventCategory from "../event/SkatingEventCategory.model.js";
 import { Skater } from "./skater.model.js";
 
 const normalizePhone = (value) => String(value ?? "").trim();
+
+const toDisciplineId = (discipline) => {
+    if (discipline == null || discipline === "") return null;
+
+    if (discipline instanceof mongoose.Types.ObjectId) {
+        return discipline;
+    }
+
+    if (typeof discipline === "string") {
+        return discipline.trim();
+    }
+
+    if (typeof discipline === "object") {
+        if (discipline.name) {
+            return null;
+        }
+        return discipline._id ?? discipline.id ?? null;
+    }
+
+    return discipline;
+};
+
+const resolveDisciplineName = async (discipline) => {
+    if (!discipline) return "";
+
+    if (typeof discipline === "object" && discipline.name) {
+        return discipline.name;
+    }
+
+    const disciplineId = toDisciplineId(discipline);
+    if (!disciplineId || !mongoose.Types.ObjectId.isValid(String(disciplineId))) {
+        return typeof discipline === "string" ? discipline : "";
+    }
+
+    const doc = await DisciplineService.findById(disciplineId).select("name").lean();
+    return doc?.name || "";
+};
 
 const assertUniqueContactForUpdate = async (id, payload, existingUser) => {
     if (payload.phone != null && payload.phone !== "") {
@@ -55,6 +93,15 @@ const assertUniqueContactForUpdate = async (id, payload, existingUser) => {
 
 const SKATER_ROLES = ["Skater", "skater"];
 
+const assertDisciplineExists = async (disciplineId) => {
+    if (!disciplineId) return;
+
+    const exists = await DisciplineService.exists({ _id: disciplineId });
+    if (!exists) {
+        throw new AppError("Discipline not found", 404);
+    }
+};
+
 const after_login_skater_form_repositories = async (data, id) => {
     const existingUser = await BaseAuth.findOne({
         _id: id,
@@ -73,6 +120,10 @@ const after_login_skater_form_repositories = async (data, id) => {
         role: "Skater",
         verify: true,
     };
+
+    if (setPayload.discipline) {
+        await assertDisciplineExists(setPayload.discipline);
+    }
 
     await assertUniqueContactForUpdate(id, setPayload, existingUser);
 
@@ -99,25 +150,40 @@ const after_login_skater_form_repositories = async (data, id) => {
         throw new AppError("Skater not found", 404);
     }
 
-    const populated = await Skater.findById(id).populate("district").populate("club");
+    const populated = await Skater.findById(id)
+        .populate("district")
+        .populate("club")
+        .populate("discipline", "name");
     return populated || updated;
 };
 
+const attachDisciplineName = async (profile) => {
+    if (!profile) return null;
+
+    return {
+        ...profile,
+        disciplineName: await resolveDisciplineName(profile.discipline),
+    };
+};
+
 const get_skater_profile_repositories = async (id) => {
-    const profile = await Skater.findById(id).select("photo fullName krsaId discipline").lean();
-    console.log(profile, "profile ...");
-    return profile;
+    const profile = await Skater.findById(id)
+        .select("photo fullName krsaId discipline category")
+        .populate("category", "typeName")
+        .lean();
+
+    return attachDisciplineName(profile);
 };
 
 const get_skater_digital_id_card_repositories = async (id) => {
     const profile = await Skater.findById(id)
-        .select("createdAt photo fullName krsaId dob category club")
+        .select("createdAt photo fullName krsaId dob discipline category club")
         .populate("club", "name")
         .populate("category", "typeName")
         .lean();
-    console.log(profile, "profile ...");
-    return profile;
-}
+
+    return attachDisciplineName(profile);
+};
 
 const update_skater_profile_repositories = async (userData, updateData) => {
 

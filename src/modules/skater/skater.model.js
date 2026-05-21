@@ -31,9 +31,8 @@ const skaterSchema = new mongoose.Schema({
   },
 
   discipline: {
-    type: String,
-    lowercase: true,
-    trim: true,
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "DisciplineService",
   },
 
   // district: {

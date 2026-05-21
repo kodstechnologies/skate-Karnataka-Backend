@@ -18,18 +18,16 @@ const afterLoginSkaterForm = asyncHandler(async (req, res) => {
 })
 
 const GetSkaterProfile = asyncHandler(async (req, res) => {
-    console.log(req.user, "===========")
     const id = req.user._id;
-    console.log(id, "==id")
     const profile = await get_skater_profile_service(id);
     const response = {
         img: profile?.photo || "",
         name: profile?.fullName || "",
         krsaId: profile?.krsaId || "",
-        discipline: profile?.discipline || "",
-        stateRank: profile?.stateRank || 0,     //working ...
-        goldMedals: profile?.goldMedals || 0,   //working ...
-       
+        category: profile?.category?.typeName || "",
+        discipline: profile?.disciplineName || profile?.discipline?.name || "",
+        stateRank: profile?.stateRank || 0,
+        goldMedals: profile?.goldMedals || 0,
     };
 
     return res.status(200).json(new ApiResponse(200, response, "Skater profile display successfully"))
@@ -44,8 +42,9 @@ const GetSkaterDigitalIdCard = asyncHandler(async (req, res) => {
         krsaId: profile?.krsaId || "",
         dob: profile.dob ? formatDate(profile.dob) : "",
         category: profile?.category?.typeName || "",
+        discipline: profile?.disciplineName || profile?.discipline?.name || "",
         clubName: profile?.club?.name || "",
-        date : profile?.createdAt ? formatDate(profile.createdAt) : "", 
+        date: profile?.createdAt ? formatDate(profile.createdAt) : "",
     };
 
     return res.status(200).json(new ApiResponse(200, response, "Skater digital ID generate successfully"))

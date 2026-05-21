@@ -508,6 +508,9 @@ const get_skater_results_by_event_repositories = async (
         eventType: event.eventType || "",
         eventStartDate: event.eventStartDate || null,
         eventEndDate: event.eventEndDate || null,
+        colorOne: event.colorOne ?? "#6A11CB",
+        colorTwo: event.colorTwo ?? "#2575FC",
+        textColor: event.textColor ?? "#FFFFFF",
         ageGroup,
         categoriesId: categoryRefId
             ? {

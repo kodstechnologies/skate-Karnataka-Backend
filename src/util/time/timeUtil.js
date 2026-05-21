@@ -48,6 +48,61 @@ const formatDate = (value = new Date()) => {
     return `${d}-${m}-${y}`;
 };
 
+/** Display DOB as dd/mm/yyyy */
+const formatDob = (value = new Date()) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    const d = String(date.getDate()).padStart(2, "0");
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const y = date.getFullYear();
+    return `${d}/${m}/${y}`;
+};
+
+/**
+ * Parse DOB from dd/mm/yyyy, dd-mm-yyyy, d/m/yyyy, or ISO date string → Date (UTC midnight local parts).
+ */
+const parseDobInput = (value) => {
+    if (value === undefined || value === null || value === "") {
+        return undefined;
+    }
+
+    if (value instanceof Date) {
+        if (Number.isNaN(value.getTime())) {
+            throw new Error("Invalid date of birth");
+        }
+        return value;
+    }
+
+    const raw = String(value).trim();
+    if (!raw) return undefined;
+
+    const dmy = raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (dmy) {
+        const day = Number(dmy[1]);
+        const month = Number(dmy[2]);
+        const year = Number(dmy[3]);
+        if (month < 1 || month > 12 || day < 1 || day > 31) {
+            throw new Error("Invalid date of birth");
+        }
+        const date = new Date(year, month - 1, day);
+        if (
+            date.getFullYear() !== year ||
+            date.getMonth() !== month - 1 ||
+            date.getDate() !== day
+        ) {
+            throw new Error("Invalid date of birth");
+        }
+        return date;
+    }
+
+    const iso = new Date(raw);
+    if (!Number.isNaN(iso.getTime())) {
+        return iso;
+    }
+
+    throw new Error('Date of birth must be dd/mm/yyyy (e.g. "15/08/2001")');
+};
+
 // =============== example ======================
 // ** if i call formatDate("2026-03-25") it will return "2026-03-25" in YYYY-MM-DD format **
 // ** if i call formatDate() it will return current date in YYYY-MM-DD format **
@@ -212,6 +267,8 @@ export {
     now,
     toISO,
     formatDate,
+    formatDob,
+    parseDobInput,
     formatTime,
     formatDateTime,
     diffInMinutes,

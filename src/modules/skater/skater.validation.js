@@ -1,4 +1,5 @@
 import Joi from "joi";
+import { parseDobInput } from "../../util/time/timeUtil.js";
 
 const afterLoginSkaterFormValidation = {
     body: Joi.object({
@@ -6,7 +7,20 @@ const afterLoginSkaterFormValidation = {
         phone: Joi.string(),
         rsfiId: Joi.string().allow("").optional(),
 
-        dob: Joi.date(),
+        dob: Joi.any()
+            .optional()
+            .custom((value, helpers) => {
+                if (value === undefined || value === null || value === "") {
+                    return undefined;
+                }
+                try {
+                    return parseDobInput(value);
+                } catch (err) {
+                    return helpers.error("any.invalid", {
+                        message: err.message || "Invalid date of birth",
+                    });
+                }
+            }),
 
         aadharNumber: Joi.string()
             .pattern(/^[0-9]{12}$/)

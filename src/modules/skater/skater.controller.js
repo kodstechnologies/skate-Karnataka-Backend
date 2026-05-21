@@ -1,6 +1,6 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { formatDate } from "../../util/time/timeUtil.js";
+import { formatDate, formatDob } from "../../util/time/timeUtil.js";
 import { after_login_form_skater_service, deleteUser_skater_service, get_all_discipline_service, get_all_skating_event_categories_full_service, get_all_skating_event_categories_service, get_skater_digital_id_card_service, get_skater_profile_service, get_skater_results_event_service, get_skater_results_service, update_skater_profile_service } from "./skater.service.js";
 
 const afterLoginSkaterForm = asyncHandler(async (req, res) => {
@@ -41,7 +41,7 @@ const GetSkaterDigitalIdCard = asyncHandler(async (req, res) => {
         img: profile?.photo || "",
         name: profile?.fullName || "",
         krsaId: profile?.krsaId || "",
-        dob: profile.dob ? formatDate(profile.dob) : "",
+        dob: profile.dob ? formatDob(profile.dob) : "",
         category: profile?.category?.typeName || "",
         discipline: profile?.disciplineName || profile?.discipline?.name || "",
         clubName: profile?.club?.name || "",

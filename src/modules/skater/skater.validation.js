@@ -52,6 +52,19 @@ const afterLoginSkaterFormValidation = {
 };
 
 
+const getSkaterResultsByEventValidation = {
+    params: Joi.object({
+        id: Joi.string()
+            .trim()
+            .pattern(/^[0-9a-fA-F]{24}$/)
+            .required(),
+    }),
+    query: Joi.object({
+        categoryName: Joi.string().trim().optional(),
+        category: Joi.string().trim().optional(),
+    }),
+};
+
 const UpdateProfileValidation = {
     body: Joi.object({
         fullName: Joi.string().min(3).max(50).optional(),
@@ -65,5 +78,6 @@ const UpdateProfileValidation = {
 
 export {
     afterLoginSkaterFormValidation,
+    getSkaterResultsByEventValidation,
     UpdateProfileValidation,
 }

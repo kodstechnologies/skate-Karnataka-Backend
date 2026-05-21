@@ -304,95 +304,283 @@ const buildSkaterPodiumTopThree = (results = []) =>
             timeTaken: row.timeTaken ?? null,
         }));
 
-const buildEventCategoriesWithTopThree = async (participant, eventId) => {
-    const categories = [];
+const parseEventEndDateTime = (eventEndDate, eventEndTime) => {
+    if (!eventEndDate) return null;
 
-    for (const [index, category] of (participant.categories || []).entries()) {
-        const name = String(category?.name || "").trim();
-        if (!name) continue;
+    const endDate = new Date(eventEndDate);
+    if (Number.isNaN(endDate.getTime())) return null;
 
-        const { results: categoryResults } =
-            await listCompetitionCategoryRankingsRepository(eventId, {
-                ageGroup: participant.ageGroup,
-                categoryName: name,
-                categoriesId: participant.categoriesId,
-            });
-
-        categories.push({
-            eventNo: index + 1,
-            name,
-            timeTaken: category.timeTaken ?? null,
-            rank: category.rank ?? null,
-            isDisqualified: Boolean(category.isDisqualified),
-            remarks: category.remarks || "",
-            attendanceStatus: category.attendanceStatus || "pending",
-            topThree: buildSkaterPodiumTopThree(categoryResults),
-        });
+    const rawTime = String(eventEndTime || "").trim();
+    if (!rawTime) {
+        endDate.setHours(23, 59, 59, 999);
+        return endDate;
     }
 
-    return categories;
+    const match = rawTime.match(/^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i);
+    if (!match) {
+        endDate.setHours(23, 59, 59, 999);
+        return endDate;
+    }
+
+    let hours = Number(match[1]);
+    const minutes = Number(match[2]);
+    const meridian = (match[3] || "").toUpperCase();
+
+    if (meridian === "PM" && hours < 12) hours += 12;
+    if (meridian === "AM" && hours === 12) hours = 0;
+
+    endDate.setHours(hours, minutes, 59, 999);
+    return endDate;
 };
 
-const get_skater_results_repositories = async (userId) => {
+const get_skater_results_event_repositories = async (userId) => {
     const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+    const now = new Date();
 
-    const participants = await EventParticipant.find({
-        userId,
-        paymentStatus: "paid",
-    })
-        .populate([
-            {
-                path: "eventId",
-                select: "header eventType eventStartDate eventEndDate",
-            },
-            { path: "categoriesId", select: "_id typeName" },
-        ])
+    const participants = await EventParticipant.find({ userId })
+        .populate({
+            path: "eventId",
+            select:
+                "header eventType eventStartDate eventEndDate eventStartTime eventEndTime address status colorOne colorTwo textColor",
+        })
+        .select("eventId ageGroup categories paymentStatus createdAt")
         .sort({ createdAt: -1 })
         .lean();
 
-    const results = [];
+    const seenEventIds = new Set();
+    const events = [];
 
     for (const participant of participants) {
         const event = participant.eventId;
         if (!event?._id) continue;
 
+        const eventIdStr = String(event._id);
+        if (seenEventIds.has(eventIdStr)) continue;
+        seenEventIds.add(eventIdStr);
+
         const eventEnd = event.eventEndDate ? new Date(event.eventEndDate) : null;
-        if (!eventEnd || Number.isNaN(eventEnd.getTime()) || eventEnd > twoDaysAgo) {
-            continue;
-        }
-
-        const categories = await buildEventCategoriesWithTopThree(
-            participant,
-            event._id
+        const endDateTime = parseEventEndDateTime(
+            event.eventEndDate,
+            event.eventEndTime
         );
-        if (categories.length === 0) continue;
+        const eventEnded = Boolean(endDateTime && now > endDateTime);
+        const resultsAvailable =
+            participant.paymentStatus === "paid" &&
+            eventEnd &&
+            !Number.isNaN(eventEnd.getTime()) &&
+            eventEnd <= twoDaysAgo;
 
-        const skatingCategory = participant.categoriesId;
-        const categoryRefId =
-            skatingCategory?._id ?? participant.categoriesId ?? null;
-
-        results.push({
+        events.push({
+            participantId: participant._id,
             eventId: event._id,
             eventName: event.header || "",
             eventType: event.eventType || "",
             eventStartDate: event.eventStartDate || null,
             eventEndDate: event.eventEndDate || null,
+            eventStartTime: event.eventStartTime || "",
+            eventEndTime: event.eventEndTime || "",
+            address: event.address || "",
+            status: event.status || "",
+            colorOne: event.colorOne ?? "#6A11CB",
+            colorTwo: event.colorTwo ?? "#2575FC",
+            textColor: event.textColor ?? "#FFFFFF",
             ageGroup: participant.ageGroup || "",
-            categoriesId: categoryRefId
-                ? {
-                      _id: categoryRefId,
-                      name: skatingCategory?.typeName ?? "",
-                  }
-                : null,
-            categories,
+            paymentStatus: participant.paymentStatus || "pending",
+            eventEnded,
+            resultsAvailable,
+            categories: (participant.categories || [])
+                .map((row, index) => ({
+                    eventNo: index + 1,
+                    name: String(row?.name || "").trim(),
+                }))
+                .filter((row) => row.name),
         });
     }
 
-    return results.sort((a, b) => {
+    return events.sort((a, b) => {
         const aEnd = a.eventEndDate ? new Date(a.eventEndDate).getTime() : 0;
         const bEnd = b.eventEndDate ? new Date(b.eventEndDate).getTime() : 0;
         return bEnd - aEnd;
     });
+};
+
+const mapCategoryLeaderboard = (results = []) =>
+    [...results]
+        .filter(
+            (row) =>
+                !row.isDisqualified &&
+                typeof row.timeTaken === "number" &&
+                !Number.isNaN(row.timeTaken) &&
+                row.timeTaken > 0
+        )
+        .sort(sortCompetitionByTime)
+        .map((row, index) => ({
+            rank: index + 1,
+            id: row.userId ? String(row.userId) : null,
+            participantId: row.registrationId
+                ? String(row.registrationId)
+                : null,
+            name: row.participantName || "",
+            krsaId: row.krsaId || "",
+            timeTaken: row.timeTaken,
+        }));
+
+const buildCategoryResultBlock = async (
+    participant,
+    eventId,
+    categoryLabel,
+    registeredCategory
+) => {
+    const ageGroup = participant.ageGroup || "";
+
+    const { results: categoryResults } =
+        await listCompetitionCategoryRankingsRepository(eventId, {
+            ageGroup,
+            categoryName: categoryLabel,
+            categoriesId: participant.categoriesId,
+        });
+
+    const skaters = mapCategoryLeaderboard(categoryResults);
+
+    return {
+        eventNo: null,
+        name: categoryLabel,
+        timeTaken: registeredCategory.timeTaken ?? null,
+        rank: registeredCategory.rank ?? null,
+        isDisqualified: Boolean(registeredCategory.isDisqualified),
+        remarks: registeredCategory.remarks || "",
+        attendanceStatus: registeredCategory.attendanceStatus || "pending",
+        totalParticipants: categoryResults.length,
+        totalWithTime: skaters.length,
+        topThree: buildSkaterPodiumTopThree(categoryResults),
+        skaters,
+    };
+};
+
+const get_skater_results_by_event_repositories = async (
+    userId,
+    eventId,
+    categoryName
+) => {
+    const categoryLabel = String(categoryName || "").trim();
+
+    if (!mongoose.Types.ObjectId.isValid(String(eventId))) {
+        throw new AppError("Invalid event id", 400);
+    }
+
+    const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+
+    const participant = await EventParticipant.findOne({
+        userId,
+        eventId,
+        paymentStatus: "paid",
+    })
+        .populate({
+            path: "eventId",
+            select:
+                "header eventType eventStartDate eventEndDate eventStartTime eventEndTime address status colorOne colorTwo textColor",
+        })
+        .populate("categoriesId", "_id typeName")
+        .lean();
+
+    if (!participant) {
+        throw new AppError("You are not registered for this event", 404);
+    }
+
+    const event = participant.eventId;
+    if (!event?._id) {
+        throw new AppError("Event not found", 404);
+    }
+
+    const eventEnd = event.eventEndDate ? new Date(event.eventEndDate) : null;
+    if (!eventEnd || Number.isNaN(eventEnd.getTime()) || eventEnd > twoDaysAgo) {
+        throw new AppError("Results are not available yet for this event", 400);
+    }
+
+    const skatingCategory = participant.categoriesId;
+    const categoryRefId =
+        skatingCategory?._id ?? participant.categoriesId ?? null;
+    const ageGroup = participant.ageGroup || "";
+
+    const eventBase = {
+        eventId: event._id,
+        eventName: event.header || "",
+        eventType: event.eventType || "",
+        eventStartDate: event.eventStartDate || null,
+        eventEndDate: event.eventEndDate || null,
+        ageGroup,
+        categoriesId: categoryRefId
+            ? {
+                  _id: categoryRefId,
+                  name: skatingCategory?.typeName ?? "",
+              }
+            : null,
+    };
+
+    if (categoryLabel) {
+        const registeredCategory = (participant.categories || []).find(
+            (row) => String(row?.name || "").trim() === categoryLabel
+        );
+        if (!registeredCategory) {
+            throw new AppError(
+                "Category not found in your event registration",
+                404
+            );
+        }
+
+        const block = await buildCategoryResultBlock(
+            participant,
+            eventId,
+            categoryLabel,
+            registeredCategory
+        );
+
+        return {
+            ...eventBase,
+            categoryName: categoryLabel,
+            totalParticipants: block.totalParticipants,
+            totalWithTime: block.totalWithTime,
+            myResult: {
+                timeTaken: block.timeTaken,
+                rank: block.rank,
+                isDisqualified: block.isDisqualified,
+                attendanceStatus: block.attendanceStatus,
+            },
+            topThree: block.topThree,
+            skaters: block.skaters,
+        };
+    }
+
+    const registeredCategories = (participant.categories || [])
+        .map((row, index) => ({
+            index,
+            name: String(row?.name || "").trim(),
+            row,
+        }))
+        .filter((entry) => entry.name);
+
+    if (registeredCategories.length === 0) {
+        throw new AppError("No categories found in your event registration", 404);
+    }
+
+    const categories = [];
+    for (const entry of registeredCategories) {
+        const block = await buildCategoryResultBlock(
+            participant,
+            eventId,
+            entry.name,
+            entry.row
+        );
+        categories.push({
+            ...block,
+            eventNo: entry.index + 1,
+        });
+    }
+
+    return {
+        ...eventBase,
+        categories,
+    };
 };
 
 
@@ -405,5 +593,6 @@ export {
     get_all_skating_event_categories_repositories,
     get_all_skating_event_categories_full_repositories,
     get_all_discipline_repositories,
-    get_skater_results_repositories,
+    get_skater_results_event_repositories,
+    get_skater_results_by_event_repositories,
 }

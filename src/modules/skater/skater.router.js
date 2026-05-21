@@ -1,7 +1,7 @@
 import express from "express";
-import { afterLoginSkaterForm, DeleteSkater, getAllDiscipline, GetAllSkatingEventCategoriesFull, GetSkaterDigitalIdCard, GetSkaterProfile, GetSkaterResults, UpdateSkaterProfile } from "./skater.controller.js";
+import { afterLoginSkaterForm, DeleteSkater, getAllDiscipline, GetAllSkatingEventCategoriesFull, GetSkaterDigitalIdCard, GetSkaterProfile, GetSkaterResults, GetSkaterResultsEvent, UpdateSkaterProfile } from "./skater.controller.js";
 import { validate } from "../../middleware/validate.multiple.js";
-import { afterLoginSkaterFormValidation, UpdateProfileValidation } from "./skater.validation.js";
+import { afterLoginSkaterFormValidation, getSkaterResultsByEventValidation, UpdateProfileValidation } from "./skater.validation.js";
 import { upload } from "../../middleware/multer.middleware.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
@@ -53,8 +53,17 @@ router.get("/v1/digital-id-card",
     GetSkaterDigitalIdCard);
 
 // result =====================
-router.get("/v1/results",
+router.get(
+    "/v1/results-event",
     authenticate(["Skater"]),
-    GetSkaterResults);
+    GetSkaterResultsEvent
+);
+
+router.get(
+    "/v1/results/:id",
+    authenticate(["Skater"]),
+    validate(getSkaterResultsByEventValidation),
+    GetSkaterResults
+);
 
 export default router;

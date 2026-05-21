@@ -1,10 +1,10 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
 import { formatDate } from "../../util/time/timeUtil.js";
-import { after_login_form_skater_service, deleteUser_skater_service, get_all_discipline_service, get_all_skating_event_categories_full_service, get_all_skating_event_categories_service, get_skater_digital_id_card_service, get_skater_profile_service, get_skater_results_service, update_skater_profile_service } from "./skater.service.js";
+import { after_login_form_skater_service, deleteUser_skater_service, get_all_discipline_service, get_all_skating_event_categories_full_service, get_all_skating_event_categories_service, get_skater_digital_id_card_service, get_skater_profile_service, get_skater_results_event_service, get_skater_results_service, update_skater_profile_service } from "./skater.service.js";
 
 const afterLoginSkaterForm = asyncHandler(async (req, res) => {
-    console.log("🚀 ~ req.body:", req.body)
+    // console.log("🚀 ~ req.body:", req.body)
     const { id } = req.params;
     await after_login_form_skater_service(req.body, id);
     return res
@@ -100,8 +100,22 @@ const getAllDiscipline = asyncHandler(async (_req, res) => {
         .json(new ApiResponse(200, disciplines, "Disciplines fetched successfully"));
 });
 
+const GetSkaterResultsEvent = asyncHandler(async (req, res) => {
+    const events = await get_skater_results_event_service(req.user._id);
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, events, "Skater played events fetched successfully")
+        );
+});
+
 const GetSkaterResults = asyncHandler(async (req, res) => {
-    const results = await get_skater_results_service(req.user._id);
+    const categoryName = req.query.categoryName || req.query.category;
+    const results = await get_skater_results_service(
+        req.user._id,
+        req.params.id,
+        categoryName
+    );
     return res
         .status(200)
         .json(new ApiResponse(200, results, "Skater results fetched successfully"));
@@ -116,5 +130,6 @@ DeleteSkater,
 GetAllSkatingEventCategories,
 GetAllSkatingEventCategoriesFull,
 getAllDiscipline,
+GetSkaterResultsEvent,
 GetSkaterResults,
 }

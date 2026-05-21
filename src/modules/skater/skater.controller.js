@@ -122,9 +122,10 @@ const GetSkaterResults = asyncHandler(async (req, res) => {
         req.params.id,
         categoryName
     );
-    return res
-        .status(200)
-        .json(new ApiResponse(200, results, "Skater results fetched successfully"));
+    const message = results?.resultsAvailable
+        ? "Skater results fetched successfully"
+        : "Results are not available yet";
+    return res.status(200).json(new ApiResponse(200, results, message));
 });
 
 export {

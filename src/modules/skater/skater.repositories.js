@@ -453,6 +453,22 @@ const mapCategoryLeaderboard = (results = []) =>
             ...withTimeDisplay(row.timeTaken),
         }));
 
+const isEventResultsReleased = (event, twoDaysAgo) => {
+    const eventEnd = event?.eventEndDate ? new Date(event.eventEndDate) : null;
+    return Boolean(
+        eventEnd &&
+            !Number.isNaN(eventEnd.getTime()) &&
+            eventEnd <= twoDaysAgo
+    );
+};
+
+const buildMyResultFromCategory = (registeredCategory = null) => ({
+    ...withTimeDisplay(registeredCategory?.timeTaken ?? null),
+    rank: registeredCategory?.rank ?? null,
+    isDisqualified: Boolean(registeredCategory?.isDisqualified),
+    attendanceStatus: registeredCategory?.attendanceStatus || "pending",
+});
+
 const buildCategoryResultBlock = async (
     participant,
     eventId,
@@ -508,7 +524,6 @@ const get_skater_results_by_event_repositories = async (
     const participant = await EventParticipant.findOne({
         userId: skaterUserId,
         eventId,
-        paymentStatus: "paid",
     })
         .populate({
             path: "eventId",
@@ -519,18 +534,37 @@ const get_skater_results_by_event_repositories = async (
         .lean();
 
     if (!participant) {
-        throw new AppError("You are not registered for this event", 404);
+        return {
+            eventId,
+            resultsAvailable: false,
+            categoryName: categoryLabel || null,
+            totalParticipants: 0,
+            totalWithTime: 0,
+            myResult: buildMyResultFromCategory(),
+            topThree: [],
+            skaters: [],
+            categories: [],
+        };
     }
 
     const event = participant.eventId;
     if (!event?._id) {
-        throw new AppError("Event not found", 404);
+        return {
+            eventId,
+            resultsAvailable: false,
+            categoryName: categoryLabel || null,
+            totalParticipants: 0,
+            totalWithTime: 0,
+            myResult: buildMyResultFromCategory(),
+            topThree: [],
+            skaters: [],
+            categories: [],
+        };
     }
 
-    const eventEnd = event.eventEndDate ? new Date(event.eventEndDate) : null;
-    if (!eventEnd || Number.isNaN(eventEnd.getTime()) || eventEnd > twoDaysAgo) {
-        throw new AppError("Results are not available yet for this event", 400);
-    }
+    const resultsAvailable =
+        participant.paymentStatus === "paid" &&
+        isEventResultsReleased(event, twoDaysAgo);
 
     const skatingCategory = participant.categoriesId;
     const categoryRefId =
@@ -547,6 +581,7 @@ const get_skater_results_by_event_repositories = async (
         colorTwo: event.colorTwo ?? "#2575FC",
         textColor: event.textColor ?? "#FFFFFF",
         ageGroup,
+        resultsAvailable,
         categoriesId: categoryRefId
             ? {
                   _id: categoryRefId,
@@ -559,11 +594,17 @@ const get_skater_results_by_event_repositories = async (
         const registeredCategory = (participant.categories || []).find(
             (row) => String(row?.name || "").trim() === categoryLabel
         );
-        if (!registeredCategory) {
-            throw new AppError(
-                "Category not found in your event registration",
-                404
-            );
+
+        if (!resultsAvailable || !registeredCategory) {
+            return {
+                ...eventBase,
+                categoryName: categoryLabel,
+                totalParticipants: 0,
+                totalWithTime: 0,
+                myResult: buildMyResultFromCategory(registeredCategory),
+                topThree: [],
+                skaters: [],
+            };
         }
 
         const block = await buildCategoryResultBlock(
@@ -597,8 +638,11 @@ const get_skater_results_by_event_repositories = async (
         }))
         .filter((entry) => entry.name);
 
-    if (registeredCategories.length === 0) {
-        throw new AppError("No categories found in your event registration", 404);
+    if (!resultsAvailable || registeredCategories.length === 0) {
+        return {
+            ...eventBase,
+            categories: [],
+        };
     }
 
     const categories = [];

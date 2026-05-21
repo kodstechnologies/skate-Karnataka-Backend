@@ -1790,8 +1790,14 @@ const display_latest_event_repositories = async (userId) => {
     throw new Error("User not found");
   }
 
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+
   const query = {
-    $or: buildSkaterVisibleEventsOrClause(scope),
+    $and: [
+      { $or: buildSkaterVisibleEventsOrClause(scope) },
+      { registerEndDate: { $gte: startOfToday } },
+    ],
   };
 
   const event = await Event.findOne(query)

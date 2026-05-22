@@ -464,10 +464,14 @@ export const createRegisterForm = asyncHandler(async (req, res) => {
 });
 
 export const applyCertificationBySkater = asyncHandler(async (req, res) => {
-    const updated = await applyCertificationBySkaterService(req.params.id, req.user._id);
-    return res
-        .status(200)
-        .json(new ApiResponse(200, updated, "Certification applied successfully"));
+    const { participant, alreadyApplied } = await applyCertificationBySkaterService(
+        req.params.id,
+        req.user._id
+    );
+    const message = alreadyApplied
+        ? "Certification already applied"
+        : "Certification applied successfully";
+    return res.status(200).json(new ApiResponse(200, participant, message));
 });
 
 export const displayAllPlayedEventBySkater = asyncHandler(async (req, res) => {

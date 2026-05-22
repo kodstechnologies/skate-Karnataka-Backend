@@ -772,11 +772,14 @@ export const createRegisterFormService = async (userId, payload) => {
 };
 
 export const applyCertificationBySkaterService = async (participantId, userId) => {
-    const updated = await applyCertificationBySkaterRepository(participantId, userId);
-    if (!updated) {
+    const { participant, alreadyApplied } = await applyCertificationBySkaterRepository(
+        participantId,
+        userId
+    );
+    if (!participant) {
         throw new AppError("Participant not found", 404);
     }
-    return updated;
+    return { participant, alreadyApplied };
 };
 
 export const getAllPlayedEventsBySkaterService = async (userId) => {

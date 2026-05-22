@@ -46,7 +46,6 @@ router.get("/v1/dashboard",
     displayClubDashboard
 )
 
-
 // =====================
 
 router.get("/v1/profile", authenticate(["Club"]), displayClubProfile);
@@ -95,7 +94,7 @@ router.get("/v1/reject-join/:id",
 router.get("/v1/approve-leave/:id", authenticate(["Club"]), approve_leave_club);
 
 router.get(
-    "/v1/display-all-apply-skater",
+    "/v1/pending-approvals",
     authenticate(["Club"]),
     validate(displayAllApplySkaterQueryValidation),
     display_all_apply_skater

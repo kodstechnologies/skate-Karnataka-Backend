@@ -359,16 +359,35 @@ const parseEventEndDateTime = (eventEndDate, eventEndTime) => {
 
 export const applyCertificationBySkaterRepository = async (participantId, userId) => {
   if (!mongoose.Types.ObjectId.isValid(String(participantId || ""))) {
-    return null;
+    return { participant: null, alreadyApplied: false };
   }
 
-  return EventParticipant.findOneAndUpdate(
-    { _id: participantId, userId: new mongoose.Types.ObjectId(userId) },
+  const filter = {
+    _id: participantId,
+    userId: new mongoose.Types.ObjectId(userId),
+  };
+
+  const existing = await EventParticipant.findOne(filter)
+    .select("_id eventId userId skaterApply updatedAt")
+    .lean();
+
+  if (!existing) {
+    return { participant: null, alreadyApplied: false };
+  }
+
+  if (existing.skaterApply) {
+    return { participant: existing, alreadyApplied: true };
+  }
+
+  const updated = await EventParticipant.findOneAndUpdate(
+    filter,
     { $set: { skaterApply: true } },
     { new: true }
   )
     .select("_id eventId userId skaterApply updatedAt")
     .lean();
+
+  return { participant: updated, alreadyApplied: false };
 };
 
 export const getAllPlayedEventsBySkaterRepository = async (userId) => {

@@ -449,7 +449,10 @@ export const displayCertificationApplicationsRepository = async (
   }
   if (role === "state" || role === "admin") {
     baseMatch.districtAllow = true;
+    baseMatch.stateAllow = { $ne: true };
   }
+
+  const isStateCompactView = role === "state" || role === "admin";
 
   const pipeline = [{ $match: baseMatch }];
 
@@ -514,41 +517,59 @@ export const displayCertificationApplicationsRepository = async (
     });
   }
 
-  const projectStage = {
-    $project: {
-      _id: 0,
-      participantId: "$_id",
-      event: {
-        _id: "$event._id",
-        header: { $ifNull: ["$event.header", ""] },
-        eventType: { $ifNull: ["$event.eventType", ""] },
-        eventStartDate: "$event.eventStartDate",
-        eventEndDate: "$event.eventEndDate",
-      },
-      skater: {
-        _id: "$user._id",
-        fullName: { $ifNull: ["$user.fullName", "$name"] },
-        krsaId: { $ifNull: ["$user.krsaId", ""] },
-        phone: { $ifNull: ["$user.phone", ""] },
-      },
-      club: {
-        _id: "$club._id",
-        name: { $ifNull: ["$club.name", ""] },
-      },
-      district: {
-        _id: "$district._id",
-        name: { $ifNull: ["$district.name", ""] },
-      },
-      ageGroup: { $ifNull: ["$ageGroup", ""] },
-      skaterApply: { $toBool: "$skaterApply" },
-      clubAllow: { $toBool: "$clubAllow" },
-      districtAllow: { $toBool: "$districtAllow" },
-      stateAllow: { $toBool: "$stateAllow" },
-      paymentStatus: { $ifNull: ["$paymentStatus", "pending"] },
-      createdAt: 1,
-      updatedAt: 1,
-    },
-  };
+  const projectStage = isStateCompactView
+    ? {
+        $project: {
+          _id: 0,
+          type: { $literal: "certificateRequest" },
+          id: "$_id",
+          krsaId: { $ifNull: ["$user.krsaId", ""] },
+          fullName: { $ifNull: ["$user.fullName", "$name"] },
+          clubId: { $ifNull: ["$club.clubId", ""] },
+          clubName: { $ifNull: ["$club.name", ""] },
+          eventName: { $ifNull: ["$event.header", ""] },
+          ageGroup: { $ifNull: ["$ageGroup", ""] },
+          districtName: { $ifNull: ["$district.name", ""] },
+          colorOne: { $ifNull: ["$event.colorOne", "#6A11CB"] },
+          colorTwo: { $ifNull: ["$event.colorTwo", "#2575FC"] },
+          textColor: { $ifNull: ["$event.textColor", "#FFFFFF"] },
+        },
+      }
+    : {
+        $project: {
+          _id: 0,
+          participantId: "$_id",
+          event: {
+            _id: "$event._id",
+            header: { $ifNull: ["$event.header", ""] },
+            eventType: { $ifNull: ["$event.eventType", ""] },
+            eventStartDate: "$event.eventStartDate",
+            eventEndDate: "$event.eventEndDate",
+          },
+          skater: {
+            _id: "$user._id",
+            fullName: { $ifNull: ["$user.fullName", "$name"] },
+            krsaId: { $ifNull: ["$user.krsaId", ""] },
+            phone: { $ifNull: ["$user.phone", ""] },
+          },
+          club: {
+            _id: "$club._id",
+            name: { $ifNull: ["$club.name", ""] },
+          },
+          district: {
+            _id: "$district._id",
+            name: { $ifNull: ["$district.name", ""] },
+          },
+          ageGroup: { $ifNull: ["$ageGroup", ""] },
+          skaterApply: { $toBool: "$skaterApply" },
+          clubAllow: { $toBool: "$clubAllow" },
+          districtAllow: { $toBool: "$districtAllow" },
+          stateAllow: { $toBool: "$stateAllow" },
+          paymentStatus: { $ifNull: ["$paymentStatus", "pending"] },
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      };
 
   pipeline.push(
     { $sort: { createdAt: -1 } },
@@ -588,7 +609,8 @@ export const approveCertificationByRoleRepository = async (reqUser, participantI
 
   const role = String(reqUser?.role || "").trim().toLowerCase();
   const participant = await EventParticipant.findById(participantId)
-    .select("userId skaterApply clubAllow districtAllow stateAllow")
+    .select("userId eventId skaterApply clubAllow districtAllow stateAllow")
+    .populate({ path: "eventId", select: "header" })
     .lean();
 
   if (!participant) {
@@ -605,6 +627,7 @@ export const approveCertificationByRoleRepository = async (reqUser, participantI
     throw new AppError("Club not found", 404);
   }
 
+  const eventName = participant.eventId?.header || "";
   const update = {};
 
   if (role === "club") {
@@ -635,15 +658,159 @@ export const approveCertificationByRoleRepository = async (reqUser, participantI
     throw new AppError("Forbidden", 403);
   }
 
+  const actor = await resolveCertificationActorDisplay(reqUser, role);
+
   const updated = await EventParticipant.findByIdAndUpdate(
     participantId,
     { $set: update },
     { new: true }
   )
-    .select("_id userId skaterApply clubAllow districtAllow stateAllow updatedAt")
+    .select("_id userId eventId skaterApply clubAllow districtAllow stateAllow updatedAt")
     .lean();
 
-  return updated;
+  if (!updated) {
+    return null;
+  }
+
+  const approvalMeta = buildCertificationApprovalMeta(role, eventName, actor.actorName);
+
+  if (participant.userId) {
+    sendNotification({
+      receiverId: participant.userId,
+      title: approvalMeta.title,
+      body: approvalMeta.body,
+      notificationType: "approval",
+      sentBy: reqUser._id,
+      data: {
+        code: approvalMeta.code,
+        approvedByRole: actor.actorRole,
+        approvedByName: actor.actorName,
+        participantId: String(participantId),
+        eventId: String(
+          updated.eventId || participant.eventId?._id || participant.eventId || ""
+        ),
+        eventName,
+      },
+    }).catch((err) => {
+      console.error("Certification approval notification failed:", err?.message || err);
+    });
+  }
+
+  return {
+    ...updated,
+    approvalCode: approvalMeta.code,
+    approvedByRole: actor.actorRole,
+    approvedByName: actor.actorName,
+  };
+};
+
+const CERT_APPROVAL_CODES = {
+  club: "APPROVED_BY_CLUB",
+  district: "APPROVED_BY_DISTRICT",
+  state: "APPROVED_BY_STATE",
+  admin: "APPROVED_BY_ADMIN",
+};
+
+const CERT_REJECTION_CODES = {
+  club: "REJECTED_BY_CLUB",
+  district: "REJECTED_BY_DISTRICT",
+  state: "REJECTED_BY_STATE",
+  admin: "REJECTED_BY_ADMIN",
+};
+
+const resolveCertificationActorDisplay = async (reqUser, role) => {
+  if (role === "club") {
+    const resolvedClubId = await resolveClubIdForClubAuthUser(reqUser._id);
+    const club = await Club.findById(resolvedClubId).select("name").lean();
+    return {
+      actorName: club?.name || "Club",
+      actorRole: "Club",
+    };
+  }
+
+  if (role === "district") {
+    const districtUser = await BaseAuth.findById(reqUser._id)
+      .select("district fullName")
+      .lean();
+    const districtId = districtUser?.district || reqUser._id;
+    const district = await District.findById(districtId).select("name").lean();
+    return {
+      actorName: district?.name || districtUser?.fullName || "District",
+      actorRole: "District",
+    };
+  }
+
+  const stateUser = await BaseAuth.findById(reqUser._id).select("state fullName").lean();
+  const stateId = stateUser?.state || reqUser._id;
+  const stateDoc = await State.findById(stateId).select("name").lean();
+
+  if (role === "admin") {
+    return {
+      actorName: stateDoc?.name || stateUser?.fullName || "Admin",
+      actorRole: "Admin",
+    };
+  }
+
+  return {
+    actorName: stateDoc?.name || stateUser?.fullName || "State",
+    actorRole: "State",
+  };
+};
+
+const buildCertificationApprovalMeta = (role, eventName, actorName) => {
+  const eventLabel = eventName?.trim() || "your event";
+  const byLabel = actorName?.trim() || "the reviewer";
+
+  if (role === "club") {
+    return {
+      code: CERT_APPROVAL_CODES.club,
+      title: "Certification Approved by Club",
+      body: `Your certification application for "${eventLabel}" was approved by ${byLabel}. It is now pending district review.`,
+    };
+  }
+  if (role === "district") {
+    return {
+      code: CERT_APPROVAL_CODES.district,
+      title: "Certification Approved by District",
+      body: `Your certification application for "${eventLabel}" was approved by ${byLabel}. It is now pending state review.`,
+    };
+  }
+  if (role === "admin") {
+    return {
+      code: CERT_APPROVAL_CODES.admin,
+      title: "Certification Fully Approved",
+      body: `Your certification application for "${eventLabel}" was fully approved by ${byLabel}. Congratulations!`,
+    };
+  }
+  return {
+    code: CERT_APPROVAL_CODES.state,
+    title: "Certification Fully Approved",
+    body: `Your certification application for "${eventLabel}" was fully approved by ${byLabel}. Congratulations!`,
+  };
+};
+
+const buildCertificationRejectionMessage = (eventName, actorName) => {
+  const eventLabel = eventName?.trim() || "your event";
+  const byLabel = actorName?.trim() || "the reviewer";
+  return `Your certification application for "${eventLabel}" was rejected by ${byLabel}. You may apply again when ready.`;
+};
+
+const buildCertificationRejectionUpdate = (role) => {
+  if (role === "club") {
+    return { skaterApply: false };
+  }
+  if (role === "district") {
+    return { skaterApply: false, clubAllow: false };
+  }
+  if (role === "state" || role === "admin") {
+    return {
+      skaterApply: false,
+      clubAllow: false,
+      districtAllow: false,
+      stateAllow: false,
+    };
+  }
+  return null;
 };
 
 export const rejectCertificationByRoleRepository = async (reqUser, participantId) => {
@@ -652,8 +819,14 @@ export const rejectCertificationByRoleRepository = async (reqUser, participantId
   }
 
   const role = String(reqUser?.role || "").trim().toLowerCase();
+  const rejectionUpdate = buildCertificationRejectionUpdate(role);
+  if (!rejectionUpdate) {
+    throw new AppError("Forbidden", 403);
+  }
+
   const participant = await EventParticipant.findById(participantId)
-    .select("userId skaterApply clubAllow districtAllow stateAllow")
+    .select("userId eventId skaterApply clubAllow districtAllow stateAllow")
+    .populate({ path: "eventId", select: "header" })
     .lean();
 
   if (!participant) {
@@ -684,33 +857,62 @@ export const rejectCertificationByRoleRepository = async (reqUser, participantId
     if (String(club.district || "") !== String(districtId)) {
       throw new AppError("Forbidden", 403);
     }
-    if (!participant.clubAllow) {
+    if (!participant.skaterApply || !participant.clubAllow) {
       throw new AppError("Club approval is pending", 400);
     }
   } else if (role === "state" || role === "admin") {
-    if (!participant.districtAllow) {
+    if (!participant.skaterApply || !participant.clubAllow || !participant.districtAllow) {
       throw new AppError("District approval is pending", 400);
     }
-  } else {
-    throw new AppError("Forbidden", 403);
   }
+
+  const actor = await resolveCertificationActorDisplay(reqUser, role);
+  const eventName = participant.eventId?.header || "";
+  const rejector = {
+    rejectionCode: CERT_REJECTION_CODES[role] || CERT_REJECTION_CODES.admin,
+    rejectedByName: actor.actorName,
+    rejectedByRole: actor.actorRole,
+  };
 
   const updated = await EventParticipant.findByIdAndUpdate(
     participantId,
-    {
-      $set: {
-        skaterApply: false,
-        clubAllow: false,
-        districtAllow: false,
-        stateAllow: false,
-      },
-    },
+    { $set: rejectionUpdate },
     { new: true }
   )
-    .select("_id userId skaterApply clubAllow districtAllow stateAllow updatedAt")
+    .select("_id userId eventId skaterApply clubAllow districtAllow stateAllow updatedAt")
     .lean();
 
-  return updated;
+  if (!updated) {
+    return null;
+  }
+
+  const skaterUserId = participant.userId;
+  if (skaterUserId) {
+    sendNotification({
+      receiverId: skaterUserId,
+      title: "Certification Rejected",
+      body: buildCertificationRejectionMessage(eventName, rejector.rejectedByName),
+      notificationType: "approval",
+      sentBy: reqUser._id,
+      data: {
+        code: rejector.rejectionCode,
+        rejectedByRole: rejector.rejectedByRole,
+        rejectedByName: rejector.rejectedByName,
+        participantId: String(participantId),
+        eventId: String(participant.eventId?._id || participant.eventId || ""),
+        eventName,
+      },
+    }).catch((err) => {
+      console.error("Certification rejection notification failed:", err?.message || err);
+    });
+  }
+
+  return {
+    ...updated,
+    rejectionCode: rejector.rejectionCode,
+    rejectedByRole: rejector.rejectedByRole,
+    rejectedByName: rejector.rejectedByName,
+  };
 };
 
 export const createRegisterFormRepository = async (payload) => {

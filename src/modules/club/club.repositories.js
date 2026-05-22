@@ -8,6 +8,9 @@ import { EventParticipant } from "../event/eventParticipant.model.js";
 import { Club } from "./club.model.js";
 import { BaseAuth } from "../auth/baseAuth.model.js";
 
+const hasDistrictRef = (district) =>
+    district != null && String(district).trim() !== "";
+
 export const displayClubDashboardRepositories = async ({ clubId }) => {
     // Support both Club document id and BaseAuth id from auth token.
     const club = await Club.findOne({
@@ -70,7 +73,8 @@ export const displayClubProfileRepositories = async (userId) => {
         id: String(club._id),
         name: club.name || "",
         image: club.img || "",
-        address: club.address || "",
+        address: club.officeAddress || "",
+        districtId: hasDistrictRef(club.district) ? String(club.district) : "",
         districtName: club.district?.name || club.districtName || "",
         districtStatus: club.districtStatus || "",
         about: club.about || "",
@@ -92,7 +96,7 @@ export const affiliatedDistrictRepository = async (clubMemberId) => {
         throw new AppError("Club not found for this token", 404);
     }
 
-    if (!club.district) {
+    if (!hasDistrictRef(club.district)) {
         return null;
     }
 
@@ -145,7 +149,9 @@ export const exceptOwnDistrictDisplayAllDistrictRepository = async (id) => {
         return null;
     }
 
-    const filter = club.district ? { _id: { $ne: club.district } } : {};
+    const filter = hasDistrictRef(club.district)
+        ? { _id: { $ne: club.district } }
+        : {};
 
     const districts = await District.find(filter)
         .select("_id name img")
@@ -180,9 +186,6 @@ export const displayDistrictFullDetailsRepository = async (districtId) => {
         events,
     };
 };
-
-const hasDistrictRef = (district) =>
-    district != null && String(district).trim() !== "";
 
 export const applyForDistrictRepository = async (
     memberOrClubId,
@@ -263,14 +266,14 @@ export const removeAffiliationRepository = async (clubMemberId) => {
     const club = await Club.findOne({
         $or: [{ _id: clubMemberId }, { members: clubMemberId }],
     })
-        .select("district districtStatus")
+        .select("district districtName districtStatus")
         .lean();
 
     if (!club) {
         return null;
     }
 
-    if (!club.district) {
+    if (!hasDistrictRef(club.district)) {
         throw new AppError("No district affiliation found", 400);
     }
 
@@ -278,15 +281,29 @@ export const removeAffiliationRepository = async (clubMemberId) => {
         throw new AppError("Only joined clubs can request affiliation removal", 400);
     }
 
+    const districtDoc = await District.findById(club.district).select("name").lean();
+    const districtName = districtDoc?.name || club.districtName || "";
+
     const updated = await Club.findByIdAndUpdate(
         club._id,
-        { $set: { districtStatus: "apply-leave" } },
+        {
+            $set: {
+                districtStatus: "apply-leave",
+                district: club.district,
+                districtName,
+            },
+        },
         { new: true }
     )
-        .select("district districtStatus districtName")
+        .select("_id district districtName districtStatus")
         .lean();
 
-    return updated;
+    return {
+        clubId: updated._id,
+        districtId: String(updated.district || club.district),
+        districtName: updated.districtName || districtName,
+        districtStatus: updated.districtStatus,
+    };
 };
 
 // const allClubsRepository = async (id, page, limit) => {
@@ -799,7 +816,7 @@ const reject_leave_district_affiliation_repository = async (clubMemberId) => {
         throw new AppError("Club not found for this token", 404);
     }
 
-    if (!club.district) {
+    if (!hasDistrictRef(club.district)) {
         throw new AppError("No district affiliation found", 400);
     }
 
@@ -809,13 +826,24 @@ const reject_leave_district_affiliation_repository = async (clubMemberId) => {
 
     const updated = await Club.findByIdAndUpdate(
         club._id,
-        { $set: { districtStatus: "join" } },
+        {
+            $set: {
+                districtStatus: "join",
+                district: club.district,
+                districtName: club.districtName || "",
+            },
+        },
         { new: true }
     )
-        .select("district districtStatus districtName")
+        .select("_id district districtStatus districtName")
         .lean();
 
-    return updated;
+    return {
+        clubId: updated._id,
+        districtId: String(updated.district || club.district),
+        districtName: updated.districtName || club.districtName || "",
+        districtStatus: updated.districtStatus,
+    };
 };
 
 const display_existing_club_repositories = async (id) => {
@@ -974,14 +1002,6 @@ const display_all_apply_skater_repositories = async (
         },
         data: paged,
     };
-};
-
-const clubHasDistrict = (district) => {
-    if (district === null || district === undefined) {
-        return false;
-    }
-    const value = String(district).trim();
-    return value !== "";
 };
 
 const CLUB_SKATER_LIST_STATUSES = ["join", "apply-leave"];
@@ -1155,7 +1175,7 @@ export const addSkaterByClubRepository = async (clubMemberId, skaterData) => {
         throw new AppError("Club not found for this club member", 404);
     }
 
-    if (!clubHasDistrict(club.district)) {
+    if (!hasDistrictRef(club.district)) {
         throw new AppError(
             "Cannot add skater. Club is not under any district",
             403

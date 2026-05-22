@@ -1,7 +1,7 @@
 import express from "express";
 import { validate } from "../../middleware/validate.multiple.js";
-import { createDistrictValidation, editDistrictValidation } from "./district.validation.js";
-import { acceptClub, createNewDistrict, deleteDistrict, displayAllApply, displayApplyAllClub, displayAllDistrict, displayDistrictClubSkaters, displayDistrictDashboard, displayDistrictProfile, displaySingleDistrictAllClubs, displaySingleDistrictMembers, displaySkaterDetails, displayTotalClubs, displayTotalSkater, districtClubDetails, districtUnLinkClub, leaveClub, rejectClub, updateDistrict } from "./district.controller.js";
+import { createDistrictValidation, districtPendingApprovalsQueryValidation, editDistrictValidation } from "./district.validation.js";
+import { acceptClub, createNewDistrict, deleteDistrict, displayAllApply, displayApplyAllClub, displayAllDistrict, displayDistrictClubSkaters, displayDistrictDashboard, displayDistrictProfile, displaySingleDistrictAllClubs, displaySingleDistrictMembers, displaySkaterDetails, displayTotalClubs, displayTotalSkater, districtClubDetails, districtUnLinkClub, leaveClub, rejectClub, rejectLeaveClub, updateDistrict } from "./district.controller.js";
 import { upload } from "../../middleware/multer.middleware.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
@@ -39,10 +39,16 @@ router.get("/v1/total-skater",authenticate(["District"]) ,displayTotalSkater);
 router.get("/v1/skater/:id",authenticate(["District"]) ,displaySkaterDetails);
 
 
-router.get("/v1/display-all-apply", authenticate(["District"]) ,displayApplyAllClub)
+router.get(
+  "/v1/pending-approvals",
+  authenticate(["District"]),
+  validate(districtPendingApprovalsQueryValidation),
+  displayApplyAllClub
+);
 router.get("/v1/accept-join-club/:id", authenticate(["District"]), acceptClub);
-router.get("/v1/accept-leave-club/:id", authenticate(["District"]), leaveClub);
 router.get("/v1/reject-join-club/:id", authenticate(["District"]), rejectClub);
+router.get("/v1/accept-leave-club/:id", authenticate(["District"]), leaveClub);
+router.get("/v1/reject-leave-club/:id", authenticate(["District"]), rejectLeaveClub);
 
 router.get("/v1/single-district/:id", displaySingleDistrictMembers);
 router.get("/v1/all",

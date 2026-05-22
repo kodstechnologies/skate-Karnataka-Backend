@@ -15,4 +15,5 @@ router.post("/v1", createDiscipline);
 router.patch("/v1/:id", updateDiscipline);
 router.delete("/v1/:id", deleteDiscipline);
 
+
 export default router;

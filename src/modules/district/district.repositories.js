@@ -5,6 +5,8 @@ import { AppError } from "../../util/common/AppError.js";
 import { Skater } from "../skater/skater.model.js";
 import { Report } from "../report/report.model.js";
 import { Event } from "../event/event.model.js";
+import { EventParticipant } from "../event/eventParticipant.model.js";
+import mongoose from "mongoose";
 import { paginate } from "../../util/common/paginate.js";
 
 const getAllDistrict = async () => {
@@ -136,26 +138,105 @@ const acceptClubJoinRepository = async ({ clubId, districtId }) => {
   return updatedClub;
 };
 
-const acceptClubLeaveRepository = async ({ clubId }) => {
-  const updatedClub = await Club.findByIdAndUpdate(
-    clubId,
-    {
-      $set: {
-        districtStatus: "leave",
-        districtName: "",
+const acceptClubLeaveRepository = async ({ clubId, districtMemberId }) => {
+  const district = await resolveDistrictFromMember(districtMemberId);
+  const clubOid = new mongoose.Types.ObjectId(clubId);
+
+  const club = await Club.findById(clubOid)
+    .select("_id clubId name district districtName districtStatus")
+    .lean();
+
+  if (!club) {
+    throw new AppError("Club not found", 404);
+  }
+
+  if (String(club.district || "") !== String(district._id)) {
+    throw new AppError("Club is not affiliated with this district", 400);
+  }
+
+  if (club.districtStatus !== "apply-leave") {
+    throw new AppError("No pending district leave request", 400);
+  }
+
+  const [updatedClub] = await Promise.all([
+    Club.findByIdAndUpdate(
+      clubOid,
+      {
+        $set: {
+          districtStatus: "leave",
+          districtName: "",
+        },
+        $unset: {
+          district: 1,
+        },
+        $pull: {
+          applyDistrict: district._id,
+        },
       },
-      $unset: {
-        district: "",
-      },
-    },
-    { new: true }
-  ).lean();
+      { new: true, runValidators: true }
+    )
+      .select("_id clubId name district districtName districtStatus")
+      .lean(),
+    District.findByIdAndUpdate(district._id, {
+      $pull: { club: clubOid },
+    }),
+  ]);
 
   if (!updatedClub) {
     throw new AppError("Club not found", 404);
   }
 
-  return updatedClub;
+  return {
+    clubId: updatedClub._id,
+    clubKrsaId: updatedClub.clubId || "",
+    clubName: updatedClub.name || "",
+    districtStatus: updatedClub.districtStatus,
+    districtName: updatedClub.districtName || "",
+    districtId: updatedClub.district ? String(updatedClub.district) : null,
+  };
+};
+
+const rejectClubLeaveRepository = async ({ clubId, districtMemberId }) => {
+  const district = await resolveDistrictFromMember(districtMemberId);
+
+  const club = await Club.findById(clubId)
+    .select("_id clubId name district districtName districtStatus")
+    .lean();
+
+  if (!club) {
+    throw new AppError("Club not found", 404);
+  }
+
+  if (String(club.district || "") !== String(district._id)) {
+    throw new AppError("Club is not affiliated with this district", 400);
+  }
+
+  if (club.districtStatus !== "apply-leave") {
+    throw new AppError("No pending district leave request", 400);
+  }
+
+  const updatedClub = await Club.findByIdAndUpdate(
+    clubId,
+    {
+      $set: {
+        districtStatus: "join",
+        district: club.district,
+        districtName: club.districtName || "",
+      },
+    },
+    { new: true }
+  )
+    .select("_id clubId name district districtName districtStatus")
+    .lean();
+
+  return {
+    clubId: updatedClub._id,
+    clubKrsaId: updatedClub.clubId || "",
+    clubName: updatedClub.name || "",
+    districtId: String(updatedClub.district || club.district),
+    districtName: updatedClub.districtName || club.districtName || "",
+    districtStatus: updatedClub.districtStatus,
+  };
 };
 
 const rejectClubJoinRepository = async ({ clubId, districtId }) => {
@@ -410,80 +491,150 @@ const resolveDistrictFromMember = async (districtMemberId) => {
   return district;
 };
 
+const formatDistrictPendingItem = (type, id, sortAt, fields = {}) => ({
+  type,
+  id: String(id),
+  sortAt,
+  ...fields,
+});
+
 export const displayApplyAllClubRepository = async (
   districtMemberId,
-  { page, limit } = {}
+  { page = 1, limit = 10 } = {}
 ) => {
   const district = await resolveDistrictFromMember(districtMemberId);
   const districtOid = district._id;
-  const districtIdStr = String(districtOid);
 
   const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+  const data = [];
 
-  const filter = {
-    $or: [
-      { applyDistrict: districtOid },
-      { district: districtOid, districtStatus: "apply-leave" },
-    ],
-  };
+  const [joinClubs, leaveClubs, districtClubs] = await Promise.all([
+    Club.find({
+      districtStatus: "apply",
+      applyDistrict: districtOid,
+    })
+      .select("_id clubId name createdAt")
+      .sort({ createdAt: -1 })
+      .lean(),
 
-  const clubs = await Club.find(filter)
-    .select("_id clubId name img address district districtName districtStatus applyDistrict createdAt")
-    .sort({ createdAt: -1 })
-    .lean();
+    Club.find({
+      districtStatus: "apply-leave",
+      district: districtOid,
+    })
+      .select("_id clubId name createdAt updatedAt")
+      .sort({ updatedAt: -1 })
+      .lean(),
 
-  const seen = new Set();
-  const mapped = [];
+    Club.find({ district: districtOid })
+      .select("_id clubId name")
+      .lean(),
+  ]);
 
-  for (const club of clubs) {
-    const clubIdStr = String(club._id);
-    if (seen.has(clubIdStr)) continue;
-    seen.add(clubIdStr);
+  const clubById = new Map(
+    districtClubs.map((club) => [String(club._id), club])
+  );
+  const districtClubIds = districtClubs.map((club) => club._id);
 
-    const inApplyDistrict = (club.applyDistrict || []).some(
-      (id) => String(id) === districtIdStr
+  for (const club of joinClubs) {
+    data.push(
+      formatDistrictPendingItem("joinDistrict", club._id, club.createdAt, {
+        krsaId: club.clubId || "",
+        clubName: club.name || "",
+      })
     );
-    const isLeaveRequest =
-      String(club.district || "") === districtIdStr &&
-      club.districtStatus === "apply-leave";
-
-    let requestType = "join";
-    if (isLeaveRequest && inApplyDistrict) {
-      requestType = "join-and-leave";
-    } else if (isLeaveRequest) {
-      requestType = "leave";
-    }
-
-    mapped.push({
-      id: club._id,
-      clubId: club.clubId || "",
-      name: club.name || "",
-      img: club.img || "",
-      address: club.address || "",
-      districtName: club.districtName || district.name || "",
-      districtStatus: club.districtStatus || "",
-      requestType,
-      applyDistrict: (club.applyDistrict || []).map((id) => String(id)),
-      createdAt: club.createdAt,
-    });
   }
 
-  const total = mapped.length;
-  const data = mapped.slice(skip, skip + pageLimit);
+  for (const club of leaveClubs) {
+    data.push(
+      formatDistrictPendingItem(
+        "leaveDistrict",
+        club._id,
+        club.updatedAt || club.createdAt,
+        {
+          krsaId: club.clubId || "",
+          clubName: club.name || "",
+        }
+      )
+    );
+  }
+
+  if (districtClubIds.length > 0) {
+    const skaters = await Skater.find({
+      role: "Skater",
+      club: { $in: districtClubIds },
+    })
+      .select("_id fullName krsaId club")
+      .lean();
+
+    const skaterProfileById = new Map(
+      skaters.map((row) => [String(row._id), row])
+    );
+    const memberIdList = skaters.map((row) => row._id);
+
+    if (memberIdList.length > 0) {
+      const certificationApplications = await EventParticipant.find({
+        userId: { $in: memberIdList },
+        skaterApply: true,
+        clubAllow: true,
+        districtAllow: { $ne: true },
+      })
+        .select("userId ageGroup eventId updatedAt createdAt")
+        .populate({ path: "eventId", select: "header" })
+        .sort({ updatedAt: -1 })
+        .lean();
+
+      const seenCertApplications = new Set();
+
+      for (const participant of certificationApplications) {
+        const participantKey = String(participant._id);
+        if (seenCertApplications.has(participantKey)) continue;
+        seenCertApplications.add(participantKey);
+
+        const skaterId = String(participant.userId || "");
+        const skaterProfile = skaterProfileById.get(skaterId);
+        if (!skaterProfile) continue;
+
+        const clubDoc = clubById.get(String(skaterProfile.club || ""));
+
+        data.push(
+          formatDistrictPendingItem(
+            "certificateRequest",
+            participant._id,
+            participant.updatedAt || participant.createdAt,
+            {
+              krsaId: skaterProfile.krsaId || "",
+              fullName: skaterProfile.fullName || "",
+              clubId: clubDoc?.clubId || "",
+              clubName: clubDoc?.name || "",
+              eventName: participant.eventId?.header || "",
+              ageGroup: participant.ageGroup || "",
+            }
+          )
+        );
+      }
+    }
+  }
+
+  data.sort((a, b) => new Date(b.sortAt).getTime() - new Date(a.sortAt).getTime());
+
+  const total = data.length;
+  const paged = data.slice(skip, skip + pageLimit).map(({ sortAt, ...row }) => row);
+
+  const countByType = (type) => data.filter((row) => row.type === type).length;
 
   return {
-    district: {
-      id: district._id,
-      name: district.name || "",
-    },
-    total,
-    data,
     pagination: {
       total,
       page: currentPage,
       limit: pageLimit,
       totalPages: Math.ceil(total / pageLimit) || 0,
     },
+    counts: {
+      joinDistrict: countByType("joinDistrict"),
+      leaveDistrict: countByType("leaveDistrict"),
+      certificateRequest: countByType("certificateRequest"),
+    },
+    data: paged,
   };
 };
 
@@ -801,6 +952,7 @@ export {
   districtDeletedRepository,
   acceptClubJoinRepository,
   acceptClubLeaveRepository,
+  rejectClubLeaveRepository,
   rejectClubJoinRepository,
   singleDistrictSkatersRepository,
   districtTotalClubsRepository,

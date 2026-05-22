@@ -1,5 +1,5 @@
 import { AppError } from "../../util/common/AppError.js";
-import { acceptClubJoinRepository, acceptClubLeaveRepository, createDistrict, displayAllApplyRepository, displayApplyAllClubRepository, displayDashboardDataRepository, displayDistrictProfileRepository, displaySkaterDetailsRepository, districtClubDetailsRepository, districtClubSkatersRepository, districtDeletedRepository, districtTotalClubsRepository, districtTotalSkatersRepository, districtUnLinkClubRepository, districtUpdateRepository, getAllDistrict, isDistrictAvailable, isDistrictExist, rejectClubJoinRepository, singleDistrictRepository, singleDistrictSkatersRepository } from "./district.repositories.js";
+import { acceptClubJoinRepository, acceptClubLeaveRepository, createDistrict, displayAllApplyRepository, displayApplyAllClubRepository, displayDashboardDataRepository, displayDistrictProfileRepository, displaySkaterDetailsRepository, districtClubDetailsRepository, districtClubSkatersRepository, districtDeletedRepository, districtTotalClubsRepository, districtTotalSkatersRepository, districtUnLinkClubRepository, districtUpdateRepository, getAllDistrict, isDistrictAvailable, isDistrictExist, rejectClubJoinRepository, rejectClubLeaveRepository, singleDistrictRepository, singleDistrictSkatersRepository } from "./district.repositories.js";
 
 const getAllDistrictService = async () => {
     return await getAllDistrict();
@@ -45,11 +45,14 @@ const acceptClubService = async ({ clubId, districtId }) => {
     return await acceptClubJoinRepository({ clubId, districtId });
 };
 
-const leaveClubService = async ({ clubId }) => {
+const leaveClubService = async ({ clubId, districtMemberId }) => {
     if (!clubId) {
         throw new AppError("clubId is required", 400);
     }
-    return await acceptClubLeaveRepository({ clubId });
+    if (!districtMemberId) {
+        throw new AppError("district member id is required", 400);
+    }
+    return await acceptClubLeaveRepository({ clubId, districtMemberId });
 };
 
 const rejectClubService = async ({ clubId, districtId }) => {
@@ -57,6 +60,16 @@ const rejectClubService = async ({ clubId, districtId }) => {
         throw new AppError("clubId and districtId are required", 400);
     }
     return await rejectClubJoinRepository({ clubId, districtId });
+};
+
+const rejectClubLeaveService = async ({ clubId, districtMemberId }) => {
+    if (!clubId) {
+        throw new AppError("clubId is required", 400);
+    }
+    if (!districtMemberId) {
+        throw new AppError("district member id is required", 400);
+    }
+    return await rejectClubLeaveRepository({ clubId, districtMemberId });
 };
 
 const singleDistrictSkatersService = async (id) => {
@@ -156,6 +169,7 @@ export {
     acceptClubService,
     leaveClubService,
     rejectClubService,
+    rejectClubLeaveService,
     singleDistrictSkatersService,
     displayTotalClubsService,
     displayTotalSkatersService,

@@ -1,6 +1,6 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { acceptClubService, createNewDistrictService, displayAllApplyService, displayApplyAllClubService, displayDashboardData, displayDistrictProfileServices, displaySkaterDetailsService, displayTotalClubsService, displayTotalSkatersService, districtClubDetailsService, districtClubSkatersService, districtDeletedService, districtUnLinkClubService, getAllDistrictService, leaveClubService, rejectClubService, singleDistrictAllClubNameService, singleDistrictSkatersService, updateDistrictService } from "./district.service.js";
+import { acceptClubService, createNewDistrictService, displayAllApplyService, displayApplyAllClubService, displayDashboardData, displayDistrictProfileServices, displaySkaterDetailsService, displayTotalClubsService, displayTotalSkatersService, districtClubDetailsService, districtClubSkatersService, districtDeletedService, districtUnLinkClubService, getAllDistrictService, leaveClubService, rejectClubLeaveService, rejectClubService, singleDistrictAllClubNameService, singleDistrictSkatersService, updateDistrictService } from "./district.service.js";
 
 const displayAllDistrict = asyncHandler(async (req, res) => {
   const districts = await getAllDistrictService();
@@ -72,10 +72,13 @@ const acceptClub = asyncHandler(async (req, res) => {
 
 const leaveClub = asyncHandler(async (req, res) => {
   const { id: clubId } = req.params;
-  const result = await leaveClubService({ clubId });
+  const result = await leaveClubService({
+    clubId,
+    districtMemberId: req.user?._id,
+  });
 
   return res.status(200).json(
-    new ApiResponse(200, null, "Club leave application accepted")
+    new ApiResponse(200, result, "Club leave application accepted")
   );
 });
 
@@ -86,6 +89,18 @@ const rejectClub = asyncHandler(async (req, res) => {
 
   return res.status(200).json(
     new ApiResponse(200, result, "Club district application rejected")
+  );
+});
+
+const rejectLeaveClub = asyncHandler(async (req, res) => {
+  const { id: clubId } = req.params;
+  const result = await rejectClubLeaveService({
+    clubId,
+    districtMemberId: req.user?._id,
+  });
+
+  return res.status(200).json(
+    new ApiResponse(200, result, "Club leave request rejected; affiliation restored")
   );
 });
 
@@ -137,7 +152,11 @@ export const displayApplyAllClub = asyncHandler(async (req, res) => {
   });
 
   return res.status(200).json(
-    new ApiResponse(200, result, "District club applications fetched successfully")
+    new ApiResponse(
+      200,
+      result,
+      "District pending approvals fetched successfully"
+    )
   );
 });
 
@@ -211,6 +230,7 @@ export {
   acceptClub,
   leaveClub,
   rejectClub,
+  rejectLeaveClub,
   displaySingleDistrictMembers,
   displayTotalClubs,
   displayTotalSkater,

@@ -528,6 +528,7 @@ export const displayCertificationApplicationsRepository = async (
           clubId: { $ifNull: ["$club.clubId", ""] },
           clubName: { $ifNull: ["$club.name", ""] },
           eventName: { $ifNull: ["$event.header", ""] },
+          eventType: { $ifNull: ["$event.eventType", ""] },
           ageGroup: { $ifNull: ["$ageGroup", ""] },
           districtName: { $ifNull: ["$district.name", ""] },
           colorOne: { $ifNull: ["$event.colorOne", "#6A11CB"] },

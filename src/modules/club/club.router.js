@@ -6,7 +6,7 @@ import {
     displayAllApplySkaterQueryValidation,
     editClubValidation,
 } from "./club.validation.js";
-import { addSkaterByClub, affiliatedDistrict, apply_club, apply_leave, applyForDistrict, approve_join_club, approve_leave_club, createNewClub, deleteClub, display_all_Club_basedOn_user_district, display_all_apply_skater, display_all_club_skater, display_club_skater_details, displayDistrictFullDetails, display_existing_club, displayAllClubs, displayAllClubsInDb, displayClubDashboard, displayClubProfile, displaySingleClub, exceptOwnDistrictDisplayAllDistrict, pendingApprovals, reject_join_club, remove_skater_from_club, removeAffiliation, reports, updateClub } from "./club.controller.js";
+import { addSkaterByClub, affiliatedDistrict, apply_club, apply_leave, applyForDistrict, approve_join_club, approve_leave_club, createNewClub, deleteClub, display_all_Club_basedOn_user_district, display_all_apply_skater, display_all_club_skater, display_club_skater_details, displayDistrictFullDetails, display_existing_club, displayAllClubs, displayAllClubsInDb, displayClubDashboard, displayClubProfile, displaySingleClub, exceptOwnDistrictDisplayAllDistrict, reject_join_club, remove_skater_from_club, removeAffiliation, reports, updateClub } from "./club.controller.js";
 import { upload } from "../../middleware/multer.middleware.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
@@ -50,7 +50,12 @@ router.get("/v1/dashboard",
 
 router.get("/v1/profile", authenticate(["Club"]), displayClubProfile);
 router.get("/v1/affiliated-district", authenticate(["Club"]), affiliatedDistrict);
-router.get("/v1/pending-approvals", authenticate(["Club"]), pendingApprovals);
+router.get(
+    "/v1/pending-approvals",
+    authenticate(["Club"]),
+    validate(displayAllApplySkaterQueryValidation),
+    display_all_apply_skater
+);
 
 router.get("/v1/reports", authenticate(["Club"]), reports);
 
@@ -92,13 +97,6 @@ router.get("/v1/reject-join/:id",
 
 // approve for leave
 router.get("/v1/approve-leave/:id", authenticate(["Club"]), approve_leave_club);
-
-router.get(
-    "/v1/pending-approvals",
-    authenticate(["Club"]),
-    validate(displayAllApplySkaterQueryValidation),
-    display_all_apply_skater
-);
 
 // ===================================================  club -> skater end ========= 3
 

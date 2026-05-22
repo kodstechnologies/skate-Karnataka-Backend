@@ -266,37 +266,6 @@ export const removeAffiliationRepository = async (clubId) => {
     return updated;
 };
 
-export const pendingApprovalsRepositories = async (clubId, { page, limit }) => {
-    const { skip, limit: perPage, page: currentPage } = paginate(page, limit);
-
-    const query = {
-        applyClub: clubId,
-        clubStatus: "apply",
-        role: "Skater",
-    };
-
-    // ✅ Data
-    const data = await Skater.find(query)
-        .select("fullName phone gender createdAt photo krsaId")
-        .sort({ createdAt: -1 })
-        .skip(skip)           // ✅ pagination
-        .limit(perPage)       // ✅ pagination
-        .lean();
-
-    // ✅ Total count
-    const total = await Skater.countDocuments(query);
-
-    return {
-        data,
-        pagination: {
-            total,
-            page: currentPage,
-            limit: perPage,
-            totalPages: Math.ceil(total / perPage),
-        },
-    };
-};
-
 // const allClubsRepository = async (id, page, limit) => {
 //     console.log(id,"id=====");
 //     const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
@@ -817,7 +786,7 @@ const display_all_apply_skater_repositories = async (
                 seenClubRequests.add(key);
                 data.push(
                     formatApplyListItem(
-                        "leave",
+                        "leaveClub",
                         skater._id,
                         skater.fullName,
                         skater.createdAt
@@ -833,7 +802,7 @@ const display_all_apply_skater_repositories = async (
                 seenClubRequests.add(key);
                 data.push(
                     formatApplyListItem(
-                        "join",
+                        "joinClub",
                         skater._id,
                         skater.fullName,
                         skater.createdAt
@@ -853,24 +822,36 @@ const display_all_apply_skater_repositories = async (
     const memberIdList = clubMemberIds.map((row) => row._id);
 
     if (memberIdList.length > 0) {
+        const skaterNameRows = await Skater.find({ _id: { $in: memberIdList } })
+            .select("fullName")
+            .lean();
+        const skaterNameById = new Map(
+            skaterNameRows.map((row) => [String(row._id), row.fullName || ""])
+        );
+
         const certificationApplications = await EventParticipant.find({
             userId: { $in: memberIdList },
             skaterApply: true,
             clubAllow: false,
         })
-            .populate("userId", "fullName")
+            .select("userId updatedAt createdAt")
             .sort({ updatedAt: -1 })
             .lean();
 
+        const seenCertApplications = new Set();
+
         for (const participant of certificationApplications) {
-            const skater = participant.userId;
-            if (!skater?._id) continue;
+            const skaterId = String(participant.userId || "");
+            if (!skaterId || seenCertApplications.has(participant._id.toString())) {
+                continue;
+            }
+            seenCertApplications.add(participant._id.toString());
 
             data.push(
                 formatApplyListItem(
-                    "applyCertificate",
+                    "certificateRequest",
                     participant._id,
-                    skater.fullName,
+                    skaterNameById.get(skaterId) || "",
                     participant.updatedAt || participant.createdAt
                 )
             );
@@ -890,9 +871,9 @@ const display_all_apply_skater_repositories = async (
         limit: pageLimit,
         totalPages: Math.ceil(total / pageLimit) || 0,
         counts: {
-            join: countByType("join"),
-            leave: countByType("leave"),
-            applyCertificate: countByType("applyCertificate"),
+            joinClub: countByType("joinClub"),
+            leaveClub: countByType("leaveClub"),
+            certificateRequest: countByType("certificateRequest"),
         },
         data: paged,
     };

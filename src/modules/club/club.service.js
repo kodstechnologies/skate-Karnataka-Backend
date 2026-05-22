@@ -1,5 +1,5 @@
 import { AppError } from "../../util/common/AppError.js";
-import { addSkaterByClubRepository, affiliatedDistrictRepository, allClubsInDbRepository, allClubsRepository, apply_club_repositories, apply_leave_repository, applyForDistrictRepository, approve_join_club_repositories, approve_leave_club_repositories, clubIdStoreinDestrict, clubsForSkaterUserRepository, createClubRepository, deleteClubDetails, display_all_apply_skater_repositories, display_all_club_skater_repositories, display_club_skater_details_repositories, display_existing_club_repositories, displayClubDashboardRepositories, displayClubProfileRepositories, displayDistrictFullDetailsRepository, displayFullDetailsOfClub, exceptOwnDistrictDisplayAllDistrictRepository, isAlreadyAppliedToClubRepository, isApplyRepository, isExistClub, isThisClubExist, pendingApprovalsRepositories, reject_join_club_repositories, remove_skater_from_club_repositories, removeAffiliationRepository, updateClubDetails } from "./club.repositories.js";
+import { addSkaterByClubRepository, affiliatedDistrictRepository, allClubsInDbRepository, allClubsRepository, apply_club_repositories, apply_leave_repository, applyForDistrictRepository, approve_join_club_repositories, approve_leave_club_repositories, clubIdStoreinDestrict, clubsForSkaterUserRepository, createClubRepository, deleteClubDetails, display_all_apply_skater_repositories, display_all_club_skater_repositories, display_club_skater_details_repositories, display_existing_club_repositories, displayClubDashboardRepositories, displayClubProfileRepositories, displayDistrictFullDetailsRepository, displayFullDetailsOfClub, exceptOwnDistrictDisplayAllDistrictRepository, isAlreadyAppliedToClubRepository, isApplyRepository, isExistClub, isThisClubExist, reject_join_club_repositories, remove_skater_from_club_repositories, removeAffiliationRepository, updateClubDetails } from "./club.repositories.js";
 
 
 const mapCreateClubError = (error) => {
@@ -91,8 +91,8 @@ export const removeAffiliationService = async (clubId) => {
     return result;
 };
 
-export const pendingApprovalsServices = async (clubId, { page, limit }) => {
-    return await pendingApprovalsRepositories(clubId, { page, limit });
+export const pendingApprovalsServices = async (clubMemberId, { page, limit } = {}) => {
+    return await display_all_apply_skater_repositories(clubMemberId, { page, limit });
 };
 export const reportServices = async(clubId) =>{
 return await reportRepositories({clubId})

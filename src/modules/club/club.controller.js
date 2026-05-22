@@ -76,13 +76,15 @@ const removeAffiliation = asyncHandler(async (req, res) => {
 });
 
 export const pendingApprovals = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 10 } = req.query; // ✅ FIX
-    const id = req.user._id;
-
-    const approver = await pendingApprovalsServices(id, { page, limit });
+    const { page, limit } = req.query;
+    const result = await pendingApprovalsServices(req.user._id, { page, limit });
 
     return res.status(200).json(
-        new ApiResponse(200, approver, "Display pending approver")
+        new ApiResponse(
+            200,
+            result,
+            "Club and certification applications fetched successfully"
+        )
     );
 });
 

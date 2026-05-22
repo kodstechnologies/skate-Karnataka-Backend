@@ -646,6 +646,73 @@ export const approveCertificationByRoleRepository = async (reqUser, participantI
   return updated;
 };
 
+export const rejectCertificationByRoleRepository = async (reqUser, participantId) => {
+  if (!mongoose.Types.ObjectId.isValid(String(participantId || ""))) {
+    return null;
+  }
+
+  const role = String(reqUser?.role || "").trim().toLowerCase();
+  const participant = await EventParticipant.findById(participantId)
+    .select("userId skaterApply clubAllow districtAllow stateAllow")
+    .lean();
+
+  if (!participant) {
+    return null;
+  }
+
+  const skaterProfile = await Skater.findById(participant.userId).select("club").lean();
+  if (!skaterProfile?.club) {
+    throw new AppError("Skater club not found", 404);
+  }
+
+  const club = await Club.findById(skaterProfile.club).select("district").lean();
+  if (!club) {
+    throw new AppError("Club not found", 404);
+  }
+
+  if (role === "club") {
+    const resolvedClubId = await resolveClubIdForClubAuthUser(reqUser._id);
+    if (String(skaterProfile.club) !== String(resolvedClubId)) {
+      throw new AppError("Forbidden", 403);
+    }
+    if (!participant.skaterApply) {
+      throw new AppError("Skater has not applied for certification", 400);
+    }
+  } else if (role === "district") {
+    const districtUser = await BaseAuth.findById(reqUser._id).select("district").lean();
+    const districtId = districtUser?.district || reqUser._id;
+    if (String(club.district || "") !== String(districtId)) {
+      throw new AppError("Forbidden", 403);
+    }
+    if (!participant.clubAllow) {
+      throw new AppError("Club approval is pending", 400);
+    }
+  } else if (role === "state" || role === "admin") {
+    if (!participant.districtAllow) {
+      throw new AppError("District approval is pending", 400);
+    }
+  } else {
+    throw new AppError("Forbidden", 403);
+  }
+
+  const updated = await EventParticipant.findByIdAndUpdate(
+    participantId,
+    {
+      $set: {
+        skaterApply: false,
+        clubAllow: false,
+        districtAllow: false,
+        stateAllow: false,
+      },
+    },
+    { new: true }
+  )
+    .select("_id userId skaterApply clubAllow districtAllow stateAllow updatedAt")
+    .lean();
+
+  return updated;
+};
+
 export const createRegisterFormRepository = async (payload) => {
   return await EventParticipant.create(payload);
 };

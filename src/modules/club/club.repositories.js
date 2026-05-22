@@ -259,9 +259,16 @@ export const applyForDistrictRepository = async (
     };
 };
 
-export const removeAffiliationRepository = async (clubId) => {
-    const club = await Club.findById(clubId).select("district districtStatus").lean();
-    if (!club) return null;
+export const removeAffiliationRepository = async (clubMemberId) => {
+    const club = await Club.findOne({
+        $or: [{ _id: clubMemberId }, { members: clubMemberId }],
+    })
+        .select("district districtStatus")
+        .lean();
+
+    if (!club) {
+        return null;
+    }
 
     if (!club.district) {
         throw new AppError("No district affiliation found", 400);
@@ -272,11 +279,11 @@ export const removeAffiliationRepository = async (clubId) => {
     }
 
     const updated = await Club.findByIdAndUpdate(
-        clubId,
+        club._id,
         { $set: { districtStatus: "apply-leave" } },
         { new: true }
     )
-        .select("district districtStatus")
+        .select("district districtStatus districtName")
         .lean();
 
     return updated;
@@ -713,35 +720,6 @@ export const reject_join_club_repositories = async (skaterId, clubId) => {
 
     return skater;
 };
-const apply_leave_repository = async (skaterId) => {
-    return await Skater.findOneAndUpdate(
-        { _id: skaterId, clubStatus: "join" }, // only if joined
-        {
-            clubStatus: "apply-leave",
-        },
-        { new: true }
-    );
-};
-
-const approve_leave_club_repositories = async (skaterId) => {
-    return await Skater.findByIdAndUpdate(
-        skaterId,
-        {
-            clubStatus: "leave",
-            club: null,
-        },
-        { new: true }
-    );
-};
-
-const display_existing_club_repositories = async (id) => {
-    console.log(id, "----")
-    const r = await Skater.findById(id).select("club").populate(
-        "club",
-        "img name clubId districtName officeAddress about rank championships"
-    );
-    return r;
-};
 
 const resolveClubIdFromClubMember = async (clubMemberId) => {
     const club = await Club.findOne({
@@ -755,6 +733,98 @@ const resolveClubIdFromClubMember = async (clubMemberId) => {
     }
 
     return club;
+};
+
+const apply_leave_repository = async (skaterId) => {
+    return await Skater.findOneAndUpdate(
+        { _id: skaterId, clubStatus: "join" }, // only if joined
+        {
+            clubStatus: "apply-leave",
+        },
+        { new: true }
+    );
+};
+
+const approve_leave_club_repositories = async (skaterId, clubMemberId) => {
+    const club = await resolveClubIdFromClubMember(clubMemberId);
+
+    const skater = await Skater.findOneAndUpdate(
+        {
+            _id: skaterId,
+            club: club._id,
+            clubStatus: "apply-leave",
+        },
+        {
+            clubStatus: "leave",
+            club: null,
+        },
+        { new: true }
+    ).lean();
+
+    if (!skater) {
+        throw new AppError("Skater leave request not found for this club", 404);
+    }
+
+    return skater;
+};
+
+const reject_leave_club_repositories = async (skaterId, clubMemberId) => {
+    const club = await resolveClubIdFromClubMember(clubMemberId);
+
+    const skater = await Skater.findOneAndUpdate(
+        {
+            _id: skaterId,
+            club: club._id,
+            clubStatus: "apply-leave",
+        },
+        { $set: { clubStatus: "join" } },
+        { new: true }
+    ).lean();
+
+    if (!skater) {
+        throw new AppError("Skater leave request not found for this club", 404);
+    }
+
+    return skater;
+};
+
+const reject_leave_district_affiliation_repository = async (clubMemberId) => {
+    const club = await Club.findOne({
+        $or: [{ _id: clubMemberId }, { members: clubMemberId }],
+    })
+        .select("district districtStatus districtName")
+        .lean();
+
+    if (!club) {
+        throw new AppError("Club not found for this token", 404);
+    }
+
+    if (!club.district) {
+        throw new AppError("No district affiliation found", 400);
+    }
+
+    if (club.districtStatus !== "apply-leave") {
+        throw new AppError("No pending district leave request", 400);
+    }
+
+    const updated = await Club.findByIdAndUpdate(
+        club._id,
+        { $set: { districtStatus: "join" } },
+        { new: true }
+    )
+        .select("district districtStatus districtName")
+        .lean();
+
+    return updated;
+};
+
+const display_existing_club_repositories = async (id) => {
+    console.log(id, "----")
+    const r = await Skater.findById(id).select("club").populate(
+        "club",
+        "img name clubId districtName officeAddress about rank championships"
+    );
+    return r;
 };
 
 const formatApplyListItem = (type, id, fullName, sortAt, extra = {}) => ({
@@ -782,7 +852,7 @@ const display_all_apply_skater_repositories = async (
             { club: clubOid, clubStatus: "apply-leave" },
         ],
     })
-        .select("fullName applyClub club clubStatus createdAt")
+        .select("fullName krsaId applyClub club clubStatus createdAt")
         .sort({ createdAt: -1 })
         .lean();
 
@@ -806,7 +876,8 @@ const display_all_apply_skater_repositories = async (
                         "leaveClub",
                         skater._id,
                         skater.fullName,
-                        skater.createdAt
+                        skater.createdAt,
+                        { krsaId: skater.krsaId || "" }
                     )
                 );
             }
@@ -822,7 +893,8 @@ const display_all_apply_skater_repositories = async (
                         "joinClub",
                         skater._id,
                         skater.fullName,
-                        skater.createdAt
+                        skater.createdAt,
+                        { krsaId: skater.krsaId || "" }
                     )
                 );
             }
@@ -839,11 +911,11 @@ const display_all_apply_skater_repositories = async (
     const memberIdList = clubMemberIds.map((row) => row._id);
 
     if (memberIdList.length > 0) {
-        const skaterNameRows = await Skater.find({ _id: { $in: memberIdList } })
-            .select("fullName")
+        const skaterProfileRows = await Skater.find({ _id: { $in: memberIdList } })
+            .select("fullName krsaId")
             .lean();
-        const skaterNameById = new Map(
-            skaterNameRows.map((row) => [String(row._id), row.fullName || ""])
+        const skaterProfileById = new Map(
+            skaterProfileRows.map((row) => [String(row._id), row])
         );
 
         const certificationApplications = await EventParticipant.find({
@@ -865,13 +937,16 @@ const display_all_apply_skater_repositories = async (
             }
             seenCertApplications.add(participant._id.toString());
 
+            const skaterProfile = skaterProfileById.get(skaterId);
+
             data.push(
                 formatApplyListItem(
                     "certificateRequest",
                     participant._id,
-                    skaterNameById.get(skaterId) || "",
+                    skaterProfile?.fullName || "",
                     participant.updatedAt || participant.createdAt,
                     {
+                        krsaId: skaterProfile?.krsaId || "",
                         eventName: participant.eventId?.header || "",
                         ageGroup: participant.ageGroup || "",
                     }
@@ -1149,6 +1224,9 @@ export {
     approve_join_club_repositories,
     apply_leave_repository,
     approve_leave_club_repositories,
+    reject_leave_club_repositories,
+    reject_leave_district_affiliation_repository,
+    resolveClubIdFromClubMember,
     display_existing_club_repositories,
     display_all_apply_skater_repositories,
 }

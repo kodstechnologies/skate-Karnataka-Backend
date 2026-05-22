@@ -1,7 +1,7 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { AppError } from "../../util/common/AppError.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { applyCertificationBySkaterService, approveCertificationByRoleService, clubEventFullDetailsService, clubRelatedEventDisplayService, competitionAllSkaterService, competitionDetailsService, createClubEventService, createDistrictEventService, createEventCategoryService, createRegisterFormService, createStateEventService, create_event_schema, deleteEventCategoryService, delete_event_schema, display_all_event_based_on_user_service, display_latest_event_server, displayCertificationApplicationsService, displayEventServer, displaySingleEventDetailsServer, displaySkaterEventFullDetailsService, displaySkaterEventFormCategoryDetailsService, districtEventFullDetailsService, districtRelatedEventDisplayService, edit_event_schema, getAllPlayedEventsBySkaterService, getLiveEventsService, givenPointEventService, getAllEventCategoriesService, getAllRegisterDetailsByUserIdService, getEventCategoryByIdService, getRegisterDetailsByEventIdService, getRegisterFormByIdService, getRegisterFormByUserIdService, stateEventResultsService, stateRelatedEventDisplayService, stateEventFullDetailsService, stateEventSkatersSummaryService, updateEventCategoryService, updateStateEventSkaterTimeService } from "./event.service.js";
+import { applyCertificationBySkaterService, approveCertificationByRoleService, rejectCertificationByRoleService, clubEventFullDetailsService, clubRelatedEventDisplayService, competitionAllSkaterService, competitionDetailsService, createClubEventService, createDistrictEventService, createEventCategoryService, createRegisterFormService, createStateEventService, create_event_schema, deleteEventCategoryService, delete_event_schema, display_all_event_based_on_user_service, display_latest_event_server, displayCertificationApplicationsService, displayEventServer, displaySingleEventDetailsServer, displaySkaterEventFullDetailsService, displaySkaterEventFormCategoryDetailsService, districtEventFullDetailsService, districtRelatedEventDisplayService, edit_event_schema, getAllPlayedEventsBySkaterService, getLiveEventsService, givenPointEventService, getAllEventCategoriesService, getAllRegisterDetailsByUserIdService, getEventCategoryByIdService, getRegisterDetailsByEventIdService, getRegisterFormByIdService, getRegisterFormByUserIdService, stateEventResultsService, stateRelatedEventDisplayService, stateEventFullDetailsService, stateEventSkatersSummaryService, updateEventCategoryService, updateStateEventSkaterTimeService } from "./event.service.js";
 import { initiateRazorpayPaymentServices } from "../payment/payment.services.js";
 
 
@@ -504,7 +504,17 @@ export const approveCertification = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, data, "Certification approved successfully"));
 });
 
+export const rejectCertification = asyncHandler(async (req, res) => {
+    const participantId = req.params.id;
 
+    const data = await rejectCertificationByRoleService(req.user, participantId);
+    if (!data) {
+        throw new AppError("Participant not found", 404);
+    }
+    return res
+        .status(200)
+        .json(new ApiResponse(200, data, "Certification rejected successfully"));
+});
 
 export {
     displayAllEvents,

@@ -1,7 +1,7 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { AppError } from "../../util/common/AppError.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { addSkaterByClubService, affiliatedDistrictService, allClubService, allClubsInDbService, apply_club_service, apply_leave_service, applyForDistrictService, approve_join_club_service, approve_leave_club_service, clubsByUserDistrictService, createClubService, deleteClubSchema, display_all_apply_skater_service, display_all_club_skater_service, display_club_skater_details_service, displayDistrictFullDetailsService, display_existing_club_service, displayClubDashboardService, displayClubProfileService, displaySingleClubService, exceptOwnDistrictDisplayAllDistrictService, pendingApprovalsServices, reject_join_club_service, remove_skater_from_club_service, removeAffiliationService, reportServices, updateClubDetailsService } from "./club.service.js";
+import { addSkaterByClubService, affiliatedDistrictService, allClubService, allClubsInDbService, apply_club_service, apply_leave_service, applyForDistrictService, approve_join_club_service, approve_leave_club_service, clubsByUserDistrictService, createClubService, deleteClubSchema, display_all_apply_skater_service, display_all_club_skater_service, display_club_skater_details_service, displayDistrictFullDetailsService, display_existing_club_service, displayClubDashboardService, displayClubProfileService, displaySingleClubService, exceptOwnDistrictDisplayAllDistrictService, pendingApprovalsServices, reject_join_club_service, reject_leave_club_service, remove_skater_from_club_service, removeAffiliationService, reportServices, updateClubDetailsService } from "./club.service.js";
 
 const displayClubDashboard = asyncHandler(async (req, res) => {
     const id = req.user._id;
@@ -242,9 +242,19 @@ const apply_leave = asyncHandler(async (req, res) => {
 
 const approve_leave_club = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    await approve_leave_club_service(id);
+    await approve_leave_club_service(id, req.user._id);
     return res.status(200).json(new ApiResponse(200, null, "Club leave approved successfully"));
-})
+});
+
+const reject_leave_club = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const result = await reject_leave_club_service(id, req.user._id);
+    const message =
+        result?.districtStatus === "join"
+            ? "District leave request rejected; affiliation restored"
+            : "Club leave request rejected successfully";
+    return res.status(200).json(new ApiResponse(200, result, message));
+});
 
 const display_existing_club = asyncHandler(async (req, res) => {
     const id = req.user._id;
@@ -353,6 +363,7 @@ export {
     approve_join_club,
     apply_leave,
     approve_leave_club,
+    reject_leave_club,
     display_existing_club,
     display_all_apply_skater,
     display_all_club_skater,

@@ -96,20 +96,32 @@ export const affiliatedDistrictRepository = async (clubMemberId) => {
         return null;
     }
 
-    const [district, totalClubs] = await Promise.all([
-        District.findById(club.district)
-            .select("name officeAddress img about rank championships")
-            .lean(),
-
-        Club.countDocuments({ district: club.district }),
-    ]);
+    const district = await District.findById(club.district)
+        .select("name officeAddress img about rank championships members")
+        .lean();
 
     if (!district) {
         return null;
     }
 
+    const districtAuthOr = [
+        { district: club.district, role: "District" },
+    ];
+    if ((district.members || []).length > 0) {
+        districtAuthOr.push({
+            _id: { $in: district.members },
+            role: "District",
+        });
+    }
+
+    const [totalClubs, districtAuth] = await Promise.all([
+        Club.countDocuments({ district: club.district }),
+        BaseAuth.findOne({ $or: districtAuthOr }).select("krsaId").lean(),
+    ]);
+
     return {
         districtId: district._id,
+        krsaId: districtAuth?.krsaId || "",
         districtName: district.name || club.districtName || "",
         address: district.officeAddress || "",
         img: district.img || "",
@@ -745,11 +757,12 @@ const resolveClubIdFromClubMember = async (clubMemberId) => {
     return club;
 };
 
-const formatApplyListItem = (type, id, fullName, sortAt) => ({
+const formatApplyListItem = (type, id, fullName, sortAt, extra = {}) => ({
     type,
     id,
     fullName: fullName || "",
     sortAt,
+    ...extra,
 });
 
 const display_all_apply_skater_repositories = async (
@@ -838,7 +851,8 @@ const display_all_apply_skater_repositories = async (
             skaterApply: true,
             clubAllow: false,
         })
-            .select("userId updatedAt createdAt")
+            .select("userId ageGroup eventId updatedAt createdAt")
+            .populate({ path: "eventId", select: "header" })
             .sort({ updatedAt: -1 })
             .lean();
 
@@ -856,7 +870,11 @@ const display_all_apply_skater_repositories = async (
                     "certificateRequest",
                     participant._id,
                     skaterNameById.get(skaterId) || "",
-                    participant.updatedAt || participant.createdAt
+                    participant.updatedAt || participant.createdAt,
+                    {
+                        eventName: participant.eventId?.header || "",
+                        ageGroup: participant.ageGroup || "",
+                    }
                 )
             );
         }

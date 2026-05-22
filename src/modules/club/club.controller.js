@@ -28,8 +28,7 @@ const displayClubProfile = asyncHandler(async (req, res) => {
 });
 
 const affiliatedDistrict = asyncHandler(async (req, res) => {
-    const clubId = req.user._id;
-    const district = await affiliatedDistrictService(clubId);
+    const district = await affiliatedDistrictService(req.user._id);
 
     return res.status(200).json(
         new ApiResponse(200, district, "Affiliated district fetched successfully")

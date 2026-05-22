@@ -81,23 +81,27 @@ export const displayClubProfileRepositories = async (userId) => {
         members: club.members || [],
     };
 };
-export const affiliatedDistrictRepository = async (clubId) => {
-    const club = await Club.findById(clubId)
-        .select("district districtStatus")
+export const affiliatedDistrictRepository = async (clubMemberId) => {
+    const club = await Club.findOne({
+        $or: [{ _id: clubMemberId }, { members: clubMemberId }],
+    })
+        .select("district districtName districtStatus")
         .lean();
 
-    if (!club?.district) {
+    if (!club) {
+        throw new AppError("Club not found for this token", 404);
+    }
+
+    if (!club.district) {
         return null;
     }
 
     const [district, totalClubs] = await Promise.all([
         District.findById(club.district)
-            .select("name address img about rank championships")
+            .select("name officeAddress img about rank championships")
             .lean(),
 
-        Club.countDocuments({
-            district: club.district
-        }),
+        Club.countDocuments({ district: club.district }),
     ]);
 
     if (!district) {
@@ -106,14 +110,14 @@ export const affiliatedDistrictRepository = async (clubId) => {
 
     return {
         districtId: district._id,
-        districtName: district.name || "",
-        address: district.address || "",
+        districtName: district.name || club.districtName || "",
+        address: district.officeAddress || "",
         img: district.img || "",
         about: district.about || "",
         rank: district.rank ?? 0,
         championships: district.championships ?? 0,
         totalClubs,
-        districtStatus: club.districtStatus || "" // added
+        districtStatus: club.districtStatus || "",
     };
 };
 

@@ -51,9 +51,8 @@ export const displayClubProfileService = async (userId) => {
     return profile;
 };
 
-export const affiliatedDistrictService = async (clubId) => {
-    const district = await affiliatedDistrictRepository(clubId);
-    return district;
+export const affiliatedDistrictService = async (clubMemberId) => {
+    return await affiliatedDistrictRepository(clubMemberId);
 };
 
 export const exceptOwnDistrictDisplayAllDistrictService = async (clubId) => {

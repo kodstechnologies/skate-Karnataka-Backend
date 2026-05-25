@@ -9,6 +9,7 @@ import { formatCompetitionTimeTakenFromSeconds } from "../../util/time/timeUtil.
 import { EventParticipant } from "../event/eventParticipant.model.js";
 import SkatingEventCategory from "../event/SkatingEventCategory.model.js";
 import { Skater } from "./skater.model.js";
+import { paginate } from "../../util/common/paginate.js";
 
 const normalizePhone = (value) => String(value ?? "").trim();
 
@@ -347,9 +348,21 @@ const parseEventEndDateTime = (eventEndDate, eventEndTime) => {
     return endDate;
 };
 
-const get_skater_results_event_repositories = async (userId) => {
+const emptySkaterResultsEventPage = (page, limit) => ({
+    data: [],
+    pagination: {
+        total: 0,
+        page: Math.max(Number(page), 1),
+        limit: Math.max(Number(limit), 1),
+        totalPages: 0,
+    },
+});
+
+const get_skater_results_event_repositories = async (userId, page, limit) => {
+    const { skip, limit: perPage, page: currentPage } = paginate(page, limit);
+
     if (!mongoose.Types.ObjectId.isValid(String(userId))) {
-        return [];
+        return emptySkaterResultsEventPage(currentPage, perPage);
     }
 
     const skaterUserId = new mongoose.Types.ObjectId(String(userId));
@@ -425,11 +438,24 @@ const get_skater_results_event_repositories = async (userId) => {
         });
     }
 
-    return events.sort((a, b) => {
+    const sorted = events.sort((a, b) => {
         const aEnd = a.eventEndDate ? new Date(a.eventEndDate).getTime() : 0;
         const bEnd = b.eventEndDate ? new Date(b.eventEndDate).getTime() : 0;
         return bEnd - aEnd;
     });
+
+    const total = sorted.length;
+    const data = sorted.slice(skip, skip + perPage);
+
+    return {
+        data,
+        pagination: {
+            total,
+            page: currentPage,
+            limit: perPage,
+            totalPages: Math.ceil(total / perPage) || 0,
+        },
+    };
 };
 
 const mapCategoryLeaderboard = (results = []) =>

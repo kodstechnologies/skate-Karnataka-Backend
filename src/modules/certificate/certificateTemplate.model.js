@@ -21,6 +21,18 @@ const certificateTemplateSchema = new mongoose.Schema(
             type: Boolean,
             default: false,
         },
+        isApplyClub: {
+            type: Boolean,
+            default: false,
+        },
+        isApplyDistrict: {
+            type: Boolean,
+            default: false,
+        },
+        isApplyState: {
+            type: Boolean,
+            default: false,
+        },
     },
     {
         timestamps: true,

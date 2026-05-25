@@ -9,6 +9,7 @@ import {
     getTemplateById,
     getSkaterCertificateRows,
     generateCertificate,
+    generateEventCertificates,
 } from "./certificate.controller.js";
 import multer from "multer";
 
@@ -24,6 +25,12 @@ router.patch("/v1/template/:id/activate", authenticate(["Admin"]), setActiveTemp
 router.get("/v1/templates", authenticate(["Admin"]), getAllTemplates);
 router.get("/v1/template/:id", authenticate(["Admin"]), getTemplateById);
 router.get("/v1/template", authenticate(["Admin"]), getTemplate);
+
+router.get(
+    "/v1/generateCertificate/:id",
+    authenticate(["Admin"]),
+    generateEventCertificates
+);
 
 // ── Certificate generation & download ───────────────────────────────────────
 router.post("/v1/generate", generateCertificate);

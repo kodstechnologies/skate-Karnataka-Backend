@@ -40,8 +40,8 @@ const get_skater_results_service = async (userId, eventId, categoryName) => {
     );
 };
 
-const get_skater_results_event_service = async (userId) => {
-    return await get_skater_results_event_repositories(userId);
+const get_skater_results_event_service = async (userId, page, limit) => {
+    return await get_skater_results_event_repositories(userId, page, limit);
 };
 
 export {

@@ -10,6 +10,7 @@ import {
     get_template_by_id_service,
     get_skater_certificate_list_service,
     generate_certificate_service,
+    generate_event_certificates_service,
 } from "./certificate.service.js";
 import {
     uploadTemplateValidation,
@@ -157,9 +158,16 @@ const generateCertificate = asyncHandler(async (req, res) => {
     }
 
     const { name, issueDate, ageGroup, clubName, winnerKRSAId } = value;
-    console.log(value)
     const result = await generate_certificate_service({ name, issueDate, ageGroup, clubName, winnerKRSAId });
     return res.status(200).json(new ApiResponse(200, result, "Certificate generated successfully"));
+});
+
+const generateEventCertificates = asyncHandler(async (req, res) => {
+    const { id: eventId } = req.params;
+    const result = await generate_event_certificates_service(eventId);
+    return res.status(200).json(
+        new ApiResponse(200, result, "Event certificates processed successfully")
+    );
 });
 
 export {
@@ -171,4 +179,5 @@ export {
     getTemplateById,
     getSkaterCertificateRows,
     generateCertificate,
+    generateEventCertificates,
 };

@@ -1,9 +1,17 @@
 import mongoose from "mongoose";
 import { CertificateTemplate } from "./certificateTemplate.model.js";
+import { GeneratedCertificate } from "./generatedCertificate.model.js";
 import { Event } from "../event/event.model.js";
 import { EventParticipant } from "../event/eventParticipant.model.js";
 import { BaseAuth } from "../auth/baseAuth.model.js";
+import { Skater } from "../skater/skater.model.js";
 import { paginate } from "../../util/common/paginate.js";
+
+const EVENT_TYPE_TEMPLATE_FLAG = {
+    Club: "isApplyClub",
+    District: "isApplyDistrict",
+    State: "isApplyState",
+};
 
 /** Certificates appear 2 days after the event end date (same rule as skater results). */
 const CERTIFICATE_VISIBILITY_MS = 2 * 24 * 60 * 60 * 1000;
@@ -183,7 +191,133 @@ const list_skater_participants_for_certificate_repository = async (userId, page,
     };
 };
 
+const formatIssueDate = (dateValue) => {
+    if (!dateValue) {
+        return new Date().toLocaleDateString("en-IN", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+        });
+    }
+    const parsed = new Date(dateValue);
+    if (Number.isNaN(parsed.getTime())) {
+        return String(dateValue);
+    }
+    return parsed.toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+    });
+};
+
+const participantHasRecordedTime = (participant) =>
+    (participant.categories || []).some(
+        (category) =>
+            typeof category.timeTaken === "number" &&
+            !Number.isNaN(category.timeTaken) &&
+            category.timeTaken > 0
+    );
+
+const buildCertificateTableRows = (participant, eventHeader) => {
+    const eventLabel = eventHeader || "";
+    const discipline = participant.division || "";
+
+    return (participant.categories || [])
+        .filter(
+            (category) =>
+                typeof category.timeTaken === "number" &&
+                !Number.isNaN(category.timeTaken) &&
+                category.timeTaken > 0
+        )
+        .map((category) => ({
+            event: eventLabel,
+            discipline,
+            distance: category.name || "",
+            placement:
+                category.rank != null && category.rank !== ""
+                    ? String(category.rank)
+                    : "",
+        }));
+};
+
+const get_event_for_certificate_repository = async (eventId) => {
+    if (!mongoose.Types.ObjectId.isValid(String(eventId))) {
+        return null;
+    }
+    return await Event.findById(eventId)
+        .select("_id header eventType eventEndDate")
+        .lean();
+};
+
+const get_active_template_for_event_type_repository = async (eventType) => {
+    const flag = EVENT_TYPE_TEMPLATE_FLAG[eventType];
+    if (!flag) return null;
+
+    return await CertificateTemplate.findOne({
+        isActive: true,
+        [flag]: true,
+    })
+        .sort({ updatedAt: -1 })
+        .lean();
+};
+
+const list_eligible_participants_for_event_repository = async (eventId) => {
+    if (!mongoose.Types.ObjectId.isValid(String(eventId))) {
+        return [];
+    }
+
+    const eventOid = new mongoose.Types.ObjectId(String(eventId));
+    const participants = await EventParticipant.find({ eventId: eventOid })
+        .populate("userId", "fullName krsaId")
+        .lean();
+
+    return participants.filter(participantHasRecordedTime);
+};
+
+const find_generated_certificate_repository = async (eventId, participantId) => {
+    return await GeneratedCertificate.findOne({ eventId, participantId }).lean();
+};
+
+const get_skater_club_name_repository = async (userId) => {
+    if (!userId || !mongoose.Types.ObjectId.isValid(String(userId))) {
+        return "";
+    }
+
+    const skater = await Skater.findById(userId).populate("club", "name").lean();
+    return skater?.club?.name || "";
+};
+
+const save_generated_certificate_repository = async (payload) => {
+    return await GeneratedCertificate.create(payload);
+};
+
+const build_participant_certificate_payload_repository = async (
+    participant,
+    event,
+    templateId,
+    issueDate
+) => {
+    const userId = participant.userId?._id || participant.userId || null;
+    const clubName = await get_skater_club_name_repository(userId);
+
+    return {
+        name: participant.name || participant.userId?.fullName || "",
+        ageGroup: participant.ageGroup || "",
+        clubName,
+        winnerKRSAId: participant.userId?.krsaId || "",
+        issueDate,
+        events: buildCertificateTableRows(participant, event?.header || ""),
+        certificateID: participant.certificateID || null,
+        participantId: participant._id,
+        userId,
+        eventId: event._id,
+        templateId,
+    };
+};
+
 export {
+    formatIssueDate,
+    participantHasRecordedTime,
     create_template_repository,
     update_template_repository,
     set_active_template_repository,
@@ -191,4 +325,10 @@ export {
     get_template_repository,
     get_template_by_id_repository,
     list_skater_participants_for_certificate_repository,
+    get_event_for_certificate_repository,
+    get_active_template_for_event_type_repository,
+    list_eligible_participants_for_event_repository,
+    find_generated_certificate_repository,
+    save_generated_certificate_repository,
+    build_participant_certificate_payload_repository,
 };

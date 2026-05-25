@@ -101,14 +101,19 @@ const getAllDiscipline = asyncHandler(async (_req, res) => {
 });
 
 const GetSkaterResultsEvent = asyncHandler(async (req, res) => {
-    const events = await get_skater_results_event_service(req.user._id);
+    const { page = 1, limit = 10 } = req.query;
+    const result = await get_skater_results_event_service(
+        req.user._id,
+        page,
+        limit
+    );
     return res
         .status(200)
         .json(
             new ApiResponse(
                 200,
-                events,
-                events.length
+                result,
+                result.data.length
                     ? "Registered events fetched successfully"
                     : "No registered events found for this skater"
             )

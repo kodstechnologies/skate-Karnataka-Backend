@@ -6,6 +6,13 @@ import {
     get_template_repository,
     get_template_by_id_repository,
     list_skater_participants_for_certificate_repository,
+    formatIssueDate,
+    get_event_for_certificate_repository,
+    get_active_template_for_event_type_repository,
+    list_eligible_participants_for_event_repository,
+    find_generated_certificate_repository,
+    save_generated_certificate_repository,
+    build_participant_certificate_payload_repository,
 } from "./certificate.repositories.js";
 import { putObject } from "../../util/aws/putObject.js";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
@@ -326,6 +333,106 @@ const generate_certificate_service = async (userData,temp_id) => {
     };
 };
 
+const generate_event_certificates_service = async (eventId) => {
+    const event = await get_event_for_certificate_repository(eventId);
+    if (!event) {
+        throw new Error("Event not found");
+    }
+
+    const template = await get_active_template_for_event_type_repository(event.eventType);
+    if (!template) {
+        throw new Error(
+            `No active certificate template found for ${event.eventType || "this"} event type`
+        );
+    }
+
+    const participants = await list_eligible_participants_for_event_repository(eventId);
+    const issueDate = formatIssueDate(event.eventEndDate);
+
+    const summary = {
+        eventId: event._id,
+        eventName: event.header || "",
+        eventType: event.eventType || "",
+        templateId: template._id,
+        totalEligible: participants.length,
+        generated: 0,
+        skipped: 0,
+        failed: 0,
+        certificates: [],
+        errors: [],
+    };
+
+    for (const participant of participants) {
+        const existing = await find_generated_certificate_repository(
+            event._id,
+            participant._id
+        );
+        if (existing) {
+            summary.skipped += 1;
+            summary.certificates.push({
+                participantId: participant._id,
+                certificateID: existing.certificateID,
+                pdfUrl: existing.pdfUrl,
+                status: "skipped",
+            });
+            continue;
+        }
+
+        try {
+            const payload = await build_participant_certificate_payload_repository(
+                participant,
+                event,
+                template._id,
+                issueDate
+            );
+
+            const generated = await generate_certificate_service(
+                {
+                    name: payload.name,
+                    issueDate: payload.issueDate,
+                    ageGroup: payload.ageGroup,
+                    clubName: payload.clubName,
+                    winnerKRSAId: payload.winnerKRSAId,
+                    events: payload.events,
+                },
+                String(template._id)
+            );
+
+            const saved = await save_generated_certificate_repository({
+                eventId: payload.eventId,
+                participantId: payload.participantId,
+                userId: payload.userId,
+                templateId: payload.templateId,
+                certificateID: payload.certificateID,
+                winnerKRSAId: payload.winnerKRSAId,
+                name: payload.name,
+                ageGroup: payload.ageGroup,
+                clubName: payload.clubName,
+                issueDate: payload.issueDate,
+                pdfUrl: generated.pdfUrl,
+                filename: generated.filename,
+                events: payload.events,
+            });
+
+            summary.generated += 1;
+            summary.certificates.push({
+                participantId: participant._id,
+                certificateID: saved.certificateID,
+                pdfUrl: saved.pdfUrl,
+                status: "generated",
+            });
+        } catch (err) {
+            summary.failed += 1;
+            summary.errors.push({
+                participantId: participant._id,
+                message: err?.message || "Certificate generation failed",
+            });
+        }
+    }
+
+    return summary;
+};
+
 export {
     create_template_service,
     update_template_service,
@@ -335,4 +442,5 @@ export {
     get_template_by_id_service,
     get_skater_certificate_list_service,
     generate_certificate_service,
+    generate_event_certificates_service,
 };

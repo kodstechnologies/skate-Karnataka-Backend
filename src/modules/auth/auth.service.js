@@ -7,7 +7,7 @@ import { District } from "../district/district.model.js";
 import { Club } from "../club/club.model.js";
 import { BaseAuth } from "./baseAuth.model.js";
 import SkatingEventCategory from "../event/SkatingEventCategory.model.js";
-import { checkEmailOTP, checkOtp, checkPhoneOTP, deleteAccount, isExist, isExistEmail, isExistPhone, registerUser_repositories, removeFirebaseTokenAndRefressToken, removeOldEmailOtp, removeOldPhoneOtp, saveEmailOtp, saveFirebaseToken, savePhoneOTP, saveRefreshToken } from "./auth.repositories.js";
+import { checkEmailOTP, checkOtp, checkPhoneOTP, deleteAccount, isExist, isExistEmail, isExistKSRAId, isExistPhone, registerUser_repositories, removeFirebaseTokenAndRefressToken, removeOldEmailOtp, removeOldKRSAIdOtp, removeOldPhoneOtp, saveEmailOtp, saveFirebaseToken, saveKRSAIdOTP, savePhoneOTP, saveRefreshToken } from "./auth.repositories.js";
 
 const ROLE_PREFIX_MAP = {
     Skater: "S",

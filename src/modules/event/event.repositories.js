@@ -1,6 +1,7 @@
 import { Event } from "./event.model.js";
 import SkatingEventCategory from "./SkatingEventCategory.model.js";
 import { EventParticipant } from "./eventParticipant.model.js";
+import { GeneratedCertificate } from "../certificate/generatedCertificate.model.js";
 import { paginate } from "../../util/common/paginate.js";
 import { BaseAuth } from "../auth/baseAuth.model.js";
 import { Skater } from "../skater/skater.model.js";
@@ -421,6 +422,7 @@ export const getAllPlayedEventsBySkaterRepository = async (userId) => {
     data.push({
       participantId: row._id,
       eventId: event._id,
+      userId: row.userId,
       eventName: event.header || "",
       eventType: event.eventType || "",
       eventStartDate: event.eventStartDate || null,
@@ -430,7 +432,33 @@ export const getAllPlayedEventsBySkaterRepository = async (userId) => {
       status: event.status || "",
       skaterApply: Boolean(row.skaterApply),
       paymentStatus: row.paymentStatus || "pending",
+      documentLink: "",
     });
+  }
+
+  if (data.length > 0 && mongoose.Types.ObjectId.isValid(String(userId))) {
+    const userOid = new mongoose.Types.ObjectId(String(userId));
+    const eventOids = data.map((item) => item.eventId);
+
+    const certificates = await GeneratedCertificate.find({
+      userId: userOid,
+      eventId: { $in: eventOids },
+    })
+      .select("eventId pdfUrl")
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    const documentLinkByEventId = new Map();
+    for (const cert of certificates) {
+      const eventKey = String(cert.eventId);
+      if (!documentLinkByEventId.has(eventKey)) {
+        documentLinkByEventId.set(eventKey, cert.pdfUrl?.trim() || "");
+      }
+    }
+
+    for (const item of data) {
+      item.documentLink = documentLinkByEventId.get(String(item.eventId)) || "";
+    }
   }
 
   return data;

@@ -222,9 +222,16 @@ const participantHasRecordedTime = (participant) =>
             category.timeTaken > 0
     );
 
-const buildCertificateTableRows = (participant, eventHeader) => {
-    const eventLabel = eventHeader || "";
-    const discipline = participant.division || "";
+const formatCertificatePlacement = (rank) => {
+    const placement = Number(rank);
+    if (placement === 1 || placement === 2 || placement === 3) {
+        return String(placement);
+    }
+    return "attended";
+};
+
+const buildCertificateTableRows = (participant) => {
+    const discipline = participant.categoriesId?.typeName || "";
 
     return (participant.categories || [])
         .filter(
@@ -234,13 +241,9 @@ const buildCertificateTableRows = (participant, eventHeader) => {
                 category.timeTaken > 0
         )
         .map((category) => ({
-            event: eventLabel,
             discipline,
             distance: category.name || "",
-            placement:
-                category.rank != null && category.rank !== ""
-                    ? String(category.rank)
-                    : "",
+            placement: formatCertificatePlacement(category.rank),
         }));
 };
 
@@ -273,6 +276,7 @@ const list_eligible_participants_for_event_repository = async (eventId) => {
     const eventOid = new mongoose.Types.ObjectId(String(eventId));
     const participants = await EventParticipant.find({ eventId: eventOid })
         .populate("userId", "fullName krsaId")
+        .populate("categoriesId", "typeName")
         .lean();
 
     return participants.filter(participantHasRecordedTime);
@@ -310,7 +314,7 @@ const build_participant_certificate_payload_repository = async (
         clubName,
         winnerKRSAId: participant.userId?.krsaId || "",
         issueDate,
-        events: buildCertificateTableRows(participant, event?.header || ""),
+        events: buildCertificateTableRows(participant),
         certificateID: participant.certificateID || null,
         participantId: participant._id,
         userId,

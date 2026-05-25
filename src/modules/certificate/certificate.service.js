@@ -236,14 +236,14 @@ const generate_certificate_service = async (userData,temp_id) => {
     }
 
     // ── EVENT TABLE ─────────────────────────────────────────────────────────
-    // Columns: EVENT 25% | DISCIPLINE 20% | DISTANCE 35% | PLACEMENT 20%
-    const COL_RATIOS  = [0.25, 0.20, 0.35, 0.20];
-    const HEADERS     = ["EVENT", "DISCIPLINE", "DISTANCE", "PLACEMENT"];
+    // Columns: DISCIPLINE 30% | DISTANCE 40% | PLACEMENT 30%
+    const COL_RATIOS  = [0.30, 0.40, 0.30];
+    const HEADERS     = ["DISCIPLINE", "DISTANCE", "PLACEMENT"];
 
     /**
      * drawEventTable — draws a bordered table using pdf-lib primitives.
      *
-     * @param {object[]} rows  - Array of { event, discipline, distance, placement }
+     * @param {object[]} rows  - Array of { discipline, distance, placement }
      * @param {number}   startX   - Left edge of table in pdf-lib pts
      * @param {number}   topY     - TOP edge of table in pdf-lib pts (rows grow downward = decreasing Y)
      * @param {number}   tableW   - Total table width in pdf-lib pts
@@ -260,7 +260,6 @@ const generate_certificate_service = async (userData,temp_id) => {
             { cells: HEADERS, isHeader: true },
             ...rows.map((r) => ({
                 cells: [
-                    String(r.event       || ""),
                     String(r.discipline  || ""),
                     String(r.distance    || ""),
                     String(r.placement   || ""),
@@ -283,8 +282,7 @@ const generate_certificate_service = async (userData,temp_id) => {
                 // Left border of each cell
                 page.drawLine({ start: { x: cellX, y: rowTopY }, end: { x: cellX, y: rowBottomY }, thickness: 0.8, color: borderColor });
 
-                // Font selection: Headers and first column (Event) are bold
-                const fnt = row.isHeader || colIdx === 0 ? boldFont : dynamicFont;
+                const fnt = row.isHeader ? boldFont : dynamicFont;
                 const fntSz = row.isHeader ? headerFontSz : cellFontSz;
 
                 // Text — horizontally centred within cell, vertically centred in row
@@ -304,9 +302,9 @@ const generate_certificate_service = async (userData,temp_id) => {
     const tableRows = (Array.isArray(userData.events) && userData.events.length > 0)
         ? userData.events
         : [
-            { event: "RINK - I",   discipline: "QUAD", distance: "1 LAP",                   placement: "" },
-            { event: "RINK - II",  discipline: "QUAD", distance: "2 LAP / 500 +D",           placement: "" },
-            { event: "RINK - III", discipline: "QUAD", distance: "3 LAPS / 4 LAPS / 1000M", placement: "" },
+            { discipline: "QUAD", distance: "1 LAP",                   placement: "attended" },
+            { discipline: "QUAD", distance: "2 LAP / 500 +D",           placement: "attended" },
+            { discipline: "QUAD", distance: "3 LAPS / 4 LAPS / 1000M", placement: "attended" },
         ];
 
     drawEventTable(

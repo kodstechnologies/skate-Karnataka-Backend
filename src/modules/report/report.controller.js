@@ -14,7 +14,7 @@ const createReport = asyncHandler(async (req, res) => {
 const updateStatus = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
-    await update_status_service(id, status);
+    await update_status_service(req.user._id, id, status);
 
     const message =
         status === "solved"

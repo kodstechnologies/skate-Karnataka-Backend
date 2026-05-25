@@ -3,6 +3,13 @@ import { paginate } from "../../util/common/paginate.js";
 import { Club } from "../club/club.model.js";
 import { District } from "../district/district.model.js";
 import { create_report_repositories, get_club_id, get_skater_report_repositories, getClubReportsRepositories, getDistrictReportsRepositories, getStateReportsRepositories, inProgressClubReportsRepositories, resolveClubReportsRepositories, resolveDistrictReportsRepositories, resolveStateReportsRepositories, updateClubReportClubRepositories, updateDistrictReportDistrictRepositories, updateStateReportStateRepositories, update_status_repositories } from "./report.repositories.js";
+import {
+    notifyClubOnNewReport,
+    notifyReportResolvedBySkater,
+    notifySkaterOnClubReportUpdate,
+    notifySkaterOnDistrictReportUpdate,
+    notifySkaterOnStateReportUpdate,
+} from "./report.notifications.js";
 
 /** Club document _id used on Report.ownClub — not always the same as the logged-in BaseAuth id for club accounts. */
 export const resolveClubDocumentIdForReports = async (user) => {
@@ -84,7 +91,26 @@ export const updateDistrictReportDistrictService = async (user, { reportId, stat
         payload.districtMessage = message;
     }
 
-    return updateDistrictReportDistrictRepositories(reportId, clubIds, payload);
+    const updated = await updateDistrictReportDistrictRepositories(
+        reportId,
+        clubIds,
+        payload
+    );
+
+    if (updated?.complainedBy) {
+        notifySkaterOnDistrictReportUpdate({
+            report: updated,
+            sentBy: user._id,
+            districtStatus: updated.districtStatus,
+        }).catch((err) => {
+            console.error(
+                "District report skater notify failed:",
+                err?.message || err
+            );
+        });
+    }
+
+    return updated;
 };
 
 export const getClubReportsForUser = async (user, page, limit) => {
@@ -120,17 +146,50 @@ export const updateClubReportClubService = async (user, { reportId, clubStatus, 
         payload.clubMessage = message;
     }
 
-    return updateClubReportClubRepositories(reportId, clubDocId, payload);
+    const updated = await updateClubReportClubRepositories(reportId, clubDocId, payload);
+
+    if (updated?.complainedBy) {
+        notifySkaterOnClubReportUpdate({
+            report: updated,
+            sentBy: user._id,
+            clubStatus: updated.clubStatus,
+        }).catch((err) => {
+            console.error("Club report skater notify failed:", err?.message || err);
+        });
+    }
+
+    return updated;
 };
 
 const create_report_service = async (skaterId, data) => {
     const club = await get_club_id(skaterId);
-    await create_report_repositories(skaterId, data, club);
-}
+    const report = await create_report_repositories(skaterId, data, club);
 
-const update_status_service = async (id, status) => {
-    await update_status_repositories(id, status);
-}
+    if (report?.ownClub) {
+        notifyClubOnNewReport({ report, sentBy: skaterId }).catch((err) => {
+            console.error("New report club notify failed:", err?.message || err);
+        });
+    }
+
+    return report;
+};
+
+const update_status_service = async (skaterId, id, status) => {
+    const updated = await update_status_repositories(id, status);
+
+    if (status === "solved") {
+        notifyReportResolvedBySkater({ report: updated, sentBy: skaterId }).catch(
+            (err) => {
+                console.error(
+                    "Report solved escalation notify failed:",
+                    err?.message || err
+                );
+            }
+        );
+    }
+
+    return updated;
+};
 
 const get_skater_report_service = async (
     id,
@@ -164,7 +223,19 @@ export const updateStateReportStateService = async (user, { reportId, stateStatu
         payload.stateMessage = message;
     }
 
-    return updateStateReportStateRepositories(reportId, payload);
+    const updated = await updateStateReportStateRepositories(reportId, payload);
+
+    if (updated?.complainedBy) {
+        notifySkaterOnStateReportUpdate({
+            report: updated,
+            sentBy: user._id,
+            stateStatus: updated.StateStatus,
+        }).catch((err) => {
+            console.error("State report skater notify failed:", err?.message || err);
+        });
+    }
+
+    return updated;
 };
 
 export const resolveClubReportsServices = async (id, clubId) => {

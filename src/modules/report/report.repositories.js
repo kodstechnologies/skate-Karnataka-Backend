@@ -15,20 +15,17 @@ const get_club_id = async (skaterId) => {
 }
 
 const create_report_repositories = async (skaterId, data, club) => {
-    console.log(skaterId, data, club, "===========================")
-    const report = await Report.create({
+    return await Report.create({
         complainedBy: skaterId,
-        ownClub: club.club,
+        ownClub: club?.club,
         reportType: data?.reportType || "",
         message: data?.message || "",
         clubName: data?.clubName || "",
         skaterName: data?.skaterName || "",
         districtName: data?.districtName || "",
         krsaId: data?.krsaId || "",
-
-    })
-    // console.log(report  ,"report====")
-}
+    });
+};
 
 
 
@@ -42,6 +39,8 @@ const update_status_repositories = async (id, status) => {
     if (!updated) {
         throw new AppError("Report not found", 404);
     }
+
+    return updated;
 };
 
 const get_skater_report_repositories = async (

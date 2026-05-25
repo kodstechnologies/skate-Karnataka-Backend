@@ -4,6 +4,7 @@ import { createServer } from "http";
 import { connectDB } from "./src/config/db.js";
 import { NODE_ENV, PORT } from "./src/config/envConfig.js";
 import { seeder } from "./src/seeder/index.js";
+import { startReportEscalationScheduler } from "./src/modules/report/report.notifications.js";
 
 const app = express();
 const server = createServer(app);
@@ -14,6 +15,7 @@ async function startServer() {
         await connectDB()
         // Ensure one admin exists on every startup.
         await seeder()
+        startReportEscalationScheduler()
         server.listen(PORT, () => {
             console.log(`Server running on port ${PORT}`);
         })

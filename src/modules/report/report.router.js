@@ -11,7 +11,7 @@ router.post("/v1", authenticate(["Skater"]), validate(create_report_validation),
 router.get("/v1/skater-reports", authenticate(["Skater"]), getSkaterReports);
 router.patch("/v1/:id", authenticate(["Skater"]), validate(update_skater_status_validation), updateStatus);
 
-// ==============================
+// ============================== club related ==========================
 router.get("/v1/club", authenticate(["Club", "Skater"]), getClubReports);
 router.patch(
     "/v1/club/:id",
@@ -21,7 +21,7 @@ router.patch(
 );
 
 
-// ========================= district
+// ========================= district related =========================
 router.get("/v1/district", authenticate(["District"]), getDistrictReports);
 router.patch(
     "/v1/district/:id",
@@ -29,7 +29,7 @@ router.patch(
     validate(update_district_report_validation),
     updateDistrictReport
 );
-// ===================== state
+// ===================== state related =========================
 
 router.get(
     "/v1/state",

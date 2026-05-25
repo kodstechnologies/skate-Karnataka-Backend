@@ -37,10 +37,19 @@ const affiliatedDistrict = asyncHandler(async (req, res) => {
 
 const exceptOwnDistrictDisplayAllDistrict = asyncHandler(async (req, res) => {
     const clubId = req.user._id;
-    const districts = await exceptOwnDistrictDisplayAllDistrictService(clubId);
+    const { page = 1, limit = 10, search = "" } = req.query;
+    const result = await exceptOwnDistrictDisplayAllDistrictService(clubId, {
+        page: Number(page),
+        limit: Number(limit),
+        search,
+    });
 
     return res.status(200).json(
-        new ApiResponse(200, districts, "All districts except own district fetched successfully")
+        new ApiResponse(
+            200,
+            result,
+            "All districts except own district fetched successfully"
+        )
     );
 });
 

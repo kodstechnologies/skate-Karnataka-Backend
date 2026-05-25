@@ -55,12 +55,19 @@ export const affiliatedDistrictService = async (clubMemberId) => {
     return await affiliatedDistrictRepository(clubMemberId);
 };
 
-export const exceptOwnDistrictDisplayAllDistrictService = async (clubId) => {
-    const districts = await exceptOwnDistrictDisplayAllDistrictRepository(clubId);
-    if (districts === null) {
+export const exceptOwnDistrictDisplayAllDistrictService = async (
+    clubId,
+    { page, limit, search } = {}
+) => {
+    const result = await exceptOwnDistrictDisplayAllDistrictRepository(clubId, {
+        page,
+        limit,
+        search,
+    });
+    if (result === null) {
         throw new AppError("Club not found", 404);
     }
-    return districts;
+    return result;
 };
 
 export const displayDistrictFullDetailsService = async (districtId) => {

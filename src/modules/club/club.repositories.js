@@ -137,7 +137,10 @@ export const affiliatedDistrictRepository = async (clubMemberId) => {
     };
 };
 
-export const exceptOwnDistrictDisplayAllDistrictRepository = async (id) => {
+export const exceptOwnDistrictDisplayAllDistrictRepository = async (
+    id,
+    { page = 1, limit = 10, search = "" } = {}
+) => {
     // Accept either Club document _id or authenticated BaseAuth _id.
     const club = await Club.findOne({
         $or: [{ _id: id }, { members: id }],
@@ -149,16 +152,36 @@ export const exceptOwnDistrictDisplayAllDistrictRepository = async (id) => {
         return null;
     }
 
+    const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+
     const filter = hasDistrictRef(club.district)
         ? { _id: { $ne: club.district } }
         : {};
 
-    const districts = await District.find(filter)
-        .select("_id name img")
-        .sort({ name: 1 })
-        .lean();
+    const term = String(search || "").trim();
+    if (term) {
+        filter.name = { $regex: term, $options: "i" };
+    }
 
-    return districts;
+    const [districts, total] = await Promise.all([
+        District.find(filter)
+            .select("_id name img")
+            .sort({ name: 1 })
+            .skip(skip)
+            .limit(pageLimit)
+            .lean(),
+        District.countDocuments(filter),
+    ]);
+
+    return {
+        data: districts,
+        pagination: {
+            total,
+            page: currentPage,
+            limit: pageLimit,
+            totalPages: Math.ceil(total / pageLimit) || 0,
+        },
+    };
 };
 
 export const displayDistrictFullDetailsRepository = async (districtId) => {

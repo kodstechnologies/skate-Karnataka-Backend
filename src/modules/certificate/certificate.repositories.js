@@ -8,9 +8,9 @@ import { Skater } from "../skater/skater.model.js";
 import { paginate } from "../../util/common/paginate.js";
 
 const EVENT_TYPE_TEMPLATE_FLAG = {
-    Club: "isApplyClub",
-    District: "isApplyDistrict",
-    State: "isApplyState",
+    Club: "CLUB",
+    District: "DISTRICT",
+    State: "STATE",
 };
 
 /** Certificates appear 2 days after the event end date (same rule as skater results). */
@@ -21,18 +21,19 @@ const CERTIFICATE_VISIBILITY_MS = 2 * 24 * 60 * 60 * 1000;
  * Create a brand-new certificate template document.
  * The caller is responsible for ensuring a pdfUrl is provided.
  */
-const create_template_repository = async (name, pdfUrl, layout) => {
-    return await CertificateTemplate.create({ name, pdfUrl, layout, isActive: false });
+const create_template_repository = async (name, pdfUrl, layout, applyTo) => {
+    return await CertificateTemplate.create({ name, pdfUrl, layout, isActive: false, applyTo });
 };
 
 /**
  * Update an existing template by its MongoDB _id.
  * Only updates the fields that are provided (pdfUrl is optional).
  */
-const update_template_repository = async (id, { name, pdfUrl, layout }) => {
+const update_template_repository = async (id, { name, pdfUrl, layout, applyTo }) => {
     const update = { layout };
     if (name !== undefined) update.name = name;
     if (pdfUrl) update.pdfUrl = pdfUrl;
+    if (applyTo !== undefined) update.applyTo = applyTo;
 
     return await CertificateTemplate.findByIdAndUpdate(id, { $set: update }, { new: true, runValidators: true });
 };
@@ -42,7 +43,10 @@ const update_template_repository = async (id, { name, pdfUrl, layout }) => {
  * Used by the "Set as Active" action in the admin UI.
  */
 const set_active_template_repository = async (id) => {
-    await CertificateTemplate.updateMany({}, { $set: { isActive: false } });
+    const template = await CertificateTemplate.findById(id);
+    if (!template) return null;
+    const category = template.applyTo || "STATE";
+    await CertificateTemplate.updateMany({ applyTo: category }, { $set: { isActive: false } });
     return await CertificateTemplate.findByIdAndUpdate(id, { $set: { isActive: true } }, { new: true });
 };
 
@@ -51,7 +55,7 @@ const set_active_template_repository = async (id) => {
  */
 const get_all_templates_repository = async () => {
     return await CertificateTemplate.find()
-        .select("_id name isActive pdfUrl createdAt")
+        .select("_id name isActive applyTo pdfUrl createdAt")
         .sort({ createdAt: -1 });
 };
 
@@ -255,7 +259,7 @@ const get_active_template_for_event_type_repository = async (eventType) => {
 
     return await CertificateTemplate.findOne({
         isActive: true,
-        [flag]: true,
+        applyTo: flag,
     })
         .sort({ updatedAt: -1 })
         .lean();

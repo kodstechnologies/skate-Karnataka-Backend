@@ -39,7 +39,7 @@ const uploadTemplate = asyncHandler(async (req, res) => {
         throw new AppError(message, 400);
     }
 
-    const { name, layout: layoutString } = value;
+    const { name, layout: layoutString, applyTo } = value;
 
     let layout;
     try {
@@ -57,7 +57,7 @@ const uploadTemplate = asyncHandler(async (req, res) => {
         }
     }
 
-    const result = await create_template_service(name, file, layout);
+    const result = await create_template_service(name, file, layout, applyTo);
     return res.status(201).json(new ApiResponse(201, result, "Template created successfully"));
 });
 
@@ -78,7 +78,7 @@ const updateTemplate = asyncHandler(async (req, res) => {
         throw new AppError(message, 400);
     }
 
-    const { name, layout: layoutString } = value;
+    const { name, layout: layoutString, applyTo } = value;
 
     let layout;
     try {
@@ -96,7 +96,7 @@ const updateTemplate = asyncHandler(async (req, res) => {
         }
     }
 
-    const result = await update_template_service(id, file, { name, layout });
+    const result = await update_template_service(id, file, { name, layout, applyTo });
     return res.status(200).json(new ApiResponse(200, result, "Template updated successfully"));
 });
 

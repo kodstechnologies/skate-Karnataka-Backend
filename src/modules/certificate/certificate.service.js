@@ -23,7 +23,7 @@ import axios from "axios";
 // `file` may be undefined when we only want to store a layout without a PDF —
 // but per the controller the first upload always requires a PDF file.
 // ---------------------------------------------------------------------------
-const create_template_service = async (name, file, layout) => {
+const create_template_service = async (name, file, layout, applyTo) => {
     if (!layout || typeof layout !== "object") {
         throw new Error("Invalid layout: must be a non-null object");
     }
@@ -34,14 +34,14 @@ const create_template_service = async (name, file, layout) => {
         pdfUrl = uploadRes.url;
     }
 
-    return await create_template_repository(name, pdfUrl, layout);
+    return await create_template_repository(name, pdfUrl, layout, applyTo);
 };
 
 // ---------------------------------------------------------------------------
 // Update an existing template by its _id.
 // Only the fields present in the payload are updated.
 // ---------------------------------------------------------------------------
-const update_template_service = async (id, file, { name, layout }) => {
+const update_template_service = async (id, file, { name, layout, applyTo }) => {
     if (!layout || typeof layout !== "object") {
         throw new Error("Invalid layout: must be a non-null object");
     }
@@ -52,7 +52,7 @@ const update_template_service = async (id, file, { name, layout }) => {
         pdfUrl = uploadRes.url;
     }
 
-    const updated = await update_template_repository(id, { name, pdfUrl, layout });
+    const updated = await update_template_repository(id, { name, pdfUrl, layout, applyTo });
     if (!updated) {
         throw new Error("Template not found");
     }
@@ -100,6 +100,7 @@ const get_template_by_id_service = async (id) => {
         _id: template._id,
         name: template.name,
         isActive: template.isActive,
+        applyTo: template.applyTo || "STATE",
         pdfTemplateUrl: template.pdfUrl,
         textLayout: template.layout || {},
     };

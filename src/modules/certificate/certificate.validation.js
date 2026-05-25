@@ -66,6 +66,9 @@ const uploadTemplateValidation = {
       "string.base": "layout must be a JSON string",
       "any.required": "layout is required",
     }),
+    applyTo: Joi.string().valid("STATE", "DISTRICT", "CLUB").optional().default("STATE").messages({
+      "any.only": "applyTo must be one of STATE, DISTRICT, or CLUB",
+    }),
   }),
 };
 
@@ -82,6 +85,9 @@ const updateTemplateValidation = {
     layout: Joi.string().required().messages({
       "string.base": "layout must be a JSON string",
       "any.required": "layout is required",
+    }),
+    applyTo: Joi.string().valid("STATE", "DISTRICT", "CLUB").optional().messages({
+      "any.only": "applyTo must be one of STATE, DISTRICT, or CLUB",
     }),
   }),
 };

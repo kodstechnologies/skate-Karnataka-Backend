@@ -51,7 +51,6 @@ export const clubRelatedEventDisplay = asyncHandler(async (req, res) => {
 })
 
 export const createClubEvent = asyncHandler(async (req, res) => {
-    console.log(req.body, "=====")
     const clubId = req.user._id;
     const event = await createClubEventService(clubId, req.body);
 
@@ -99,7 +98,6 @@ export const districtRelatedEventDisplay = asyncHandler(async (req, res) => {
 });
 
 export const createDistrictEvent = asyncHandler(async (req, res) => {
-    console.log(req.body, "=====")
     const districtUserId = req.user._id;
     const event = await createDistrictEventService(districtUserId, req.body);
 
@@ -241,12 +239,10 @@ export const givenPoint = asyncHandler(async (req, res) => {
 
 export const createStateEvent = asyncHandler(async (req, res) => {
     const role = (req.user.role || "").toLowerCase();
-    console.log(role, "role")
     const body = req.body || {};
-    console.log(body, "body")
     const { stateId: bodyStateId, ...payload } = body;
     const stateId = role === "admin" ? bodyStateId : req.user._id;
-    const event = await createStateEventService(stateId, payload);
+    const event = await createStateEventService(stateId, payload, req.user._id);
 
     return res.status(201).json(
         new ApiResponse(

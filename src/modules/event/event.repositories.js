@@ -9,7 +9,12 @@ import { Club } from "../club/club.model.js";
 import { District } from "../district/district.model.js";
 import { State } from "../state/state.model.js";
 import mongoose from "mongoose";
-import { sendNotification } from "../../util/firebase/sendNotification.js";
+import {
+  sendNotification,
+  notifyClubSkatersOfNewEvent,
+  notifyDistrictMembersOfNewEvent,
+  notifyStateMembersOfNewEvent,
+} from "../../util/firebase/sendNotification.js";
 import { AppError } from "../../util/common/AppError.js";
 import { assignCompetitionRanks } from "../../util/competition/rankUtil.js";
 
@@ -1538,50 +1543,31 @@ export const clubRelatedEventDisplayRepositories = async (
   };
 };
 
-export const createClubEventRepositories = async (clubId, data) => {
-  const resolvedClubId = await resolveClubIdForClubAuthUser(clubId);
+export const createClubEventRepositories = async (clubAuthUserId, data) => {
+  const resolvedClubId = await resolveClubIdForClubAuthUser(clubAuthUserId);
 
   const payload = {
     ...data,
     eventType: "Club",
     eventFor: new mongoose.Types.ObjectId(resolvedClubId),
   };
-console.log(payload,"===========")
+
   const event = await Event.create(payload);
-  console.log(resolvedClubId,"resolvedClubIdresolvedClubIdresolvedClubId")
-  const club = await Club.findById(resolvedClubId)
-    .select("name members")
-    .lean();
 
-  if (!club) return event;
-
-  const skaters = await Skater.find({ club: resolvedClubId })
-    .select("_id")
-    .lean();
-
-  const targetUserIds = [
-    ...(club.members || []).map((id) => id.toString()),
-    ...skaters.map((skater) => skater._id.toString()),
-  ];
-
-  const uniqueUserIds = [...new Set(targetUserIds)];
-
-  await Promise.all(
-    uniqueUserIds.map((receiverId) =>
-      sendNotification({
-        receiverId,
-        title: "New Club Event",
-        body: `${club.name} created a new event: ${event.header}`,
-        notificationType: "event",
-        sentBy: resolvedClubId,
-        data: {
-          eventId: event._id,
-          clubId: resolvedClubId,
-          eventType: "Club",
-        },
-      })
-    )
-  );
+  const club = await Club.findById(resolvedClubId).select("name").lean();
+  if (club) {
+    notifyClubSkatersOfNewEvent({
+      clubAuthUserId,
+      clubDocId: resolvedClubId,
+      clubName: club.name || "Your club",
+      event,
+    }).catch((err) => {
+      console.error(
+        "Club event skater notifications failed:",
+        err?.message || err
+      );
+    });
+  }
 
   return event;
 };
@@ -1618,9 +1604,9 @@ export const districtRelatedEventDisplayRepositories = async (districtUserId, { 
   };
 };
 
-export const createDistrictEventRepositories = async (districtUserId, data) => {
-  const districtUser = await BaseAuth.findById(districtUserId).select("district").lean();
-  const districtId = districtUser?.district || districtUserId;
+export const createDistrictEventRepositories = async (districtAuthUserId, data) => {
+  const districtUser = await BaseAuth.findById(districtAuthUserId).select("district").lean();
+  const districtId = districtUser?.district || districtAuthUserId;
 
   const payload = {
     ...data,
@@ -1630,48 +1616,20 @@ export const createDistrictEventRepositories = async (districtUserId, data) => {
 
   const event = await Event.create(payload);
 
-  const district = await District.findById(districtId)
-    .select("name members")
-    .lean();
-
-  if (!district) return event;
-
-  const clubs = await Club.find({ district: districtId })
-    .select("_id members")
-    .lean();
-
-  const clubIds = clubs.map((club) => club._id);
-
-  const skaters = clubIds.length
-    ? await Skater.find({ club: { $in: clubIds } })
-      .select("_id")
-      .lean()
-    : [];
-
-  const targetUserIds = [
-    ...(district.members || []).map((id) => id.toString()),
-    ...clubs.flatMap((club) => (club.members || []).map((id) => id.toString())),
-    ...skaters.map((skater) => skater._id.toString()),
-  ];
-
-  const uniqueUserIds = [...new Set(targetUserIds)];
-
-  await Promise.all(
-    uniqueUserIds.map((receiverId) =>
-      sendNotification({
-        receiverId,
-        title: "New District Event",
-        body: `${district.name} created a new event: ${event.header}`,
-        notificationType: "event",
-        sentBy: districtId,
-        data: {
-          eventId: event._id,
-          districtId,
-          eventType: "District",
-        },
-      })
-    )
-  );
+  const district = await District.findById(districtId).select("name").lean();
+  if (district) {
+    notifyDistrictMembersOfNewEvent({
+      districtAuthUserId,
+      districtDocId: districtId,
+      districtName: district.name || "Your district",
+      event,
+    }).catch((err) => {
+      console.error(
+        "District event notifications failed:",
+        err?.message || err
+      );
+    });
+  }
 
   return event;
 };
@@ -1868,7 +1826,7 @@ export const stateRelatedEventDisplayRepositories = async (stateId, { page, limi
   };
 };
 
-export const createStateEventRepositories = async (stateId, data) => {
+export const createStateEventRepositories = async (stateId, data, creatorUserId) => {
   const payload = {
     ...data,
     eventType: "State",
@@ -1877,35 +1835,22 @@ export const createStateEventRepositories = async (stateId, data) => {
 
   const event = await Event.create(payload);
 
-  const state = await State.findById(stateId)
-    .select("name")
-    .lean();
-
-  const users = await BaseAuth.find({
-    isActive: true,
-    isNotificationsEnabled: true,
-  })
-    .select("_id")
-    .lean();
-
-  const uniqueUserIds = [...new Set(users.map((user) => user._id.toString()))];
-
-  await Promise.all(
-    uniqueUserIds.map((receiverId) =>
-      sendNotification({
-        receiverId,
-        title: "New State Event",
-        body: `${state?.name || "State"} created a new event: ${event.header}`,
-        notificationType: "event",
-        sentBy: stateId,
-        data: {
-          eventId: event._id,
-          stateId,
-          eventType: "State",
-        },
-      })
-    )
-  );
+  const state = await State.findById(stateId).select("name").lean();
+  console.log("State event created:", {
+    eventId: event._id,
+    stateId,
+    creatorUserId,
+  });
+  if (state && creatorUserId) {
+    notifyStateMembersOfNewEvent({
+      creatorUserId,
+      stateDocId: stateId,
+      stateName: state.name || "Karnataka",
+      event,
+    }).catch((err) => {
+      console.error("State event notifications failed:", err?.message || err);
+    });
+  }
 
   return event;
 };

@@ -1,6 +1,65 @@
 import admin from "../../firebase/firebase.js";
 import { BaseAuth } from "../../modules/auth/baseAuth.model.js";
 import { Notification } from "../../modules/notification/notification.model.js";
+import { Skater } from "../../modules/skater/skater.model.js";
+import { Club } from "../../modules/club/club.model.js";
+import { District } from "../../modules/district/district.model.js";
+
+const formatNotificationDate = (dateValue) => {
+  if (!dateValue) return null;
+  const parsed = new Date(dateValue);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
+
+const buildNewEventNotificationBody = (orgName, event) => {
+  const eventTitle = (event.header || "New event").trim();
+  const registerBy = formatNotificationDate(event.registerEndDate);
+  const eventStart = formatNotificationDate(event.eventStartDate);
+
+  if (registerBy && eventStart) {
+    return `${orgName} invites you to "${eventTitle}" (${eventStart}) — register by ${registerBy}. Tap to view and sign up!`;
+  }
+  if (registerBy) {
+    return `${orgName} invites you to "${eventTitle}" — register by ${registerBy}. Tap to view and sign up!`;
+  }
+  if (eventStart) {
+    return `${orgName} posted "${eventTitle}" on ${eventStart}. Open the app to view details and register!`;
+  }
+  return `${orgName} posted "${eventTitle}". Open the app to view details and register!`;
+};
+
+const sendEventNotifications = async ({
+  receiverIds,
+  title,
+  body,
+  sentBy,
+  data,
+}) => {
+  if (!receiverIds.length) return;
+
+  await Promise.all(
+    receiverIds.map((receiverId) =>
+      sendNotification({
+        receiverId,
+        title,
+        body,
+        notificationType: "event",
+        sentBy,
+        data,
+      }).catch((err) => {
+        console.error(
+          `Event notification failed for ${receiverId}:`,
+          err?.message || err
+        );
+      })
+    )
+  );
+};
 
 export const sendNotification = async ({
   receiverId,
@@ -88,4 +147,142 @@ console.log(receiverId,"receiverId")
     );
   }
 
+};
+
+/** Notify all joined skaters in a club when a new club event is created. */
+export const notifyClubSkatersOfNewEvent = async ({
+  clubAuthUserId,
+  clubDocId,
+  clubName,
+  event,
+}) => {
+  const skaters = await Skater.find({
+    club: clubDocId,
+    clubStatus: { $in: ["join", "apply-leave"] },
+    isActive: true,
+    isNotificationsEnabled: { $ne: false },
+  })
+    .select("_id")
+    .lean();
+
+  if (!skaters.length) return;
+
+  await sendEventNotifications({
+    receiverIds: skaters.map((skater) => skater._id),
+    title: "New club event",
+    body: buildNewEventNotificationBody(clubName, event),
+    sentBy: clubAuthUserId,
+    data: {
+      type: "club_event_created",
+      eventId: String(event._id),
+      clubId: String(clubDocId),
+      eventType: "Club",
+    },
+  });
+};
+
+/** Notify district members, all club members in the district, and all joined skaters in those clubs. */
+export const notifyDistrictMembersOfNewEvent = async ({
+  districtAuthUserId,
+  districtDocId,
+  districtName,
+  event,
+}) => {
+  const district = await District.findById(districtDocId).select("members").lean();
+
+  const clubs = await Club.find({ district: districtDocId }).select("members").lean();
+  const clubIds = clubs.map((club) => club._id);
+
+  const skaters = clubIds.length
+    ? await Skater.find({
+        club: { $in: clubIds },
+        clubStatus: { $in: ["join", "apply-leave"] },
+        isActive: true,
+        isNotificationsEnabled: { $ne: false },
+      })
+        .select("_id")
+        .lean()
+    : [];
+
+  const targetUserIds = [
+    ...(district?.members || []).map((id) => id.toString()),
+    ...clubs.flatMap((club) => (club.members || []).map((id) => id.toString())),
+    ...skaters.map((skater) => skater._id.toString()),
+  ];
+
+  const uniqueUserIds = [...new Set(targetUserIds)];
+  if (!uniqueUserIds.length) return;
+
+  await sendEventNotifications({
+    receiverIds: uniqueUserIds,
+    title: "New district event",
+    body: buildNewEventNotificationBody(districtName, event),
+    sentBy: districtAuthUserId,
+    data: {
+      type: "district_event_created",
+      eventId: String(event._id),
+      districtId: String(districtDocId),
+      eventType: "District",
+    },
+  });
+};
+
+/** Notify state accounts, all district/club members, and all joined skaters statewide. */
+export const notifyStateMembersOfNewEvent = async ({
+  creatorUserId,
+  stateDocId,
+  stateName,
+  event,
+}) => {
+  const [stateUsers, districts, clubs] = await Promise.all([
+    BaseAuth.find({
+      role: "State",
+      isActive: true,
+      isNotificationsEnabled: { $ne: false },
+    })
+      .select("_id")
+      .lean(),
+    District.find().select("members").lean(),
+    Club.find().select("members").lean(),
+  ]);
+
+  const clubIds = clubs.map((club) => club._id);
+
+  const skaters = clubIds.length
+    ? await Skater.find({
+        club: { $in: clubIds },
+        clubStatus: { $in: ["join", "apply-leave"] },
+        isActive: true,
+        isNotificationsEnabled: { $ne: false },
+      })
+        .select("_id")
+        .lean()
+    : [];
+
+  const targetUserIds = [
+    ...stateUsers.map((user) => user._id.toString()),
+    ...districts.flatMap((district) =>
+      (district.members || []).map((id) => id.toString())
+    ),
+    ...clubs.flatMap((club) =>
+      (club.members || []).map((id) => id.toString())
+    ),
+    ...skaters.map((skater) => skater._id.toString()),
+  ];
+
+  const uniqueUserIds = [...new Set(targetUserIds)];
+  if (!uniqueUserIds.length) return;
+
+  await sendEventNotifications({
+    receiverIds: uniqueUserIds,
+    title: "New state event",
+    body: buildNewEventNotificationBody(stateName, event),
+    sentBy: creatorUserId,
+    data: {
+      type: "state_event_created",
+      eventId: String(event._id),
+      stateId: String(stateDocId),
+      eventType: "State",
+    },
+  });
 };

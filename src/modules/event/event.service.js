@@ -639,13 +639,13 @@ export const updateStateEventSkaterTimeService = async (
     };
 };
 
-export const createStateEventService = async (stateId, data) => {
+export const createStateEventService = async (stateId, data, creatorUserId) => {
     let resolvedStateId = stateId;
 
     if (resolvedStateId) {
         const state = await State.findById(resolvedStateId).select("_id").lean();
         if (state) {
-            return await createStateEventRepositories(resolvedStateId, data);
+            return await createStateEventRepositories(resolvedStateId, data, creatorUserId);
         }
     }
 
@@ -655,7 +655,7 @@ export const createStateEventService = async (stateId, data) => {
     }
 
     resolvedStateId = fallbackState._id;
-    return await createStateEventRepositories(resolvedStateId, data);
+    return await createStateEventRepositories(resolvedStateId, data, creatorUserId);
 };
 
 export const getAllEventCategoriesService = async (query) => {

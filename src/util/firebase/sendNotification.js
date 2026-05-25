@@ -286,3 +286,40 @@ export const notifyStateMembersOfNewEvent = async ({
     },
   });
 };
+
+/** Notify skater when State or Admin fully approves certification. */
+export const notifySkaterCertificationApproved = async ({
+  receiverId,
+  sentBy,
+  role,
+  eventName,
+  actorName,
+  participantId,
+  eventId,
+}) => {
+  const normalizedRole = String(role || "").trim().toLowerCase();
+  if (normalizedRole !== "state" && normalizedRole !== "admin") {
+    return;
+  }
+
+  const eventLabel = (eventName || "").trim() || "your event";
+  const byLabel = (actorName || "").trim() || "the reviewer";
+  const isAdmin = normalizedRole === "admin";
+
+  await sendNotification({
+    receiverId,
+    title: "Certification fully approved",
+    body: `Your certification application for "${eventLabel}" was fully approved by ${byLabel}. Congratulations!`,
+    notificationType: "approval",
+    sentBy,
+    data: {
+      type: "certification_approved",
+      code: isAdmin ? "APPROVED_BY_ADMIN" : "APPROVED_BY_STATE",
+      approvedByRole: isAdmin ? "Admin" : "State",
+      approvedByName: byLabel,
+      participantId: participantId ? String(participantId) : "",
+      eventId: eventId ? String(eventId) : "",
+      eventName: eventLabel,
+    },
+  });
+};

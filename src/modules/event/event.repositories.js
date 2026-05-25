@@ -14,6 +14,7 @@ import {
   notifyClubSkatersOfNewEvent,
   notifyDistrictMembersOfNewEvent,
   notifyStateMembersOfNewEvent,
+  notifySkaterCertificationApproved,
 } from "../../util/firebase/sendNotification.js";
 import { AppError } from "../../util/common/AppError.js";
 import { assignCompetitionRanks } from "../../util/competition/rankUtil.js";
@@ -709,23 +710,38 @@ export const approveCertificationByRoleRepository = async (reqUser, participantI
   const approvalMeta = buildCertificationApprovalMeta(role, eventName, actor.actorName);
 
   if (participant.userId) {
-    sendNotification({
-      receiverId: participant.userId,
-      title: approvalMeta.title,
-      body: approvalMeta.body,
-      notificationType: "approval",
-      sentBy: reqUser._id,
-      data: {
-        code: approvalMeta.code,
-        approvedByRole: actor.actorRole,
-        approvedByName: actor.actorName,
-        participantId: String(participantId),
-        eventId: String(
-          updated.eventId || participant.eventId?._id || participant.eventId || ""
-        ),
-        eventName,
-      },
-    }).catch((err) => {
+    const eventIdStr = String(
+      updated.eventId || participant.eventId?._id || participant.eventId || ""
+    );
+
+    const notifyPromise =
+      role === "state" || role === "admin"
+        ? notifySkaterCertificationApproved({
+            receiverId: participant.userId,
+            sentBy: reqUser._id,
+            role,
+            eventName,
+            actorName: actor.actorName,
+            participantId,
+            eventId: eventIdStr,
+          })
+        : sendNotification({
+            receiverId: participant.userId,
+            title: approvalMeta.title,
+            body: approvalMeta.body,
+            notificationType: "approval",
+            sentBy: reqUser._id,
+            data: {
+              code: approvalMeta.code,
+              approvedByRole: actor.actorRole,
+              approvedByName: actor.actorName,
+              participantId: String(participantId),
+              eventId: eventIdStr,
+              eventName,
+            },
+          });
+
+    notifyPromise.catch((err) => {
       console.error("Certification approval notification failed:", err?.message || err);
     });
   }

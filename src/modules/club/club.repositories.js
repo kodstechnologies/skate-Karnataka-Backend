@@ -939,7 +939,7 @@ const display_all_apply_skater_repositories = async (
                         skater._id,
                         skater.fullName,
                         skater.createdAt,
-                        { krsaId: skater.krsaId || "" }
+                        { krsaId: skater.krsaId || "", skaterID: skaterId }
                     )
                 );
             }
@@ -956,7 +956,7 @@ const display_all_apply_skater_repositories = async (
                         skater._id,
                         skater.fullName,
                         skater.createdAt,
-                        { krsaId: skater.krsaId || "" }
+                        { krsaId: skater.krsaId || "", skaterID: skaterId }
                     )
                 );
             }
@@ -1008,6 +1008,7 @@ const display_all_apply_skater_repositories = async (
                     skaterProfile?.fullName || "",
                     participant.updatedAt || participant.createdAt,
                     {
+                        skaterID: skaterId,
                         krsaId: skaterProfile?.krsaId || "",
                         eventName: participant.eventId?.header || "",
                         ageGroup: participant.ageGroup || "",

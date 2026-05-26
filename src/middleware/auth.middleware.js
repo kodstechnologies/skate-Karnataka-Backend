@@ -133,6 +133,51 @@ const trimRefreshToken = (raw) => {
   return null;
 };
 
+const decodeUserIdFromJwt = (token, secret) => {
+  if (!token) return null;
+  try {
+    const decoded = jwt.verify(token, secret);
+    return decoded?.id || decoded?._id || decoded?.userId || null;
+  } catch {
+    try {
+      const decoded = jwt.decode(token);
+      return decoded?.id || decoded?._id || decoded?.userId || null;
+    } catch {
+      return null;
+    }
+  }
+};
+
+/**
+ * Best-effort user id for logout. Never throws — invalid/missing tokens return null.
+ */
+export const resolveLogoutUserId = (req) => {
+  let accessToken = pickBearerToken(req.headers.authorization);
+  if (!accessToken && req.cookies?.access_token) {
+    accessToken = req.cookies.access_token;
+  }
+
+  let userId = decodeUserIdFromJwt(
+    accessToken,
+    process.env.JWT_ACCESS_SECRET
+  );
+
+  if (!userId) {
+    const refreshToken =
+      trimRefreshToken(req.body?.refreshTokens) ||
+      trimRefreshToken(req.body?.refreshToken) ||
+      trimRefreshToken(req.headers["x-refresh-token"]) ||
+      trimRefreshToken(req.cookies?.refresh_token);
+
+    userId = decodeUserIdFromJwt(
+      refreshToken,
+      process.env.JWT_REFRESH_SECRET
+    );
+  }
+
+  return userId;
+};
+
 /**
  * For logout: accept a valid access token, or (if missing/expired) a refresh token
  * in body (refreshTokens / refreshToken), x-refresh-token header, or refresh_token cookie.

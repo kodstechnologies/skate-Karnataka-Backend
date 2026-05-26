@@ -292,7 +292,6 @@ const VerifyOTPService = async (userData) => {
 
 const RefreshTokenService = async (req, res) => { };
 const LogoutUserService = async (userData) => {
-    console.log(userData)
     await removeFirebaseTokenAndRefressToken(userData);
     return true;
 };

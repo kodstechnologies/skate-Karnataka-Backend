@@ -1,5 +1,5 @@
 import express from "express";
-import { authenticate, authenticateLogout } from "../../middleware/auth.middleware.js";
+import { authenticate } from "../../middleware/auth.middleware.js";
 import { ContactSupport, DeleteUser, GetAchievements, GetAllSkatingEventCategoryNames, GetRankings, LoginUser, LogoutUser, RefreshToken, RegisterUser, sendEmailOTP, sendPhoneOTP, ToggleNotifications, verifyEmailOTP, VerifyOTP, verifyPhoneOTP } from "./auth.controller.js";
 import { validate } from "../../middleware/validate.multiple.js";
 import { upload } from "../../middleware/multer.middleware.js";
@@ -52,7 +52,6 @@ router.post("/refresh-token",
 
 router.post("/logout",
     validate(LogoutValidation),
-    authenticateLogout(["user", "Skater", "Club", "State", "District", "Admin"]),
     LogoutUser);
 
 router.get("/achievement",

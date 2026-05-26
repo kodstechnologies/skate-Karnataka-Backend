@@ -1,3 +1,4 @@
+import { resolveLogoutUserId } from "../../middleware/auth.middleware.js";
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
 import { formatDate } from "../../util/time/timeUtil.js";
@@ -96,21 +97,24 @@ const VerifyOTP = asyncHandler(async (req, res) => {
 const RefreshToken = asyncHandler(async (req, res) => { });
 
 const LogoutUser = asyncHandler(async (req, res) => {
-    console.log(req.body,"--")
     const refreshToken = req.body?.refreshToken ?? req.body?.refreshTokens;
     const firebaseToken = req.body?.firebaseToken ?? req.body?.firebaseTokens;
+    const userId = resolveLogoutUserId(req);
 
-    const result = await LogoutUserService({
-        userId: req.user._id,
-        refreshToken,
-        firebaseToken,
-    });
+    if (userId) {
+        await LogoutUserService({
+            userId,
+            refreshToken,
+            firebaseToken,
+        });
+    }
+
     return res
         .status(200)
         .json(
             new ApiResponse(
                 200,
-                result,
+                null,
                 "User logged out successfully"
             )
         );

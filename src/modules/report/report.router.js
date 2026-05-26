@@ -22,7 +22,7 @@ router.patch(
 
 
 // ========================= district related =========================
-router.get("/v1/district", authenticate(["District"]), getDistrictReports);
+router.get("/v1/district", authenticate(["District", "State", "Admin"]), getDistrictReports);
 router.patch(
     "/v1/district/:id",
     authenticate(["District"]),

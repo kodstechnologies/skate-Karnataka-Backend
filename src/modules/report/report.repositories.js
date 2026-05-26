@@ -3,7 +3,8 @@ import { paginate } from "../../util/common/paginate.js";
 import { AppError } from "../../util/common/AppError.js";
 import { BaseAuth } from "../auth/baseAuth.model.js"
 import { Club } from "../club/club.model.js";
-import { Report } from "./report.model.js"
+import { District } from "../district/district.model.js";
+import { Report } from "./report.model.js";
 
 /** Reports appear at state only after this many ms since createdAt (30 calendar days window). */
 const STATE_REPORT_MIN_AGE_MS = 30 * 24 * 60 * 60 * 1000;
@@ -124,12 +125,97 @@ export const getClubReportsRepositories = async (clubId, page, limit) => {
         },
     };
 };
-/** Reports whose club sits in this district; created on calendar day 1–16 only; not skater-solved. */
+/** Reports for clubs in this district; excludes skater-marked solved. */
 export const getDistrictReportsRepositories = async (districtDocId, page, limit) => {
     const { skip, limit: perPage, page: currentPage } = paginate(page, limit);
+    const districtObjectId = new mongoose.Types.ObjectId(districtDocId);
+    const district = await District.findById(districtObjectId).select("name").lean();
 
-    const clubIds = await Club.find({ district: new mongoose.Types.ObjectId(districtDocId) })
-        .distinct("_id");
+    const districtScope = [{ "clubDoc.district": districtObjectId }];
+    if (district?.name) {
+        districtScope.push({ districtName: district.name });
+    }
+
+    const baseMatch = {
+        status: { $ne: "solved" },
+        $or: districtScope,
+    };
+
+    const lookupStages = [
+        {
+            $lookup: {
+                from: Club.collection.name,
+                localField: "ownClub",
+                foreignField: "_id",
+                as: "clubDoc",
+            },
+        },
+        { $unwind: "$clubDoc" },
+        { $match: baseMatch },
+    ];
+
+    const [totalResult, data] = await Promise.all([
+        Report.aggregate([...lookupStages, { $count: "total" }]),
+        Report.aggregate([
+            ...lookupStages,
+            { $sort: { createdAt: -1 } },
+            { $skip: skip },
+            { $limit: perPage },
+            {
+                $lookup: {
+                    from: BaseAuth.collection.name,
+                    localField: "complainedBy",
+                    foreignField: "_id",
+                    as: "complainedByUser",
+                },
+            },
+            {
+                $addFields: {
+                    complainedBy: {
+                        $arrayElemAt: ["$complainedByUser", 0],
+                    },
+                },
+            },
+            {
+                $project: {
+                    reportType: 1,
+                    message: 1,
+                    clubName: 1,
+                    skaterName: 1,
+                    districtName: 1,
+                    krsaId: 1,
+                    status: 1,
+                    districtStatus: 1,
+                    districtMessage: 1,
+                    clubStatus: 1,
+                    clubMessage: 1,
+                    complainedBy: { fullName: "$complainedBy.fullName" },
+                    createdAt: 1,
+                },
+            },
+        ]),
+    ]);
+
+    const total = totalResult[0]?.total ?? 0;
+
+    return {
+        data,
+        pagination: {
+            total,
+            page: currentPage,
+            limit: perPage,
+            totalPages: Math.ceil(total / perPage) || 0,
+        },
+    };
+};
+
+/** Admin / state: all non-solved reports for clubs linked to any district. */
+export const getAllDistrictScopeReportsRepositories = async (page, limit) => {
+    const { skip, limit: perPage, page: currentPage } = paginate(page, limit);
+
+    const clubIds = await Club.find({
+        district: { $exists: true, $ne: null },
+    }).distinct("_id");
 
     if (!clubIds.length) {
         return {
@@ -146,12 +232,6 @@ export const getDistrictReportsRepositories = async (districtDocId, page, limit)
     const query = {
         ownClub: { $in: clubIds },
         status: { $ne: "solved" },
-        $expr: {
-            $and: [
-                { $gte: [{ $dayOfMonth: "$createdAt" }, 1] },
-                { $lte: [{ $dayOfMonth: "$createdAt" }, 16] },
-            ],
-        },
     };
 
     const data = await Report.find(query)

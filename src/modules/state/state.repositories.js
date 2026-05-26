@@ -4,7 +4,54 @@ import { District } from "../district/district.model.js";
 import { Club } from "../club/club.model.js";
 import { Skater } from "../skater/skater.model.js";
 import { Report } from "../report/report.model.js";
+import { Event } from "../event/event.model.js";
+import { DisciplineService } from "../discipline/discipline.model.js";
 import { State } from "./state.model.js";
+
+const DISCIPLINE_CHART_COLORS = [
+  "#f6765e",
+  "#13b5b4",
+  "#2fa96d",
+  "#8e82ff",
+  "#f2b94b",
+  "#53c7c5",
+];
+
+const startOfDay = (date) => {
+  const value = new Date(date);
+  value.setHours(0, 0, 0, 0);
+  return value;
+};
+
+const formatRelativeTime = (dateValue) => {
+  if (!dateValue) return "";
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const diffMs = Date.now() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins} min ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours} hr ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
+  return date.toLocaleDateString("en-IN", { dateStyle: "medium" });
+};
+
+const formatEventTime = (dateValue, timeValue) => {
+  if (timeValue) return String(timeValue).trim();
+  if (!dateValue) return "";
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+};
+
+const buildSparkline = (dailyCounts) => {
+  const values = dailyCounts.map((entry) => entry.count);
+  const max = Math.max(...values, 1);
+  return values.map((count) => Math.round((count / max) * 42) + 8);
+};
 
 const normalizeAllowedModule = (allowedModule = []) => {
   const normalized = [];
@@ -117,24 +164,291 @@ export const deleteStateRepository = async (stateId) => {
   return deleted;
 };
 
-export const stateDashboardRepository = async () => {
-  const [totalDistrict, totalClubs, totalSkaters, pendingApprovals, latestReport] = await Promise.all([
-    District.countDocuments(),
-    Club.countDocuments(),
-    Skater.countDocuments(),
-    Club.countDocuments({ districtStatus: "apply" }),
-    Report.findOne()
-      .sort({ createdAt: -1 })
-      .select("_id ownClub reportType message clubName skaterName districtName krsaId status createdAt")
-      .lean(),
-  ]);
+export const stateDashboardRepository = async (user) => {
+  const now = new Date();
+  const todayStart = startOfDay(now);
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+  const weekStart = startOfDay(new Date(now));
+  weekStart.setDate(weekStart.getDate() - 6);
 
-  return {
+  const role = String(user?.role || "Admin");
+  const normalizedRole = role.toLowerCase();
+
+  let allowedModule = normalizeAllowedModule(user?.allowedModule);
+  let greetingName = user?.fullName || "Admin";
+
+  if (normalizedRole === "state" && user?._id) {
+    const stateAccount = await State.findById(user._id)
+      .select("fullName allowedModule")
+      .lean();
+    if (stateAccount) {
+      greetingName = stateAccount.fullName || greetingName;
+      allowedModule = normalizeAllowedModule(stateAccount.allowedModule);
+    }
+  }
+
+  const [
     totalDistrict,
     totalClubs,
     totalSkaters,
+    skatersThisMonth,
+    skatersLastMonth,
     pendingApprovals,
+    upcomingEventsCount,
+    reportStatsRaw,
+    latestReport,
+    latestEvent,
+    upcomingEvents,
+    recentReports,
+    disciplineAgg,
+    skatersByDay,
+    reportsByDay,
+  ] = await Promise.all([
+    District.countDocuments(),
+    Club.countDocuments(),
+    Skater.countDocuments({ isActive: { $ne: false } }),
+    Skater.countDocuments({ createdAt: { $gte: monthStart }, isActive: { $ne: false } }),
+    Skater.countDocuments({
+      createdAt: { $gte: lastMonthStart, $lte: lastMonthEnd },
+      isActive: { $ne: false },
+    }),
+    Club.countDocuments({ districtStatus: "apply" }),
+    Event.countDocuments({
+      eventStartDate: { $gte: todayStart },
+      status: { $nin: ["cancelled", "completed"] },
+    }),
+    Report.aggregate([
+      {
+        $match: {
+          status: { $in: ["pending", "inprogress", "notSolved"] },
+        },
+      },
+      { $group: { _id: "$status", count: { $sum: 1 } } },
+    ]),
+    Report.findOne()
+      .sort({ createdAt: -1 })
+      .select(
+        "_id ownClub reportType message clubName skaterName districtName krsaId status createdAt"
+      )
+      .lean(),
+    Event.findOne()
+      .sort({ createdAt: -1 })
+      .select("header address eventType eventStartDate eventStartTime status createdAt")
+      .lean(),
+    Event.find({
+      eventStartDate: { $gte: todayStart },
+      status: { $nin: ["cancelled", "completed"] },
+    })
+      .sort({ eventStartDate: 1 })
+      .limit(3)
+      .select("header address eventType eventStartDate eventStartTime status")
+      .lean(),
+    Report.find()
+      .sort({ createdAt: -1 })
+      .limit(3)
+      .select(
+        "_id reportType message clubName skaterName districtName krsaId status createdAt"
+      )
+      .lean(),
+    Skater.aggregate([
+      { $match: { discipline: { $ne: null }, isActive: { $ne: false } } },
+      { $group: { _id: "$discipline", count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 6 },
+    ]),
+    Skater.aggregate([
+      { $match: { createdAt: { $gte: weekStart }, isActive: { $ne: false } } },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
+          },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]),
+    Report.aggregate([
+      { $match: { createdAt: { $gte: weekStart } } },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
+          },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]),
+  ]);
+
+  let pending = 0;
+  let inprogress = 0;
+  let notSolved = 0;
+  for (const item of reportStatsRaw) {
+    if (item._id === "pending") pending = item.count;
+    if (item._id === "inprogress") inprogress = item.count;
+    if (item._id === "notSolved") notSolved = item.count;
+  }
+
+  const openReports = pending + inprogress + notSolved;
+
+  const skaterGrowth = skatersThisMonth - skatersLastMonth;
+  const skaterGrowthLabel =
+    skaterGrowth > 0 ? `+${skaterGrowth}` : skaterGrowth < 0 ? `${skaterGrowth}` : "0";
+
+  const disciplineIds = disciplineAgg.map((item) => item._id).filter(Boolean);
+  const disciplineDocs = disciplineIds.length
+    ? await DisciplineService.find({ _id: { $in: disciplineIds } })
+        .select("name")
+        .lean()
+    : [];
+  const disciplineNameById = new Map(
+    disciplineDocs.map((doc) => [String(doc._id), doc.name || "Other"])
+  );
+
+  const disciplineTotal =
+    disciplineAgg.reduce((sum, item) => sum + (item.count || 0), 0) || totalSkaters || 1;
+
+  const disciplineDistribution = disciplineAgg.map((item, index) => ({
+    label: disciplineNameById.get(String(item._id)) || "Other",
+    value: Math.round((item.count / disciplineTotal) * 100),
+    count: item.count,
+    color: DISCIPLINE_CHART_COLORS[index % DISCIPLINE_CHART_COLORS.length],
+  }));
+
+  const formatDayKey = (date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  };
+
+  const weekLabels = [];
+  const skaterDaily = [];
+  const reportDaily = [];
+  for (let offset = 0; offset < 7; offset += 1) {
+    const day = new Date(weekStart);
+    day.setDate(day.getDate() + offset);
+    const key = formatDayKey(day);
+    weekLabels.push(day.toLocaleDateString("en-IN", { weekday: "short" }));
+    skaterDaily.push({
+      date: key,
+      count: skatersByDay.find((entry) => entry._id === key)?.count || 0,
+    });
+    reportDaily.push({
+      date: key,
+      count: reportsByDay.find((entry) => entry._id === key)?.count || 0,
+    });
+  }
+
+  const recentActivity = [];
+
+  for (const report of recentReports) {
+    recentActivity.push({
+      id: String(report._id),
+      type: "report",
+      title: `New ${report.reportType || "report"} submitted`,
+      detail: `${report.skaterName || report.krsaId || "A skater"} — ${report.clubName || "club"} (${report.status || "pending"})`,
+      time: formatRelativeTime(report.createdAt),
+      createdAt: report.createdAt,
+    });
+  }
+
+  if (latestEvent) {
+    recentActivity.push({
+      id: String(latestEvent._id),
+      type: "event",
+      title: `Event published: ${latestEvent.header || "New event"}`,
+      detail: `${latestEvent.eventType || "State"} event at ${latestEvent.address || "TBA"}`,
+      time: formatRelativeTime(latestEvent.createdAt),
+      createdAt: latestEvent.createdAt,
+    });
+  }
+
+  recentActivity.sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+
+  return {
+    user: {
+      fullName: greetingName,
+      role,
+      allowedModule,
+    },
+    summary: {
+      totalDistrict,
+      totalClubs,
+      totalSkaters,
+      skatersThisMonth,
+      skaterGrowth,
+      skaterGrowthLabel,
+      pendingApprovals,
+      upcomingEvents: upcomingEventsCount,
+      openReports,
+    },
+    reports: {
+      pending,
+      inprogress,
+      notSolved,
+      total: pending + inprogress + notSolved,
+    },
     latestReport: latestReport || null,
+    latestEvent: latestEvent || null,
+    upcomingSessions: upcomingEvents.map((event) => ({
+      id: String(event._id),
+      title: event.header || "Upcoming event",
+      subtitle: event.address || event.eventType || "Karnataka",
+      time: formatEventTime(event.eventStartDate, event.eventStartTime),
+      coach: event.eventType ? `${event.eventType} event` : "Scheduled",
+      status: event.status || "active",
+    })),
+    recentActivity: recentActivity.slice(0, 5),
+    disciplineDistribution,
+    disciplineTotal: disciplineTotal || totalSkaters,
+    weeklyOverview: {
+      labels: weekLabels,
+      skaterRegistrations: skaterDaily,
+      reportsFiled: reportDaily,
+      skaterSparkline: buildSparkline(skaterDaily),
+      reportSparkline: buildSparkline(reportDaily),
+    },
+    stats: [
+      {
+        key: "registeredSkaters",
+        module: "Skaters",
+        label: "Registered Skaters",
+        value: String(totalSkaters),
+        change: skaterGrowthLabel,
+        note: "new this month",
+      },
+      {
+        key: "totalClubs",
+        module: "Clubs",
+        label: "Total Clubs",
+        value: String(totalClubs),
+        change: String(pendingApprovals),
+        note: "pending district approval",
+      },
+      {
+        key: "upcomingEvents",
+        module: "Events",
+        label: "Upcoming Events",
+        value: String(upcomingEventsCount),
+        change: latestEvent?.header ? "Latest" : "—",
+        note: latestEvent?.header ? String(latestEvent.header).slice(0, 28) : "scheduled from today",
+      },
+      {
+        key: "totalDistricts",
+        module: "Districts",
+        label: "Districts",
+        value: String(totalDistrict),
+        change: String(openReports),
+        note: "open reports statewide",
+      },
+    ],
   };
 };
 
@@ -177,7 +491,9 @@ export const stateProfileRepository = async (stateId) => {
 /** Logged-in state official / sub-admin personal profile (for /profile page). */
 export const stateAccountProfileRepository = async (stateId) => {
   const profile = await State.findById(stateId)
-    .select("fullName phone email img gender address countryCode krsaId role")
+    .select(
+      "fullName phone email img gender address countryCode krsaId role allowedModule"
+    )
     .lean();
 
   if (!profile) {
@@ -188,6 +504,7 @@ export const stateAccountProfileRepository = async (stateId) => {
     ...profile,
     img: profile.img || "",
     role: profile.role || "State",
+    allowedModule: normalizeAllowedModule(profile.allowedModule),
   };
 };
 

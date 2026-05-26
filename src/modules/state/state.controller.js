@@ -19,10 +19,12 @@ import {
   updateStateService,
 } from "./state.service.js";
 
-export const displayDashboard = asyncHandler(async(req,res) =>{
-     const dashboardData = await displayDashboardService();
-     return res.status(200).json(new ApiResponse(200, dashboardData, "Display dashboard successfully"));
-})
+export const displayDashboard = asyncHandler(async (req, res) => {
+  const dashboardData = await displayDashboardService(req.user);
+  return res
+    .status(200)
+    .json(new ApiResponse(200, dashboardData, "Display dashboard successfully"));
+});
 
 export const displayProfile = asyncHandler(async (req, res) => {
     const stateId = req.user?._id;

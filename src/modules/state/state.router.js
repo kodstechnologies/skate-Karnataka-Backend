@@ -121,7 +121,7 @@ router.get(
 // ==================
 
 router.get("/v1/dashboard",
-  authenticate(["State"]),
+  authenticate(["Admin","State"]),
   displayDashboard
 )
 
@@ -210,5 +210,6 @@ router.delete("/v1/:id",
   authenticate(["Admin"]),
   deleteState
 );
+
 
 export default router;

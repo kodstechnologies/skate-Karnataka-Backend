@@ -2,7 +2,7 @@ import { AppError } from "../../util/common/AppError.js";
 import { paginate } from "../../util/common/paginate.js";
 import { Club } from "../club/club.model.js";
 import { District } from "../district/district.model.js";
-import { create_report_repositories, get_club_id, get_skater_report_repositories, getClubReportsRepositories, getDistrictReportsRepositories, getStateReportsRepositories, inProgressClubReportsRepositories, resolveClubReportsRepositories, resolveDistrictReportsRepositories, resolveStateReportsRepositories, updateClubReportClubRepositories, updateDistrictReportDistrictRepositories, updateStateReportStateRepositories, update_status_repositories } from "./report.repositories.js";
+import { create_report_repositories, get_club_id, get_skater_report_repositories, getAllDistrictScopeReportsRepositories, getClubReportsRepositories, getDistrictReportsRepositories, getStateReportsRepositories, inProgressClubReportsRepositories, resolveClubReportsRepositories, resolveDistrictReportsRepositories, resolveStateReportsRepositories, updateClubReportClubRepositories, updateDistrictReportDistrictRepositories, updateStateReportStateRepositories, update_status_repositories } from "./report.repositories.js";
 import {
     notifyClubOnNewReport,
     notifyReportResolvedBySkater,
@@ -48,6 +48,12 @@ export const resolveDistrictDocumentIdForReports = async (user) => {
 };
 
 export const getDistrictReportsForUser = async (user, page, limit) => {
+    const role = (user.role || "").toLowerCase();
+
+    if (role === "admin" || role === "state") {
+        return getAllDistrictScopeReportsRepositories(page, limit);
+    }
+
     const districtDocId = await resolveDistrictDocumentIdForReports(user);
     if (!districtDocId) {
         const { limit: perPage, page: currentPage } = paginate(page, limit);

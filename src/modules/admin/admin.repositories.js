@@ -486,6 +486,88 @@ export const removeClubMemberFromAllClubs = async (clubMemberId) => {
   );
 };
 
+const collectDistrictIds = (skaters = []) => {
+  const ids = new Set();
+
+  for (const skater of skaters) {
+    const districtRef = skater?.district;
+    if (districtRef) {
+      const districtId = districtRef._id || districtRef;
+      if (districtId) ids.add(String(districtId));
+    }
+
+    const clubDistrictRef = skater?.club?.district;
+    if (clubDistrictRef) {
+      const clubDistrictId = clubDistrictRef._id || clubDistrictRef;
+      if (clubDistrictId) ids.add(String(clubDistrictId));
+    }
+  }
+
+  return [...ids];
+};
+
+const buildDistrictNameMap = async (skaters = []) => {
+  const districtIds = collectDistrictIds(skaters);
+  if (!districtIds.length) {
+    return {};
+  }
+
+  const districts = await District.find({ _id: { $in: districtIds } })
+    .select("_id name")
+    .lean();
+
+  return Object.fromEntries(
+    districts.map((district) => [String(district._id), district.name || ""])
+  );
+};
+
+const resolveSkaterDistrict = (skater, districtNameMap = {}) => {
+  const populatedDistrict = skater?.district;
+  if (populatedDistrict && typeof populatedDistrict === "object" && populatedDistrict.name) {
+    return {
+      _id: populatedDistrict._id,
+      name: populatedDistrict.name,
+    };
+  }
+
+  const districtId = populatedDistrict?._id || populatedDistrict;
+  if (districtId && districtNameMap[String(districtId)]) {
+    return {
+      _id: districtId,
+      name: districtNameMap[String(districtId)],
+    };
+  }
+
+  const club = skater?.club;
+  if (club?.district && typeof club.district === "object" && club.district.name) {
+    return {
+      _id: club.district._id,
+      name: club.district.name,
+    };
+  }
+
+  const clubDistrictId = club?.district?._id || club?.district;
+  if (clubDistrictId && districtNameMap[String(clubDistrictId)]) {
+    return {
+      _id: clubDistrictId,
+      name: districtNameMap[String(clubDistrictId)],
+    };
+  }
+
+  if (club?.districtName) {
+    return {
+      _id: club.district || null,
+      name: club.districtName,
+    };
+  }
+
+  if (typeof populatedDistrict === "string" && populatedDistrict.trim()) {
+    return { _id: null, name: populatedDistrict.trim() };
+  }
+
+  return null;
+};
+
 export const getAllSkatersForAdmin = async ({ page = 1, limit = 10, search = "" } = {}) => {
   const currentPage = Math.max(Number(page) || 1, 1);
   const pageLimit = Math.max(Number(limit) || 10, 1);
@@ -494,6 +576,20 @@ export const getAllSkatersForAdmin = async ({ page = 1, limit = 10, search = "" 
 
   const query = { role: "Skater" };
   if (trimmedSearch) {
+    const matchingDistricts = await District.find({
+      name: { $regex: trimmedSearch, $options: "i" },
+    })
+      .select("_id")
+      .lean();
+    const districtIds = matchingDistricts.map((district) => district._id);
+
+    const clubIdsFromDistrictName = districtIds.length
+      ? await Club.find({ district: { $in: districtIds } })
+          .select("_id")
+          .lean()
+      : [];
+    const clubIds = clubIdsFromDistrictName.map((club) => club._id);
+
     query.$or = [
       { fullName: { $regex: trimmedSearch, $options: "i" } },
       { phone: { $regex: trimmedSearch, $options: "i" } },
@@ -501,31 +597,44 @@ export const getAllSkatersForAdmin = async ({ page = 1, limit = 10, search = "" 
       { gender: { $regex: trimmedSearch, $options: "i" } },
       { email: { $regex: trimmedSearch, $options: "i" } },
       { krsaId: { $regex: trimmedSearch, $options: "i" } },
+      ...(districtIds.length ? [{ district: { $in: districtIds } }] : []),
+      ...(clubIds.length ? [{ club: { $in: clubIds } }] : []),
     ];
   }
 
   const [total, skaters] = await Promise.all([
     BaseAuth.countDocuments(query),
     BaseAuth.find(query)
-      .select("_id fullName profile phone address district gender email krsaId")
+      .select("_id fullName profile phone address district gender email krsaId club")
       .populate("district", "_id name")
+      .populate({
+        path: "club",
+        select: "name district districtName",
+        populate: { path: "district", select: "_id name" },
+      })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(pageLimit)
       .lean(),
   ]);
 
-  const formattedSkaters = skaters.map((skater) => ({
-    _id: skater._id,
-    fullName: skater.fullName || "",
-    profile: skater.profile || "",
-    phone: skater.phone || "",
-    address: skater.address || "",
-    district: skater?.district?.name || "",
-    gender: skater.gender || "",
-    email: skater.email || "",
-    krsaId: skater.krsaId || "",
-  }));
+  const districtNameMap = await buildDistrictNameMap(skaters);
+
+  const formattedSkaters = skaters.map((skater) => {
+    const district = resolveSkaterDistrict(skater, districtNameMap);
+    return {
+      _id: skater._id,
+      fullName: skater.fullName || "",
+      profile: skater.profile || "",
+      phone: skater.phone || "",
+      address: skater.address || "",
+      district,
+      districtName: district?.name || "",
+      gender: skater.gender || "",
+      email: skater.email || "",
+      krsaId: skater.krsaId || "",
+    };
+  });
 
   return {
     data: formattedSkaters,
@@ -549,9 +658,13 @@ export const getSkaterFullDetailsByIdForAdmin = async (skaterId) => {
     return null;
   }
 
+  const districtNameMap = await buildDistrictNameMap([skater]);
+  const district = resolveSkaterDistrict(skater, districtNameMap);
+
   return {
     ...skater,
-    district: skater?.district?.name || "",
-    districtDetails: skater?.district || null,
+    district,
+    districtName: district?.name || "",
+    districtDetails: district,
   };
 };

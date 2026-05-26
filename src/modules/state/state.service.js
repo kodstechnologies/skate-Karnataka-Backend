@@ -47,8 +47,8 @@ export const deleteStateService = async (stateId) => {
   return deleteStateRepository(stateId);
 };
 
-export const displayDashboardService = async () => {
-  return stateDashboardRepository();
+export const displayDashboardService = async (user) => {
+  return stateDashboardRepository(user);
 };
 
 export const displayProfileService = async (stateId) => {

@@ -359,6 +359,72 @@ const save_generated_certificate_repository = async (payload) => {
     return await GeneratedCertificate.create(payload);
 };
 
+const buildSkaterCertificateUserMatch = async (userId) => {
+    if (!userId || !mongoose.Types.ObjectId.isValid(String(userId))) {
+        return null;
+    }
+
+    const skaterUserId = new mongoose.Types.ObjectId(String(userId));
+    const orConditions = [{ userId: skaterUserId }];
+
+    const participantIds = await EventParticipant.find({ userId: skaterUserId })
+        .distinct("_id");
+
+    if (participantIds.length > 0) {
+        orConditions.push({ participantId: { $in: participantIds } });
+    }
+
+    return orConditions.length === 1 ? orConditions[0] : { $or: orConditions };
+};
+
+/**
+ * Distinct events where skater placed 1st (gold) or 2nd (silver) per generated certificates.
+ * Matched by token userId on GeneratedCertificate.userId (and participantId fallback).
+ */
+const count_skater_certificate_medal_stats_repository = async ({ userId } = {}) => {
+    const certificateMatch = await buildSkaterCertificateUserMatch(userId);
+    if (!certificateMatch) {
+        return { goldMedals: 0, silverMedals: 0 };
+    }
+
+    const [result] = await GeneratedCertificate.aggregate([
+        { $match: certificateMatch },
+        { $unwind: "$events" },
+        {
+            $addFields: {
+                placementRank: {
+                    $convert: {
+                        input: { $trim: { input: { $ifNull: ["$events.placement", ""] } } },
+                        to: "int",
+                        onError: null,
+                        onNull: null,
+                    },
+                },
+            },
+        },
+        { $match: { placementRank: { $in: [1, 2] } } },
+        {
+            $facet: {
+                goldMedals: [
+                    { $match: { placementRank: 1 } },
+                    { $group: { _id: "$eventId" } },
+                    { $count: "count" },
+                ],
+                silverMedals: [
+                    { $match: { placementRank: 2 } },
+                    { $group: { _id: "$eventId" } },
+                    { $count: "count" },
+                ],
+            },
+        },
+    ]);
+
+    return {
+        goldMedals: result?.goldMedals?.[0]?.count ?? 0,
+        silverMedals: result?.silverMedals?.[0]?.count ?? 0,
+    };
+};
+
 const build_participant_certificate_payload_repository = async (
     participant,
     event,
@@ -399,4 +465,5 @@ export {
     find_generated_certificate_repository,
     save_generated_certificate_repository,
     build_participant_certificate_payload_repository,
+    count_skater_certificate_medal_stats_repository,
 };

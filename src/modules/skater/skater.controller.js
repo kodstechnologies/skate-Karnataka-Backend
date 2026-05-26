@@ -27,8 +27,8 @@ const GetSkaterProfile = asyncHandler(async (req, res) => {
         krsaId: profile?.krsaId || "",
         category: profile?.category?.typeName || "",
         discipline: profile?.disciplineName || profile?.discipline?.name || "",
-        stateRank: profile?.stateRank || 0,
-        goldMedals: profile?.goldMedals || 0,
+        goldMedals: profile?.goldMedals ?? 0,
+        silverMedals: profile?.silverMedals ?? 0,
     };
 
     return res.status(200).json(new ApiResponse(200, response, "Skater profile display successfully"))

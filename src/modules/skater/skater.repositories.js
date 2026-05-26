@@ -3,7 +3,10 @@ import { AppError } from "../../util/common/AppError.js";
 import { BaseAuth } from "../auth/baseAuth.model.js";
 import { DisciplineService } from "../discipline/discipline.model.js";
 import { Discipline } from "../guest/disciplines.model.js";
-import { listCompetitionCategoryRankingsRepository } from "../event/event.repositories.js";
+import {
+  countSkaterParticipantMedalStatsRepository,
+  listCompetitionCategoryRankingsRepository,
+} from "../event/event.repositories.js";
 import { sortCompetitionByTime } from "../../util/competition/rankUtil.js";
 import { formatCompetitionTimeTakenFromSeconds } from "../../util/time/timeUtil.js";
 import { EventParticipant } from "../event/eventParticipant.model.js";
@@ -227,7 +230,16 @@ const get_skater_profile_repositories = async (id) => {
         .populate("category", "typeName")
         .lean();
 
-    return attachDisciplineName(profile);
+    if (!profile) return null;
+
+    const withDiscipline = await attachDisciplineName(profile);
+    const medalStats = await countSkaterParticipantMedalStatsRepository(id);
+
+    return {
+        ...withDiscipline,
+        goldMedals: medalStats.goldMedals,
+        silverMedals: medalStats.silverMedals,
+    };
 };
 
 const get_skater_digital_id_card_repositories = async (id) => {

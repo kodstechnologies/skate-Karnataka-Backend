@@ -1197,6 +1197,89 @@ export const listCompetitionCategoryRankingsRepository = async (
   return assignCompetitionRanks(results);
 };
 
+const buildParticipantCompetitionGroupKey = (
+  eventId,
+  ageGroup,
+  categoriesId,
+  categoryName
+) =>
+  `${String(eventId)}::${String(ageGroup || "").trim()}::${String(categoriesId || "")}::${String(categoryName || "").trim()}`;
+
+/**
+ * goldMedals / silverMedals for skater profile:
+ * rank 1 = fastest time, rank 2 = 2nd fastest in each
+ * (eventId + ageGroup + categoriesId + category.name) group.
+ */
+export const countSkaterParticipantMedalStatsRepository = async (userId) => {
+  if (!userId || !mongoose.Types.ObjectId.isValid(String(userId))) {
+    return { goldMedals: 0, silverMedals: 0 };
+  }
+
+  const skaterUserId = new mongoose.Types.ObjectId(String(userId));
+  const skaterKey = String(userId);
+
+  const myParticipations = await EventParticipant.find({ userId: skaterUserId })
+    .select("eventId")
+    .lean();
+
+  if (!myParticipations.length) {
+    return { goldMedals: 0, silverMedals: 0 };
+  }
+
+  const eventIds = [
+    ...new Set(myParticipations.map((row) => String(row.eventId))),
+  ].map((id) => new mongoose.Types.ObjectId(id));
+
+  const participants = await EventParticipant.find({
+    eventId: { $in: eventIds },
+  })
+    .select("eventId ageGroup categoriesId userId categories")
+    .lean();
+
+  const grouped = new Map();
+
+  for (const participant of participants) {
+    const ageGroup = String(participant.ageGroup || "").trim();
+    const categoriesId = participant.categoriesId;
+
+    for (const category of participant.categories || []) {
+      const categoryName = String(category?.name || "").trim();
+      if (!categoryName) continue;
+
+      const key = buildParticipantCompetitionGroupKey(
+        participant.eventId,
+        ageGroup,
+        categoriesId,
+        categoryName
+      );
+
+      if (!grouped.has(key)) {
+        grouped.set(key, { results: [] });
+      }
+
+      grouped.get(key).results.push({
+        registrationId: participant._id,
+        userId: participant.userId?._id || participant.userId || null,
+        timeTaken: category.timeTaken ?? null,
+        isDisqualified: Boolean(category.isDisqualified),
+      });
+    }
+  }
+
+  let goldMedals = 0;
+  let silverMedals = 0;
+
+  for (const group of grouped.values()) {
+    const { results: ranked } = assignCompetitionRanks(group.results);
+    const mine = ranked.find((row) => String(row.userId) === skaterKey);
+    if (!mine?.rank) continue;
+    if (mine.rank === 1) goldMedals += 1;
+    if (mine.rank === 2) silverMedals += 1;
+  }
+
+  return { goldMedals, silverMedals };
+};
+
 export const recalculateAndPersistCategoryRanksRepository = async ({
   eventId,
   categoriesId,

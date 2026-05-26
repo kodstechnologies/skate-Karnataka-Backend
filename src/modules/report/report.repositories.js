@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { paginate } from "../../util/common/paginate.js";
+import { buildPaginationMeta, calcTotalPages, paginate } from "../../util/common/paginate.js";
 import { AppError } from "../../util/common/AppError.js";
 import { BaseAuth } from "../auth/baseAuth.model.js"
 import { Club } from "../club/club.model.js";
@@ -51,7 +51,7 @@ const get_skater_report_repositories = async (
     status,
     reportType
 ) => {
-    const { skip, limit: perPage } = paginate(page, limit);
+    const { skip, limit: perPage, page: currentPage } = paginate(page, limit);
 
     const filter = {};
 
@@ -70,9 +70,9 @@ const get_skater_report_repositories = async (
 
     return {
         total,
-        page: Number(page),
-        totalPages: Math.ceil(total / perPage),
-        data: reports
+        page: currentPage,
+        totalPages: calcTotalPages(total, perPage),
+        data: reports,
     };
 };
 
@@ -117,12 +117,11 @@ export const getClubReportsRepositories = async (clubId, page, limit) => {
 
     return {
         data,
-        pagination: {
+        pagination: buildPaginationMeta({
             total,
             page: currentPage,
             limit: perPage,
-            totalPages: Math.ceil(total / perPage),
-        },
+        }),
     };
 };
 /** Reports for clubs in this district; excludes skater-marked solved. */
@@ -132,8 +131,9 @@ export const getDistrictReportsRepositories = async (districtDocId, page, limit)
     const district = await District.findById(districtObjectId).select("name").lean();
 
     const districtScope = [{ "clubDoc.district": districtObjectId }];
-    if (district?.name) {
-        districtScope.push({ districtName: district.name });
+    const districtLabel = district?.name?.trim();
+    if (districtLabel) {
+        districtScope.push({ districtName: districtLabel });
     }
 
     const baseMatch = {
@@ -154,58 +154,62 @@ export const getDistrictReportsRepositories = async (districtDocId, page, limit)
         { $match: baseMatch },
     ];
 
-    const [totalResult, data] = await Promise.all([
-        Report.aggregate([...lookupStages, { $count: "total" }]),
-        Report.aggregate([
-            ...lookupStages,
-            { $sort: { createdAt: -1 } },
-            { $skip: skip },
-            { $limit: perPage },
-            {
-                $lookup: {
-                    from: BaseAuth.collection.name,
-                    localField: "complainedBy",
-                    foreignField: "_id",
-                    as: "complainedByUser",
-                },
-            },
-            {
-                $addFields: {
-                    complainedBy: {
-                        $arrayElemAt: ["$complainedByUser", 0],
+    const [facetResult] = await Report.aggregate([
+        ...lookupStages,
+        {
+            $facet: {
+                metadata: [{ $count: "total" }],
+                data: [
+                    { $sort: { createdAt: -1 } },
+                    { $skip: skip },
+                    { $limit: perPage },
+                    {
+                        $lookup: {
+                            from: BaseAuth.collection.name,
+                            localField: "complainedBy",
+                            foreignField: "_id",
+                            as: "complainedByUser",
+                        },
                     },
-                },
+                    {
+                        $addFields: {
+                            complainedBy: {
+                                $arrayElemAt: ["$complainedByUser", 0],
+                            },
+                        },
+                    },
+                    {
+                        $project: {
+                            reportType: 1,
+                            message: 1,
+                            clubName: 1,
+                            skaterName: 1,
+                            districtName: 1,
+                            krsaId: 1,
+                            status: 1,
+                            districtStatus: 1,
+                            districtMessage: 1,
+                            clubStatus: 1,
+                            clubMessage: 1,
+                            complainedBy: { fullName: "$complainedBy.fullName" },
+                            createdAt: 1,
+                        },
+                    },
+                ],
             },
-            {
-                $project: {
-                    reportType: 1,
-                    message: 1,
-                    clubName: 1,
-                    skaterName: 1,
-                    districtName: 1,
-                    krsaId: 1,
-                    status: 1,
-                    districtStatus: 1,
-                    districtMessage: 1,
-                    clubStatus: 1,
-                    clubMessage: 1,
-                    complainedBy: { fullName: "$complainedBy.fullName" },
-                    createdAt: 1,
-                },
-            },
-        ]),
+        },
     ]);
 
-    const total = totalResult[0]?.total ?? 0;
+    const total = facetResult?.metadata?.[0]?.total ?? 0;
+    const data = facetResult?.data ?? [];
 
     return {
         data,
-        pagination: {
+        pagination: buildPaginationMeta({
             total,
             page: currentPage,
             limit: perPage,
-            totalPages: Math.ceil(total / perPage) || 0,
-        },
+        }),
     };
 };
 
@@ -220,12 +224,11 @@ export const getAllDistrictScopeReportsRepositories = async (page, limit) => {
     if (!clubIds.length) {
         return {
             data: [],
-            pagination: {
+            pagination: buildPaginationMeta({
                 total: 0,
                 page: currentPage,
                 limit: perPage,
-                totalPages: 0,
-            },
+            }),
         };
     }
 
@@ -248,12 +251,11 @@ export const getAllDistrictScopeReportsRepositories = async (page, limit) => {
 
     return {
         data,
-        pagination: {
+        pagination: buildPaginationMeta({
             total,
             page: currentPage,
             limit: perPage,
-            totalPages: Math.ceil(total / perPage),
-        },
+        }),
     };
 };
 
@@ -311,12 +313,11 @@ export const getStateReportsRepositories = async (page, limit) => {
 
     return {
         data,
-        pagination: {
+        pagination: buildPaginationMeta({
             total,
             page: currentPage,
             limit: perPage,
-            totalPages: Math.ceil(total / perPage),
-        },
+        }),
     };
 };
 

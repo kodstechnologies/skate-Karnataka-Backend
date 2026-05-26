@@ -1,5 +1,5 @@
 import { AppError } from "../../util/common/AppError.js";
-import { paginate } from "../../util/common/paginate.js";
+import { buildPaginationMeta, paginate } from "../../util/common/paginate.js";
 import { Club } from "../club/club.model.js";
 import { District } from "../district/district.model.js";
 import { create_report_repositories, get_club_id, get_skater_report_repositories, getAllDistrictScopeReportsRepositories, getClubReportsRepositories, getDistrictReportsRepositories, getStateReportsRepositories, inProgressClubReportsRepositories, resolveClubReportsRepositories, resolveDistrictReportsRepositories, resolveStateReportsRepositories, updateClubReportClubRepositories, updateDistrictReportDistrictRepositories, updateStateReportStateRepositories, update_status_repositories } from "./report.repositories.js";
@@ -59,12 +59,11 @@ export const getDistrictReportsForUser = async (user, page, limit) => {
         const { limit: perPage, page: currentPage } = paginate(page, limit);
         return {
             data: [],
-            pagination: {
+            pagination: buildPaginationMeta({
                 total: 0,
                 page: currentPage,
                 limit: perPage,
-                totalPages: 0,
-            },
+            }),
         };
     }
     return getDistrictReportsRepositories(districtDocId, page, limit);
@@ -125,12 +124,11 @@ export const getClubReportsForUser = async (user, page, limit) => {
         const { limit: perPage, page: currentPage } = paginate(page, limit);
         return {
             data: [],
-            pagination: {
+            pagination: buildPaginationMeta({
                 total: 0,
                 page: currentPage,
                 limit: perPage,
-                totalPages: 0,
-            },
+            }),
         };
     }
     return getClubReportsRepositories(clubDocId, page, limit);

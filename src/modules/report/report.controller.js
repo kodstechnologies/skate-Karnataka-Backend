@@ -1,4 +1,5 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
+import { buildPaginationMeta } from "../../util/common/paginate.js";
 import { AppError } from "../../util/common/AppError.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js"
 import { create_report_service, get_skater_report_service, getClubReportsForUser, getDistrictReportsForUser, getStateReportsForUser, inProgressClubReportsServices, resolveClubDocumentIdForReports, resolveClubReportsServices, resolveDistrictReportsServices, updateClubReportClubService, updateDistrictReportDistrictService, updateStateReportStateService, update_status_service } from "./report.service.js";
@@ -123,7 +124,7 @@ const getDistrictReports = asyncHandler(async (req, res) => {
             200,
             {
                 reports,
-                pagination: result.pagination,
+                pagination: buildPaginationMeta(result.pagination),
             },
             "District report display successfully"
         )

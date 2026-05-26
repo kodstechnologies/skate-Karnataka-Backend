@@ -171,9 +171,9 @@ const after_login_skater_form_repositories = async (data, id) => {
     await assertUniqueContactForUpdate(id, setPayload, existingUser);
 
     if (data?.club) {
-        setPayload.clubStatus = "apply";
-    } else {
         setPayload.clubStatus = "join";
+    } else {
+        setPayload.clubStatus = "apply";
     }
 
     delete setPayload.img;

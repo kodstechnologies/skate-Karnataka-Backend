@@ -28,6 +28,17 @@ export const editStateValidation = {
   }).min(1),
 };
 
+/** Self-service profile edit for logged-in state officials (sub-admins). */
+export const stateSelfEditProfileValidation = {
+  body: Joi.object({
+    fullName: Joi.string().trim().min(3).max(50),
+    phone: Joi.string().trim().pattern(/^[6-9]\d{9}$/),
+    address: Joi.string().trim().max(200).allow(""),
+    gender: Joi.string().trim().lowercase(),
+    img: Joi.string().uri(),
+  }).min(1),
+};
+
 export const getAllStateValidation = {
   query: Joi.object({
     page: Joi.number().integer().min(1).default(1),

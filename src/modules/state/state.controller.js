@@ -12,6 +12,8 @@ import {
   displayClubSkaterByIdForStateService,
   displayDashboardService,
   displayProfileService,
+  getStateAccountProfileService,
+  editStateAccountProfileService,
   displayAllStateService,
   displaySingleStateAllDistrictsService,
   updateStateService,
@@ -26,6 +28,20 @@ export const displayProfile = asyncHandler(async (req, res) => {
     const stateId = req.user?._id;
     const profileData = await displayProfileService(stateId);
     return res.status(200).json(new ApiResponse(200, profileData, "Display profile details successfully"));
+});
+
+export const stateAccountProfile = asyncHandler(async (req, res) => {
+    const profile = await getStateAccountProfileService(req.user?._id);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, profile, "Profile fetched successfully"));
+});
+
+export const editStateAccountProfile = asyncHandler(async (req, res) => {
+    const profile = await editStateAccountProfileService(req.user?._id, req.body);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, profile, "Profile updated successfully"));
 });
 
 const displayAllState = asyncHandler(async(req , res) =>{

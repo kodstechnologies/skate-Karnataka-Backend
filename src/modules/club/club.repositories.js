@@ -561,10 +561,16 @@ const deleteClubDetails = async (id) => {
     await Club.findByIdAndDelete(id);
 }
 
-const clubsByDistrictPaginatedRepository = async (districtId, { page, limit }) => {
+const clubsByDistrictPaginatedRepository = async (
+    districtId,
+    { page, limit, excludeClubId = null }
+) => {
     const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
 
     const filter = { district: districtId };
+    if (excludeClubId) {
+        filter._id = { $ne: excludeClubId };
+    }
 
     const clubs = await Club.find(filter)
         .select("_id name img address districtStatus districtName")
@@ -609,7 +615,10 @@ const allClubsPaginatedForSkaterRepository = async ({ page, limit }) => {
     };
 };
 
-/** Joined skater: clubs in their club's district; left/no club: all clubs. */
+/**
+ * Joined skater: other clubs in the same district (current club excluded).
+ * No club / left club: all clubs paginated.
+ */
 const clubsForSkaterUserRepository = async (userId, { page, limit }) => {
     const skater = await Skater.findById(userId).select("club clubStatus").lean();
 
@@ -617,7 +626,7 @@ const clubsForSkaterUserRepository = async (userId, { page, limit }) => {
         throw new AppError("Skater not found", 404);
     }
 
-    const status = String(skater.clubStatus || "").trim();
+    const status = String(skater.clubStatus || "").trim().toLowerCase();
     const inClub =
         skater.club &&
         SKATER_IN_CLUB_STATUSES.includes(status);
@@ -631,6 +640,7 @@ const clubsForSkaterUserRepository = async (userId, { page, limit }) => {
         const result = await clubsByDistrictPaginatedRepository(clubDoc.district, {
             page,
             limit,
+            excludeClubId: skater.club,
         });
 
         return {
@@ -639,6 +649,7 @@ const clubsForSkaterUserRepository = async (userId, { page, limit }) => {
             districtId: clubDoc.district,
             districtName: clubDoc.districtName || "",
             joinedClubId: skater.club,
+            excludedClubId: skater.club,
         };
     }
 

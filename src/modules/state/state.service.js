@@ -14,6 +14,8 @@ import {
   isStateExistByNameRepository,
   stateDashboardRepository,
   stateProfileRepository,
+  stateAccountProfileRepository,
+  updateStateAccountProfileRepository,
   updateStateRepository,
 } from "./state.repositories.js";
 
@@ -51,6 +53,14 @@ export const displayDashboardService = async () => {
 
 export const displayProfileService = async (stateId) => {
   return stateProfileRepository(stateId);
+};
+
+export const getStateAccountProfileService = async (stateId) => {
+  return stateAccountProfileRepository(stateId);
+};
+
+export const editStateAccountProfileService = async (stateId, payload) => {
+  return updateStateAccountProfileRepository(stateId, payload);
 };
 
 export const displayAllDistrictsByStateService = async ({ page, limit, search }) => {

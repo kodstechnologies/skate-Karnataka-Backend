@@ -174,6 +174,43 @@ export const stateProfileRepository = async (stateId) => {
   };
 };
 
+/** Logged-in state official / sub-admin personal profile (for /profile page). */
+export const stateAccountProfileRepository = async (stateId) => {
+  const profile = await State.findById(stateId)
+    .select("fullName phone email img gender address countryCode krsaId role")
+    .lean();
+
+  if (!profile) {
+    throw new AppError("Profile not found", 404);
+  }
+
+  return {
+    ...profile,
+    img: profile.img || "",
+    role: profile.role || "State",
+  };
+};
+
+export const updateStateAccountProfileRepository = async (stateId, payload) => {
+  const updated = await State.findByIdAndUpdate(
+    stateId,
+    { $set: payload },
+    { new: true, runValidators: true }
+  )
+    .select("fullName phone email img gender address countryCode krsaId role")
+    .lean();
+
+  if (!updated) {
+    throw new AppError("Profile not found", 404);
+  }
+
+  return {
+    ...updated,
+    img: updated.img || "",
+    role: updated.role || "State",
+  };
+};
+
 export const getAllDistrictsByStateRepository = async ({ page, limit, search = "" }) => {
   const pagination = paginate(page, limit);
   const term = String(search || "").trim();

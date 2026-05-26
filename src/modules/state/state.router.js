@@ -13,12 +13,15 @@ import {
   displayAllState,
   displayDashboard,
   displayProfile,
+  stateAccountProfile,
+  editStateAccountProfile,
   displaySingleStateAllDistricts,
   updateState,
 } from "./state.controller.js";
 import {
   createStateValidation,
   editStateValidation,
+  stateSelfEditProfileValidation,
   getAllStateValidation,
   stateListQueryValidation,
 } from "./state.validation.js";
@@ -126,6 +129,21 @@ router.get("/v1/profile",
   authenticate(["State"]),
   displayProfile
 )
+
+router.get(
+  "/v1/account-profile",
+  authenticate(["State"]),
+  stateAccountProfile
+);
+
+router.patch(
+  "/v1/edit-profile",
+  authenticate(["State"]),
+  upload.single("img"),
+  uploadToS3("img"),
+  validate(stateSelfEditProfileValidation),
+  editStateAccountProfile
+);
 
 // 🔹 Get all states
 router.get("/v1/all",

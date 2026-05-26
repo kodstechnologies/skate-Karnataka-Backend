@@ -158,7 +158,10 @@ const displaySingleClub = asyncHandler(async (req, res) => {
         districtName: clubDetails.districtName,
         name: clubDetails.name,
         img: clubDetails.img || "",
-        address: clubDetails.address || "",
+        address:
+            clubDetails.officeAddress ||
+            clubDetails.address ||
+            "",
         about: clubDetails.about || "",
         skaters: clubDetails.skaters ?? 0,
         rank: clubDetails.rank ?? 0,

@@ -167,22 +167,82 @@ const list_skater_participants_for_certificate_repository = async (userId, page,
     const total = result?.total ?? 0;
     const rows = Array.isArray(result?.data) ? result.data : [];
 
-    const data = rows.map((p) => ({
-        _id: p._id,
-        winnerKRSAId: p.user?.krsaId ?? null,
-        name: p.name ?? null,
-        division: p.division || p.ageGroup || null,
-        ageGroup: p.ageGroup || null,
-        eventName: p.event?.header || "",
-        request: Boolean(p.skaterApply),
-        clubAllow: Boolean(p.clubAllow),
-        districtAllow: Boolean(p.districtAllow),
-        stateAllow: Boolean(p.stateAllow),
-        certificateID: p.certificateID ?? null,
-        paymentStatus: p.paymentStatus || "pending",
-        event: formatCertificateEvent(p.event),
-        certificateAvailable: true,
-    }));
+    const eventOids = [
+        ...new Set(
+            rows
+                .map((p) => p.eventId || p.event?._id)
+                .filter((id) => id && mongoose.Types.ObjectId.isValid(String(id)))
+        ),
+    ];
+    const participantOids = rows
+        .map((p) => p._id)
+        .filter((id) => id && mongoose.Types.ObjectId.isValid(String(id)));
+
+    const documentLinkByUserAndEvent = new Map();
+    const documentLinkByParticipantAndEvent = new Map();
+
+    if (eventOids.length > 0) {
+        const orConditions = [{ userId: skaterUserId, eventId: { $in: eventOids } }];
+        if (participantOids.length > 0) {
+            orConditions.push({ participantId: { $in: participantOids }, eventId: { $in: eventOids } });
+        }
+
+        const certificates = await GeneratedCertificate.find({ $or: orConditions })
+            .select("eventId participantId userId pdfUrl")
+            .sort({ updatedAt: -1 })
+            .lean();
+
+        for (const cert of certificates) {
+            const pdfUrl = cert.pdfUrl?.trim() || "";
+            if (!pdfUrl) continue;
+
+            const eventKey = String(cert.eventId);
+            const userKey = `${String(cert.userId)}:${eventKey}`;
+            if (cert.userId && !documentLinkByUserAndEvent.has(userKey)) {
+                documentLinkByUserAndEvent.set(userKey, pdfUrl);
+            }
+
+            const participantKey = `${String(cert.participantId)}:${eventKey}`;
+            if (cert.participantId && !documentLinkByParticipantAndEvent.has(participantKey)) {
+                documentLinkByParticipantAndEvent.set(participantKey, pdfUrl);
+            }
+        }
+    }
+
+    const resolveDocumentLink = (participantRow) => {
+        const eventId = participantRow.eventId || participantRow.event?._id;
+        if (!eventId) return "";
+
+        const eventKey = String(eventId);
+        const userKey = `${String(skaterUserId)}:${eventKey}`;
+        const fromUser = documentLinkByUserAndEvent.get(userKey);
+        if (fromUser) return fromUser;
+
+        const participantKey = `${String(participantRow._id)}:${eventKey}`;
+        return documentLinkByParticipantAndEvent.get(participantKey) || "";
+    };
+
+    const data = rows.map((p) => {
+        const documentLink = resolveDocumentLink(p);
+
+        return {
+            _id: p._id,
+            winnerKRSAId: p.user?.krsaId ?? null,
+            name: p.name ?? null,
+            division: p.division || p.ageGroup || null,
+            ageGroup: p.ageGroup || null,
+            eventName: p.event?.header || "",
+            request: Boolean(p.skaterApply),
+            clubAllow: Boolean(p.clubAllow),
+            districtAllow: Boolean(p.districtAllow),
+            stateAllow: Boolean(p.stateAllow),
+            certificateID: p.certificateID ?? null,
+            paymentStatus: p.paymentStatus || "pending",
+            event: formatCertificateEvent(p.event),
+            certificateAvailable: true,
+            documentLink,
+        };
+    });
 
     return {
         data,

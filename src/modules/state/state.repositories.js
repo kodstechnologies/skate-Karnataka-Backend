@@ -17,11 +17,27 @@ const DISCIPLINE_CHART_COLORS = [
   "#53c7c5",
 ];
 
+const IST_TIMEZONE = "Asia/Kolkata";
+
 const startOfDay = (date) => {
   const value = new Date(date);
   value.setHours(0, 0, 0, 0);
   return value;
 };
+
+const formatDayKey = (date) =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: IST_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+
+const formatWeekdayLabel = (date) =>
+  new Intl.DateTimeFormat("en-IN", {
+    timeZone: IST_TIMEZONE,
+    weekday: "short",
+  }).format(date);
 
 const formatRelativeTime = (dateValue) => {
   if (!dateValue) return "";
@@ -263,7 +279,11 @@ export const stateDashboardRepository = async (user) => {
       {
         $group: {
           _id: {
-            $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
+            $dateToString: {
+              format: "%Y-%m-%d",
+              date: "$createdAt",
+              timezone: IST_TIMEZONE,
+            },
           },
           count: { $sum: 1 },
         },
@@ -275,7 +295,11 @@ export const stateDashboardRepository = async (user) => {
       {
         $group: {
           _id: {
-            $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
+            $dateToString: {
+              format: "%Y-%m-%d",
+              date: "$createdAt",
+              timezone: IST_TIMEZONE,
+            },
           },
           count: { $sum: 1 },
         },
@@ -319,13 +343,6 @@ export const stateDashboardRepository = async (user) => {
     color: DISCIPLINE_CHART_COLORS[index % DISCIPLINE_CHART_COLORS.length],
   }));
 
-  const formatDayKey = (date) => {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, "0");
-    const d = String(date.getDate()).padStart(2, "0");
-    return `${y}-${m}-${d}`;
-  };
-
   const weekLabels = [];
   const skaterDaily = [];
   const reportDaily = [];
@@ -333,7 +350,7 @@ export const stateDashboardRepository = async (user) => {
     const day = new Date(weekStart);
     day.setDate(day.getDate() + offset);
     const key = formatDayKey(day);
-    weekLabels.push(day.toLocaleDateString("en-IN", { weekday: "short" }));
+    weekLabels.push(formatWeekdayLabel(day));
     skaterDaily.push({
       date: key,
       count: skatersByDay.find((entry) => entry._id === key)?.count || 0,

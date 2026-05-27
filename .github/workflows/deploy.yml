@@ -24,7 +24,8 @@ jobs:
             cd /home/ubuntu/skate-Karnataka-Backend
 
             echo "📥 Pulling latest code..."
-            git pull origin main
+            git fetch origin
+            git reset --hard origin/main
 
             echo "⚙️ Creating .env file..."
             echo "${{ secrets.ENV_FILE }}" > .env

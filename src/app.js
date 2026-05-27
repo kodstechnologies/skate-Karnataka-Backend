@@ -64,7 +64,7 @@ app.use(cors({
 }));
 
 app.get('/health', (req, res) => {
-    res.send("Welcome to KRSA backend .0!333 Server is healthy.");
+    res.send("Welcome to KRSA backend .0!333 Server is healthy.00");
 })
 
 app.use("/auth", authRouter);

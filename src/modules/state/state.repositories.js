@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { AppError } from "../../util/common/AppError.js";
 import { paginate } from "../../util/common/paginate.js";
 import { District } from "../district/district.model.js";
@@ -6,6 +7,7 @@ import { Skater } from "../skater/skater.model.js";
 import { Report } from "../report/report.model.js";
 import { Event } from "../event/event.model.js";
 import { DisciplineService } from "../discipline/discipline.model.js";
+import { BaseAuth } from "../auth/baseAuth.model.js";
 import { State } from "./state.model.js";
 
 const DISCIPLINE_CHART_COLORS = [
@@ -132,6 +134,34 @@ export const getAllStateRepository = async ({ page, limit }) => {
 
 export const isStateExistByNameRepository = async (name) => {
   return State.findOne({ name }).select("_id").lean();
+};
+
+export const isPhoneAlreadyRegisteredRepository = async (phone, excludeUserId = null) => {
+  const normalizedPhone = String(phone || "").trim();
+  if (!normalizedPhone) return null;
+
+  const query = { phone: normalizedPhone };
+  if (excludeUserId && mongoose.Types.ObjectId.isValid(excludeUserId)) {
+    query._id = { $ne: new mongoose.Types.ObjectId(excludeUserId) };
+  }
+
+  return BaseAuth.findOne(query).select("_id role phone").lean();
+};
+
+export const isEmailAlreadyRegisteredRepository = async (email, excludeUserId = null) => {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  if (!normalizedEmail) return null;
+
+  const query = { email: normalizedEmail };
+  if (excludeUserId && mongoose.Types.ObjectId.isValid(excludeUserId)) {
+    query._id = { $ne: new mongoose.Types.ObjectId(excludeUserId) };
+  }
+
+  return BaseAuth.findOne(query).select("_id role email").lean();
+};
+
+export const getStateContactRepository = async (stateId) => {
+  return State.findById(stateId).select("phone email").lean();
 };
 
 export const createStateRepository = async (payload) => {

@@ -12,6 +12,9 @@ import {
   getAllStateRepository,
   getSingleStateWithDistrictsRepository,
   isStateExistByNameRepository,
+  isPhoneAlreadyRegisteredRepository,
+  isEmailAlreadyRegisteredRepository,
+  getStateContactRepository,
   stateDashboardRepository,
   stateProfileRepository,
   stateAccountProfileRepository,
@@ -28,7 +31,23 @@ export const createStateService = async (payload) => {
   if (existing) {
     throw new AppError("State already exists", 409);
   }
-  return createStateRepository(payload);
+
+  const existingPhone = await isPhoneAlreadyRegisteredRepository(payload.phone);
+  if (existingPhone) {
+    throw new AppError("This phone number is already registered", 409);
+  }
+
+  if (payload.email) {
+    const existingEmail = await isEmailAlreadyRegisteredRepository(payload.email);
+    if (existingEmail) {
+      throw new AppError("This email is already registered", 409);
+    }
+  }
+
+  return createStateRepository({
+    ...payload,
+    role: "State",
+  });
 };
 
 export const displaySingleStateAllDistrictsService = async (stateId) => {
@@ -39,7 +58,46 @@ export const displaySingleStateAllDistrictsService = async (stateId) => {
   return state;
 };
 
+const assertUniqueStateContactOnUpdate = async (stateId, payload) => {
+  const currentState = await getStateContactRepository(stateId);
+  if (!currentState) {
+    throw new AppError("State not found", 404);
+  }
+
+  const nextPhone =
+    payload.phone !== undefined && payload.phone !== null
+      ? String(payload.phone).trim()
+      : null;
+
+  // Same number on this state is allowed; block only if another account uses it
+  if (nextPhone && nextPhone !== String(currentState.phone || "").trim()) {
+    const existingPhone = await isPhoneAlreadyRegisteredRepository(
+      nextPhone,
+      stateId
+    );
+    if (existingPhone) {
+      throw new AppError("This phone number is already registered", 409);
+    }
+  }
+
+  const nextEmail =
+    payload.email !== undefined && payload.email !== null
+      ? String(payload.email).trim().toLowerCase()
+      : null;
+
+  if (nextEmail && nextEmail !== String(currentState.email || "").trim().toLowerCase()) {
+    const existingEmail = await isEmailAlreadyRegisteredRepository(
+      nextEmail,
+      stateId
+    );
+    if (existingEmail) {
+      throw new AppError("This email is already registered", 409);
+    }
+  }
+};
+
 export const updateStateService = async (stateId, payload) => {
+  await assertUniqueStateContactOnUpdate(stateId, payload);
   return updateStateRepository(stateId, payload);
 };
 
@@ -60,6 +118,7 @@ export const getStateAccountProfileService = async (stateId) => {
 };
 
 export const editStateAccountProfileService = async (stateId, payload) => {
+  await assertUniqueStateContactOnUpdate(stateId, payload);
   return updateStateAccountProfileRepository(stateId, payload);
 };
 

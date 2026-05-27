@@ -104,8 +104,15 @@ const RegisterUserService = async (userData) => {
     const { email, phone } = userData;
     const isEmail = await isExistEmail(email);
     const idPhone = await isExistPhone(phone);
-    if ((isEmail !== null) || (idPhone !== null)) {
-        throw new AppError("User already exists", 409);
+    if (isEmail !== null) {
+        throw new AppError("Email already exists", 409);
+    }
+    if (idPhone !== null) {
+        const existingRole = String(idPhone.role || "user").trim();
+        throw new AppError(
+            `Phone number already exists${existingRole ? ` for ${existingRole} account` : ""}`,
+            409
+        );
     }
     delete userData.districtName;
     if (normalizedRole === "skater") {

@@ -157,7 +157,7 @@ export const deleteDistrictByIdForAdmin = async (districtId) => {
   return District.findByIdAndDelete(districtId).lean();
 };
 
-export const findDistrictMemberByPhoneOrEmail = async ({ phone, email }) => {
+export const findDistrictMemberByPhoneOrEmail = async ({ phone, email, excludeId }) => {
   const orConditions = [];
   if (phone) {
     orConditions.push({ phone });
@@ -167,7 +167,12 @@ export const findDistrictMemberByPhoneOrEmail = async ({ phone, email }) => {
   }
   if (!orConditions.length) return null;
 
-  return BaseAuth.findOne({ $or: orConditions })
+  const query = { $or: orConditions };
+  if (excludeId) {
+    query._id = { $ne: excludeId };
+  }
+
+  return BaseAuth.findOne(query)
     .select("_id")
     .lean();
 };
@@ -418,7 +423,7 @@ export const getClubMembersByClubId = async (
   };
 };
 
-export const findClubMemberByPhoneOrEmail = async ({ phone, email }) => {
+export const findClubMemberByPhoneOrEmail = async ({ phone, email, excludeId }) => {
   const orConditions = [];
   if (phone) {
     orConditions.push({ phone });
@@ -428,7 +433,12 @@ export const findClubMemberByPhoneOrEmail = async ({ phone, email }) => {
   }
   if (!orConditions.length) return null;
 
-  return BaseAuth.findOne({ $or: orConditions }).select("_id").lean();
+  const query = { $or: orConditions };
+  if (excludeId) {
+    query._id = { $ne: excludeId };
+  }
+
+  return BaseAuth.findOne(query).select("_id").lean();
 };
 
 export const createClubMember = async (payload) => {

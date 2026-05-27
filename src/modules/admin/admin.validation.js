@@ -120,9 +120,10 @@ export const districtByAdminIdValidation = {
 
 export const createDistrictMemberByAdminValidation = {
   params: Joi.object({
-    id: Joi.string().trim().required().messages({
+    id: Joi.string().trim().pattern(/^[0-9a-fA-F]{24}$/).required().messages({
       "any.required": "District id is required",
       "string.empty": "District id is required",
+      "string.pattern.base": "Invalid district id format",
     }),
   }),
   body: Joi.object({
@@ -142,6 +143,32 @@ export const createDistrictMemberByAdminValidation = {
       "string.uri": "Profile must be a valid URL",
     }),
   }),
+};
+
+export const updateDistrictMemberByAdminValidation = {
+  params: Joi.object({
+    id: Joi.string().trim().pattern(/^[0-9a-fA-F]{24}$/).required().messages({
+      "any.required": "District member id is required",
+      "string.empty": "District member id is required",
+      "string.pattern.base": "Invalid district member id format",
+    }),
+  }),
+  body: Joi.object({
+    fullName: Joi.string().trim().min(3).max(50).optional(),
+    phone: Joi.string().trim().pattern(/^[6-9]\d{9}$/).optional().messages({
+      "string.pattern.base": "Invalid Indian phone number",
+    }),
+    email: Joi.string().trim().email().lowercase().allow("").optional(),
+    gender: Joi.string().trim().lowercase().allow("").optional(),
+    address: Joi.string().trim().max(200).allow("").optional(),
+    countryCode: Joi.string().trim().allow("").optional(),
+    district: Joi.string().trim().pattern(/^[0-9a-fA-F]{24}$/).optional().messages({
+      "string.pattern.base": "Invalid district id format",
+    }),
+    profile: Joi.string().uri().allow("").optional().messages({
+      "string.uri": "Profile must be a valid URL",
+    }),
+  }).min(1),
 };
 
 export const createClubByAdminValidation = {

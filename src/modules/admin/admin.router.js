@@ -48,6 +48,7 @@ import {
   skaterListByAdminValidation,
   updateClubMemberByAdminValidation,
   updateClubByAdminValidation,
+  updateDistrictMemberByAdminValidation,
   updateDistrictByAdminValidation,
 } from "./admin.validation.js";
 import { upload } from "../../middleware/multer.middleware.js";
@@ -124,6 +125,7 @@ router.patch(
   authenticate(["State", "admin"]),
   upload.single("profile"),
   uploadToS3("profile"),
+  validate(updateDistrictMemberByAdminValidation),
   updateDistrictMemberByAdmin
 );
 router.delete(

@@ -315,9 +315,10 @@ export const updateDistrictMemberByAdminService = async (districtMemberId, paylo
     const duplicate = await findDistrictMemberByPhoneOrEmail({
       phone: payload.phone,
       email: payload.email,
+      excludeId: districtMemberId,
     });
-    if (duplicate && String(duplicate._id) !== String(districtMemberId)) {
-      throw new AppError("Phone or email already in use", 409);
+    if (duplicate) {
+      throw new AppError("Phone number or email already used", 409);
     }
   }
 
@@ -328,7 +329,22 @@ export const updateDistrictMemberByAdminService = async (districtMemberId, paylo
     }
   }
 
-  const updatedMember = await updateDistrictMemberById(districtMemberId, payload);
+  let updatedMember;
+  try {
+    updatedMember = await updateDistrictMemberById(districtMemberId, payload);
+  } catch (error) {
+    if (error?.code === 11000) {
+      if (Object.prototype.hasOwnProperty.call(error?.keyPattern || {}, "phone")) {
+        throw new AppError("Phone number already used", 409);
+      }
+      if (Object.prototype.hasOwnProperty.call(error?.keyPattern || {}, "email")) {
+        throw new AppError("Email already used", 409);
+      }
+      throw new AppError("Phone number or email already used", 409);
+    }
+    throw error;
+  }
+
   if (!updatedMember) {
     throw new AppError("District member not found", 404);
   }
@@ -511,8 +527,9 @@ export const updateClubMemberByAdminService = async (clubMemberId, payload) => {
     const duplicate = await findClubMemberByPhoneOrEmail({
       phone: payload.phone,
       email: payload.email,
+      excludeId: clubMemberId,
     });
-    if (duplicate && String(duplicate._id) !== String(clubMemberId)) {
+    if (duplicate) {
       throw new AppError("Phone or email already in use", 409);
     }
   }

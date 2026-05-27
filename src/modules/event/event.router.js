@@ -31,7 +31,7 @@ const router = express.Router();
 // ==================  categories display 
 
 router.get("/v1/category", 
-      authenticate(["Skater","Club","District","State", "Admin"]),
+    //   authenticate(["Skater","Club","District","State", "Admin"]),
     GetAllSkatingEventCategories);
 
 // ======================

@@ -470,10 +470,11 @@ export const applyCertificationBySkater = asyncHandler(async (req, res) => {
 });
 
 export const displayAllPlayedEventBySkater = asyncHandler(async (req, res) => {
-    const data = await getAllPlayedEventsBySkaterService(req.user._id);
+    const { page = 1, limit = 10 } = req.query;
+    const result = await getAllPlayedEventsBySkaterService(req.user._id, { page, limit });
     return res
         .status(200)
-        .json(new ApiResponse(200, data, "Played events fetched successfully"));
+        .json(new ApiResponse(200, result, "Played events fetched successfully"));
 });
 
 export const displayApplications = asyncHandler(async (req, res) => {

@@ -397,9 +397,24 @@ export const applyCertificationBySkaterRepository = async (participantId, userId
   return { participant: updated, alreadyApplied: false };
 };
 
-export const getAllPlayedEventsBySkaterRepository = async (userId) => {
+export const getAllPlayedEventsBySkaterRepository = async (
+  userId,
+  { page = 1, limit = 10 } = {}
+) => {
+  const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+
+  const emptyResult = () => ({
+    data: [],
+    pagination: {
+      total: 0,
+      page: currentPage,
+      limit: pageLimit,
+      totalPages: calcTotalPages(0, pageLimit),
+    },
+  });
+
   if (!mongoose.Types.ObjectId.isValid(String(userId))) {
-    return [];
+    return emptyResult();
   }
 
   const skaterObjectId = new mongoose.Types.ObjectId(String(userId));
@@ -452,9 +467,12 @@ export const getAllPlayedEventsBySkaterRepository = async (userId) => {
     });
   }
 
-  if (data.length > 0 && mongoose.Types.ObjectId.isValid(String(userId))) {
+  const total = data.length;
+  const paginatedData = data.slice(skip, skip + pageLimit);
+
+  if (paginatedData.length > 0) {
     const userOid = new mongoose.Types.ObjectId(String(userId));
-    const eventOids = data.map((item) => item.eventId);
+    const eventOids = paginatedData.map((item) => item.eventId);
 
     const certificates = await GeneratedCertificate.find({
       userId: userOid,
@@ -472,12 +490,20 @@ export const getAllPlayedEventsBySkaterRepository = async (userId) => {
       }
     }
 
-    for (const item of data) {
+    for (const item of paginatedData) {
       item.documentLink = documentLinkByEventId.get(String(item.eventId)) || "";
     }
   }
 
-  return data;
+  return {
+    data: paginatedData,
+    pagination: {
+      total,
+      page: currentPage,
+      limit: pageLimit,
+      totalPages: calcTotalPages(total, pageLimit),
+    },
+  };
 };
 
 export const displayCertificationApplicationsRepository = async (

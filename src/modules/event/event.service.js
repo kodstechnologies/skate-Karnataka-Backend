@@ -782,8 +782,8 @@ export const applyCertificationBySkaterService = async (participantId, userId) =
     return { participant, alreadyApplied };
 };
 
-export const getAllPlayedEventsBySkaterService = async (userId) => {
-    return await getAllPlayedEventsBySkaterRepository(userId);
+export const getAllPlayedEventsBySkaterService = async (userId, { page, limit } = {}) => {
+    return await getAllPlayedEventsBySkaterRepository(userId, { page, limit });
 };
 
 export const displayCertificationApplicationsService = async (

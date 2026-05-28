@@ -1778,11 +1778,19 @@ const toValidDate = (value) => {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
-/** Registration open when registerEndDate is still in the future (or exactly now). */
-const isRegistrationOpen = (registerEndDate, referenceDate = new Date()) => {
+/** Last moment registration is open (end of registerEndDate calendar day). */
+const getRegistrationCloseMoment = (registerEndDate) => {
   const end = toValidDate(registerEndDate);
-  if (!end) return false;
-  return end >= referenceDate;
+  if (!end) return null;
+  end.setHours(23, 59, 59, 999);
+  return end;
+};
+
+/** Display only when registerEndDate has not passed (registerEndDate < now → hidden). */
+const isRegistrationOpen = (registerEndDate, referenceDate = new Date()) => {
+  const closesAt = getRegistrationCloseMoment(registerEndDate);
+  if (!closesAt) return false;
+  return closesAt >= referenceDate;
 };
 
 /** Derive status from schedule: completed after end, active after start, else coming_soon. */
@@ -2214,17 +2222,19 @@ const display_latest_event_repositories = async (userId) => {
   }
 
   const now = new Date();
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
 
   const query = {
     $and: [
       { $or: buildSkaterVisibleEventsOrClause(scope) },
-      // Hide events whose registration window has ended (registerEndDate < now).
-      { registerEndDate: { $gte: now } },
+      // registerEndDate < now → do not display; otherwise display.
+      { registerEndDate: { $gte: startOfToday } },
     ],
   };
 
   const event = await Event.findOne(query)
-    .select(EVENT_CARD_LIST_PROJECTION)
+    .select(`${EVENT_CARD_LIST_PROJECTION} registerEndDate`)
     .sort({ registerEndDate: -1, createdAt: -1 })
     .lean();
 

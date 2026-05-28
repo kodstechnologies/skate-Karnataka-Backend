@@ -6,6 +6,7 @@ import {
   addMemberToClub,
   addClubToDistrict,
   createClubByAdmin,
+  countSkatersByClubIdForAdmin,
   createClubMember,
   createDistrictByAdmin,
   createDistrictMember,
@@ -257,8 +258,12 @@ export const deleteDistrictByAdminService = async (districtId) => {
     throw new AppError("District not found", 404);
   }
 
+  if ((district.club || []).length > 0) {
+    throw new AppError("District has linked clubs. First remove clubs, then delete district", 400);
+  }
+
   if ((district.members || []).length > 0) {
-    throw new AppError("District has members, cannot delete", 400);
+    throw new AppError("District has members. First remove members, then delete district", 400);
   }
 
   await deleteDistrictByIdForAdmin(districtId);
@@ -467,8 +472,13 @@ export const deleteClubByAdminService = async (clubId) => {
     throw new AppError("Club not found", 404);
   }
 
+  const skaterCount = await countSkatersByClubIdForAdmin(clubId);
+  if (skaterCount > 0) {
+    throw new AppError("Club has skaters. First remove skaters, then delete club", 400);
+  }
+
   if ((existingClub.members || []).length > 0) {
-    throw new AppError("Club has members, cannot delete", 400);
+    throw new AppError("Club has members. First remove members, then delete club", 400);
   }
 
   await deleteClubByIdForAdmin(clubId);

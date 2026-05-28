@@ -140,7 +140,7 @@ export const createDistrictByAdmin = async (payload) => {
 };
 
 export const findDistrictById = async (districtId) => {
-  return District.findById(districtId).select("_id name members").lean();
+  return District.findById(districtId).select("_id name members club").lean();
 };
 
 export const updateDistrictByIdForAdmin = async (districtId, payload) => {
@@ -335,6 +335,10 @@ export const getAllClubsForAdmin = async ({ page = 1, limit = 10, search = "" } 
 
 export const findClubByIdForAdmin = async (clubId) => {
   return Club.findById(clubId).select("_id name district members").lean();
+};
+
+export const countSkatersByClubIdForAdmin = async (clubId) => {
+  return BaseAuth.countDocuments({ role: "Skater", club: clubId });
 };
 
 export const findClubByNameAndDistrict = async ({ name, district }) => {

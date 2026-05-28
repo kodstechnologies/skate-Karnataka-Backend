@@ -2203,11 +2203,10 @@ export const getStateEventFullDetailsByIdRepository =
 const display_latest_event_repositories = async (userId) => {
   const scope = await resolveSkaterEventScope(userId);
   if (!scope) {
-    throw new Error("User not found");
+    return null;
   }
 
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
+  const now = new Date();
 
   const query = {
     $and: [

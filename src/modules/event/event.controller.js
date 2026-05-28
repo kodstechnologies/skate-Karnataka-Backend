@@ -7,17 +7,16 @@ import { initiateRazorpayPaymentServices } from "../payment/payment.services.js"
 
 const display_latest_event = asyncHandler(async (req, res) => {
     const userId = req.user._id;
-    console.log(userId, "userId")
     const result = await display_latest_event_server(userId);
-    console.log(result, "result====")
+
     return res.status(200).json(
         new ApiResponse(
             200,
-            result,
-            "Events fetched successfully"
+            result ?? null,
+            "Latest event fetched successfully"
         )
     );
-})
+});
 
 // =============================== club  
 

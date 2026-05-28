@@ -142,6 +142,8 @@ const validateSkaterPayload = (payload, index) => {
         phone,
         email,
         gender,
+        // Accept both rsfiId and common typo rfsiId from multipart clients.
+        rsfiId: toTrimmedString(payload.rsfiId || payload.rfsiId) || undefined,
         dob: dob || undefined,
         bloodGroup: bloodGroup || undefined,
         school: toTrimmedString(payload.school) || undefined,
@@ -151,6 +153,7 @@ const validateSkaterPayload = (payload, index) => {
         discipline: toTrimmedString(payload.discipline) || undefined,
         district: toTrimmedString(payload.district) || undefined,
         club: toTrimmedString(payload.club) || undefined,
+        signature: toTrimmedString(payload.signature) || undefined,
         photo: toTrimmedString(payload.photo) || undefined,
         documents: normalizeSkaterDocuments(payload.documents),
     };
@@ -162,7 +165,22 @@ const getUniqueEmailForSkater = async ({
     parentId,
     batchUsedEmails,
 }) => {
-    let baseEmail = normalizeEmail(preferredEmail);
+    const normalizedPreferredEmail = normalizeEmail(preferredEmail);
+    if (normalizedPreferredEmail) {
+        if (batchUsedEmails.has(normalizedPreferredEmail)) {
+            throw new AppError("Skater email already exists", 409);
+        }
+        const existingPreferredEmailUser = await findUserByPhoneOrEmailRepositories({
+            email: normalizedPreferredEmail,
+        });
+        if (existingPreferredEmailUser) {
+            throw new AppError("Skater email already exists", 409);
+        }
+        batchUsedEmails.add(normalizedPreferredEmail);
+        return normalizedPreferredEmail;
+    }
+
+    let baseEmail = normalizedPreferredEmail;
     if (!baseEmail) {
         const safeName = (skaterFullName || "skater")
             .toLowerCase()
@@ -245,6 +263,7 @@ const createSkatersForParent = async (skatersInput = [], parentContext = {}) => 
                 fullName: validated.fullName,
                 phone: skaterPhone,
                 email: skaterEmail,
+                rsfiId: validated.rsfiId,
                 gender: validated.gender || undefined,
                 dob: validated.dob,
                 bloodGroup: validated.bloodGroup,
@@ -258,6 +277,7 @@ const createSkatersForParent = async (skatersInput = [], parentContext = {}) => 
                 clubStatus: validated.club ? "join" : "apply",
                 parent: parentContext.fullName || "",
                 SkaterParent: parentContext.id,
+                signature: validated.signature,
                 photo: validated.photo,
                 documents: validated.documents,
             });
@@ -266,6 +286,8 @@ const createSkatersForParent = async (skatersInput = [], parentContext = {}) => 
             createdSkaters.push({
                 skaterId: String(created._id),
                 skaterName: created.fullName || "",
+                rsfiId: created.rsfiId || "",
+                signature: created.signature || "",
                 verify: Boolean(created.verify),
             });
         } catch (error) {
@@ -354,6 +376,8 @@ const afterLoginFormParentService = async (data, id) => {
             skaterName: skater.fullName || "",
             phone: skater.phone || "",
             email: skater.email || "",
+            rsfiId: skater.rsfiId || "",
+            signature: skater.signature || "",
             verify: Boolean(skater.verify),
         })),
     };

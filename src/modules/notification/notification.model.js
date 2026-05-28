@@ -85,7 +85,18 @@ const notificationSchema = new mongoose.Schema(
       "District"
     ],
     default: null
-  }
+  },
+
+  data: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {},
+  },
+
+  isRead: {
+    type: Boolean,
+    default: false,
+    index: true,
+  },
 
 },
 {

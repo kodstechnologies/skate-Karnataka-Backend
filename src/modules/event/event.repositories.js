@@ -1791,8 +1791,7 @@ const LIVE_EVENT_LIST_PROJECTION =
 
 /** Event is live when today falls between eventStartDate and eventEndDate (inclusive). */
 const getLiveEventDateFilter = () => {
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
+  const now = new Date();
   const endOfToday = new Date();
   endOfToday.setHours(23, 59, 59, 999);
 
@@ -2186,7 +2185,7 @@ const display_latest_event_repositories = async (userId) => {
   const query = {
     $and: [
       { $or: buildSkaterVisibleEventsOrClause(scope) },
-      { registerEndDate: { $gte: startOfToday } },
+      { registerEndDate: { $gte: now } },
     ],
   };
 

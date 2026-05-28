@@ -34,6 +34,8 @@ import {
   displayDistrictClubDetailsRepositories,
   displayDistrictSkatersRepositories,
   displayDistrictEventsRepositories,
+  displayClubEventsRepositories,
+  displayDisciplineEventsRepositories,
   updateLatestAboutRepositories,
   updateCircularRepositories,
   updateDisciplineRepositories,
@@ -265,6 +267,22 @@ export const displayDistrictEventsService = async (districtId, { page, limit, se
     const result = await displayDistrictEventsRepositories(districtId, { page, limit, search });
     if (!result) {
         throw new AppError("District not found", 404);
+    }
+    return result;
+};
+
+export const displayClubEventsService = async (clubId, { page, limit, search }) => {
+    const result = await displayClubEventsRepositories(clubId, { page, limit, search });
+    if (!result) {
+        throw new AppError("Club not found", 404);
+    }
+    return result;
+};
+
+export const displayDisciplineEventsService = async (disciplineId, { page, limit, search }) => {
+    const result = await displayDisciplineEventsRepositories(disciplineId, { page, limit, search });
+    if (!result) {
+        throw new AppError("Discipline not found", 404);
     }
     return result;
 };

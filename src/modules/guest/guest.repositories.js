@@ -6,6 +6,7 @@ import { AppError } from "../../util/common/AppError.js";
 import { paginate, calcTotalPages } from "../../util/common/paginate.js";
 import { News } from "./news.model.js";
 import { Event } from "../event/event.model.js";
+import SkatingEventCategory from "../event/SkatingEventCategory.model.js";
 import { Discipline } from "./disciplines.model.js";
 import { Circular } from "./circular.model.js";
 import { KRSAabout } from "./KRSAabout.model.js";
@@ -690,6 +691,98 @@ export const displayDistrictEventsRepositories = async (districtId, { page, limi
         district: {
             _id: district._id,
             name: district.name || "",
+        },
+        data,
+        pagination: {
+            total,
+            page: currentPage,
+            limit: pageLimit,
+            totalPages: calcTotalPages(total, pageLimit),
+        },
+    };
+};
+
+export const displayClubEventsRepositories = async (clubId, { page, limit, search }) => {
+    const club = await Club.findById(clubId).select("_id name").lean();
+    if (!club) {
+        return null;
+    }
+
+    const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+    const term = typeof search === "string" ? search.trim() : "";
+
+    const filter = {
+        eventType: "Club",
+        eventFor: club._id,
+    };
+
+    if (term.length > 0) {
+        filter.header = { $regex: escapeRegExp(term), $options: "i" };
+    }
+
+    const [total, data] = await Promise.all([
+        Event.countDocuments(filter),
+        Event.find(filter)
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(pageLimit)
+            .lean(),
+    ]);
+
+    return {
+        club: {
+            _id: club._id,
+            name: club.name || "",
+        },
+        data,
+        pagination: {
+            total,
+            page: currentPage,
+            limit: pageLimit,
+            totalPages: calcTotalPages(total, pageLimit),
+        },
+    };
+};
+
+export const displayDisciplineEventsRepositories = async (disciplineId, { page, limit, search }) => {
+    const discipline = await Discipline.findById(disciplineId).select("_id title").lean();
+    if (!discipline) {
+        return null;
+    }
+
+    const title = String(discipline.title || "").trim();
+    const categoryIds =
+        title.length > 0
+            ? await SkatingEventCategory.find({
+                  typeName: { $regex: new RegExp(`^${escapeRegExp(title)}$`, "i") },
+              }).distinct("_id")
+            : [];
+
+    const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+    const term = typeof search === "string" ? search.trim() : "";
+
+    const filter =
+        categoryIds.length > 0
+            ? { skatingEventCategories: { $in: categoryIds } }
+            : { _id: { $in: [] } };
+
+    if (term.length > 0) {
+        filter.header = { $regex: escapeRegExp(term), $options: "i" };
+    }
+
+    const [total, data] = await Promise.all([
+        Event.countDocuments(filter),
+        Event.find(filter)
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(pageLimit)
+            .lean(),
+    ]);
+
+    return {
+        discipline: {
+            _id: discipline._id,
+            title: discipline.title || "",
         },
         data,
         pagination: {

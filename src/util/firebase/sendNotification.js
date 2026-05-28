@@ -1,6 +1,6 @@
 import admin from "../../firebase/firebase.js";
 import { BaseAuth } from "../../modules/auth/baseAuth.model.js";
-import { Notification } from "../../modules/notification/notification.model.js";
+import { saveNotificationRepositories } from "../../modules/notification/notification.repositories.js";
 import { Skater } from "../../modules/skater/skater.model.js";
 import { Club } from "../../modules/club/club.model.js";
 import { District } from "../../modules/district/district.model.js";
@@ -71,24 +71,22 @@ export const sendNotification = async ({
   notificationType = "general",
   sentBy = null
 }) => {
+  let savedNotification = null;
 
   try {
-console.log(receiverId,"receiverId")
-    // Find receiver
     const auth = await BaseAuth.findById(receiverId)
       .select("firebaseTokens role");
     const sender = sentBy
       ? await BaseAuth.findById(sentBy).select("role")
       : null;
     const senderRole = sender?.role || null;
-    // console.log(auth, "00000000000000000000000")
+
     if (!auth) {
       console.log(`Receiver not found: ${receiverId}`);
-      return;
+      return null;
     }
 
-    // Save in DB
-    await Notification.create({
+    savedNotification = await saveNotificationRepositories({
       receiverId,
       receiverRole: auth.role,
       title,
@@ -97,56 +95,44 @@ console.log(receiverId,"receiverId")
       img,
       notificationType,
       sentBy,
-      senderRole
+      senderRole,
+      data,
     });
 
-    // No device tokens → only save notification
-    if (
-      !auth.firebaseTokens ||
-      !auth.firebaseTokens.length
-    ) {
-      console.log(
-        `No FCM tokens for receiver ${receiverId}`
-      );
-      return;
+    if (!auth.firebaseTokens?.length) {
+      console.log(`Notification saved (no FCM tokens) for ${receiverId}`);
+      return savedNotification;
     }
 
-    // Send push notification
     const messaging = admin.messaging();
-    // console.log(messaging, "messaging===")
     const response = await messaging.sendEachForMulticast({
       tokens: auth.firebaseTokens,
-
       notification: {
         title,
-        body
+        body,
       },
-
       data: {
         ...Object.fromEntries(
-          Object.entries(data).map(
-            ([k, v]) => [k, String(v)]
-          )
+          Object.entries(data).map(([k, v]) => [k, String(v)])
         ),
+        notificationId: String(savedNotification._id),
         receiverId: receiverId.toString(),
         receiverRole: String(auth.role || ""),
         senderRole: String(senderRole || ""),
-        notificationType
-      }
+        notificationType,
+      },
     });
 
     console.log(
       `Notification sent to ${receiverId}`,
       response.successCount
     );
-    // console.log(response, "=============")
-  } catch (error) {
-    console.error(
-      "sendNotification error:",
-      error.message
-    );
-  }
 
+    return savedNotification;
+  } catch (error) {
+    console.error("sendNotification error:", error.message);
+    return savedNotification;
+  }
 };
 
 /** Notify all joined skaters in a club when a new club event is created. */

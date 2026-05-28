@@ -1,5 +1,6 @@
 import { AppError } from "../../util/common/AppError.js";
 import {
+    count_skaters_using_discipline_repositories,
     create_discipline_repositories,
     delete_discipline_repositories,
     get_all_discipline_repositories,
@@ -60,6 +61,19 @@ const update_discipline_service = async (id, payload) => {
 };
 
 const delete_discipline_service = async (id) => {
+    const discipline = await get_single_discipline_repositories(id);
+    if (!discipline) {
+        throw new AppError("Discipline not found", 404);
+    }
+
+    const skaterCount = await count_skaters_using_discipline_repositories(id);
+    if (skaterCount > 0) {
+        throw new AppError(
+            `Cannot delete this discipline because ${skaterCount} skater(s) are using it`,
+            409
+        );
+    }
+
     const deleted = await delete_discipline_repositories(id);
     if (!deleted) {
         throw new AppError("Discipline not found", 404);

@@ -28,7 +28,7 @@ import {
 import { upload } from "../../middleware/multer.middleware.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
 import { authenticate, ensureStateAdminOrOwnClub } from "../../middleware/auth.middleware.js";
-import { displayDistrictClubDetails, displayDistrictClubs, displayDistrictDetails, displayDistrictEvents, displayDistricts, displayDistrictSkaters } from "../guest/guest.controller.js";
+import { displayClubEvents, displayDistrictClubDetails, displayDistrictClubs, displayDistrictDetails, displayDistrictEvents, displayDistricts, displayDistrictSkaters } from "../guest/guest.controller.js";
 import { displayApplications } from "../event/event.controller.js";
 
 const router = express.Router();
@@ -86,6 +86,12 @@ router.get(
   "/v1/club/:clubId",
   authenticate(["Admin", "State"]),
   displayClubById
+);
+
+router.get(
+  "/v1/club/:clubId/event",
+  authenticate(["Admin", "State"]),
+  displayClubEvents
 );
 
 router.get(

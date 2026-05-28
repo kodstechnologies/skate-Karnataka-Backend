@@ -66,6 +66,8 @@ import {
   displayDistrictClubDetailsService,
   displayDistrictSkatersService,
   displayDistrictEventsService,
+  displayClubEventsService,
+  displayDisciplineEventsService,
   updateAboutService,
   updateCircularService,
   updateDisciplineService,
@@ -360,6 +362,26 @@ export const displayDistrictEvents = asyncHandler(async (req, res) => {
     const result = await displayDistrictEventsService(req.params.districtId, { page, limit, search });
     return res.status(200).json(
         new ApiResponse(200, result, "District events fetched successfully")
+    );
+});
+
+export const displayClubEvents = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 10, search } = req.query;
+    const result = await displayClubEventsService(req.params.clubId, { page, limit, search });
+    return res.status(200).json(
+        new ApiResponse(200, result, "Club events fetched successfully")
+    );
+});
+
+export const displayDisciplineEvents = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 10, search } = req.query;
+    const result = await displayDisciplineEventsService(req.params.disciplineId, {
+        page,
+        limit,
+        search,
+    });
+    return res.status(200).json(
+        new ApiResponse(200, result, "Discipline events fetched successfully")
     );
 });
 

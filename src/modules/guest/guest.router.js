@@ -45,6 +45,7 @@ import {
   displayDistrictClubDetails,
   displayDistrictSkaters,
   displayDistrictEvents,
+  displayDisciplineEvents,
 } from "./guest.controller.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import {
@@ -182,6 +183,11 @@ router.get(
   "/v1/discipline",
   // validate(displayDisciplinesQueryValidation),
   displayDisciplines
+);
+router.get(
+  "/v1/discipline/:disciplineId/event",
+  authenticate(["Admin", "State"]),
+  displayDisciplineEvents
 );
 router.get(
   "/v1/discipline/:id",

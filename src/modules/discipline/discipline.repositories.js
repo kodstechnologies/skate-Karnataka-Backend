@@ -1,4 +1,6 @@
+import mongoose from "mongoose";
 import { DisciplineService } from "./discipline.model.js";
+import { Skater } from "../skater/skater.model.js";
 
 const get_all_discipline_repositories = async () => {
     return await DisciplineService.find({})
@@ -30,6 +32,14 @@ const get_discipline_by_name_repositories = async (name) => {
     return await DisciplineService.findOne({ name }).lean();
 };
 
+const count_skaters_using_discipline_repositories = async (id) => {
+    if (!id || !mongoose.Types.ObjectId.isValid(String(id))) {
+        return 0;
+    }
+
+    return await Skater.countDocuments({ discipline: id });
+};
+
 export {
     get_all_discipline_repositories,
     get_single_discipline_repositories,
@@ -37,4 +47,5 @@ export {
     update_discipline_repositories,
     delete_discipline_repositories,
     get_discipline_by_name_repositories,
+    count_skaters_using_discipline_repositories,
 };

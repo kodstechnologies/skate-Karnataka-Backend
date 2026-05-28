@@ -2,7 +2,7 @@ import { Event } from "./event.model.js";
 import SkatingEventCategory from "./SkatingEventCategory.model.js";
 import { EventParticipant } from "./eventParticipant.model.js";
 import { GeneratedCertificate } from "../certificate/generatedCertificate.model.js";
-import { paginate } from "../../util/common/paginate.js";
+import { paginate, calcTotalPages } from "../../util/common/paginate.js";
 import { BaseAuth } from "../auth/baseAuth.model.js";
 import { Skater } from "../skater/skater.model.js";
 import { Club } from "../club/club.model.js";
@@ -119,7 +119,7 @@ const displayAllEventRepository = async ({ page, limit }) => {
     total,
     page: currentPage,
     limit: pageLimit,
-    totalPages: Math.ceil(total / pageLimit),
+    totalPages: calcTotalPages(total, pageLimit),
     data: events
   };
 };
@@ -139,7 +139,7 @@ export const getAllEventCategoriesRepository = async ({ page, limit }) => {
     total,
     page: currentPage,
     limit: pageLimit,
-    totalPages: Math.ceil(total / pageLimit),
+    totalPages: calcTotalPages(total, pageLimit),
     data,
   };
 };
@@ -313,7 +313,7 @@ export const getAllRegisterDetailsByUserIdRepository = async (
     total,
     page: currentPage,
     limit: pageLimit,
-    totalPages: Math.ceil(total / pageLimit) || 0,
+    totalPages: calcTotalPages(total, pageLimit),
     registrations,
   };
 };
@@ -632,7 +632,7 @@ export const displayCertificationApplicationsRepository = async (
       total,
       page: currentPage,
       limit: pageLimit,
-      totalPages: Math.ceil(total / pageLimit) || 0,
+      totalPages: calcTotalPages(total, pageLimit),
     },
   };
 };
@@ -1108,7 +1108,7 @@ export const listEventSkatersByEventIdRepository = async (
     total,
     page: currentPage,
     limit: pageLimit,
-    totalPages: Math.ceil(total / pageLimit) || 0,
+    totalPages: calcTotalPages(total, pageLimit),
   };
 };
 
@@ -1637,7 +1637,7 @@ export const clubRelatedEventDisplayRepositories = async (
       total,
       page: currentPage,
       limit: pageLimit,
-      totalPages: Math.ceil(total / pageLimit)
+      totalPages: calcTotalPages(total, pageLimit)
     }
   };
 };
@@ -1698,7 +1698,7 @@ export const districtRelatedEventDisplayRepositories = async (districtUserId, { 
     total,
     page: currentPage,
     limit: pageLimit,
-    totalPages: Math.ceil(total / pageLimit),
+    totalPages: calcTotalPages(total, pageLimit),
     data,
   };
 };
@@ -1883,7 +1883,7 @@ export const getLiveEventsRepository = async (role, userId, { page, limit }) => 
     total,
     page: currentPage,
     limit: pageLimit,
-    totalPages: Math.ceil(total / pageLimit) || 0,
+    totalPages: calcTotalPages(total, pageLimit),
     data,
   };
 };
@@ -1920,7 +1920,7 @@ export const stateRelatedEventDisplayRepositories = async (stateId, { page, limi
     total,
     page: currentPage,
     limit: pageLimit,
-    totalPages: Math.ceil(total / pageLimit),
+    totalPages: calcTotalPages(total, pageLimit),
     data,
   };
 };
@@ -2298,7 +2298,7 @@ const display_all_event_based_on_user_repositories = async (userId, { page, limi
     total,
     page: currentPage,
     limit: pageLimit,
-    totalPages: Math.ceil(total / pageLimit),
+    totalPages: calcTotalPages(total, pageLimit),
     data,
   };
 };

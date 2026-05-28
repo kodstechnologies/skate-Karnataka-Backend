@@ -12,7 +12,7 @@ import { formatCompetitionTimeTakenFromSeconds } from "../../util/time/timeUtil.
 import { EventParticipant } from "../event/eventParticipant.model.js";
 import SkatingEventCategory from "../event/SkatingEventCategory.model.js";
 import { Skater } from "./skater.model.js";
-import { paginate } from "../../util/common/paginate.js";
+import { paginate, calcTotalPages } from "../../util/common/paginate.js";
 
 const normalizePhone = (value) => String(value ?? "").trim();
 
@@ -465,7 +465,7 @@ const get_skater_results_event_repositories = async (userId, page, limit) => {
             total,
             page: currentPage,
             limit: perPage,
-            totalPages: Math.ceil(total / perPage) || 0,
+            totalPages: calcTotalPages(total, perPage),
         },
     };
 };

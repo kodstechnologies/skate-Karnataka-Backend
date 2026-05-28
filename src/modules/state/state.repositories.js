@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import { AppError } from "../../util/common/AppError.js";
-import { paginate } from "../../util/common/paginate.js";
+import { paginate, calcTotalPages } from "../../util/common/paginate.js";
 import { District } from "../district/district.model.js";
 import { Club } from "../club/club.model.js";
 import { Skater } from "../skater/skater.model.js";
@@ -127,7 +127,7 @@ export const getAllStateRepository = async ({ page, limit }) => {
       page: pagination.page,
       limit: pagination.limit,
       total,
-      totalPages: Math.ceil(total / pagination.limit) || 1,
+      totalPages: calcTotalPages(total, pagination.limit),
     },
   };
 };
@@ -596,7 +596,7 @@ export const getAllDistrictsByStateRepository = async ({ page, limit, search = "
       page: pagination.page,
       limit: pagination.limit,
       total,
-      totalPages: Math.ceil(total / pagination.limit) || 1,
+      totalPages: calcTotalPages(total, pagination.limit),
     },
   };
 };
@@ -631,7 +631,7 @@ export const getAllClubsByStateRepository = async ({ page, limit, search = "" })
       page: pagination.page,
       limit: pagination.limit,
       total,
-      totalPages: Math.ceil(total / pagination.limit) || 1,
+      totalPages: calcTotalPages(total, pagination.limit),
     },
   };
 };
@@ -672,7 +672,7 @@ export const getAllSkatersByStateRepository = async ({ page, limit, search = "" 
       page: pagination.page,
       limit: pagination.limit,
       total,
-      totalPages: Math.ceil(total / pagination.limit) || 1,
+      totalPages: calcTotalPages(total, pagination.limit),
     },
   };
 };
@@ -785,7 +785,7 @@ export const getClubSkatersByClubIdForStateRepository = async (
       total,
       page: pagination.page,
       limit: pagination.limit,
-      totalPages: Math.ceil(total / pagination.limit) || 1,
+      totalPages: calcTotalPages(total, pagination.limit),
     },
   };
 };

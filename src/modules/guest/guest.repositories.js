@@ -3,7 +3,7 @@ import { FeedBack } from "./feedBack.model.js";
 import { Guest } from "./guest.model.js";
 import { BaseAuth } from "../auth/baseAuth.model.js";
 import { AppError } from "../../util/common/AppError.js";
-import { paginate } from "../../util/common/paginate.js";
+import { paginate, calcTotalPages } from "../../util/common/paginate.js";
 import { News } from "./news.model.js";
 import { Event } from "../event/event.model.js";
 import { Discipline } from "./disciplines.model.js";
@@ -98,7 +98,7 @@ export const displayFeedbackRepositories = async ({ page, limit, search }) => {
             total,
             page: currentPage,
             limit: pageLimit,
-            totalPages: Math.ceil(total / pageLimit),
+            totalPages: calcTotalPages(total, pageLimit),
         },
     };
 };
@@ -133,7 +133,7 @@ export const displayNewsRepositories = async ({ page, limit, search }) => {
             total,
             page: currentPage,
             limit: pageLimit,
-            totalPages: Math.ceil(total / pageLimit),
+            totalPages: calcTotalPages(total, pageLimit),
         },
     };
 };
@@ -178,7 +178,7 @@ export const displayStateLatestEventsRepositories = async ({ page, limit }) => {
             total,
             page: currentPage,
             limit: pageLimit,
-            totalPages: Math.ceil(total / pageLimit),
+            totalPages: calcTotalPages(total, pageLimit),
         },
     };
 };
@@ -211,7 +211,7 @@ export const displayStateEventsRepositories = async ({ page, limit, search }) =>
             total,
             page: currentPage,
             limit: pageLimit,
-            totalPages: Math.ceil(total / pageLimit),
+            totalPages: calcTotalPages(total, pageLimit),
         },
     };
 };
@@ -333,7 +333,7 @@ export const displayGuestStateMediaRepositories = async ({ page, limit }) => {
             total,
             page: currentPage,
             limit: pageLimit,
-            totalPages: Math.ceil(total / pageLimit),
+            totalPages: calcTotalPages(total, pageLimit),
         },
     };
 };
@@ -368,7 +368,7 @@ export const displayDisciplinesRepositories = async ({ page, limit, search }) =>
             total,
             page: currentPage,
             limit: pageLimit,
-            totalPages: Math.ceil(total / pageLimit),
+            totalPages: calcTotalPages(total, pageLimit),
         },
     };
 };
@@ -417,7 +417,7 @@ export const displayCircularRepositories = async ({ page, limit, search }) => {
             total,
             page: currentPage,
             limit: pageLimit,
-            totalPages: Math.ceil(total / pageLimit),
+            totalPages: calcTotalPages(total, pageLimit),
         },
     };
 };
@@ -492,7 +492,7 @@ export const displayDistrictsRepositories = async ({ page, limit, search }) => {
             total,
             page: currentPage,
             limit: pageLimit,
-            totalPages: Math.ceil(total / pageLimit),
+            totalPages: calcTotalPages(total, pageLimit),
         },
     };
 };
@@ -569,7 +569,7 @@ export const displayDistrictClubsRepositories = async (districtId, { page, limit
             total,
             page: currentPage,
             limit: pageLimit,
-            totalPages: Math.ceil(total / pageLimit),
+            totalPages: calcTotalPages(total, pageLimit),
         },
     };
 };
@@ -654,7 +654,7 @@ export const displayDistrictSkatersRepositories = async (districtId, { page, lim
             total,
             page: currentPage,
             limit: pageLimit,
-            totalPages: Math.ceil(total / pageLimit),
+            totalPages: calcTotalPages(total, pageLimit),
         },
     };
 };
@@ -696,7 +696,7 @@ export const displayDistrictEventsRepositories = async (districtId, { page, limi
             total,
             page: currentPage,
             limit: pageLimit,
-            totalPages: Math.ceil(total / pageLimit),
+            totalPages: calcTotalPages(total, pageLimit),
         },
     };
 };
@@ -752,7 +752,7 @@ export const displaySponsorshipDonationsRepositories = async ({ page, limit, sea
             total,
             page: currentPage,
             limit: pageLimit,
-            totalPages: Math.ceil(total / pageLimit),
+            totalPages: calcTotalPages(total, pageLimit),
         },
     };
 };

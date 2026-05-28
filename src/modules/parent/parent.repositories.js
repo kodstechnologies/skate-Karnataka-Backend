@@ -1,7 +1,7 @@
 import { Parent } from "./parent.model.js";
 import { BaseAuth } from "../auth/baseAuth.model.js";
 import { Skater } from "../skater/skater.model.js";
-import { paginate } from "../../util/common/paginate.js";
+import { paginate, calcTotalPages } from "../../util/common/paginate.js";
 
 const getParentWithSkaters = async (id) => {
     const parent = await BaseAuth.findOne({ _id: id, role: { $regex: /^parent$/i } })
@@ -105,7 +105,7 @@ const displayAllParentRepositories = async ({ page, limit, search, fullName, pho
             total,
             page: currentPage,
             limit: perPage,
-            totalPages: Math.ceil(total / perPage),
+            totalPages: calcTotalPages(total, perPage),
         },
     };
 };

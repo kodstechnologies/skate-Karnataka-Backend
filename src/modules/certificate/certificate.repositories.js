@@ -5,7 +5,7 @@ import { Event } from "../event/event.model.js";
 import { EventParticipant } from "../event/eventParticipant.model.js";
 import { BaseAuth } from "../auth/baseAuth.model.js";
 import { Skater } from "../skater/skater.model.js";
-import { paginate } from "../../util/common/paginate.js";
+import { paginate, calcTotalPages } from "../../util/common/paginate.js";
 
 const EVENT_TYPE_TEMPLATE_FLAG = {
     Club: "CLUB",
@@ -250,7 +250,7 @@ const list_skater_participants_for_certificate_repository = async (userId, page,
             total,
             page: currentPage,
             limit: perPage,
-            totalPages: Math.ceil(total / perPage) || 0,
+            totalPages: calcTotalPages(total, perPage),
         },
     };
 };

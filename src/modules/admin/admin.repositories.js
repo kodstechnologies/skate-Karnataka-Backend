@@ -5,6 +5,7 @@ import { BaseAuth } from "../auth/baseAuth.model.js";
 import { DistrictMember } from "../district/districtMember.model.js";
 import { Club } from "../club/club.model.js";
 import { ClubMember } from "../club/clubMember.model.js";
+import { calcTotalPages } from "../../util/common/paginate.js";
 
 export const findAdminByEmail = async (email) => {
   return Admin.findOne({ email: email.toLowerCase().trim(), role: "admin" });
@@ -126,7 +127,7 @@ export const getAllDistrictsForAdmin = async ({ page = 1, limit = 10, name = "" 
       total,
       page: currentPage,
       limit: pageLimit,
-      totalPages: Math.ceil(total / pageLimit),
+      totalPages: calcTotalPages(total, pageLimit),
     },
   };
 };
@@ -226,7 +227,7 @@ export const getDistrictMembersByDistrictId = async (
       total,
       page: currentPage,
       limit: pageLimit,
-      totalPages: Math.ceil(total / pageLimit),
+      totalPages: calcTotalPages(total, pageLimit),
     },
   };
 };
@@ -328,7 +329,7 @@ export const getAllClubsForAdmin = async ({ page = 1, limit = 10, search = "" } 
       total,
       page: currentPage,
       limit: pageLimit,
-      totalPages: Math.ceil(total / pageLimit),
+      totalPages: calcTotalPages(total, pageLimit),
     },
   };
 };
@@ -659,7 +660,7 @@ export const getAllSkatersForAdmin = async ({ page = 1, limit = 10, search = "" 
       total,
       page: currentPage,
       limit: pageLimit,
-      totalPages: Math.ceil(total / pageLimit),
+      totalPages: calcTotalPages(total, pageLimit),
     },
   };
 };

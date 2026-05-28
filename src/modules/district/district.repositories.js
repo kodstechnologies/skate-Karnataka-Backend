@@ -7,7 +7,7 @@ import { Report } from "../report/report.model.js";
 import { Event } from "../event/event.model.js";
 import { EventParticipant } from "../event/eventParticipant.model.js";
 import mongoose from "mongoose";
-import { paginate } from "../../util/common/paginate.js";
+import { paginate, calcTotalPages } from "../../util/common/paginate.js";
 
 const getAllDistrict = async () => {
   return await District.find().select("_id name").lean();
@@ -466,7 +466,7 @@ const displayAllApplyRepository = async (districtMemberId, { page, limit }) => {
       total,
       page: currentPage,
       limit: pageLimit,
-      totalPages: Math.ceil(total / pageLimit),
+      totalPages: calcTotalPages(total, pageLimit),
     },
   };
 };
@@ -627,7 +627,7 @@ export const displayApplyAllClubRepository = async (
       total,
       page: currentPage,
       limit: pageLimit,
-      totalPages: Math.ceil(total / pageLimit) || 0,
+      totalPages: calcTotalPages(total, pageLimit),
     },
     counts: {
       joinDistrict: countByType("joinDistrict"),
@@ -748,7 +748,7 @@ const districtClubSkatersRepository = async (districtMemberId, clubId, { page, l
       total,
       page: currentPage,
       limit: pageLimit,
-      totalPages: Math.ceil(total / pageLimit) || 1,
+      totalPages: calcTotalPages(total, pageLimit),
     },
   };
 };

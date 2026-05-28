@@ -1,5 +1,5 @@
 import { AppError } from "../../util/common/AppError.js";
-import { paginate } from "../../util/common/paginate.js";
+import { paginate, calcTotalPages } from "../../util/common/paginate.js";
 import { Club } from "../club/club.model.js";
 import { District } from "../district/district.model.js";
 import { Skater } from "../skater/skater.model.js";
@@ -61,7 +61,7 @@ export const displayAllMediaBasedOnSkaterRepositories = async (skaterId, type, p
       total,
       page: currentPage,
       limit: perPage,
-      totalPages: Math.ceil(total / perPage),
+      totalPages: calcTotalPages(total, perPage),
     },
   };
 };
@@ -128,7 +128,7 @@ export const displayAllMediaRepositories = async (type = {}, page, limit) => {
       total,
       page: currentPage,
       limit: perPage,
-      totalPages: Math.ceil(total / perPage),
+      totalPages: calcTotalPages(total, perPage),
     },
   };
 };
@@ -159,7 +159,7 @@ export const basedOnRoleDisplayRepositories = async ({ ownerType, ownerId, type 
       total,
       page: currentPage,
       limit: perPage,
-      totalPages: Math.ceil(total / perPage),
+      totalPages: calcTotalPages(total, perPage),
     },
   };
 };

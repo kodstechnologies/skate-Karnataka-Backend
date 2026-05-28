@@ -1,4 +1,4 @@
-import { paginate } from "../../util/common/paginate.js";
+import { paginate, calcTotalPages } from "../../util/common/paginate.js";
 import { AppError } from "../../util/common/AppError.js";
 // import { Skater } from "../auth/skater.model.js";
 import { District } from "../district/district.model.js";
@@ -194,7 +194,7 @@ export const exceptOwnDistrictDisplayAllDistrictRepository = async (
             total,
             page: currentPage,
             limit: pageLimit,
-            totalPages: Math.ceil(total / pageLimit) || 0,
+            totalPages: calcTotalPages(total, pageLimit),
         },
     };
 };
@@ -384,7 +384,7 @@ export const removeAffiliationRepository = async (clubMemberId) => {
 //             total,
 //             page: currentPage,
 //             limit: pageLimit,
-//             totalPages: Math.ceil(total / pageLimit)
+//             totalPages: calcTotalPages(total, pageLimit)
 //         }
 //     };
 // };
@@ -491,7 +491,7 @@ const allClubsInDbRepository = async ({ page, limit, search }) => {
             total,
             page: currentPage,
             limit: pageLimit,
-            totalPages: Math.ceil(total / pageLimit),
+            totalPages: calcTotalPages(total, pageLimit),
         },
     };
 };
@@ -600,7 +600,7 @@ const clubsByDistrictPaginatedRepository = async (
         total,
         page: currentPage,
         limit: pageLimit,
-        totalPages: Math.ceil(total / pageLimit) || 0,
+        totalPages: calcTotalPages(total, pageLimit),
         data: clubs,
     };
 };
@@ -624,7 +624,7 @@ const allClubsPaginatedForSkaterRepository = async ({ page, limit }) => {
         total,
         page: currentPage,
         limit: pageLimit,
-        totalPages: Math.ceil(total / pageLimit) || 0,
+        totalPages: calcTotalPages(total, pageLimit),
         data: clubs,
         scope: "all",
     };
@@ -1044,7 +1044,7 @@ const display_all_apply_skater_repositories = async (
         total,
         page: currentPage,
         limit: pageLimit,
-        totalPages: Math.ceil(total / pageLimit) || 0,
+        totalPages: calcTotalPages(total, pageLimit),
         counts: {
             joinClub: countByType("joinClub"),
             leaveClub: countByType("leaveClub"),
@@ -1092,7 +1092,7 @@ export const display_all_club_skater_repositories = async (
             total,
             page: currentPage,
             limit: pageLimit,
-            totalPages: Math.ceil(total / pageLimit) || 0,
+            totalPages: calcTotalPages(total, pageLimit),
         },
     };
 };

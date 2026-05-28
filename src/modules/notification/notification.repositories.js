@@ -1,5 +1,5 @@
 import { Notification } from "./notification.model.js"
-import { paginate } from "../../util/common/paginate.js";
+import { paginate, calcTotalPages } from "../../util/common/paginate.js";
 
 export const displayAllNotificationRepositories = async ({ id, page = 1, limit = 20 }) => {
     const { skip, limit: perPage, page: currentPage } = paginate(page, limit);
@@ -22,7 +22,7 @@ export const displayAllNotificationRepositories = async ({ id, page = 1, limit =
             total,
             page: currentPage,
             limit: perPage,
-            totalPages: Math.ceil(total / perPage),
+            totalPages: calcTotalPages(total, perPage),
         },
     };
 }

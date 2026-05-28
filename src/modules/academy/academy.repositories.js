@@ -1,7 +1,7 @@
 import { AppError } from "../../util/common/AppError.js";
 import { BaseAuth } from "../auth/baseAuth.model.js";
 import { Academy } from "./academy.model.js";
-import { paginate } from "../../util/common/paginate.js";
+import { paginate, calcTotalPages } from "../../util/common/paginate.js";
 import mongoose from "mongoose";
 import { District } from "../district/district.model.js";
 
@@ -157,7 +157,7 @@ const displayAllAcademyRepositories = async ({
             total,
             page: currentPage,
             limit: perPage,
-            totalPages: Math.ceil(total / perPage),
+            totalPages: calcTotalPages(total, perPage),
         },
     };
 };

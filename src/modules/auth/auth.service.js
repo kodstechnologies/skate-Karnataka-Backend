@@ -378,6 +378,8 @@ const displayChildrenByParentService = async (parentId) => {
         skaterId: skater._id,
         skaterName: skater.fullName || "",
         phone: skater.phone || "",
+        krsaId: skater.krsaId || "",
+        photo: skater.photo || skater.profile || "",
         verify: Boolean(skater.verify),
     }));
 

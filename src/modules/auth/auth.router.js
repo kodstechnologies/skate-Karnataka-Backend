@@ -1,9 +1,9 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
-import { ContactSupport, DeleteUser, GetAchievements, GetAllSkatingEventCategoryNames, GetRankings, LoginUser, LogoutUser, RefreshToken, RegisterUser, sendEmailOTP, sendPhoneOTP, ToggleNotifications, verifyEmailOTP, VerifyOTP, verifyPhoneOTP } from "./auth.controller.js";
+import { ContactSupport, DeleteUser, DisplayChildrenByParent, GetAchievements, GetAllSkatingEventCategoryNames, GetRankings, LoginUser, LogoutUser, RefreshToken, RegisterUser, SelectAccount, sendEmailOTP, sendPhoneOTP, ToggleNotifications, verifyEmailOTP, VerifyOTP, verifyPhoneOTP } from "./auth.controller.js";
 import { validate } from "../../middleware/validate.multiple.js";
 import { upload } from "../../middleware/multer.middleware.js";
-import { LoginValidation, LogoutValidation, RegisterValidation, sendEmailOTPValidation, sendPhoneOTPValidation, verifyEmailOTPValidation, VerifyOTPValidation, verifyPhoneOTPValidation } from "./auth.validation.js";
+import { displayChildrenByParentValidation, LoginValidation, LogoutValidation, RegisterValidation, selectAccountValidation, sendEmailOTPValidation, sendPhoneOTPValidation, verifyEmailOTPValidation, VerifyOTPValidation, verifyPhoneOTPValidation } from "./auth.validation.js";
 import { afterLoginSchoolForm } from "../school/school.controller.js";
 import { afterLoginSchoolFormValidation } from "../school/school.validation.js";
 
@@ -41,6 +41,17 @@ router.post(
 router.post("/v1/login",
     validate(LoginValidation),
     LoginUser);
+
+router.get(
+    "/v1/login/display-children/:id",
+    validate(displayChildrenByParentValidation),
+    DisplayChildrenByParent
+);
+router.post(
+    "/v1/login/select-account",
+    validate(selectAccountValidation),
+    SelectAccount
+);
 
 router.post("/verify-otp",
     validate(VerifyOTPValidation),

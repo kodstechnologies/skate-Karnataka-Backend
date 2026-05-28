@@ -3,6 +3,7 @@ import { uploadAny } from "../../middleware/multer.middleware.js";
 import { validate } from "../../middleware/validate.multiple.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import { afterLoginParentForm, displayAllParent, displayParentFullDetails } from "./parent.controller.js";
+import { afterLoginParentFormValidation } from "./parent.validation.js";
 
 const router = express.Router()
 
@@ -12,7 +13,7 @@ router.get("/v1/full-details/:id", authenticate(["Admin", "State"]), displayPare
 router.post(
   "/v1/after-login-parent-form/:id",
   uploadAny,
-//   validate(afterLoginParentFormValidation),
+  // validate(afterLoginParentFormValidation),
   afterLoginParentForm
 );
 

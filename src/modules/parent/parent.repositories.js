@@ -1,23 +1,67 @@
 import { Parent } from "./parent.model.js";
+import { BaseAuth } from "../auth/baseAuth.model.js";
 import { paginate } from "../../util/common/paginate.js";
 
 const afterLoginParentFormRepositories = async (data, id) => {
-    const updated = await Parent.findOneAndUpdate(
-        { _id: id, role: "Parent" },
+    return await BaseAuth.findOneAndUpdate(
+        { _id: id, role: { $regex: /^parent$/i } },
         {
             $set: {
                 ...data,
                 verify: true,
             },
         },
-        { new: true, runValidators: true }
-    );
+        { returnDocument: "after", runValidators: true }
+    )
+        .select("fullName phone countryCode email gender address profile verify role")
+        .lean();
+};
 
-    if (!updated) {
-        throw new Error("Parent not found or role mismatch");
+const findParentByIdRepositories = async (id) => {
+    return BaseAuth.findOne({ _id: id, role: { $regex: /^parent$/i } })
+        .select("_id fullName phone email role skaters")
+        .populate("skaters", "_id fullName phone email verify")
+        .lean();
+};
+
+const appendSkatersToParentRepositories = async (id, createdSkaterIds = []) => {
+    if (!createdSkaterIds.length) {
+        return BaseAuth.findOne({ _id: id, role: { $regex: /^parent$/i } })
+            .select("_id fullName phone email role skaters")
+            .populate("skaters", "_id fullName phone email verify")
+            .lean();
     }
 
-    return updated;
+    return BaseAuth.findOneAndUpdate(
+        { _id: id, role: { $regex: /^parent$/i } },
+        {
+            $push: {
+                skaters: { $each: createdSkaterIds },
+            },
+        },
+        { returnDocument: "after" }
+    )
+        .select("_id fullName phone email role skaters")
+        .populate("skaters", "_id fullName phone email verify")
+        .lean();
+};
+
+const findUserByPhoneOrEmailRepositories = async ({ phone, email, excludeId }) => {
+    const orConditions = [];
+    if (phone) {
+        orConditions.push({ phone });
+    }
+    if (email) {
+        orConditions.push({ email: email.toLowerCase().trim() });
+    }
+    if (!orConditions.length) return null;
+
+    const query = { $or: orConditions };
+    if (excludeId) {
+        query._id = { $ne: excludeId };
+    }
+
+    return BaseAuth.findOne(query).select("_id phone email role").lean();
 };
 
 const displayAllParentRepositories = async ({ page, limit, search, fullName, phone, gender, email }) => {
@@ -75,11 +119,15 @@ const displayAllParentRepositories = async ({ page, limit, search, fullName, pho
 const displayParentFullDetailsRepositories = async (id) => {
     return await Parent.findOne({ _id: id, role: "Parent" })
         .select("-refreshTokens -firebaseTokens")
+        .populate("skaters", "_id fullName phone email verify")
         .lean();
 };
 
 export {
     afterLoginParentFormRepositories,
+    appendSkatersToParentRepositories,
+    findParentByIdRepositories,
+    findUserByPhoneOrEmailRepositories,
     displayAllParentRepositories,
     displayParentFullDetailsRepositories,
 }

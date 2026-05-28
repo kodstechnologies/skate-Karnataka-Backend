@@ -2,7 +2,7 @@ import { resolveLogoutUserId } from "../../middleware/auth.middleware.js";
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
 import { formatDate } from "../../util/time/timeUtil.js";
-import {ContactSupportService, DeleteAccountService, getAllSkatingEventCategoryNamesService, GetDigitalIDCardService, GetUserProfileService, LoginUserService, LogoutUserService, RegisterUserService, sendEmailOTPService, sendPhoneOTPService, ToggleNotificationsService, verifyEmailOTPService, VerifyOTPService, verifyPhoneOTPService} from "./auth.service.js";
+import {ContactSupportService, DeleteAccountService, displayChildrenByParentService, getAllSkatingEventCategoryNamesService, GetDigitalIDCardService, GetUserProfileService, LoginUserService, LogoutUserService, RegisterUserService, SelectAccountLoginService, sendEmailOTPService, sendPhoneOTPService, ToggleNotificationsService, verifyEmailOTPService, VerifyOTPService, verifyPhoneOTPService} from "./auth.service.js";
 
 const RegisterUser = asyncHandler(async (req, res) => {
     const result = await RegisterUserService(req.body);
@@ -183,6 +183,30 @@ const GetAllSkatingEventCategoryNames = asyncHandler(async (_req, res) => {
         );
 });
 
+const DisplayChildrenByParent = asyncHandler(async (req, res) => {
+    const result = await displayChildrenByParentService(req.params.id);
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            result,
+            "Children fetched successfully"
+        )
+    );
+});
+
+const SelectAccount = asyncHandler(async (req, res) => {
+    const result = await SelectAccountLoginService(req.body);
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            { result },
+            "Login completed successfully"
+        )
+    );
+});
+
 const DeleteUser = asyncHandler(async (req, res) => {
     await DeleteAccountService(req.user);
     return res
@@ -213,5 +237,7 @@ GetRankings,
 ToggleNotifications,
 ContactSupport,
 GetAllSkatingEventCategoryNames,
+DisplayChildrenByParent,
+SelectAccount,
 DeleteUser,
 }

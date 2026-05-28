@@ -286,6 +286,37 @@ const RefreshTokenValidation = {
     })
 };
 
+const displayChildrenByParentValidation = {
+    params: Joi.object({
+        id: Joi.string().trim().pattern(/^[0-9a-fA-F]{24}$/).required().messages({
+            "any.required": "Parent id is required",
+            "string.empty": "Parent id is required",
+            "string.pattern.base": "Invalid parent id format",
+        }),
+    }),
+};
+
+const selectAccountValidation = {
+    body: Joi.object({
+        userId: Joi.string()
+            .trim()
+            .pattern(/^[0-9a-fA-F]{24}$/)
+            .required()
+            .messages({
+                "string.pattern.base": "Invalid user id format",
+                "any.required": "User id is required",
+                "string.empty": "User id is required",
+            }),
+        firebaseTokens: Joi.alternatives()
+            .try(
+                Joi.string().allow(""),
+                Joi.array().items(Joi.string().allow("")),
+                Joi.valid(null)
+            )
+            .optional(),
+    }),
+};
+
 
 export {
     RegisterValidation,
@@ -298,4 +329,6 @@ export {
     afterLoginGuestFormValidation,
     LogoutValidation,
     RefreshTokenValidation,
+    displayChildrenByParentValidation,
+    selectAccountValidation,
 }

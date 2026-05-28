@@ -7,7 +7,8 @@ import { District } from "../district/district.model.js";
 import { Club } from "../club/club.model.js";
 import { BaseAuth } from "./baseAuth.model.js";
 import SkatingEventCategory from "../event/SkatingEventCategory.model.js";
-import { checkEmailOTP, checkOtp, checkPhoneOTP, deleteAccount, isExist, isExistEmail, isExistKSRAId, isExistPhone, registerUser_repositories, removeFirebaseTokenAndRefressToken, removeOldEmailOtp, removeOldKRSAIdOtp, removeOldPhoneOtp, saveEmailOtp, saveFirebaseToken, saveKRSAIdOTP, savePhoneOTP, saveRefreshToken } from "./auth.repositories.js";
+import mongoose from "mongoose";
+import { checkEmailOTP, checkOtp, checkPhoneOTP, deleteAccount, findParentByIdForChildren, findSkatersByParentPhone, isExist, isExistEmail, isExistKSRAId, isExistPhone, registerUser_repositories, removeFirebaseTokenAndRefressToken, removeOldEmailOtp, removeOldKRSAIdOtp, removeOldPhoneOtp, saveEmailOtp, saveFirebaseToken, saveKRSAIdOTP, savePhoneOTP, saveRefreshToken } from "./auth.repositories.js";
 
 const ROLE_PREFIX_MAP = {
     Skater: "S",
@@ -292,6 +293,40 @@ const VerifyOTPService = async (userData) => {
     return { userId: userData.userId, verify: user.verify, role: user.role, krsaId: user.krsaId, accessToken, refreshToken };
 };
 
+const SelectAccountLoginService = async (userData) => {
+    const { userId } = userData;
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+        throw new AppError("Invalid user id", 400);
+    }
+
+    const user = await isExist({ userId });
+    if (!user) {
+        throw new AppError("User not found", 404);
+    }
+
+    if (user?.email) {
+        const existingEmailUser = await isExistEmail(user.email);
+        if (existingEmailUser && String(existingEmailUser._id) !== String(user._id)) {
+            throw new AppError("Email already exists", 409);
+        }
+    }
+
+    await saveFirebaseToken(userData);
+
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
+    await saveRefreshToken(user._id, refreshToken);
+
+    return {
+        userId: user._id,
+        verify: user.verify,
+        role: user.role,
+        krsaId: user.krsaId || "",
+        accessToken,
+        refreshToken,
+    };
+};
+
 
 
 
@@ -325,6 +360,39 @@ const DeleteAccountService = async (userData) => {
     await deleteAccount(userData._id);
 };
 
+const displayChildrenByParentService = async (parentId) => {
+    if (!mongoose.Types.ObjectId.isValid(parentId)) {
+        throw new AppError("Invalid parent id", 400);
+    }
+
+    const parent = await findParentByIdForChildren(parentId);
+    if (!parent) {
+        throw new AppError("Parent not found", 404);
+    }
+
+    if (!parent.phone) {
+        throw new AppError("Parent phone number is not available", 400);
+    }
+
+    const children = await findSkatersByParentPhone(parent.phone);
+    const createdSkaters = children.map((skater) => ({
+        skaterId: skater._id,
+        skaterName: skater.fullName || "",
+        verify: Boolean(skater.verify),
+    }));
+
+    return {
+        parentId: String(parent._id),
+        parentName: parent.fullName || "",
+        parentAccount: {
+            userId: String(parent._id),
+            fullName: parent.fullName || "",
+            role: String(parent.role || "Parent").toLowerCase(),
+        },
+        createdSkaters,
+    };
+};
+
 const getAllSkatingEventCategoryNamesService = async () => {
     const categories = await SkatingEventCategory.find({})
         .select("_id typeName")
@@ -351,6 +419,7 @@ export {
     verifyPhoneOTPService,
     LoginUserService,
     VerifyOTPService,
+    SelectAccountLoginService,
 
     // afterLoginFormClubService,
     // afterLoginFormGuestService,
@@ -368,4 +437,5 @@ export {
     ContactSupportService,
     getAllSkatingEventCategoryNamesService,
     DeleteAccountService,
+    displayChildrenByParentService,
 }

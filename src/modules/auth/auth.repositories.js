@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { generateRandomNumber } from "../../util/token/token.js";
 import { Skater } from "../skater/skater.model.js";
+import { Parent } from "../parent/parent.model.js";
 import { School } from "../school/school.model.js";
 import { Academy } from "../academy/academy.model.js";
 import { Official } from "../official/official.model.js";
@@ -391,6 +392,28 @@ const getSupportContact = async (userData) => {
     }
 }
 
+const findParentByIdForChildren = async (parentId) => {
+    return Parent.findOne({ _id: parentId, role: "Parent" })
+        .select("_id fullName phone countryCode email role")
+        .lean();
+};
+
+const findSkatersByParentPhone = async (parentPhone) => {
+    const normalizedPhone = String(parentPhone || "").trim();
+    if (!normalizedPhone) {
+        return [];
+    }
+
+    return Skater.find({
+        role: "Skater",
+        $or: [{ phone: normalizedPhone }, { parent: normalizedPhone }],
+    })
+        .select("_id fullName phone profile krsaId gender dob photo club clubStatus parent verify")
+        .populate("club", "_id name clubId")
+        .sort({ createdAt: -1 })
+        .lean();
+};
+
 export {
     registerUser_repositories,
     isExistEmail,
@@ -421,4 +444,6 @@ export {
     GetDigitalIDCardDetaisl,
     toggleNotification,
     getSupportContact,
+    findParentByIdForChildren,
+    findSkatersByParentPhone,
 }

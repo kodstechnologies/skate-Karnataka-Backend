@@ -65,7 +65,7 @@ router.get("/v1/skater/display-existing-club",
     authenticate(["Skater"]),
     display_existing_club
 )
-
+    
 // apply for join
 router.get("/v1/apply-join/:id",
     authenticate(["Skater"]),

@@ -910,7 +910,7 @@ export const displayDashboardDataRepository = async (id) => {
 export const displayDistrictProfileRepository = async (id) => {
 
   const districtUser = await BaseAuth.findById(id)
-    .select("district , krsaId")
+    .select("district krsaId fullName phone email profile gender address role")
     .lean();
 
   if (!districtUser || !districtUser.district) {
@@ -937,6 +937,17 @@ export const displayDistrictProfileRepository = async (id) => {
     officeAddress: district.officeAddress || "",
     about: district.about || "",
     presidentName: district.presidentName || "",
+    currentMember: {
+      userId: districtUser._id || "",
+      fullName: districtUser.fullName || "",
+      phone: districtUser.phone || "",
+      email: districtUser.email || "",
+      photo: districtUser.profile || "",
+      gender: districtUser.gender || "",
+      address: districtUser.address || "",
+      role: districtUser.role || "District",
+      krsaId: districtUser.krsaId || "",
+    },
     // rank: district.rank || 0,
     // championships: district.championships || 0
   };

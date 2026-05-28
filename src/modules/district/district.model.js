@@ -36,6 +36,10 @@ const districtSchema = new mongoose.Schema(
     presidentName: {
       type: String,
     },
+    verify: {
+      type: Boolean,
+      default: false,
+    },
 
     club: [
       {

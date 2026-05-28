@@ -364,6 +364,84 @@ const parseEventEndDateTime = (eventEndDate, eventEndTime) => {
   return endDate;
 };
 
+/** True when event ended at least 2 full days ago. */
+export const isEventEndedPlusTwoDays = (event, referenceDate = new Date()) => {
+  const endDateTime = parseEventEndDateTime(event?.eventEndDate, event?.eventEndTime);
+  if (!endDateTime) return false;
+
+  const threshold = new Date(endDateTime);
+  threshold.setDate(threshold.getDate() + 2);
+  return threshold < referenceDate;
+};
+
+export const hasParticipantRecordedTime = (participant) =>
+  (participant?.categories || []).some(
+    (category) =>
+      category?.timeTaken != null &&
+      typeof category.timeTaken === "number" &&
+      !Number.isNaN(category.timeTaken)
+  );
+
+/** Event ids from generated certificates where (eventEndDate + 2 days) < now. */
+export const getCertificateEventIdsEndedPlusTwoDays = async () => {
+  const eventIds = await GeneratedCertificate.distinct("eventId");
+  if (!eventIds.length) return [];
+
+  const events = await Event.find({ _id: { $in: eventIds } })
+    .select("_id eventEndDate eventEndTime")
+    .lean();
+
+  return events.filter(isEventEndedPlusTwoDays).map((event) => event._id);
+};
+
+/**
+ * Daily job: for certificate events ended 2+ days ago, auto-approve club step when
+ * skater's club no longer exists, participant has recorded times, and clubAllow is pending.
+ */
+export const runDailyMissingClubCertificationJob = async () => {
+  const eventIds = await getCertificateEventIdsEndedPlusTwoDays();
+  if (!eventIds.length) {
+    console.log("Missing-club certification job: no eligible events");
+    return { eventsChecked: 0, approved: 0 };
+  }
+
+  let approved = 0;
+
+  for (const eventId of eventIds) {
+    const participants = await EventParticipant.find({
+      eventId,
+      userId: { $exists: true, $ne: null },
+      skaterApply: true,
+      clubAllow: { $ne: true },
+    })
+      .select("_id userId categories skaterApply clubAllow")
+      .lean();
+
+    for (const participant of participants) {
+      if (!hasParticipantRecordedTime(participant)) continue;
+
+      const skater = await Skater.findById(participant.userId).select("club").lean();
+      const clubId = skater?.club;
+
+      if (clubId) {
+        const clubExists = await Club.exists({ _id: clubId });
+        if (clubExists) continue;
+      }
+
+      await EventParticipant.findByIdAndUpdate(participant._id, {
+        $set: { clubAllow: true },
+      });
+      approved += 1;
+    }
+  }
+
+  console.log(
+    `Missing-club certification job: events=${eventIds.length}, clubAllow set=${approved}`
+  );
+
+  return { eventsChecked: eventIds.length, approved };
+};
+
 export const applyCertificationBySkaterRepository = async (participantId, userId) => {
   if (!mongoose.Types.ObjectId.isValid(String(participantId || ""))) {
     return { participant: null, alreadyApplied: false };
@@ -512,7 +590,24 @@ export const displayCertificationApplicationsRepository = async (
 ) => {
   const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
   const role = String(reqUser?.role || "").trim().toLowerCase();
-  const baseMatch = { skaterApply: true };
+
+  const eligibleEventIds = await getCertificateEventIdsEndedPlusTwoDays();
+  if (!eligibleEventIds.length) {
+    return {
+      data: [],
+      pagination: {
+        total: 0,
+        page: currentPage,
+        limit: pageLimit,
+        totalPages: calcTotalPages(0, pageLimit),
+      },
+    };
+  }
+
+  const baseMatch = {
+    skaterApply: true,
+    eventId: { $in: eligibleEventIds },
+  };
 
   if (role === "district" || role === "state" || role === "admin") {
     baseMatch.clubAllow = true;

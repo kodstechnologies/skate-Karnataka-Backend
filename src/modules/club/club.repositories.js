@@ -56,7 +56,7 @@ export const displayClubDashboardRepositories = async ({ clubId }) => {
 
 export const displayClubProfileRepositories = async (userId) => {
     const club = await Club.findOne({ members: userId })
-        .select("name img address district districtName districtStatus about rank championships clubId members")
+        .select("name img officeAddress address district districtName districtStatus about rank championships clubId members")
         .populate("district", "name")
         .populate("members", "_id fullName phone email role krsaId profile gender address")
         .lean();
@@ -88,13 +88,11 @@ export const displayClubProfileRepositories = async (userId) => {
         id: String(club._id),
         name: club.name || "",
         image: club.img || "",
-        address: club.officeAddress || "",
+        address: club.officeAddress || club.address || "",
         districtId: hasDistrictRef(club.district) ? String(club.district) : "",
         districtName: club.district?.name || club.districtName || "",
         districtStatus: club.districtStatus || "",
         about: club.about || "",
-        rank: club.rank ?? 0,
-        championships: club.championships ?? 0,
         clubId: club.clubId || "",
         currentMember,
         totalMembers: normalizedMembers.length,

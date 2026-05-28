@@ -24,7 +24,11 @@ const afterLoginSkaterFormValidation = {
 
         aadharNumber: Joi.string()
             .pattern(/^[0-9]{12}$/)
-        ,
+            .messages({
+                "string.pattern.base": "Please enter a valid 12-digit Aadhaar number",
+                "string.empty": "Aadhaar number is required",
+            }),
+        
 
         gender: Joi.string()
             .valid("male", "female", "other")

@@ -58,7 +58,7 @@ export const displayClubProfileRepositories = async (userId) => {
     const club = await Club.findOne({ members: userId })
         .select("name img address district districtName districtStatus about rank championships clubId members")
         .populate("district", "name")
-        .populate("members", "_id fullName phone email role krsaId")
+        .populate("members", "_id fullName phone email role krsaId profile gender address")
         .lean();
 
     if (!club) return null;
@@ -68,6 +68,21 @@ export const displayClubProfileRepositories = async (userId) => {
     //     clubStatus: "join",
     //     role: "Skater",
     // });
+
+    const normalizedMembers = (club.members || []).map((member) => ({
+        _id: member?._id,
+        fullName: member?.fullName || "",
+        phone: member?.phone || "",
+        email: member?.email || "",
+        role: member?.role || "",
+        krsaId: member?.krsaId || "",
+        photo: member?.profile || "",
+        gender: member?.gender || "",
+        address: member?.address || "",
+    }));
+
+    const currentMember =
+        normalizedMembers.find((member) => String(member._id) === String(userId)) || null;
 
     return {
         id: String(club._id),
@@ -81,8 +96,8 @@ export const displayClubProfileRepositories = async (userId) => {
         rank: club.rank ?? 0,
         championships: club.championships ?? 0,
         clubId: club.clubId || "",
-        totalMembers: (club.members || []).length,
-        members: club.members || [],
+        currentMember,
+        totalMembers: normalizedMembers.length,
     };
 };
 export const affiliatedDistrictRepository = async (clubMemberId) => {

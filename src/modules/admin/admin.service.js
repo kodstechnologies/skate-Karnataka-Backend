@@ -223,10 +223,14 @@ export const createDistrictByAdminService = async (payload) => {
     throw new AppError("District already exists", 409);
   }
 
-  const district = await createDistrictByAdmin(payload);
+  const district = await createDistrictByAdmin({
+    ...payload,
+    verify: true,
+  });
   return {
     _id: district._id,
     name: district.name,
+    
   };
 };
 

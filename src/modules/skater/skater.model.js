@@ -1,5 +1,4 @@
 import mongoose from "mongoose";
-import { type } from "node:os";
 import { BaseAuth } from "../auth/baseAuth.model.js";
 
 const skaterSchema = new mongoose.Schema({
@@ -60,6 +59,10 @@ const skaterSchema = new mongoose.Schema({
   parent: {
     type: String,
     trim: true,
+  },
+  SkaterParent: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Parent",
   },
 
   bloodGroup: {

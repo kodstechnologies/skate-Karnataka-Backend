@@ -200,42 +200,23 @@ const getUniqueEmailForSkater = async ({
 const getUniquePhoneForSkater = async ({
     preferredPhone,
     parentPhone,
-    batchUsedPhones,
 }) => {
     if (preferredPhone) {
-        if (batchUsedPhones.has(preferredPhone)) {
-            throw new AppError("Duplicate skater phone in same request", 409);
-        }
-        const existing = await findUserByPhoneOrEmailRepositories({ phone: preferredPhone });
-        if (existing) {
-            throw new AppError("Skater phone already used", 409);
-        }
-        batchUsedPhones.add(preferredPhone);
         return preferredPhone;
     }
 
-    if (!parentPhone) {
+    const normalizedParentPhone = toTrimmedString(parentPhone);
+    if (!normalizedParentPhone) {
         throw new AppError("Parent phone is missing, cannot assign skater phone", 400);
     }
 
-    let attempt = 0;
-    while (attempt < 1000) {
-        const suffix = String(attempt).padStart(3, "0");
-        const candidate = attempt === 0
-            ? parentPhone
-            : `${parentPhone.slice(0, 7)}${suffix}`;
-        if (PHONE_REGEX.test(candidate) && !batchUsedPhones.has(candidate)) {
-            const existing = await findUserByPhoneOrEmailRepositories({ phone: candidate });
-            if (!existing) {
-                batchUsedPhones.add(candidate);
-                return candidate;
-            }
-        }
-        attempt += 1;
+    if (!PHONE_REGEX.test(normalizedParentPhone)) {
+        throw new AppError("Parent phone must be a valid 10-digit Indian number", 400);
     }
 
-    throw new AppError("Unable to generate unique skater phone", 500);
+    return normalizedParentPhone;
 };
+
 
 const createSkatersForParent = async (skatersInput = [], parentContext = {}) => {
     const createdSkaters = [];
@@ -276,6 +257,7 @@ const createSkatersForParent = async (skatersInput = [], parentContext = {}) => 
                 club: validated.club,
                 clubStatus: validated.club ? "join" : "apply",
                 parent: parentContext.fullName || "",
+                SkaterParent: parentContext.id,
                 photo: validated.photo,
                 documents: validated.documents,
             });
@@ -345,15 +327,15 @@ const afterLoginFormParentService = async (data, id) => {
     const skatersInput = parseSkatersFromBody(data);
     const { createdSkaters, createdSkaterIds } = await createSkatersForParent(skatersInput, {
         id,
-        fullName: existingParent.fullName,
-        phone: existingParent.phone,
+        fullName: updatedParent.fullName || existingParent.fullName,
+        phone: updatedParent.phone || existingParent.phone,
     });
 
     if (createdSkaterIds.length !== skatersInput.length) {
         throw new AppError("Failed to create all skaters", 500);
     }
 
-    const parentWithSkaters = await appendSkatersToParentRepositories(id, createdSkaterIds);
+    const parentWithSkaters = await appendSkatersToParentRepositories(id);
     if (!parentWithSkaters) {
         throw new AppError("Parent not found", 404);
     }

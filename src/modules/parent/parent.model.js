@@ -3,14 +3,6 @@ import { BaseAuth } from "../auth/baseAuth.model.js";
 
 const parentSchema = new mongoose.Schema(
     {
-        skaters: [
-            {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: "Skater",
-            },
-        ],
-        default: [],
-
     },
     {
         timestamps: true,

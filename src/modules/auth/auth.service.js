@@ -370,14 +370,14 @@ const displayChildrenByParentService = async (parentId) => {
         throw new AppError("Parent not found", 404);
     }
 
-    if (!parent.phone) {
-        throw new AppError("Parent phone number is not available", 400);
-    }
-
-    const children = await findSkatersByParentPhone(parent.phone);
+    const children = await findSkatersByParentPhone({
+        parentId,
+        parentPhone: parent.phone,
+    });
     const createdSkaters = children.map((skater) => ({
         skaterId: skater._id,
         skaterName: skater.fullName || "",
+        phone: skater.phone || "",
         verify: Boolean(skater.verify),
     }));
 
@@ -388,6 +388,10 @@ const displayChildrenByParentService = async (parentId) => {
             userId: String(parent._id),
             fullName: parent.fullName || "",
             role: String(parent.role || "Parent").toLowerCase(),
+        },
+        matchedBy: {
+            skaterParentId: true,
+            parentPhone: parent.phone || "",
         },
         createdSkaters,
     };

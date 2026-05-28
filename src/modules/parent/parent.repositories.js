@@ -1,6 +1,21 @@
 import { Parent } from "./parent.model.js";
 import { BaseAuth } from "../auth/baseAuth.model.js";
+import { Skater } from "../skater/skater.model.js";
 import { paginate } from "../../util/common/paginate.js";
+
+const getParentWithSkaters = async (id) => {
+    const parent = await BaseAuth.findOne({ _id: id, role: { $regex: /^parent$/i } })
+        .select("_id fullName phone email role")
+        .lean();
+
+    if (!parent) return null;
+
+    const skaters = await Skater.find({ SkaterParent: id, role: { $regex: /^skater$/i } })
+        .select("_id fullName phone email verify")
+        .lean();
+
+    return { ...parent, skaters };
+};
 
 const afterLoginParentFormRepositories = async (data, id) => {
     return await BaseAuth.findOneAndUpdate(
@@ -18,32 +33,11 @@ const afterLoginParentFormRepositories = async (data, id) => {
 };
 
 const findParentByIdRepositories = async (id) => {
-    return BaseAuth.findOne({ _id: id, role: { $regex: /^parent$/i } })
-        .select("_id fullName phone email role skaters")
-        .populate("skaters", "_id fullName phone email verify")
-        .lean();
+    return getParentWithSkaters(id);
 };
 
-const appendSkatersToParentRepositories = async (id, createdSkaterIds = []) => {
-    if (!createdSkaterIds.length) {
-        return BaseAuth.findOne({ _id: id, role: { $regex: /^parent$/i } })
-            .select("_id fullName phone email role skaters")
-            .populate("skaters", "_id fullName phone email verify")
-            .lean();
-    }
-
-    return BaseAuth.findOneAndUpdate(
-        { _id: id, role: { $regex: /^parent$/i } },
-        {
-            $push: {
-                skaters: { $each: createdSkaterIds },
-            },
-        },
-        { returnDocument: "after" }
-    )
-        .select("_id fullName phone email role skaters")
-        .populate("skaters", "_id fullName phone email verify")
-        .lean();
+const appendSkatersToParentRepositories = async (id) => {
+    return getParentWithSkaters(id);
 };
 
 const findUserByPhoneOrEmailRepositories = async ({ phone, email, excludeId }) => {
@@ -117,10 +111,16 @@ const displayAllParentRepositories = async ({ page, limit, search, fullName, pho
 };
 
 const displayParentFullDetailsRepositories = async (id) => {
-    return await Parent.findOne({ _id: id, role: "Parent" })
+    const parent = await Parent.findOne({ _id: id, role: "Parent" })
         .select("-refreshTokens -firebaseTokens")
-        .populate("skaters", "_id fullName phone email verify")
         .lean();
+    if (!parent) return null;
+
+    const skaters = await Skater.find({ SkaterParent: id, role: { $regex: /^skater$/i } })
+        .select("_id fullName phone email verify")
+        .lean();
+
+    return { ...parent, skaters };
 };
 
 export {

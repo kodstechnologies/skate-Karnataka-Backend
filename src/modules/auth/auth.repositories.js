@@ -393,21 +393,27 @@ const getSupportContact = async (userData) => {
 }
 
 const findParentByIdForChildren = async (parentId) => {
-    return Parent.findOne({ _id: parentId, role: "Parent" })
+    return BaseAuth.findById(parentId)
         .select("_id fullName phone countryCode email role")
         .lean();
 };
 
-const findSkatersByParentPhone = async (parentPhone) => {
-    const normalizedPhone = String(parentPhone || "").trim();
-    if (!normalizedPhone) {
+const findSkatersByParentPhone = async ({ parentId, parentPhone }) => {
+    if (!mongoose.Types.ObjectId.isValid(parentId)) {
         return [];
     }
 
-    return Skater.find({
+    const normalizedPhone = String(parentPhone || "").trim();
+    const query = {
         role: "Skater",
-        $or: [{ phone: normalizedPhone }, { parent: normalizedPhone }],
-    })
+        SkaterParent: parentId,
+    };
+
+    if (normalizedPhone) {
+        query.phone = normalizedPhone;
+    }
+
+    return Skater.find(query)
         .select("_id fullName phone profile krsaId gender dob photo club clubStatus parent verify")
         .populate("club", "_id name clubId")
         .sort({ createdAt: -1 })

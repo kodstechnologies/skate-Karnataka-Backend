@@ -2,6 +2,76 @@ import Joi from "joi";
 import { AGE_GROUPS } from "./SkatingEventCategory.model.js";
 import { parseCompetitionTimeTakenToSeconds } from "../../util/time/timeUtil.js";
 
+const parseClockToMinutes = (rawValue) => {
+    const raw = String(rawValue || "").trim();
+    const match = raw.match(/^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i);
+    if (!match) return null;
+
+    let hours = Number(match[1]);
+    const minutes = Number(match[2]);
+    if (Number.isNaN(hours) || Number.isNaN(minutes) || minutes < 0 || minutes > 59) {
+        return null;
+    }
+
+    const meridian = (match[3] || "").toUpperCase();
+    if (meridian) {
+        if (hours < 1 || hours > 12) return null;
+        if (meridian === "PM" && hours < 12) hours += 12;
+        if (meridian === "AM" && hours === 12) hours = 0;
+    } else if (hours < 0 || hours > 23) {
+        return null;
+    }
+
+    return hours * 60 + minutes;
+};
+
+const enforceEventDateTimeOrder = (value, helpers) => {
+    const registerStartDate = new Date(value.registerStartDate);
+    const registerEndDate = new Date(value.registerEndDate);
+    const eventStartDate = new Date(value.eventStartDate);
+    const eventEndDate = new Date(value.eventEndDate);
+
+    if (
+        Number.isNaN(registerStartDate.getTime()) ||
+        Number.isNaN(registerEndDate.getTime()) ||
+        Number.isNaN(eventStartDate.getTime()) ||
+        Number.isNaN(eventEndDate.getTime())
+    ) {
+        return helpers.error("any.custom", { message: "Invalid event date values" });
+    }
+
+    if (!(registerStartDate < registerEndDate)) {
+        return helpers.error("any.custom", {
+            message: "registerStartDate must be earlier than registerEndDate",
+        });
+    }
+    if (!(registerEndDate < eventStartDate)) {
+        return helpers.error("any.custom", {
+            message: "registerEndDate must be earlier than eventStartDate",
+        });
+    }
+    if (!(eventStartDate < eventEndDate)) {
+        return helpers.error("any.custom", {
+            message: "eventStartDate must be earlier than eventEndDate",
+        });
+    }
+
+    const startMinutes = parseClockToMinutes(value.eventStartTime);
+    const endMinutes = parseClockToMinutes(value.eventEndTime);
+    if (startMinutes == null || endMinutes == null) {
+        return helpers.error("any.custom", {
+            message: "eventStartTime and eventEndTime must be valid time format (HH:mm or hh:mm AM/PM)",
+        });
+    }
+    if (!(startMinutes < endMinutes)) {
+        return helpers.error("any.custom", {
+            message: "eventStartTime must be earlier than eventEndTime",
+        });
+    }
+
+    return value;
+};
+
 const objectIdString = Joi.string()
     .trim()
     .pattern(/^[0-9a-fA-F]{24}$/)
@@ -398,7 +468,11 @@ const create_club_event_validation = {
             .optional(),
 
         skatingEventCategories: skatingEventCategoriesRequired,
-    }),
+    })
+        .custom(enforceEventDateTimeOrder)
+        .messages({
+            "any.custom": "{{#message}}",
+        }),
 };
 
 const create_district_event_validation = {
@@ -444,7 +518,11 @@ const create_district_event_validation = {
             .optional(),
 
         skatingEventCategories: skatingEventCategoriesRequired,
-    }),
+    })
+        .custom(enforceEventDateTimeOrder)
+        .messages({
+            "any.custom": "{{#message}}",
+        }),
 };
 
 const create_state_event_validation = {
@@ -493,7 +571,11 @@ const create_state_event_validation = {
             .optional(),
 
         skatingEventCategories: skatingEventCategoryIds,
-    }),
+    })
+        .custom(enforceEventDateTimeOrder)
+        .messages({
+            "any.custom": "{{#message}}",
+        }),
 };
 
 

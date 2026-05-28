@@ -1778,6 +1778,13 @@ const toValidDate = (value) => {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
+/** Registration open when registerEndDate is still in the future (or exactly now). */
+const isRegistrationOpen = (registerEndDate, referenceDate = new Date()) => {
+  const end = toValidDate(registerEndDate);
+  if (!end) return false;
+  return end >= referenceDate;
+};
+
 /** Derive status from schedule: completed after end, active after start, else coming_soon. */
 export const resolveEventStatusByDates = (event) => {
   const storedStatus = event?.status ?? "coming_soon";
@@ -2211,16 +2218,19 @@ const display_latest_event_repositories = async (userId) => {
   const query = {
     $and: [
       { $or: buildSkaterVisibleEventsOrClause(scope) },
+      // Hide events whose registration window has ended (registerEndDate < now).
       { registerEndDate: { $gte: now } },
     ],
   };
 
   const event = await Event.findOne(query)
     .select(EVENT_CARD_LIST_PROJECTION)
-    .sort({ createdAt: -1 })
+    .sort({ registerEndDate: -1, createdAt: -1 })
     .lean();
 
-  if (!event) return null;
+  if (!event || !isRegistrationOpen(event.registerEndDate, now)) {
+    return null;
+  }
 
   const [enriched] = await enrichLeanEventsSkatingCategoryNames([event]);
 

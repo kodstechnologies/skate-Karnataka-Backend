@@ -274,7 +274,10 @@ export const addMemberToDistrict = async ({ districtId, memberId }) => {
   if (!districtId) return null;
   return District.findByIdAndUpdate(
     districtId,
-    { $addToSet: { members: memberId ,verify: true} },
+    {
+      $addToSet: { members: memberId },
+      $set: { verify: true },
+    },
     { new: false }
   ).lean();
 };

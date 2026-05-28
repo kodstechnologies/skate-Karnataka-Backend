@@ -47,7 +47,6 @@ const afterLoginSkaterFormValidation = {
         bloodGroup: Joi.string()
             .valid("A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-")
         ,
-
         school: Joi.string(),
         grade: Joi.string(),
 

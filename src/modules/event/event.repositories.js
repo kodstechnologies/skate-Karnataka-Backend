@@ -1772,6 +1772,33 @@ export const enrichLeanEventsSkatingCategoryNames = async (events) => {
 const EVENT_CARD_LIST_PROJECTION =
   "_id header eventStartDate eventEndDate colorOne colorTwo textColor skatingEventCategories status address eventType";
 
+const toValidDate = (value) => {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+/** Derive status from schedule: completed after end, active after start, else coming_soon. */
+export const resolveEventStatusByDates = (event) => {
+  const storedStatus = event?.status ?? "coming_soon";
+  if (storedStatus === "cancelled") {
+    return "cancelled";
+  }
+
+  const now = new Date();
+  const eventStartDate = toValidDate(event?.eventStartDate);
+  const eventEndDate = toValidDate(event?.eventEndDate);
+
+  if (eventEndDate && eventEndDate < now) {
+    return "completed";
+  }
+  if (eventStartDate && eventStartDate < now) {
+    return "active";
+  }
+
+  return "coming_soon";
+};
+
 const toEventCardListItem = (ev) => ({
   _id: ev._id,
   header: ev.header ?? "",
@@ -1781,7 +1808,7 @@ const toEventCardListItem = (ev) => ({
   colorTwo: ev.colorTwo ?? "#2575FC",
   textColor: ev.textColor ?? "#FFFFFF",
   skatingEventCategories: ev.skatingEventCategories ?? [],
-  status: ev.status ?? "coming_soon",
+  status: resolveEventStatusByDates(ev),
   address: ev.address ?? "",
   eventType: ev.eventType ?? "",
 });
@@ -2050,7 +2077,7 @@ export const getSkaterEventFullDetailsDtoRepository = async (eventId, skaterUser
     address: event.address ?? "",
     eventType: event.eventType,
     name,
-    status: event.status,
+    status: resolveEventStatusByDates(event),
     entryFee: event.entryFee ?? "",
     colorOne: event.colorOne ?? "#6A11CB",
     colorTwo: event.colorTwo ?? "#2575FC",

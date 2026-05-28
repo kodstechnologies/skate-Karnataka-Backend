@@ -1256,8 +1256,13 @@ export const addSkaterByClubRepository = async (clubMemberId, skaterData) => {
         club: club._id,
         clubStatus: "join",
         role: "Skater",
-        verify: true,
+        verify: false,
     }).save();
+
+    // if (!skater.verify) {
+    //     await Skater.findByIdAndUpdate(skater._id, { $set: { verify: true } }, { new: false });
+    //     skater.verify = true;
+    // }
 
     return {
         id: skater._id,
@@ -1271,6 +1276,7 @@ export const addSkaterByClubRepository = async (clubMemberId, skaterData) => {
         districtName: club.districtName || "",
         club: club._id,
         clubName: club.name || "",
+        verify: Boolean(skater.verify),
     };
 };
 

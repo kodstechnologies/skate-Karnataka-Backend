@@ -398,9 +398,15 @@ export const applyCertificationBySkaterRepository = async (participantId, userId
 };
 
 export const getAllPlayedEventsBySkaterRepository = async (userId) => {
+  if (!mongoose.Types.ObjectId.isValid(String(userId))) {
+    return [];
+  }
+
+  const skaterObjectId = new mongoose.Types.ObjectId(String(userId));
+
   const rows = await EventParticipant.find({
-    userId: new mongoose.Types.ObjectId(userId),
-    eventId: { $exists: true },
+    userId: { $exists: true, $ne: null, $eq: skaterObjectId },
+    eventId: { $exists: true, $ne: null },
   })
     .select("eventId userId skaterApply paymentStatus createdAt")
     .populate({
@@ -415,6 +421,10 @@ export const getAllPlayedEventsBySkaterRepository = async (userId) => {
 
   const data = [];
   for (const row of rows) {
+    if (!row.userId || String(row.userId) !== String(skaterObjectId)) {
+      continue;
+    }
+
     const event = row.eventId;
     if (!event?._id) continue;
 

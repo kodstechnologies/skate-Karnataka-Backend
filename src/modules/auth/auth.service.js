@@ -71,10 +71,18 @@ const RegisterUserService = async (userData) => {
     const selectedClubId = userData.club;
     const normalizedRole = String(userData.role || "").toLowerCase();
 
-    if (normalizedRole === "skater") {
+    const rolesNeedVerificationFalse = [
+        "skater",
+        "parent",
+        "school",
+        "academy",
+        "official",
+        "guest",
+    ];
+
+    if (rolesNeedVerificationFalse.includes(normalizedRole)) {
         userData.verify = false;
     }
-
     if (["district", "club", "state"].includes(normalizedRole)) {
         userData.verify = true;
     }

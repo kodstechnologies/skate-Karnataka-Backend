@@ -500,6 +500,50 @@ export const stateDashboardRepository = async (user) => {
 };
 
 export const stateProfileRepository = async (stateId) => {
+  const currentUser = await BaseAuth.findById(stateId)
+    .select("role fullName phone email profile gender address district krsaId")
+    .lean();
+
+  if (!currentUser) {
+    throw new AppError("User not found", 404);
+  }
+
+  const normalizedRole = String(currentUser.role || "").toLowerCase();
+
+  if (normalizedRole === "district") {
+    const district = currentUser.district
+      ? await District.findById(currentUser.district)
+          .select("_id name img officeAddress about presidentName")
+          .lean()
+      : null;
+
+    if (!district) {
+      throw new AppError("District not found", 404);
+    }
+
+    return {
+      memberDetails: {
+        userId: String(currentUser._id),
+        fullName: currentUser.fullName || "",
+        phone: currentUser.phone || "",
+        email: currentUser.email || "",
+        photo: currentUser.profile || "",
+        gender: currentUser.gender || "",
+        address: currentUser.address || "",
+        role: currentUser.role || "District",
+        krsaId: currentUser.krsaId || "",
+      },
+      districtDetails: {
+        districtId: String(district._id),
+        districtName: district.name || "",
+        img: district.img || "",
+        officeAddress: district.officeAddress || "",
+        about: district.about || "",
+        presidentName: district.presidentName || "",
+      },
+    };
+  }
+
   const [state, districtMedalsAgg, clubMedalsAgg] = await Promise.all([
     State.findById(stateId).select("name officialAddress img krsaId").lean(),
     District.aggregate([
@@ -525,13 +569,26 @@ export const stateProfileRepository = async (stateId) => {
   }
 
   return {
-    name: state.name || "",
-    officialAddress: state.officialAddress || "",
-    img: state.img || "",
-    krsaId: state.krsaId || "",
-    districtMedals: districtMedalsAgg?.[0]?.total || 0,
-    clubMedals: clubMedalsAgg?.[0]?.total || 0,
-    skaterMedals: 0,
+    stateMemberDetails: {
+      userId: String(currentUser._id),
+      fullName: currentUser.fullName || "",
+      phone: currentUser.phone || "",
+      email: currentUser.email || "",
+      photo: currentUser.profile || "",
+      gender: currentUser.gender || "",
+      address: currentUser.address || "",
+      role: currentUser.role || "State",
+      krsaId: currentUser.krsaId || "",
+    },
+    stateDetails: {
+      name: state.name || "",
+      officialAddress: state.officialAddress || "",
+      img: state.img || "",
+      krsaId: state.krsaId || "",
+      districtMedals: districtMedalsAgg?.[0]?.total || 0,
+      clubMedals: clubMedalsAgg?.[0]?.total || 0,
+      skaterMedals: 0,
+    },
   };
 };
 

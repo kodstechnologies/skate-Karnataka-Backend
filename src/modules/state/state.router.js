@@ -126,7 +126,7 @@ router.get("/v1/dashboard",
 )
 
 router.get("/v1/profile",
-  authenticate(["State"]),
+  authenticate(["State", "District"]),
   displayProfile
 )
 

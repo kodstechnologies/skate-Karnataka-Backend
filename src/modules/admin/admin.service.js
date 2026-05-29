@@ -412,7 +412,11 @@ export const createClubByAdminService = async (payload) => {
     throw new AppError("Club already exists in this district", 409);
   }
 
-  const club = await createClubByAdmin(payload);
+  const club = await createClubByAdmin({
+    ...payload,
+    districtName: district.name,
+    districtStatus: "join",
+  });
   await addClubToDistrict({ districtId: payload.district, clubId: club._id });
 
   return {

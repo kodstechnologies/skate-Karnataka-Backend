@@ -448,7 +448,12 @@ export const updateClubByAdminService = async (clubId, payload) => {
     }
   }
 
-  const updatedClub = await updateClubByIdForAdmin(clubId, payload);
+  const updatePayload = { ...payload };
+  if (payload?.district) {
+    updatePayload.districtName = district.name;
+  }
+
+  const updatedClub = await updateClubByIdForAdmin(clubId, updatePayload);
   if (!updatedClub) {
     throw new AppError("Club not found", 404);
   }

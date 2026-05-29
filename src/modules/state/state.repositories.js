@@ -708,7 +708,7 @@ export const getAllSkatersByStateRepository = async ({ page, limit, search = "" 
 
   const [rows, total] = await Promise.all([
     Skater.find(query)
-      .select("_id fullName profile")
+      .select("_id fullName profile photo")
       .sort({ createdAt: -1 })
       .skip(pagination.skip)
       .limit(pagination.limit)
@@ -719,7 +719,7 @@ export const getAllSkatersByStateRepository = async ({ page, limit, search = "" 
   const data = rows.map((s) => ({
     _id: s._id,
     fullName: s.fullName ?? "",
-    profile: s.profile ?? "",
+    profile: s.photo || s.profile || "",
   }));
 
   return {
@@ -734,7 +734,7 @@ export const getAllSkatersByStateRepository = async ({ page, limit, search = "" 
 };
 
 const skaterDetailSelect =
-  "fullName profile phone address district gender email krsaId";
+  "fullName profile photo phone address district gender email krsaId";
 
 const looksLikeMongoObjectId = (value) =>
   typeof value === "string" && /^[a-fA-F0-9]{24}$/.test(value);
@@ -879,7 +879,7 @@ export const getClubSkaterByIdsForStateRepository = async (clubIdParam, skaterId
 
   return {
     fullName: skater.fullName ?? "",
-    profile: skater.profile ?? "",
+    profile: skater.photo || skater.profile || "",
     phone: skater.phone ?? "",
     address: skater.address ?? "",
     districtName: skater.district?.name ?? "",
@@ -919,7 +919,7 @@ export const getSkaterByIdForStateRepository = async (id) => {
 
   return {
     fullName: skater.fullName ?? "",
-    profile: skater.profile ?? "",
+    profile: skater.photo || skater.profile || "",
     phone: skater.phone ?? "",
     address: skater.address ?? "",
     districtName: skater.district?.name ?? "",

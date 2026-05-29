@@ -67,6 +67,7 @@ const districtSchema = new mongoose.Schema(
 
 districtSchema.index({ name: 1 }, { unique: true });
 districtSchema.path("members").default(() => []);
+districtSchema.path("club").default(() => []);
 
 districtSchema.pre("save", async function () {
   if (this.districtKrsaId) return;

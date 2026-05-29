@@ -95,7 +95,6 @@ const districtDeletedRepository = async (id) => {
 };
 
 const acceptClubJoinRepository = async ({ clubId, districtId }) => {
-
   const district = await District.findOne({
     $or: [{ _id: districtId }, { members: districtId }],
   })
@@ -105,36 +104,47 @@ const acceptClubJoinRepository = async ({ clubId, districtId }) => {
     throw new AppError("District not found", 404);
   }
 
-  const clubBeforeUpdate = await Club.findById(clubId).select("applyDistrict").lean();
-  if (!clubBeforeUpdate) {
+  const club = await Club.findOne({
+    $or: [{ _id: clubId }, { members: clubId }],
+  })
+    .select("_id applyDistrict")
+    .lean();
+
+  if (!club) {
     throw new AppError("Club not found", 404);
   }
 
-  const requestedDistrict = (clubBeforeUpdate.applyDistrict || []).some(
+  const clubOid = club._id;
+
+  const requestedDistrict = (club.applyDistrict || []).some(
     (id) => String(id) === String(district._id)
   );
   if (!requestedDistrict) {
     throw new AppError("Club did not apply for this district", 400);
   }
 
-  const updatedClub = await Club.findByIdAndUpdate(
-    clubId,
-    {
-      $set: {
-        district: district._id,
-        districtName: district.name,
-        districtStatus: "join",
+  const [updatedClub] = await Promise.all([
+    Club.findByIdAndUpdate(
+      clubOid,
+      {
+        $set: {
+          district: district._id,
+          districtName: district.name,
+          districtStatus: "join",
+          applyDistrict: [],
+        },
       },
-    },
-    { new: true }
-  );
+      { new: true }
+    ).lean(),
+    District.findByIdAndUpdate(district._id, {
+      $addToSet: { club: clubOid },
+    }),
+  ]);
 
   if (!updatedClub) {
     throw new AppError("Club not found", 404);
   }
 
-  updatedClub.applyDistrict = [];
-  await updatedClub.save();
   return updatedClub;
 };
 

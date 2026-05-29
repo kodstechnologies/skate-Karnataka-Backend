@@ -845,36 +845,34 @@ export const approveCertificationByRoleRepository = async (reqUser, participantI
       updated.eventId || participant.eventId?._id || participant.eventId || ""
     );
 
-    const notifyPromise =
-      role === "state" || role === "admin"
-        ? notifySkaterCertificationApproved({
-            receiverId: participant.userId,
-            sentBy: reqUser._id,
-            role,
-            eventName,
-            actorName: actor.actorName,
-            participantId,
-            eventId: eventIdStr,
-          })
-        : sendNotification({
-            receiverId: participant.userId,
-            title: approvalMeta.title,
-            body: approvalMeta.body,
-            notificationType: "approval",
-            sentBy: reqUser._id,
-            data: {
-              code: approvalMeta.code,
-              approvedByRole: actor.actorRole,
-              approvedByName: actor.actorName,
-              participantId: String(participantId),
-              eventId: eventIdStr,
-              eventName,
-            },
-          });
-
-    notifyPromise.catch((err) => {
-      console.error("Certification approval notification failed:", err?.message || err);
-    });
+    if (role === "state" || role === "admin") {
+      await notifySkaterCertificationApproved({
+        receiverId: participant.userId,
+        sentBy: reqUser._id,
+        role,
+        eventName,
+        actorName: actor.actorName,
+        participantId,
+        eventId: eventIdStr,
+      });
+    } else {
+      await sendNotification({
+        receiverId: participant.userId,
+        title: approvalMeta.title,
+        body: approvalMeta.body,
+        notificationType: "approval",
+        sentBy: reqUser._id,
+        data: {
+          type: "certification_approved",
+          code: approvalMeta.code,
+          approvedByRole: actor.actorRole,
+          approvedByName: actor.actorName,
+          participantId: String(participantId),
+          eventId: eventIdStr,
+          eventName,
+        },
+      });
+    }
   }
 
   return {
@@ -1069,13 +1067,14 @@ export const rejectCertificationByRoleRepository = async (reqUser, participantId
 
   const skaterUserId = participant.userId;
   if (skaterUserId) {
-    sendNotification({
+    await sendNotification({
       receiverId: skaterUserId,
       title: "Certification Rejected",
       body: buildCertificationRejectionMessage(eventName, rejector.rejectedByName),
       notificationType: "approval",
       sentBy: reqUser._id,
       data: {
+        type: "certification_rejected",
         code: rejector.rejectionCode,
         rejectedByRole: rejector.rejectedByRole,
         rejectedByName: rejector.rejectedByName,
@@ -1083,8 +1082,6 @@ export const rejectCertificationByRoleRepository = async (reqUser, participantId
         eventId: String(participant.eventId?._id || participant.eventId || ""),
         eventName,
       },
-    }).catch((err) => {
-      console.error("Certification rejection notification failed:", err?.message || err);
     });
   }
 

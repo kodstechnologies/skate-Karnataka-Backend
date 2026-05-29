@@ -62,6 +62,41 @@ const sendEventNotifications = async ({
   );
 };
 
+const normalizeObjectId = (value) => {
+  const raw = String(value || "").trim();
+  if (!mongoose.Types.ObjectId.isValid(raw)) return null;
+  return new mongoose.Types.ObjectId(raw);
+};
+
+const resolveNotificationReceiver = async (receiverId) => {
+  const normalizedId = normalizeObjectId(receiverId);
+  if (!normalizedId) return null;
+
+  const select = "firebaseTokens role isNotificationsEnabled isActive fullName";
+
+  const [skater, auth] = await Promise.all([
+    Skater.findById(normalizedId).select(select).lean(),
+    BaseAuth.findById(normalizedId).select(select).lean(),
+  ]);
+
+  const receiver = skater || auth;
+  if (!receiver) return null;
+
+  return {
+    normalizedId,
+    receiver: {
+      ...receiver,
+      role: receiver.role || (skater ? "Skater" : "Guest"),
+    },
+  };
+};
+
+const resolveNotificationSender = async (sentBy) => {
+  const normalizedId = normalizeObjectId(sentBy);
+  if (!normalizedId) return null;
+  return BaseAuth.findById(normalizedId).select("role").lean();
+};
+
 export const sendNotification = async ({
   receiverId,
   title,
@@ -75,33 +110,36 @@ export const sendNotification = async ({
   let savedNotification = null;
 
   try {
-    const auth = await BaseAuth.findById(receiverId)
-      .select("firebaseTokens role");
-    const sender = sentBy
-      ? await BaseAuth.findById(sentBy).select("role")
-      : null;
-    const senderRole = sender?.role || null;
-
-    if (!auth) {
+    const resolved = await resolveNotificationReceiver(receiverId);
+    if (!resolved) {
       console.log(`Receiver not found: ${receiverId}`);
       return null;
     }
 
+    const { normalizedId, receiver: auth } = resolved;
+    const sender = await resolveNotificationSender(sentBy);
+    const senderRole = sender?.role || null;
+
     savedNotification = await saveNotificationRepositories({
-      receiverId,
+      receiverId: normalizedId,
       receiverRole: auth.role,
       title,
       body,
       link,
       img,
       notificationType,
-      sentBy,
+      sentBy: normalizeObjectId(sentBy) || sentBy || null,
       senderRole,
       data,
     });
 
-    if (!auth.firebaseTokens?.length) {
-      console.log(`Notification saved (no FCM tokens) for ${receiverId}`);
+    const canPush =
+      auth.isActive !== false &&
+      auth.isNotificationsEnabled !== false &&
+      auth.firebaseTokens?.length;
+
+    if (!canPush) {
+      console.log(`Notification saved (no FCM push) for ${normalizedId}`);
       return savedNotification;
     }
 
@@ -117,7 +155,7 @@ export const sendNotification = async ({
           Object.entries(data).map(([k, v]) => [k, String(v)])
         ),
         notificationId: String(savedNotification._id),
-        receiverId: receiverId.toString(),
+        receiverId: normalizedId.toString(),
         receiverRole: String(auth.role || ""),
         senderRole: String(senderRole || ""),
         notificationType,
@@ -125,7 +163,7 @@ export const sendNotification = async ({
     });
 
     console.log(
-      `Notification sent to ${receiverId}`,
+      `Notification sent to ${normalizedId}`,
       response.successCount
     );
 

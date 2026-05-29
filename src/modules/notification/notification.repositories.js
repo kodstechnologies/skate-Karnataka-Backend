@@ -1,5 +1,6 @@
 import { Notification } from "./notification.model.js";
 import { paginate, calcTotalPages } from "../../util/common/paginate.js";
+import mongoose from "mongoose";
 
 const ALLOWED_NOTIFICATION_TYPES = new Set([
     "report",
@@ -40,15 +41,23 @@ export const normalizeNotificationType = (type) => {
 };
 
 export const saveNotificationRepositories = async (payload) => {
+    const receiverId = mongoose.Types.ObjectId.isValid(String(payload.receiverId || ""))
+        ? new mongoose.Types.ObjectId(String(payload.receiverId))
+        : payload.receiverId;
+
+    const sentBy = payload.sentBy && mongoose.Types.ObjectId.isValid(String(payload.sentBy))
+        ? new mongoose.Types.ObjectId(String(payload.sentBy))
+        : payload.sentBy || null;
+
     return Notification.create({
-        receiverId: payload.receiverId,
+        receiverId,
         receiverRole: normalizeNotificationRole(payload.receiverRole),
         title: payload.title,
         body: payload.body,
         link: payload.link || "",
         img: payload.img || "",
         notificationType: normalizeNotificationType(payload.notificationType),
-        sentBy: payload.sentBy || null,
+        sentBy,
         senderRole: payload.senderRole
             ? normalizeNotificationRole(payload.senderRole)
             : null,
@@ -60,7 +69,14 @@ export const saveNotificationRepositories = async (payload) => {
 export const displayAllNotificationRepositories = async ({ id, page = 1, limit = 20 }) => {
     const { skip, limit: perPage, page: currentPage } = paginate(page, limit);
 
-    const query = { receiverId: id };
+    const rawId = String(id || "").trim();
+    const receiverObjectId = mongoose.Types.ObjectId.isValid(rawId)
+        ? new mongoose.Types.ObjectId(rawId)
+        : id;
+
+    const query = {
+        receiverId: { $in: [receiverObjectId, rawId] },
+    };
 
     const [total, notifications] = await Promise.all([
         Notification.countDocuments(query),

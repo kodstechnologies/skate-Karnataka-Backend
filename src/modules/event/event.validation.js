@@ -25,34 +25,43 @@ const parseClockToMinutes = (rawValue) => {
     return hours * 60 + minutes;
 };
 
+const startOfDayMs = (raw) => {
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) return NaN;
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+};
+
+/** registerStartDate ≤ registerEndDate ≤ eventStartDate ≤ eventEndDate; same-day event: startTime ≤ endTime */
 const enforceEventDateTimeOrder = (value, helpers) => {
-    const registerStartDate = new Date(value.registerStartDate);
-    const registerEndDate = new Date(value.registerEndDate);
-    const eventStartDate = new Date(value.eventStartDate);
-    const eventEndDate = new Date(value.eventEndDate);
+    const registerStartMs = startOfDayMs(value.registerStartDate);
+    const registerEndMs = startOfDayMs(value.registerEndDate);
+    const eventStartMs = startOfDayMs(value.eventStartDate);
+    const eventEndMs = startOfDayMs(value.eventEndDate);
 
     if (
-        Number.isNaN(registerStartDate.getTime()) ||
-        Number.isNaN(registerEndDate.getTime()) ||
-        Number.isNaN(eventStartDate.getTime()) ||
-        Number.isNaN(eventEndDate.getTime())
+        Number.isNaN(registerStartMs) ||
+        Number.isNaN(registerEndMs) ||
+        Number.isNaN(eventStartMs) ||
+        Number.isNaN(eventEndMs)
     ) {
         return helpers.error("any.custom", { message: "Invalid event date values" });
     }
 
-    if (!(registerStartDate < registerEndDate)) {
+    if (registerStartMs > registerEndMs) {
         return helpers.error("any.custom", {
-            message: "registerStartDate must be earlier than registerEndDate",
+            message:
+                "registerStartDate must be on or before registerEndDate",
         });
     }
-    if (!(registerEndDate < eventStartDate)) {
+    if (registerEndMs > eventStartMs) {
         return helpers.error("any.custom", {
-            message: "registerEndDate must be earlier than eventStartDate",
+            message: "registerEndDate must be on or before eventStartDate",
         });
     }
-    if (!(eventStartDate < eventEndDate)) {
+    if (eventStartMs > eventEndMs) {
         return helpers.error("any.custom", {
-            message: "eventStartDate must be earlier than eventEndDate",
+            message: "eventStartDate must be on or before eventEndDate",
         });
     }
 
@@ -60,12 +69,15 @@ const enforceEventDateTimeOrder = (value, helpers) => {
     const endMinutes = parseClockToMinutes(value.eventEndTime);
     if (startMinutes == null || endMinutes == null) {
         return helpers.error("any.custom", {
-            message: "eventStartTime and eventEndTime must be valid time format (HH:mm or hh:mm AM/PM)",
+            message:
+                "eventStartTime and eventEndTime must be valid time format (HH:mm or hh:mm AM/PM)",
         });
     }
-    if (!(startMinutes < endMinutes)) {
+
+    if (eventStartMs === eventEndMs && startMinutes > endMinutes) {
         return helpers.error("any.custom", {
-            message: "eventStartTime must be earlier than eventEndTime",
+            message:
+                "eventStartTime must be on or before eventEndTime when the event starts and ends on the same day",
         });
     }
 

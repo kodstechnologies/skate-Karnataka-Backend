@@ -396,20 +396,38 @@ export const getCertificateEventIdsEndedPlusTwoDays = async () => {
 
 /**
  * Daily job: for certificate events ended 2+ days ago, auto-approve club step when
- * skater's club no longer exists, participant has recorded times, and clubAllow is pending.
+ * the skater has a generated certificate, club no longer exists, recorded times exist,
+ * and clubAllow is pending. Notifies each affected skater.
  */
 export const runDailyMissingClubCertificationJob = async () => {
   const eventIds = await getCertificateEventIdsEndedPlusTwoDays();
   if (!eventIds.length) {
     console.log("Missing-club certification job: no eligible events");
-    return { eventsChecked: 0, approved: 0 };
+    return { eventsChecked: 0, approved: 0, notified: 0 };
   }
 
   let approved = 0;
+  let notified = 0;
 
   for (const eventId of eventIds) {
+    const certs = await GeneratedCertificate.find({ eventId })
+      .select("participantId")
+      .lean();
+
+    const certParticipantIds = certs
+      .map((row) => row.participantId)
+      .filter((id) => mongoose.Types.ObjectId.isValid(String(id)))
+      .map((id) => new mongoose.Types.ObjectId(String(id)));
+
+    if (!certParticipantIds.length) continue;
+
+    const event = await Event.findById(eventId).select("header").lean();
+    const eventName = event?.header || "";
+    const eventIdStr = String(eventId);
+
     const participants = await EventParticipant.find({
       eventId,
+      _id: { $in: certParticipantIds },
       userId: { $exists: true, $ne: null },
       skaterApply: true,
       clubAllow: { $ne: true },
@@ -432,14 +450,39 @@ export const runDailyMissingClubCertificationJob = async () => {
         $set: { clubAllow: true },
       });
       approved += 1;
+
+      const approvalMeta = buildCertificationApprovalMeta(
+        "club",
+        eventName,
+        "KRSA"
+      );
+
+      await sendNotification({
+        receiverId: participant.userId,
+        title: approvalMeta.title,
+        body: approvalMeta.body,
+        notificationType: "approval",
+        sentBy: null,
+        data: {
+          type: "certification_approved",
+          code: approvalMeta.code,
+          approvedByRole: "System",
+          approvedByName: "KRSA",
+          participantId: String(participant._id),
+          eventId: eventIdStr,
+          eventName,
+          source: "missing_club_certification_job",
+        },
+      });
+      notified += 1;
     }
   }
 
   console.log(
-    `Missing-club certification job: events=${eventIds.length}, clubAllow set=${approved}`
+    `Missing-club certification job: events=${eventIds.length}, clubAllow set=${approved}, notified=${notified}`
   );
 
-  return { eventsChecked: eventIds.length, approved };
+  return { eventsChecked: eventIds.length, approved, notified };
 };
 
 export const applyCertificationBySkaterRepository = async (participantId, userId) => {

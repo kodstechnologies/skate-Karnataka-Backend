@@ -5,12 +5,12 @@ import { DisciplineService } from "../discipline/discipline.model.js";
 import { Discipline } from "../guest/disciplines.model.js";
 import {
   countSkaterParticipantMedalStatsRepository,
+  hasParticipantRecordedTime,
   listCompetitionCategoryRankingsRepository,
 } from "../event/event.repositories.js";
 import { sortCompetitionByTime } from "../../util/competition/rankUtil.js";
 import { formatCompetitionTimeTakenFromSeconds } from "../../util/time/timeUtil.js";
 import { EventParticipant } from "../event/eventParticipant.model.js";
-import { GeneratedCertificate } from "../certificate/generatedCertificate.model.js";
 import SkatingEventCategory from "../event/SkatingEventCategory.model.js";
 import { Skater } from "./skater.model.js";
 import { Club } from "../club/club.model.js";
@@ -479,45 +479,35 @@ const normalizeAgeGroupKey = (value) => String(value || "").trim().toLowerCase()
 const buildEventAgeGroupKey = (eventId, ageGroup) =>
     `${String(eventId)}:${normalizeAgeGroupKey(ageGroup)}`;
 
-/** Results visible after event end datetime + 2 calendar days. */
-const isEventResultsUnlocked = (event, now = new Date()) => {
-    const endDateTime = parseEventEndDateTime(
-        event?.eventEndDate,
-        event?.eventEndTime
-    );
-    if (!endDateTime) return false;
-
-    const unlockAt = new Date(endDateTime);
-    unlockAt.setDate(unlockAt.getDate() + 2);
-    return now > unlockAt;
-};
-
-const loadCertifiedEventAgeGroupKeys = async (eventIds) => {
+const loadEventAgeGroupsWithRecordedResults = async (eventIds) => {
     if (!eventIds.length) return new Set();
 
-    const certificates = await GeneratedCertificate.find({
+    const participants = await EventParticipant.find({
         eventId: { $in: eventIds },
     })
-        .select("eventId ageGroup")
+        .select("eventId ageGroup categories")
         .lean();
 
-    return new Set(
-        certificates.map((row) =>
-            buildEventAgeGroupKey(row.eventId, row.ageGroup)
-        )
-    );
+    const keys = new Set();
+    for (const row of participants) {
+        if (!hasParticipantRecordedTime(row)) continue;
+        keys.add(buildEventAgeGroupKey(row.eventId, row.ageGroup));
+    }
+    return keys;
 };
 
-const hasGeneratedCertificateForEventAgeGroup = async (eventId, ageGroup) => {
+const hasAnyRecordedResultForEventAgeGroup = async (eventId, ageGroup) => {
     const normalized = normalizeAgeGroupKey(ageGroup);
     if (!normalized) return false;
 
-    const certificates = await GeneratedCertificate.find({ eventId })
-        .select("ageGroup")
+    const participants = await EventParticipant.find({ eventId })
+        .select("ageGroup categories")
         .lean();
 
-    return certificates.some(
-        (row) => normalizeAgeGroupKey(row.ageGroup) === normalized
+    return participants.some(
+        (row) =>
+            normalizeAgeGroupKey(row.ageGroup) === normalized &&
+            hasParticipantRecordedTime(row)
     );
 };
 
@@ -571,7 +561,6 @@ const get_skater_results_event_repositories = async (userId, page, limit) => {
         seenEventIds.add(eventIdStr);
 
         if (participant.paymentStatus !== "paid") continue;
-        if (!isEventResultsUnlocked(event, now)) continue;
 
         const endDateTime = parseEventEndDateTime(
             event.eventEndDate,
@@ -586,13 +575,13 @@ const get_skater_results_event_repositories = async (userId, page, limit) => {
         });
     }
 
-    const certifiedKeys = await loadCertifiedEventAgeGroupKeys(
+    const resultKeys = await loadEventAgeGroupsWithRecordedResults(
         candidates.map((row) => row.event._id)
     );
 
     const events = candidates
         .filter((row) =>
-            certifiedKeys.has(
+            resultKeys.has(
                 buildEventAgeGroupKey(row.event._id, row.participant.ageGroup)
             )
         )
@@ -768,8 +757,7 @@ const get_skater_results_by_event_repositories = async (
 
     const resultsAvailable =
         participant.paymentStatus === "paid" &&
-        isEventResultsUnlocked(event, now) &&
-        (await hasGeneratedCertificateForEventAgeGroup(event._id, ageGroup));
+        (await hasAnyRecordedResultForEventAgeGroup(event._id, ageGroup));
 
     const skatingCategory = participant.categoriesId;
     const categoryRefId =

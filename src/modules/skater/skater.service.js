@@ -1,4 +1,5 @@
 import { after_login_skater_form_repositories, delete_skater_repositories, get_all_discipline_repositories, get_all_skating_event_categories_full_repositories, get_all_skating_event_categories_repositories, get_skater_digital_id_card_repositories, get_skater_profile_repositories, get_skater_results_by_event_repositories, get_skater_results_event_repositories, update_skater_profile_repositories } from "./skater.repositories.js";
+import { AppError } from "../../util/common/AppError.js";
 
 const after_login_form_skater_service = async (data, id) => {
     await after_login_skater_form_repositories(data, id);
@@ -8,8 +9,12 @@ const get_skater_profile_service = async(id) =>{
     return await get_skater_profile_repositories(id);
 }
 
-const get_skater_digital_id_card_service = async(id) =>{
-    return get_skater_digital_id_card_repositories(id);
+const get_skater_digital_id_card_service = async (id) => {
+    const profile = await get_skater_digital_id_card_repositories(id);
+    if (!profile) {
+        throw new AppError("Skater not found", 404);
+    }
+    return profile;
 }
 
 const update_skater_profile_service = async (userData, updateData) => {

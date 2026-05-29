@@ -38,18 +38,20 @@ const GetSkaterDigitalIdCard = asyncHandler(async (req, res) => {
     const id = req.user._id;
     const profile = await get_skater_digital_id_card_service(id);
     const response = {
-        img: profile?.photo || "",
-        name: profile?.fullName || "",
-        krsaId: profile?.krsaId || "",
+        ...profile,
+        img: profile.photo || "",
+        name: profile.fullName || "",
+        category: profile.category?.typeName || "",
+        clubName: profile.club?.name || "",
         dob: profile.dob ? formatDob(profile.dob) : "",
-        category: profile?.category?.typeName || "",
-        discipline: profile?.disciplineName || profile?.discipline?.name || "",
-        clubName: profile?.club?.name || "",
-        date: profile?.createdAt ? formatDate(profile.createdAt) : "",
+        discipline: profile.discipline || "",
+        date: profile.createdAt ? formatDate(profile.createdAt) : "",
     };
 
-    return res.status(200).json(new ApiResponse(200, response, "Skater digital ID generate successfully"))
-})
+    return res
+        .status(200)
+        .json(new ApiResponse(200, response, "Skater digital ID generate successfully"));
+});
 
 const UpdateSkaterProfile = asyncHandler(async (req, res) => {
     const result = await update_skater_profile_service(req.user, req.body);

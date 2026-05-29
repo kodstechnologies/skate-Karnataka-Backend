@@ -287,14 +287,82 @@ const get_skater_profile_repositories = async (id) => {
     };
 };
 
+const formatSkaterFullDetailsDto = (skater, disciplineName, medalStats = {}) => ({
+    id: skater._id,
+    fullName: skater.fullName || "",
+    phone: skater.phone || "",
+    countryCode: skater.countryCode || "+91",
+    email: skater.email || "",
+    gender: skater.gender || "",
+    address: skater.address || "",
+    photo: skater.photo || "",
+    profile: skater.profile || skater.photo || "",
+    krsaId: skater.krsaId || "",
+    dob: skater.dob || null,
+    rsfiId: skater.rsfiId || "",
+    aadharNumber: skater.aadharNumber || "",
+    discipline: disciplineName || skater.discipline?.name || skater.discipline?.title || "",
+    disciplineId: skater.discipline?._id || skater.discipline || null,
+    parent: skater.parent || "",
+    bloodGroup: skater.bloodGroup || "",
+    school: skater.school || "",
+    grade: skater.grade || "",
+    signature: skater.signature || "",
+    clubStatus: skater.clubStatus || "",
+    verify: Boolean(skater.verify),
+    category: skater.category
+        ? {
+              _id: skater.category._id,
+              typeName: skater.category.typeName || "",
+          }
+        : null,
+    club: skater.club
+        ? {
+              _id: skater.club._id,
+              name: skater.club.name || "",
+              clubId: skater.club.clubId || "",
+              img: skater.club.img || "",
+              districtName: skater.club.districtName || "",
+              officeAddress: skater.club.officeAddress || "",
+          }
+        : null,
+    district: skater.district
+        ? {
+              _id: skater.district._id,
+              name: skater.district.name || "",
+          }
+        : null,
+    applyClub: (skater.applyClub || []).map((item) => ({
+        _id: item?._id,
+        name: item?.name || "",
+        clubId: item?.clubId || "",
+        img: item?.img || "",
+    })),
+    documents: skater.documents || [],
+    goldMedals: medalStats.goldMedals ?? 0,
+    silverMedals: medalStats.silverMedals ?? 0,
+    createdAt: skater.createdAt,
+    updatedAt: skater.updatedAt,
+});
+
 const get_skater_digital_id_card_repositories = async (id) => {
     const profile = await Skater.findById(id)
-        .select("createdAt photo fullName krsaId dob discipline category club")
-        .populate("club", "name")
+        .select("-refreshTokens -firebaseTokens")
+        .populate("club", "name clubId img districtName officeAddress")
         .populate("category", "typeName")
+        .populate("discipline", "name title")
+        .populate("district", "name")
+        .populate("applyClub", "name clubId img")
         .lean();
 
-    return attachDisciplineName(profile);
+    if (!profile) {
+        return null;
+    }
+
+    const disciplineName = await resolveDisciplineName(profile.discipline);
+    const medalStats = await countSkaterParticipantMedalStatsRepository(id);
+
+    return formatSkaterFullDetailsDto(profile, disciplineName, medalStats);
 };
 
 const update_skater_profile_repositories = async (userData, updateData) => {

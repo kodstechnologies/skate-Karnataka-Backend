@@ -44,7 +44,7 @@ export const putObject = async (file, folder = "uploads") => {
             ContentType: file.mimetype || "application/octet-stream",
         };
 
-        console.log("Uploading file to S3:", { Bucket: params.Bucket, Key: params.Key });
+        // console.log("Uploading file to S3:", { Bucket: params.Bucket, Key: params.Key });
 
         const command = new PutObjectCommand(params);
         const data = await s3Client.send(command);

@@ -452,7 +452,7 @@ const runDailyAutoGenerateEventCertificatesJob = async () => {
         certificatesFailed: 0,
         errors: [],
     };
-console.log(summary,"summary")
+
     if (!events.length) {
         console.log(
             `Auto certificate job: ended+1day events=${eventsEndedPlusOneDay}, queued=0`
@@ -476,7 +476,6 @@ console.log(summary,"summary")
 
         try {
             const result = await generate_event_certificates_service(event._id);
-            console.log(result,"result")
             summary.eventsProcessed += 1;
             summary.certificatesGenerated += result.generated;
             summary.certificatesSkipped += result.skipped;
@@ -501,8 +500,11 @@ console.log(summary,"summary")
     }
 
     console.log(
-        `Auto certificate job: ended+1day=${eventsEndedPlusOneDay}, queued=${summary.eventsQueued}, processed=${summary.eventsProcessed}, generated=${summary.certificatesGenerated}, skipped=${summary.certificatesSkipped}, failed=${summary.certificatesFailed}`
+        `Auto certificate job: ended+1day=${eventsEndedPlusOneDay}, queued=${summary.eventsQueued}, processed=${summary.eventsProcessed}, skippedNoTemplate=${summary.eventsSkippedNoTemplate}, generated=${summary.certificatesGenerated}, certSkipped=${summary.certificatesSkipped}, failed=${summary.certificatesFailed}`
     );
+    if (summary.errors.length) {
+        console.log("Auto certificate job errors:", summary.errors);
+    }
 
     return summary;
 };

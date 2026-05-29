@@ -304,7 +304,7 @@ const districtTotalClubsRepository = async (id, { page, limit }) => {
   }
 
   const district = await District.findById(districtUser.district)
-    .select("_id name club")
+    .select("_id name districtKrsaId img officeAddress club")
     .lean();
 
   if (!district) {
@@ -323,7 +323,7 @@ const districtTotalClubsRepository = async (id, { page, limit }) => {
   const clubs = await Club.find({
     _id: { $in: clubIds }
   })
-    .select("_id name address img")
+    .select("_id name officeAddress img clubId")
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(pageLimit)
@@ -354,11 +354,22 @@ const districtTotalClubsRepository = async (id, { page, limit }) => {
   const data = clubs.map((club) => ({
     _id: club._id,
     name: club.name,
+    clubId: club.clubId || "",
     img: club.img,
+    address: club.officeAddress || "",
+    officeAddress: club.officeAddress || "",
     skaters: skaterCountByClub.get(String(club._id)) ?? 0,
   }));
 
   return {
+    district: {
+      _id: district._id,
+      name: district.name || "",
+      districtKrsaId: district.districtKrsaId || "",
+      img: district.img || "",
+      address: district.officeAddress || "",
+      officeAddress: district.officeAddress || "",
+    },
     data,
 
     pagination: {

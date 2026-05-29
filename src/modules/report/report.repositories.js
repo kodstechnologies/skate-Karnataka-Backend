@@ -5,9 +5,28 @@ import { BaseAuth } from "../auth/baseAuth.model.js"
 import { Club } from "../club/club.model.js";
 import { District } from "../district/district.model.js";
 import { Report } from "./report.model.js";
+import {
+    REPORT_DISTRICT_ESCALATION_MS,
+    REPORT_STATE_ESCALATION_MS,
+} from "./report.notifications.js";
 
-/** Reports appear at state only after this many ms since createdAt (30 calendar days window). */
-const STATE_REPORT_MIN_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+/** Club list: created within the last 15 days (before district escalation). */
+const clubListCreatedAtFilter = () => ({
+    createdAt: { $gt: new Date(Date.now() - REPORT_DISTRICT_ESCALATION_MS) },
+});
+
+/** District list: 15–30 days old (after club window, before state). */
+const districtListCreatedAtFilter = () => ({
+    createdAt: {
+        $lte: new Date(Date.now() - REPORT_DISTRICT_ESCALATION_MS),
+        $gt: new Date(Date.now() - REPORT_STATE_ESCALATION_MS),
+    },
+});
+
+/** State list: 30+ days old. */
+const stateListCreatedAtFilter = () => ({
+    createdAt: { $lte: new Date(Date.now() - REPORT_STATE_ESCALATION_MS) },
+});
 
 const get_club_id = async (skaterId) => {
     const club = await BaseAuth.findById(skaterId).select("club");
@@ -101,7 +120,8 @@ export const getClubReportsRepositories = async (clubId, page, limit) => {
 
     const query = {
         ownClub: new mongoose.Types.ObjectId(clubId),
-        status: { $ne: "solved" } // Exclude solved reports
+        status: { $ne: "solved" },
+        ...clubListCreatedAtFilter(),
     };
 
     const data = await Report.find(query)
@@ -139,6 +159,7 @@ export const getDistrictReportsRepositories = async (districtDocId, page, limit)
     const baseMatch = {
         status: { $ne: "solved" },
         $or: districtScope,
+        ...districtListCreatedAtFilter(),
     };
 
     const lookupStages = [
@@ -235,6 +256,7 @@ export const getAllDistrictScopeReportsRepositories = async (page, limit) => {
     const query = {
         ownClub: { $in: clubIds },
         status: { $ne: "solved" },
+        ...districtListCreatedAtFilter(),
     };
 
     const data = await Report.find(query)
@@ -291,11 +313,10 @@ export const updateDistrictReportDistrictRepositories = async (
 /** All jurisdictions (single-state app); created ≥30 days ago; not skater-solved. Schema uses StateStatus. */
 export const getStateReportsRepositories = async (page, limit) => {
     const { skip, limit: perPage, page: currentPage } = paginate(page, limit);
-    const cutoff = new Date(Date.now() - STATE_REPORT_MIN_AGE_MS);
 
     const query = {
         status: { $ne: "solved" },
-        createdAt: { $lte: cutoff },
+        ...stateListCreatedAtFilter(),
     };
 
     const data = await Report.find(query)

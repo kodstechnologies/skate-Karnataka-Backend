@@ -1,4 +1,5 @@
 import { runDailyMissingClubCertificationJob } from "./event.repositories.js";
+import { runDailyAutoGenerateEventCertificatesJob } from "../certificate/certificate.service.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -7,7 +8,7 @@ const msUntilNextRun = () => {
   const next = new Date(now);
 
   // 14:15 = 2:15 PM
-  next.setHours(14, 20, 0, 0);
+  next.setHours(14, 54, 0, 0);
 
   if (next <= now) {
     next.setDate(next.getDate() + 1);
@@ -20,17 +21,18 @@ export const startCertificationScheduler = () => {
   const run = async () => {
     try {
       console.log(
-        `[${new Date().toLocaleString()}] Running certification job...`
+        `[${new Date().toLocaleString()}] Running certification scheduler...`
       );
 
+      await runDailyAutoGenerateEventCertificatesJob();
       await runDailyMissingClubCertificationJob();
 
       console.log(
-        `[${new Date().toLocaleString()}] Certification job completed`
+        `[${new Date().toLocaleString()}] Certification scheduler completed`
       );
     } catch (err) {
       console.error(
-        "Daily missing-club certification job failed:",
+        "Certification scheduler failed:",
         err?.message || err
       );
     }
@@ -39,7 +41,7 @@ export const startCertificationScheduler = () => {
   const delay = msUntilNextRun();
 
   console.log(
-    `Certification scheduler started. Next run at 14:15.`
+    `Certification scheduler started (auto certificates + missing-club certification).`
   );
 
   setTimeout(() => {

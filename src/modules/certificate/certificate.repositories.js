@@ -16,6 +16,45 @@ const EVENT_TYPE_TEMPLATE_FLAG = {
 /** Certificates appear 2 days after the event end date (same rule as skater results). */
 const CERTIFICATE_VISIBILITY_MS = 2 * 24 * 60 * 60 * 1000;
 
+const parseEventEndDateTime = (eventEndDate, eventEndTime) => {
+    if (!eventEndDate) return null;
+
+    const endDate = new Date(eventEndDate);
+    if (Number.isNaN(endDate.getTime())) return null;
+
+    const rawTime = String(eventEndTime || "").trim();
+    if (!rawTime) {
+        endDate.setHours(23, 59, 59, 999);
+        return endDate;
+    }
+
+    const match = rawTime.match(/^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i);
+    if (!match) {
+        endDate.setHours(23, 59, 59, 999);
+        return endDate;
+    }
+
+    let hours = Number(match[1]);
+    const minutes = Number(match[2]);
+    const meridian = (match[3] || "").toUpperCase();
+
+    if (meridian === "PM" && hours < 12) hours += 12;
+    if (meridian === "AM" && hours === 12) hours = 0;
+
+    endDate.setHours(hours, minutes, 0, 0);
+    return endDate;
+};
+
+/** True when event end datetime + 1 calendar day is before referenceDate. */
+const isEventEndedPlusOneDay = (event, referenceDate = new Date()) => {
+    const endDateTime = parseEventEndDateTime(event?.eventEndDate, event?.eventEndTime);
+    if (!endDateTime) return false;
+
+    const threshold = new Date(endDateTime);
+    threshold.setDate(threshold.getDate() + 1);
+    return threshold < referenceDate;
+};
+
 
 /**
  * Create a brand-new certificate template document.
@@ -425,6 +464,82 @@ const count_skater_certificate_medal_stats_repository = async ({ userId } = {}) 
     };
 };
 
+const event_has_any_recorded_participant_time_repository = async (eventId) => {
+    if (!mongoose.Types.ObjectId.isValid(String(eventId))) {
+        return false;
+    }
+
+    const exists = await EventParticipant.exists({
+        eventId: new mongoose.Types.ObjectId(String(eventId)),
+        categories: {
+            $elemMatch: {
+                timeTaken: { $type: "number", $gt: 0 },
+            },
+        },
+    });
+
+    return Boolean(exists);
+};
+
+/** At least one eligible participant still lacks a GeneratedCertificate row. */
+const event_has_pending_certificate_generation_repository = async (eventId) => {
+    const participants = await list_eligible_participants_for_event_repository(eventId);
+    if (!participants.length) return false;
+
+    for (const participant of participants) {
+        const existing = await find_generated_certificate_repository(eventId, participant._id);
+        if (!existing) return true;
+    }
+
+    return false;
+};
+
+/**
+ * Events where (eventEnd + 1 day) < now, at least one category time is recorded,
+ * and not every eligible participant already has a generated certificate.
+ */
+const list_events_for_auto_certificate_generation_repository = async (
+    referenceDate = new Date()
+) => {
+    const eventIdsWithTimes = await EventParticipant.distinct("eventId", {
+        categories: {
+            $elemMatch: {
+                timeTaken: { $type: "number", $gt: 0 },
+            },
+        },
+    });
+
+    if (!eventIdsWithTimes.length) {
+        return { eventsEndedPlusOneDay: 0, events: [] };
+    }
+
+    const events = await Event.find({ _id: { $in: eventIdsWithTimes } })
+        .select("_id header eventType eventEndDate eventEndTime")
+        .lean();
+
+    const eventsEndedPlusOneDay = events.filter((event) =>
+        isEventEndedPlusOneDay(event, referenceDate)
+    );
+
+    const pending = [];
+    for (const event of eventsEndedPlusOneDay) {
+        const hasTime = await event_has_any_recorded_participant_time_repository(event._id);
+        if (!hasTime) continue;
+
+        const needsGeneration = await event_has_pending_certificate_generation_repository(
+            event._id
+        );
+        if (!needsGeneration) continue;
+
+        pending.push(event);
+    }
+
+    return {
+        eventsEndedPlusOneDay: eventsEndedPlusOneDay.length,
+        events: pending,
+    };
+};
+
 const build_participant_certificate_payload_repository = async (
     participant,
     event,
@@ -452,6 +567,8 @@ const build_participant_certificate_payload_repository = async (
 export {
     formatIssueDate,
     participantHasRecordedTime,
+    isEventEndedPlusOneDay,
+    list_events_for_auto_certificate_generation_repository,
     create_template_repository,
     update_template_repository,
     set_active_template_repository,

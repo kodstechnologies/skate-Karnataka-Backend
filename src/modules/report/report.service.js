@@ -10,7 +10,50 @@ import {
     notifySkaterOnClubReportUpdate,
     notifySkaterOnDistrictReportUpdate,
     notifySkaterOnStateReportUpdate,
+    REPORT_DISTRICT_ESCALATION_MS,
+    REPORT_STATE_ESCALATION_MS,
 } from "./report.notifications.js";
+import { Report } from "./report.model.js";
+
+const reportAgeMs = (report) => {
+    const createdAt = report?.createdAt ? new Date(report.createdAt) : null;
+    if (!createdAt || Number.isNaN(createdAt.getTime())) return 0;
+    return Date.now() - createdAt.getTime();
+};
+
+const assertReportVisibleAtClub = (report) => {
+    if (reportAgeMs(report) >= REPORT_DISTRICT_ESCALATION_MS) {
+        throw new AppError(
+            "Report is no longer at club level (available at district after 15 days)",
+            400
+        );
+    }
+};
+
+const assertReportVisibleAtDistrict = (report) => {
+    const age = reportAgeMs(report);
+    if (age < REPORT_DISTRICT_ESCALATION_MS) {
+        throw new AppError(
+            "Report is not yet at district level (available after 15 days from creation)",
+            400
+        );
+    }
+    if (age >= REPORT_STATE_ESCALATION_MS) {
+        throw new AppError(
+            "Report is no longer at district level (available at state after 30 days)",
+            400
+        );
+    }
+};
+
+const assertReportVisibleAtState = (report) => {
+    if (reportAgeMs(report) < REPORT_STATE_ESCALATION_MS) {
+        throw new AppError(
+            "Report is not yet at state level (available after 30 days from creation)",
+            400
+        );
+    }
+};
 
 /** Club document _id used on Report.ownClub — not always the same as the logged-in BaseAuth id for club accounts. */
 export const resolveClubDocumentIdForReports = async (user) => {
@@ -86,6 +129,12 @@ export const updateDistrictReportDistrictService = async (user, { reportId, stat
         throw new AppError("No clubs linked to this district", 404);
     }
 
+    const report = await Report.findById(reportId).select("createdAt").lean();
+    if (!report) {
+        throw new AppError("Report not found", 404);
+    }
+    assertReportVisibleAtDistrict(report);
+
     const payload = {};
     if (status !== undefined) {
         payload.status = status;
@@ -141,6 +190,12 @@ export const updateClubReportClubService = async (user, { reportId, clubStatus, 
     if (!clubDocId) {
         throw new AppError("Club not found or you are not linked to a club", 404);
     }
+
+    const report = await Report.findById(reportId).select("createdAt").lean();
+    if (!report) {
+        throw new AppError("Report not found", 404);
+    }
+    assertReportVisibleAtClub(report);
 
     const payload = { clubStatus };
     if (message !== undefined) {
@@ -228,6 +283,12 @@ export const updateStateReportStateService = async (user, { reportId, stateStatu
     if (!["state", "admin"].includes(role)) {
         throw new AppError("Only State or Admin can update state report status", 403);
     }
+
+    const report = await Report.findById(reportId).select("createdAt").lean();
+    if (!report) {
+        throw new AppError("Report not found", 404);
+    }
+    assertReportVisibleAtState(report);
 
     const payload = { StateStatus: stateStatus };
     if (message !== undefined) {

@@ -13,6 +13,7 @@ import {
     find_generated_certificate_repository,
     save_generated_certificate_repository,
     build_participant_certificate_payload_repository,
+    list_events_for_auto_certificate_generation_repository,
 } from "./certificate.repositories.js";
 import { putObject } from "../../util/aws/putObject.js";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
@@ -432,6 +433,80 @@ const generate_event_certificates_service = async (eventId) => {
     return summary;
 };
 
+/**
+ * Daily job: same rules as GET /certificate/v1/generateCertificate/:id per event.
+ * Eligible when (eventEnd + 1 day) < now, any participant has category timeTaken > 0,
+ * active template exists for event type, and at least one eligible row has no GeneratedCertificate yet.
+ */
+const runDailyAutoGenerateEventCertificatesJob = async () => {
+    const { eventsEndedPlusOneDay, events } =
+        await list_events_for_auto_certificate_generation_repository();
+
+    const summary = {
+        eventsEndedPlusOneDay,
+        eventsQueued: events.length,
+        eventsProcessed: 0,
+        eventsSkippedNoTemplate: 0,
+        certificatesGenerated: 0,
+        certificatesSkipped: 0,
+        certificatesFailed: 0,
+        errors: [],
+    };
+console.log(summary,"summary")
+    if (!events.length) {
+        console.log(
+            `Auto certificate job: ended+1day events=${eventsEndedPlusOneDay}, queued=0`
+        );
+        return summary;
+    }
+
+    for (const event of events) {
+        const template = await get_active_template_for_event_type_repository(
+            event.eventType
+        );
+        if (!template) {
+            summary.eventsSkippedNoTemplate += 1;
+            summary.errors.push({
+                eventId: String(event._id),
+                eventName: event.header || "",
+                message: `No active certificate template for ${event.eventType || "event"} type`,
+            });
+            continue;
+        }
+
+        try {
+            const result = await generate_event_certificates_service(event._id);
+            console.log(result,"result")
+            summary.eventsProcessed += 1;
+            summary.certificatesGenerated += result.generated;
+            summary.certificatesSkipped += result.skipped;
+            summary.certificatesFailed += result.failed;
+
+            if (result.errors?.length) {
+                for (const row of result.errors) {
+                    summary.errors.push({
+                        eventId: String(event._id),
+                        participantId: String(row.participantId),
+                        message: row.message,
+                    });
+                }
+            }
+        } catch (err) {
+            summary.errors.push({
+                eventId: String(event._id),
+                eventName: event.header || "",
+                message: err?.message || "Event certificate generation failed",
+            });
+        }
+    }
+
+    console.log(
+        `Auto certificate job: ended+1day=${eventsEndedPlusOneDay}, queued=${summary.eventsQueued}, processed=${summary.eventsProcessed}, generated=${summary.certificatesGenerated}, skipped=${summary.certificatesSkipped}, failed=${summary.certificatesFailed}`
+    );
+
+    return summary;
+};
+
 export {
     create_template_service,
     update_template_service,
@@ -442,4 +517,5 @@ export {
     get_skater_certificate_list_service,
     generate_certificate_service,
     generate_event_certificates_service,
+    runDailyAutoGenerateEventCertificatesJob,
 };

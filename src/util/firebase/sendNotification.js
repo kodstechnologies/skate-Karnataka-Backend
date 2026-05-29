@@ -553,3 +553,111 @@ export const notifySkaterCertificationApproved = async ({
     },
   });
 };
+
+/** Notify skater when club approves their join application. */
+export const notifySkaterOnClubJoinApproved = async ({
+  skaterId,
+  sentBy,
+  clubDocId,
+  clubName,
+}) => {
+  if (!skaterId) return;
+
+  const label = (clubName || "your club").trim();
+
+  await sendNotification({
+    receiverId: skaterId,
+    title: "Club join approved",
+    body: `Your application to join ${label} has been approved. Welcome to the club!`,
+    notificationType: "approval",
+    sentBy,
+    data: {
+      type: "club_join_approved",
+      clubId: clubDocId ? String(clubDocId) : "",
+      clubName: label,
+    },
+  }).catch((err) => {
+    console.error("Club join approved skater notification failed:", err?.message || err);
+  });
+};
+
+/** Notify skater when club rejects their join application. */
+export const notifySkaterOnClubJoinRejected = async ({
+  skaterId,
+  sentBy,
+  clubDocId,
+  clubName,
+}) => {
+  if (!skaterId) return;
+
+  const label = (clubName || "the club").trim();
+
+  await sendNotification({
+    receiverId: skaterId,
+    title: "Club join rejected",
+    body: `Your application to join ${label} was rejected. You may apply to another club.`,
+    notificationType: "approval",
+    sentBy,
+    data: {
+      type: "club_join_rejected",
+      clubId: clubDocId ? String(clubDocId) : "",
+      clubName: label,
+    },
+  }).catch((err) => {
+    console.error("Club join rejected skater notification failed:", err?.message || err);
+  });
+};
+
+/** Notify skater when club approves their leave request. */
+export const notifySkaterOnClubLeaveApproved = async ({
+  skaterId,
+  sentBy,
+  clubDocId,
+  clubName,
+}) => {
+  if (!skaterId) return;
+
+  const label = (clubName || "your club").trim();
+
+  await sendNotification({
+    receiverId: skaterId,
+    title: "Club leave approved",
+    body: `Your request to leave ${label} has been approved.`,
+    notificationType: "approval",
+    sentBy,
+    data: {
+      type: "club_leave_approved",
+      clubId: clubDocId ? String(clubDocId) : "",
+      clubName: label,
+    },
+  }).catch((err) => {
+    console.error("Club leave approved skater notification failed:", err?.message || err);
+  });
+};
+
+/** Notify skater when club rejects their leave request. */
+export const notifySkaterOnClubLeaveRejected = async ({
+  skaterId,
+  sentBy,
+  clubDocId,
+  clubName,
+}) => {
+  if (!skaterId) return;
+
+  const label = (clubName || "your club").trim();
+
+  await sendNotification({
+    receiverId: skaterId,
+    title: "Club leave rejected",
+    body: `Your request to leave ${label} was rejected. You remain a member of the club.`,
+    notificationType: "approval",
+    sentBy,
+    data: {
+      type: "club_leave_rejected",
+      clubId: clubDocId ? String(clubDocId) : "",
+      clubName: label,
+    },
+  }).catch((err) => {
+    console.error("Club leave rejected skater notification failed:", err?.message || err);
+  });
+};

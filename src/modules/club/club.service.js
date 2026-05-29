@@ -1,5 +1,12 @@
 import { AppError } from "../../util/common/AppError.js";
-import { notifyClubMembersOnSkaterJoinApply, notifyClubMembersOnSkaterLeaveApply } from "../../util/firebase/sendNotification.js";
+import {
+    notifyClubMembersOnSkaterJoinApply,
+    notifyClubMembersOnSkaterLeaveApply,
+    notifySkaterOnClubJoinApproved,
+    notifySkaterOnClubJoinRejected,
+    notifySkaterOnClubLeaveApproved,
+    notifySkaterOnClubLeaveRejected,
+} from "../../util/firebase/sendNotification.js";
 import { addSkaterByClubRepository, affiliatedDistrictRepository, allClubsInDbRepository, allClubsRepository, apply_club_repositories, apply_leave_repository, applyForDistrictRepository, approve_join_club_repositories, approve_leave_club_repositories, clubIdStoreinDestrict, clubsForSkaterUserRepository, createClubRepository, deleteClubDetails, display_all_apply_skater_repositories, display_all_club_skater_repositories, display_club_skater_details_repositories, display_existing_club_repositories, displayClubDashboardRepositories, displayClubProfileRepositories, displayDistrictFullDetailsRepository, displayFullDetailsOfClub, exceptOwnDistrictDisplayAllDistrictRepository, isAlreadyAppliedToClubRepository, isApplyRepository, isExistClub, isThisClubExist, reject_join_club_repositories, reject_leave_club_repositories, reject_leave_district_affiliation_repository, remove_skater_from_club_repositories, removeAffiliationRepository, resolveClubIdFromClubMember, updateClubDetails } from "./club.repositories.js";
 
 
@@ -217,7 +224,19 @@ const approve_join_club_service = async (skaterId ,ClubId) => {
         throw new AppError(errorMap[status]);
     }
 
-    return await approve_join_club_repositories(skaterId ,ClubId);
+    const skater = await approve_join_club_repositories(skaterId, ClubId);
+    const club = await resolveClubIdFromClubMember(ClubId);
+
+    notifySkaterOnClubJoinApproved({
+        skaterId,
+        sentBy: ClubId,
+        clubDocId: club._id,
+        clubName: club.name,
+    }).catch((err) => {
+        console.error("Approve join skater notification failed:", err?.message || err);
+    });
+
+    return skater;
 };
 export const reject_join_club_service = async (skaterId, clubId) => {
     const status = await isApplyRepository(skaterId);
@@ -225,7 +244,19 @@ export const reject_join_club_service = async (skaterId, clubId) => {
         throw new AppError("Application not found", 404);
     }
 
-    return await reject_join_club_repositories(skaterId, clubId);
+    const skater = await reject_join_club_repositories(skaterId, clubId);
+    const club = await resolveClubIdFromClubMember(clubId);
+
+    notifySkaterOnClubJoinRejected({
+        skaterId,
+        sentBy: clubId,
+        clubDocId: club._id,
+        clubName: club.name,
+    }).catch((err) => {
+        console.error("Reject join skater notification failed:", err?.message || err);
+    });
+
+    return skater;
 };
 const apply_leave_service = async (userId) => {
     const status = await isApplyRepository(userId);
@@ -279,7 +310,19 @@ const approve_leave_club_service = async (skaterId, clubMemberId) => {
         throw new AppError("Skater has not requested leave", 400);
     }
 
-    return await approve_leave_club_repositories(skaterId, clubMemberId);
+    const skater = await approve_leave_club_repositories(skaterId, clubMemberId);
+    const club = await resolveClubIdFromClubMember(clubMemberId);
+
+    notifySkaterOnClubLeaveApproved({
+        skaterId,
+        sentBy: clubMemberId,
+        clubDocId: club._id,
+        clubName: club.name,
+    }).catch((err) => {
+        console.error("Approve leave skater notification failed:", err?.message || err);
+    });
+
+    return skater;
 };
 
 const reject_leave_club_service = async (id, clubMemberId) => {
@@ -301,7 +344,18 @@ const reject_leave_club_service = async (id, clubMemberId) => {
         throw new AppError("Skater has not requested leave", 400);
     }
 
-    return await reject_leave_club_repositories(id, clubMemberId);
+    const skater = await reject_leave_club_repositories(id, clubMemberId);
+
+    notifySkaterOnClubLeaveRejected({
+        skaterId: id,
+        sentBy: clubMemberId,
+        clubDocId: club._id,
+        clubName: club.name,
+    }).catch((err) => {
+        console.error("Reject leave skater notification failed:", err?.message || err);
+    });
+
+    return skater;
 };
 
 const display_existing_club_service = async (id) => {

@@ -49,7 +49,7 @@ const update_district_report_validation = {
         status: reportStatusEnum.optional(),
         districtStatus: reportStatusEnum.optional(),
         message: Joi.string().trim().max(5000).allow("").optional(),
-    }).or("status", "districtStatus"),
+    }).or("status", "districtStatus", "message"),
 };
 
 const update_state_report_validation = {

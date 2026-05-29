@@ -104,15 +104,11 @@ export const updateDistrictReportDistrictService = async (user, { reportId, stat
     );
 
     if (updated?.complainedBy) {
-        notifySkaterOnDistrictReportUpdate({
+        await notifySkaterOnDistrictReportUpdate({
             report: updated,
             sentBy: user._id,
             districtStatus: updated.districtStatus,
-        }).catch((err) => {
-            console.error(
-                "District report skater notify failed:",
-                err?.message || err
-            );
+            message: updated.districtMessage ?? message,
         });
     }
 

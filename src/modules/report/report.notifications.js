@@ -129,16 +129,28 @@ export const notifySkaterOnDistrictReportUpdate = async ({
   report,
   sentBy,
   districtStatus,
+  message,
 }) => {
   const skaterId = report?.complainedBy;
   if (!skaterId) return;
 
   const statusLabel = (districtStatus || report?.districtStatus || "pending").trim();
+  const messageText = String(message ?? report?.districtMessage ?? "").trim();
+  const typeLabel = reportLabel(report);
+
+  let body;
+  if (messageText && statusLabel) {
+    body = `District updated your "${typeLabel}" report. Status: ${statusLabel}. Message: ${messageText}`;
+  } else if (messageText) {
+    body = `District message on your "${typeLabel}" report: ${messageText}`;
+  } else {
+    body = `District set district status to "${statusLabel}" on your "${typeLabel}" report.`;
+  }
 
   await sendNotification({
     receiverId: skaterId,
     title: "Report update from district",
-    body: `District set district status to "${statusLabel}" on your "${reportLabel(report)}" report.`,
+    body,
     notificationType: "report",
     sentBy,
     data: {
@@ -146,6 +158,8 @@ export const notifySkaterOnDistrictReportUpdate = async ({
       reportId: String(report._id),
       status: report.status,
       districtStatus: statusLabel,
+      districtMessage: messageText,
+      message: messageText,
     },
   }).catch((err) => {
     console.error(

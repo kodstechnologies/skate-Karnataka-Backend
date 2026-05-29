@@ -422,18 +422,14 @@ export const getRegisterFormById = asyncHandler(async (req, res) => {
 export const displayLiveEvents = asyncHandler(async (req, res) => {
     const { page, limit } = req.query;
     const result = await getLiveEventsService(req.user, { page, limit });
-
-    if (!result?.data?.length) {
-        return res.status(200).json({
-            success: false,
-            statusCode: 200,
-            message: "No live events found",
-            data: null,
-        });
-    }
-
     return res.status(200).json(
-        new ApiResponse(200, result, "Live events fetched successfully")
+        new ApiResponse(
+            200,
+            result?.data?.length ? result : null,
+            result?.data?.length
+                ? "Live events fetched successfully"
+                : "No live events found"
+        )
     );
 });
 

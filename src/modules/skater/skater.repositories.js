@@ -10,6 +10,7 @@ import {
 import { sortCompetitionByTime } from "../../util/competition/rankUtil.js";
 import { formatCompetitionTimeTakenFromSeconds } from "../../util/time/timeUtil.js";
 import { EventParticipant } from "../event/eventParticipant.model.js";
+import { GeneratedCertificate } from "../certificate/generatedCertificate.model.js";
 import SkatingEventCategory from "../event/SkatingEventCategory.model.js";
 import { Skater } from "./skater.model.js";
 import { Club } from "../club/club.model.js";
@@ -473,6 +474,53 @@ const parseEventEndDateTime = (eventEndDate, eventEndTime) => {
     return endDate;
 };
 
+const normalizeAgeGroupKey = (value) => String(value || "").trim().toLowerCase();
+
+const buildEventAgeGroupKey = (eventId, ageGroup) =>
+    `${String(eventId)}:${normalizeAgeGroupKey(ageGroup)}`;
+
+/** Results visible after event end datetime + 2 calendar days. */
+const isEventResultsUnlocked = (event, now = new Date()) => {
+    const endDateTime = parseEventEndDateTime(
+        event?.eventEndDate,
+        event?.eventEndTime
+    );
+    if (!endDateTime) return false;
+
+    const unlockAt = new Date(endDateTime);
+    unlockAt.setDate(unlockAt.getDate() + 2);
+    return now > unlockAt;
+};
+
+const loadCertifiedEventAgeGroupKeys = async (eventIds) => {
+    if (!eventIds.length) return new Set();
+
+    const certificates = await GeneratedCertificate.find({
+        eventId: { $in: eventIds },
+    })
+        .select("eventId ageGroup")
+        .lean();
+
+    return new Set(
+        certificates.map((row) =>
+            buildEventAgeGroupKey(row.eventId, row.ageGroup)
+        )
+    );
+};
+
+const hasGeneratedCertificateForEventAgeGroup = async (eventId, ageGroup) => {
+    const normalized = normalizeAgeGroupKey(ageGroup);
+    if (!normalized) return false;
+
+    const certificates = await GeneratedCertificate.find({ eventId })
+        .select("ageGroup")
+        .lean();
+
+    return certificates.some(
+        (row) => normalizeAgeGroupKey(row.ageGroup) === normalized
+    );
+};
+
 const emptySkaterResultsEventPage = (page, limit) => ({
     data: [],
     pagination: {
@@ -491,7 +539,6 @@ const get_skater_results_event_repositories = async (userId, page, limit) => {
     }
 
     const skaterUserId = new mongoose.Types.ObjectId(String(userId));
-    const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
     const now = new Date();
 
     const participants = await EventParticipant.find({
@@ -508,7 +555,7 @@ const get_skater_results_event_repositories = async (userId, page, limit) => {
         .lean();
 
     const seenEventIds = new Set();
-    const events = [];
+    const candidates = [];
 
     for (const participant of participants) {
         const rowUserId = participant.userId?._id ?? participant.userId;
@@ -523,19 +570,33 @@ const get_skater_results_event_repositories = async (userId, page, limit) => {
         if (seenEventIds.has(eventIdStr)) continue;
         seenEventIds.add(eventIdStr);
 
-        const eventEnd = event.eventEndDate ? new Date(event.eventEndDate) : null;
+        if (participant.paymentStatus !== "paid") continue;
+        if (!isEventResultsUnlocked(event, now)) continue;
+
         const endDateTime = parseEventEndDateTime(
             event.eventEndDate,
             event.eventEndTime
         );
         const eventEnded = Boolean(endDateTime && now > endDateTime);
-        const resultsAvailable =
-            participant.paymentStatus === "paid" &&
-            eventEnd &&
-            !Number.isNaN(eventEnd.getTime()) &&
-            eventEnd <= twoDaysAgo;
 
-        events.push({
+        candidates.push({
+            participant,
+            event,
+            eventEnded,
+        });
+    }
+
+    const certifiedKeys = await loadCertifiedEventAgeGroupKeys(
+        candidates.map((row) => row.event._id)
+    );
+
+    const events = candidates
+        .filter((row) =>
+            certifiedKeys.has(
+                buildEventAgeGroupKey(row.event._id, row.participant.ageGroup)
+            )
+        )
+        .map(({ participant, event, eventEnded }) => ({
             participantId: participant._id,
             isRegistered: true,
             eventId: event._id,
@@ -553,15 +614,14 @@ const get_skater_results_event_repositories = async (userId, page, limit) => {
             ageGroup: participant.ageGroup || "",
             paymentStatus: participant.paymentStatus || "pending",
             eventEnded,
-            resultsAvailable,
+            resultsAvailable: true,
             categories: (participant.categories || [])
                 .map((row, index) => ({
                     eventNo: index + 1,
                     name: String(row?.name || "").trim(),
                 }))
                 .filter((row) => row.name),
-        });
-    }
+        }));
 
     const sorted = events.sort((a, b) => {
         const aEnd = a.eventEndDate ? new Date(a.eventEndDate).getTime() : 0;
@@ -603,15 +663,6 @@ const mapCategoryLeaderboard = (results = []) =>
             krsaId: row.krsaId || "",
             ...withTimeDisplay(row.timeTaken),
         }));
-
-const isEventResultsReleased = (event, twoDaysAgo) => {
-    const eventEnd = event?.eventEndDate ? new Date(event.eventEndDate) : null;
-    return Boolean(
-        eventEnd &&
-            !Number.isNaN(eventEnd.getTime()) &&
-            eventEnd <= twoDaysAgo
-    );
-};
 
 const buildMyResultFromCategory = (registeredCategory = null) => ({
     ...withTimeDisplay(registeredCategory?.timeTaken ?? null),
@@ -663,7 +714,7 @@ const get_skater_results_by_event_repositories = async (
         throw new AppError("Invalid event id", 400);
     }
 
-    const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+    const now = new Date();
 
     const skaterUserId = mongoose.Types.ObjectId.isValid(String(userId))
         ? new mongoose.Types.ObjectId(String(userId))
@@ -713,14 +764,16 @@ const get_skater_results_by_event_repositories = async (
         };
     }
 
+    const ageGroup = participant.ageGroup || "";
+
     const resultsAvailable =
         participant.paymentStatus === "paid" &&
-        isEventResultsReleased(event, twoDaysAgo);
+        isEventResultsUnlocked(event, now) &&
+        (await hasGeneratedCertificateForEventAgeGroup(event._id, ageGroup));
 
     const skatingCategory = participant.categoriesId;
     const categoryRefId =
         skatingCategory?._id ?? participant.categoriesId ?? null;
-    const ageGroup = participant.ageGroup || "";
 
     const eventBase = {
         eventId: event._id,

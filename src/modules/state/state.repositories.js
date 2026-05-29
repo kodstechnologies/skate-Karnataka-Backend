@@ -513,13 +513,21 @@ export const stateProfileRepository = async (stateId) => {
   if (normalizedRole === "district") {
     const district = currentUser.district
       ? await District.findById(currentUser.district)
-          .select("_id name img officeAddress about presidentName")
+          .select("_id name img officeAddress about presidentName club districtKrsaId")
           .lean()
       : null;
 
     if (!district) {
       throw new AppError("District not found", 404);
     }
+
+    const clubIds = (district.club || []).filter(Boolean);
+    const [clubCount, skaterCount] = await Promise.all([
+      Club.countDocuments({ district: district._id }),
+      clubIds.length
+        ? Skater.countDocuments({ club: { $in: clubIds }, role: "Skater" })
+        : Promise.resolve(0),
+    ]);
 
     return {
       memberDetails: {
@@ -535,33 +543,24 @@ export const stateProfileRepository = async (stateId) => {
       },
       districtDetails: {
         districtId: String(district._id),
+        districtKrsaId: district.districtKrsaId || "",
         districtName: district.name || "",
         img: district.img || "",
         officeAddress: district.officeAddress || "",
         about: district.about || "",
         presidentName: district.presidentName || "",
+        districtCount: 1,
+        clubCount,
+        skaterCount,
       },
     };
   }
 
-  const [state, districtMedalsAgg, clubMedalsAgg] = await Promise.all([
+  const [state, districtCount, clubCount, skaterCount] = await Promise.all([
     State.findById(stateId).select("name officialAddress img krsaId").lean(),
-    District.aggregate([
-      {
-        $group: {
-          _id: null,
-          total: { $sum: { $ifNull: ["$championships", 0] } },
-        },
-      },
-    ]),
-    Club.aggregate([
-      {
-        $group: {
-          _id: null,
-          total: { $sum: { $ifNull: ["$championships", 0] } },
-        },
-      },
-    ]),
+    District.countDocuments(),
+    Club.countDocuments(),
+    Skater.countDocuments({ role: "Skater", isActive: { $ne: false } }),
   ]);
 
   if (!state) {
@@ -585,9 +584,9 @@ export const stateProfileRepository = async (stateId) => {
       officialAddress: state.officialAddress || "",
       img: state.img || "",
       krsaId: state.krsaId || "",
-      districtMedals: districtMedalsAgg?.[0]?.total || 0,
-      clubMedals: clubMedalsAgg?.[0]?.total || 0,
-      skaterMedals: 0,
+      districtCount,
+      clubCount,
+      skaterCount,
     },
   };
 };

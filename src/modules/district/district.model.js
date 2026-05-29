@@ -2,6 +2,14 @@ import mongoose from "mongoose";
 
 const districtSchema = new mongoose.Schema(
   {
+    districtKrsaId: {
+      type: String,
+      unique: true,
+      sparse: true,
+      index: true,
+      trim: true,
+    },
+
     name: {
       type: String,
       required: [true, "District name is required"],
@@ -59,5 +67,24 @@ const districtSchema = new mongoose.Schema(
 
 districtSchema.index({ name: 1 }, { unique: true });
 districtSchema.path("members").default(() => []);
+
+districtSchema.pre("save", async function () {
+  if (this.districtKrsaId) return;
+
+  let exists = true;
+
+  while (exists) {
+    const random = Math.floor(1000 + Math.random() * 9000);
+    const generatedId = `KRSA-DST-${random}`;
+
+    exists = await mongoose.models.District.exists({
+      districtKrsaId: generatedId,
+    });
+
+    if (!exists) {
+      this.districtKrsaId = generatedId;
+    }
+  }
+});
 
 export const District = mongoose.model("District", districtSchema);

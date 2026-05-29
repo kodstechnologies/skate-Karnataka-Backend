@@ -917,11 +917,9 @@ export const displayDistrictProfileRepository = async (id) => {
     throw new AppError("District Id not found in user", 404);
   }
 
-  const district = await District.findById(
-    districtUser.district
-  )
+  let district = await District.findById(districtUser.district)
     .select(
-      "_id name img officeAddress about presidentName rank championships"
+      "_id districtKrsaId name img officeAddress about presidentName rank championships"
     )
     .lean();
 
@@ -929,9 +927,19 @@ export const displayDistrictProfileRepository = async (id) => {
     throw new AppError("District not found", 404);
   }
 
+  if (!district.districtKrsaId) {
+    const saved = await District.findById(district._id);
+    if (saved && !saved.districtKrsaId) {
+      await saved.save();
+      district = saved.toObject();
+    }
+  }
+
+  const districtKrsaId = district.districtKrsaId || "";
+
   return {
     districtId: district._id || "",
-    krsaId: districtUser.krsaId || "",
+    districtKrsaId,
     districtName: district.name || "",
     img: district.img || "",
     officeAddress: district.officeAddress || "",

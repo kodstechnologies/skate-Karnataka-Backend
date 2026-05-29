@@ -224,7 +224,7 @@ const after_login_skater_form_repositories = async (data, id) => {
         Boolean(newClubId) &&
         setPayload.clubStatus === "join" &&
         newClubId !== previousClubId;
-
+console.log()
     if (joinedNewClub) {
         const clubExists = await Club.exists({ _id: newClubId });
         if (clubExists) {

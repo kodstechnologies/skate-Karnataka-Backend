@@ -136,23 +136,46 @@ export const sendNotification = async ({
   }
 };
 
-/** Notify club member accounts when a skater newly joins the club (after-login form). */
+/** Notify every active BaseAuth account listed in Club.members (after-login skater join). */
 export const notifyClubMembersOnSkaterJoin = async ({
   clubDocId,
   skaterId,
   skaterName,
 }) => {
   if (!clubDocId || !mongoose.Types.ObjectId.isValid(String(clubDocId))) {
-    return;
+    return { notifiedCount: 0, memberCount: 0 };
   }
 
   const club = await Club.findById(clubDocId).select("name members").lean();
-  const memberIds = (club?.members || [])
-    .map((memberId) => String(memberId))
-    .filter((memberId) => memberId && memberId !== String(skaterId));
+  if (!club) {
+    return { notifiedCount: 0, memberCount: 0 };
+  }
 
-  const uniqueMemberIds = [...new Set(memberIds)];
-  if (!uniqueMemberIds.length) return;
+  const memberObjectIds = (club.members || [])
+    .filter((memberId) => mongoose.Types.ObjectId.isValid(String(memberId)))
+    .map((memberId) => new mongoose.Types.ObjectId(String(memberId)));
+
+  if (!memberObjectIds.length) {
+    console.log(
+      `Club join notify: club ${clubDocId} has no members in Club.members`
+    );
+    return { notifiedCount: 0, memberCount: 0 };
+  }
+
+  const clubAuthMembers = await BaseAuth.find({
+    _id: { $in: memberObjectIds },
+    isActive: { $ne: false },
+  })
+    .select("_id role fullName")
+    .lean();
+
+  const receivers = clubAuthMembers.filter(
+    (member) => String(member._id) !== String(skaterId)
+  );
+
+  if (!receivers.length) {
+    return { notifiedCount: 0, memberCount: memberObjectIds.length };
+  }
 
   const clubName = (club?.name || "your club").trim();
   const skaterLabel = (skaterName || "A skater").trim();
@@ -160,9 +183,9 @@ export const notifyClubMembersOnSkaterJoin = async ({
   const body = `${skaterLabel} has newly joined ${clubName}. Welcome them to the club!`;
 
   await Promise.all(
-    uniqueMemberIds.map((receiverId) =>
+    receivers.map((member) =>
       sendNotification({
-        receiverId,
+        receiverId: member._id,
         title,
         body,
         notificationType: "announcement",
@@ -173,15 +196,25 @@ export const notifyClubMembersOnSkaterJoin = async ({
           skaterId: String(skaterId),
           skaterName: skaterLabel,
           clubName,
+          memberCount: memberObjectIds.length,
         },
       }).catch((err) => {
         console.error(
-          `Skater join club notification failed for ${receiverId}:`,
+          `Skater join club notification failed for ${member._id}:`,
           err?.message || err
         );
       })
     )
   );
+
+  console.log(
+    `Club join notify: club=${clubDocId}, members=${memberObjectIds.length}, notified=${receivers.length}`
+  );
+
+  return {
+    notifiedCount: receivers.length,
+    memberCount: memberObjectIds.length,
+  };
 };
 
 /** Notify all joined skaters in a club when a new club event is created. */

@@ -677,16 +677,27 @@ const isExistClubRepository = async (id) => {
 
 
 const apply_club_repositories = async (clubId, skaterId) => {
-    const updatedSkater = await Skater.findByIdAndUpdate(
+    const club = await Club.findOne({
+        $or: [{ _id: clubId }, { members: clubId }],
+    })
+        .select("_id")
+        .lean();
+
+    if (!club) {
+        throw new AppError("Club not found", 404);
+    }
+
+    const skater = await Skater.findByIdAndUpdate(
         skaterId,
         {
             clubStatus: "apply",
-            $addToSet: { applyClub: clubId },
+            $addToSet: { applyClub: club._id },
         },
         { new: true }
-    )
-    console.log(updatedSkater, "updatedSkater");
-}
+    );
+
+    return { skater, clubDocId: club._id };
+};
 
 const isApplyRepository = async (id) => {
     const skater = await Skater.findById(id)

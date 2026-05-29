@@ -217,6 +217,168 @@ export const notifyClubMembersOnSkaterJoin = async ({
   };
 };
 
+/** Notify club members when a skater applies to join that club. */
+export const notifyClubMembersOnSkaterJoinApply = async ({
+  clubDocId,
+  skaterId,
+  skaterName,
+}) => {
+  if (!clubDocId || !mongoose.Types.ObjectId.isValid(String(clubDocId))) {
+    return { notifiedCount: 0, memberCount: 0 };
+  }
+
+  const club = await Club.findById(clubDocId).select("name members").lean();
+  if (!club) {
+    return { notifiedCount: 0, memberCount: 0 };
+  }
+
+  const memberObjectIds = (club.members || [])
+    .filter((memberId) => mongoose.Types.ObjectId.isValid(String(memberId)))
+    .map((memberId) => new mongoose.Types.ObjectId(String(memberId)));
+
+  if (!memberObjectIds.length) {
+    console.log(
+      `Club join apply notify: club ${clubDocId} has no members in Club.members`
+    );
+    return { notifiedCount: 0, memberCount: 0 };
+  }
+
+  const clubAuthMembers = await BaseAuth.find({
+    _id: { $in: memberObjectIds },
+    isActive: { $ne: false },
+  })
+    .select("_id role fullName")
+    .lean();
+
+  const receivers = clubAuthMembers.filter(
+    (member) => String(member._id) !== String(skaterId)
+  );
+
+  if (!receivers.length) {
+    return { notifiedCount: 0, memberCount: memberObjectIds.length };
+  }
+
+  const clubName = (club?.name || "your club").trim();
+  const skaterLabel = (skaterName || "A skater").trim();
+  const title = "New club join application";
+  const body = `${skaterLabel} has applied to join ${clubName}. Please review and approve or reject the application.`;
+
+  await Promise.all(
+    receivers.map((member) =>
+      sendNotification({
+        receiverId: member._id,
+        title,
+        body,
+        notificationType: "approval",
+        sentBy: skaterId,
+        data: {
+          type: "skater_join_apply",
+          clubId: String(clubDocId),
+          skaterId: String(skaterId),
+          skaterName: skaterLabel,
+          clubName,
+          memberCount: memberObjectIds.length,
+        },
+      }).catch((err) => {
+        console.error(
+          `Skater join apply notification failed for ${member._id}:`,
+          err?.message || err
+        );
+      })
+    )
+  );
+
+  console.log(
+    `Club join apply notify: club=${clubDocId}, members=${memberObjectIds.length}, notified=${receivers.length}`
+  );
+
+  return {
+    notifiedCount: receivers.length,
+    memberCount: memberObjectIds.length,
+  };
+};
+
+/** Notify club members when a joined skater applies to leave the club. */
+export const notifyClubMembersOnSkaterLeaveApply = async ({
+  clubDocId,
+  skaterId,
+  skaterName,
+}) => {
+  if (!clubDocId || !mongoose.Types.ObjectId.isValid(String(clubDocId))) {
+    return { notifiedCount: 0, memberCount: 0 };
+  }
+
+  const club = await Club.findById(clubDocId).select("name members").lean();
+  if (!club) {
+    return { notifiedCount: 0, memberCount: 0 };
+  }
+
+  const memberObjectIds = (club.members || [])
+    .filter((memberId) => mongoose.Types.ObjectId.isValid(String(memberId)))
+    .map((memberId) => new mongoose.Types.ObjectId(String(memberId)));
+
+  if (!memberObjectIds.length) {
+    console.log(
+      `Club leave apply notify: club ${clubDocId} has no members in Club.members`
+    );
+    return { notifiedCount: 0, memberCount: 0 };
+  }
+
+  const clubAuthMembers = await BaseAuth.find({
+    _id: { $in: memberObjectIds },
+    isActive: { $ne: false },
+  })
+    .select("_id role fullName")
+    .lean();
+
+  const receivers = clubAuthMembers.filter(
+    (member) => String(member._id) !== String(skaterId)
+  );
+
+  if (!receivers.length) {
+    return { notifiedCount: 0, memberCount: memberObjectIds.length };
+  }
+
+  const clubName = (club?.name || "your club").trim();
+  const skaterLabel = (skaterName || "A skater").trim();
+  const title = "Skater leave request";
+  const body = `${skaterLabel} has requested to leave ${clubName}. Please review and approve or reject the request.`;
+
+  await Promise.all(
+    receivers.map((member) =>
+      sendNotification({
+        receiverId: member._id,
+        title,
+        body,
+        notificationType: "approval",
+        sentBy: skaterId,
+        data: {
+          type: "skater_leave_apply",
+          clubId: String(clubDocId),
+          skaterId: String(skaterId),
+          skaterName: skaterLabel,
+          clubName,
+          memberCount: memberObjectIds.length,
+        },
+      }).catch((err) => {
+        console.error(
+          `Skater leave apply notification failed for ${member._id}:`,
+          err?.message || err
+        );
+      })
+    )
+  );
+
+  console.log(
+    `Club leave apply notify: club=${clubDocId}, members=${memberObjectIds.length}, notified=${receivers.length}`
+  );
+
+  return {
+    notifiedCount: receivers.length,
+    memberCount: memberObjectIds.length,
+  };
+};
+
 /** Notify all joined skaters in a club when a new club event is created. */
 export const notifyClubSkatersOfNewEvent = async ({
   clubAuthUserId,

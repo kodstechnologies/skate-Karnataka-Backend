@@ -1965,7 +1965,9 @@ const LIVE_EVENT_LIST_PROJECTION =
 /** Event is live when today falls between eventStartDate and eventEndDate (inclusive). */
 const getLiveEventDateFilter = () => {
   const now = new Date();
-  const endOfToday = new Date();
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
+  const endOfToday = new Date(now);
   endOfToday.setHours(23, 59, 59, 999);
 
   return {

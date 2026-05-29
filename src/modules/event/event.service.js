@@ -721,7 +721,13 @@ export const getLiveEventsService = async (reqUser, query = {}) => {
         throw new AppError("Forbidden", 403);
     }
     const { page, limit } = query;
-    return await getLiveEventsRepository(reqUser.role, reqUser._id, { page, limit });
+    const result = await getLiveEventsRepository(reqUser.role, reqUser._id, { page, limit });
+
+    if (!result?.data?.length) {
+        throw new AppError("No live events found", 404);
+    }
+
+    return result;
 };
 
 const normalizeRegisterFormCategories = (categories = []) =>

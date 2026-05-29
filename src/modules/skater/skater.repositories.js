@@ -143,13 +143,18 @@ const assertDisciplineExists = async (disciplineId) => {
     }
 };
 
+const normalizeObjectIdString = (value) => {
+    if (value == null || value === "") return "";
+    return String(value);
+};
+
 const after_login_skater_form_repositories = async (data, id) => {
     const existingUser = await BaseAuth.findById(id)
-        .select("_id role phone email")
+        .select("_id role phone email verify")
         .lean();
 
     const existingSkater = await Skater.findById(id)
-        .select("club clubStatus fullName")
+        .select("club clubStatus fullName verify")
         .lean();
 
     if (!existingUser) {
@@ -179,10 +184,12 @@ const after_login_skater_form_repositories = async (data, id) => {
 
     await assertUniqueContactForUpdate(id, setPayload, existingUser);
 
-    const previousClubId = existingSkater?.club
-        ? String(existingSkater.club)
-        : "";
-    const newClubId = data?.club ? String(data.club).trim() : "";
+    const previousClubId = normalizeObjectIdString(existingSkater?.club);
+    const newClubId = data?.club ? normalizeObjectIdString(data.club) : "";
+    const previousClubStatus = String(existingSkater?.clubStatus || "")
+        .trim()
+        .toLowerCase();
+    const wasAlreadyVerified = Boolean(existingUser?.verify ?? existingSkater?.verify);
 
     if (data?.club) {
         setPayload.clubStatus = "join";
@@ -203,7 +210,7 @@ const after_login_skater_form_repositories = async (data, id) => {
     }
 
     const updated = await BaseAuth.findByIdAndUpdate(id, updateOperation, {
-        new: true,
+        returnDocument: "after",
         runValidators: false,
         strict: false,
     });
@@ -220,12 +227,18 @@ const after_login_skater_form_repositories = async (data, id) => {
 
     const profile = populated ?? updated.toObject?.() ?? updated;
 
-    const joinedNewClub =
+    const alreadyJoinedSameClub =
+        Boolean(newClubId) &&
+        previousClubId === newClubId &&
+        previousClubStatus === "join";
+
+    const shouldNotifyClubJoin =
         Boolean(newClubId) &&
         setPayload.clubStatus === "join" &&
-        newClubId !== previousClubId;
-console.log()
-    if (joinedNewClub) {
+        (!wasAlreadyVerified || !alreadyJoinedSameClub);
+console.log("🚀 ~ after_login_skater_form_repositories ~ shouldNotifyClubJoin:", shouldNotifyClubJoin, { wasAlreadyVerified, alreadyJoinedSameClub, previousClubId, newClubId, previousClubStatus: previousClubStatus || "none" })
+
+    if (shouldNotifyClubJoin) {
         const clubExists = await Club.exists({ _id: newClubId });
         if (clubExists) {
             notifyClubMembersOnSkaterJoin({

@@ -101,16 +101,29 @@ export const notifySkaterOnClubReportUpdate = async ({
   report,
   sentBy,
   clubStatus,
+  message,
 }) => {
   const skaterId = report?.complainedBy;
   if (!skaterId) return;
 
   const statusLabel = (clubStatus || report?.clubStatus || "pending").trim();
+  const messageText = String(message ?? report?.clubMessage ?? "").trim();
+  const typeLabel = reportLabel(report);
+  const clubName = (report?.clubName || "Your club").trim();
+
+  let body;
+  if (messageText && statusLabel) {
+    body = `${clubName} updated your "${typeLabel}" report. Status: ${statusLabel}. Message: ${messageText}`;
+  } else if (messageText) {
+    body = `${clubName} message on your "${typeLabel}" report: ${messageText}`;
+  } else {
+    body = `${clubName} set club status to "${statusLabel}" on your "${typeLabel}" report.`;
+  }
 
   await sendNotification({
     receiverId: skaterId,
     title: "Report update from club",
-    body: `${report?.clubName || "Your club"} set club status to "${statusLabel}" on your "${reportLabel(report)}" report.`,
+    body,
     notificationType: "report",
     sentBy,
     data: {
@@ -118,6 +131,8 @@ export const notifySkaterOnClubReportUpdate = async ({
       reportId: String(report._id),
       status: report.status,
       clubStatus: statusLabel,
+      clubMessage: messageText,
+      message: messageText,
     },
   }).catch((err) => {
     console.error("Club report skater notification failed:", err?.message || err);
@@ -174,16 +189,28 @@ export const notifySkaterOnStateReportUpdate = async ({
   report,
   sentBy,
   stateStatus,
+  message,
 }) => {
   const skaterId = report?.complainedBy;
   if (!skaterId) return;
 
   const statusLabel = (stateStatus || report?.StateStatus || "pending").trim();
+  const messageText = String(message ?? report?.stateMessage ?? "").trim();
+  const typeLabel = reportLabel(report);
+
+  let body;
+  if (messageText && statusLabel) {
+    body = `State updated your "${typeLabel}" report. Status: ${statusLabel}. Message: ${messageText}`;
+  } else if (messageText) {
+    body = `State message on your "${typeLabel}" report: ${messageText}`;
+  } else {
+    body = `State set state status to "${statusLabel}" on your "${typeLabel}" report.`;
+  }
 
   await sendNotification({
     receiverId: skaterId,
     title: "Report update from state",
-    body: `State set state status to "${statusLabel}" on your "${reportLabel(report)}" report.`,
+    body,
     notificationType: "report",
     sentBy,
     data: {
@@ -191,6 +218,8 @@ export const notifySkaterOnStateReportUpdate = async ({
       reportId: String(report._id),
       status: report.status,
       stateStatus: statusLabel,
+      stateMessage: messageText,
+      message: messageText,
     },
   }).catch((err) => {
     console.error("State report skater notification failed:", err?.message || err);

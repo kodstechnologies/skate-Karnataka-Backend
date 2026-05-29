@@ -150,12 +150,11 @@ export const updateClubReportClubService = async (user, { reportId, clubStatus, 
     const updated = await updateClubReportClubRepositories(reportId, clubDocId, payload);
 
     if (updated?.complainedBy) {
-        notifySkaterOnClubReportUpdate({
+        await notifySkaterOnClubReportUpdate({
             report: updated,
             sentBy: user._id,
             clubStatus: updated.clubStatus,
-        }).catch((err) => {
-            console.error("Club report skater notify failed:", err?.message || err);
+            message: updated.clubMessage ?? message,
         });
     }
 
@@ -238,12 +237,11 @@ export const updateStateReportStateService = async (user, { reportId, stateStatu
     const updated = await updateStateReportStateRepositories(reportId, payload);
 
     if (updated?.complainedBy) {
-        notifySkaterOnStateReportUpdate({
+        await notifySkaterOnStateReportUpdate({
             report: updated,
             sentBy: user._id,
             stateStatus: updated.StateStatus,
-        }).catch((err) => {
-            console.error("State report skater notify failed:", err?.message || err);
+            message: updated.stateMessage ?? message,
         });
     }
 

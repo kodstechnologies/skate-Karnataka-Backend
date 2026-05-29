@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import admin from "../../firebase/firebase.js";
 import { BaseAuth } from "../../modules/auth/baseAuth.model.js";
 import { saveNotificationRepositories } from "../../modules/notification/notification.repositories.js";
@@ -133,6 +134,54 @@ export const sendNotification = async ({
     console.error("sendNotification error:", error.message);
     return savedNotification;
   }
+};
+
+/** Notify club member accounts when a skater newly joins the club (after-login form). */
+export const notifyClubMembersOnSkaterJoin = async ({
+  clubDocId,
+  skaterId,
+  skaterName,
+}) => {
+  if (!clubDocId || !mongoose.Types.ObjectId.isValid(String(clubDocId))) {
+    return;
+  }
+
+  const club = await Club.findById(clubDocId).select("name members").lean();
+  const memberIds = (club?.members || [])
+    .map((memberId) => String(memberId))
+    .filter((memberId) => memberId && memberId !== String(skaterId));
+
+  const uniqueMemberIds = [...new Set(memberIds)];
+  if (!uniqueMemberIds.length) return;
+
+  const clubName = (club?.name || "your club").trim();
+  const skaterLabel = (skaterName || "A skater").trim();
+  const title = "New skater joined your club";
+  const body = `${skaterLabel} has newly joined ${clubName}. Welcome them to the club!`;
+
+  await Promise.all(
+    uniqueMemberIds.map((receiverId) =>
+      sendNotification({
+        receiverId,
+        title,
+        body,
+        notificationType: "announcement",
+        sentBy: skaterId,
+        data: {
+          type: "skater_joined_club",
+          clubId: String(clubDocId),
+          skaterId: String(skaterId),
+          skaterName: skaterLabel,
+          clubName,
+        },
+      }).catch((err) => {
+        console.error(
+          `Skater join club notification failed for ${receiverId}:`,
+          err?.message || err
+        );
+      })
+    )
+  );
 };
 
 /** Notify all joined skaters in a club when a new club event is created. */

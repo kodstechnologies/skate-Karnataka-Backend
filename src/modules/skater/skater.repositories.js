@@ -12,7 +12,9 @@ import { formatCompetitionTimeTakenFromSeconds } from "../../util/time/timeUtil.
 import { EventParticipant } from "../event/eventParticipant.model.js";
 import SkatingEventCategory from "../event/SkatingEventCategory.model.js";
 import { Skater } from "./skater.model.js";
+import { Club } from "../club/club.model.js";
 import { paginate, calcTotalPages } from "../../util/common/paginate.js";
+import { notifyClubMembersOnSkaterJoin } from "../../util/firebase/sendNotification.js";
 
 const normalizePhone = (value) => String(value ?? "").trim();
 
@@ -146,6 +148,10 @@ const after_login_skater_form_repositories = async (data, id) => {
         .select("_id role phone email")
         .lean();
 
+    const existingSkater = await Skater.findById(id)
+        .select("club clubStatus fullName")
+        .lean();
+
     if (!existingUser) {
         throw new AppError("Skater not found", 404);
     }
@@ -172,6 +178,11 @@ const after_login_skater_form_repositories = async (data, id) => {
     castSkaterObjectIdFields(setPayload);
 
     await assertUniqueContactForUpdate(id, setPayload, existingUser);
+
+    const previousClubId = existingSkater?.club
+        ? String(existingSkater.club)
+        : "";
+    const newClubId = data?.club ? String(data.club).trim() : "";
 
     if (data?.club) {
         setPayload.clubStatus = "join";
@@ -208,6 +219,27 @@ const after_login_skater_form_repositories = async (data, id) => {
         .lean();
 
     const profile = populated ?? updated.toObject?.() ?? updated;
+
+    const joinedNewClub =
+        Boolean(newClubId) &&
+        setPayload.clubStatus === "join" &&
+        newClubId !== previousClubId;
+
+    if (joinedNewClub) {
+        const clubExists = await Club.exists({ _id: newClubId });
+        if (clubExists) {
+            notifyClubMembersOnSkaterJoin({
+                clubDocId: newClubId,
+                skaterId: id,
+                skaterName: profile?.fullName || existingSkater?.fullName || "",
+            }).catch((err) => {
+                console.error(
+                    "Skater after-login club join notification failed:",
+                    err?.message || err
+                );
+            });
+        }
+    }
 
     return {
         ...profile,

@@ -1,6 +1,6 @@
 import { runDailyMissingClubCertificationJob } from "./event.repositories.js";
 
-const CERTIFICATION_JOB_HOUR = 5;
+const CERTIFICATION_JOB_HOUR = 4;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const msUntilNextHour = (hour) => {
@@ -28,5 +28,5 @@ export const startCertificationScheduler = () => {
     setInterval(run, DAY_MS);
   }, msUntilNextHour(CERTIFICATION_JOB_HOUR));
 
-  console.log("Certification scheduler started (runs daily at 05:00)");
+  console.log("Certification scheduler started (runs daily at 10:00)");
 };

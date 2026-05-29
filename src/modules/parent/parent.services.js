@@ -255,21 +255,40 @@ const getUniqueEmailForSkater = async ({
 const getUniquePhoneForSkater = async ({
     preferredPhone,
     parentPhone,
+    batchUsedPhones,
+    index,
 }) => {
-    if (preferredPhone) {
-        return preferredPhone;
-    }
-
+    const normalizedSkaterPhone = toTrimmedString(preferredPhone);
     const normalizedParentPhone = toTrimmedString(parentPhone);
-    if (!normalizedParentPhone) {
-        throw new AppError("Parent phone is missing, cannot assign skater phone", 400);
+
+    if (!normalizedSkaterPhone) {
+        throw new AppError(`Skater ${index + 1}: phone is required`, 400);
     }
 
-    if (!PHONE_REGEX.test(normalizedParentPhone)) {
-        throw new AppError("Parent phone must be a valid 10-digit Indian number", 400);
+    if (!PHONE_REGEX.test(normalizedSkaterPhone)) {
+        throw new AppError(
+            `Skater ${index + 1}: phone must be a valid 10-digit Indian number`,
+            400
+        );
     }
 
-    return normalizedParentPhone;
+    if (normalizedParentPhone && normalizedSkaterPhone === normalizedParentPhone) {
+        throw new AppError(`Skater ${index + 1}: phone cannot be the same as parent phone`, 400);
+    }
+
+    if (batchUsedPhones.has(normalizedSkaterPhone)) {
+        throw new AppError(`Skater ${index + 1}: phone already used in this request`, 409);
+    }
+
+    const existingPhoneUser = await findUserByPhoneOrEmailRepositories({
+        phone: normalizedSkaterPhone,
+    });
+    if (existingPhoneUser) {
+        throw new AppError(`Skater ${index + 1}: phone already used`, 409);
+    }
+
+    batchUsedPhones.add(normalizedSkaterPhone);
+    return normalizedSkaterPhone;
 };
 
 
@@ -285,6 +304,7 @@ const createSkatersForParent = async (skatersInput = [], parentContext = {}) => 
             preferredPhone: validated.phone,
             parentPhone: parentContext.phone,
             batchUsedPhones,
+            index,
         });
         const skaterEmail = await getUniqueEmailForSkater({
             preferredEmail: validated.email,

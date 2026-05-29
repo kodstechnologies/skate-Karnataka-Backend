@@ -2,6 +2,7 @@ import { AppError } from "../../util/common/AppError.js";
 import { buildPaginationMeta, paginate } from "../../util/common/paginate.js";
 import { Club } from "../club/club.model.js";
 import { District } from "../district/district.model.js";
+import { Skater } from "../skater/skater.model.js";
 import { create_report_repositories, get_club_id, get_skater_report_repositories, getAllDistrictScopeReportsRepositories, getClubReportsRepositories, getDistrictReportsRepositories, getStateReportsRepositories, inProgressClubReportsRepositories, resolveClubReportsRepositories, resolveDistrictReportsRepositories, resolveStateReportsRepositories, updateClubReportClubRepositories, updateDistrictReportDistrictRepositories, updateStateReportStateRepositories, update_status_repositories } from "./report.repositories.js";
 import {
     notifyClubOnNewReport,
@@ -165,7 +166,18 @@ export const updateClubReportClubService = async (user, { reportId, clubStatus, 
     return updated;
 };
 
+const SKATER_IN_CLUB_STATUSES = ["join", "apply-leave"];
+
 const create_report_service = async (skaterId, data) => {
+    const skater = await Skater.findById(skaterId).select("club clubStatus").lean();
+
+    if (
+        !skater?.club ||
+        !SKATER_IN_CLUB_STATUSES.includes(String(skater.clubStatus || ""))
+    ) {
+        throw new AppError("First join any club", 400);
+    }
+
     const club = await get_club_id(skaterId);
     const report = await create_report_repositories(skaterId, data, club);
 

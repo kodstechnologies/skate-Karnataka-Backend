@@ -76,8 +76,8 @@ export const updateMediaService = async (id, data, user) => {
     if (typeof data?.img !== "undefined" || typeof data?.imageUrl !== "undefined") {
         payload.imageUrl = normalizeSingleUrl(data?.imageUrl ?? data?.img);
     }
-    if (typeof data?.videoUrl !== "undefined") {
-        payload.videoUrl = normalizeSingleUrl(data.videoUrl);
+    if (typeof data?.videoUrl !== "undefined" || typeof data?.video !== "undefined") {
+        payload.videoUrl = normalizeSingleUrl(data?.videoUrl ?? data?.video);
     }
     if (typeof data?.title !== "undefined") {
         payload.title = data.title || "";

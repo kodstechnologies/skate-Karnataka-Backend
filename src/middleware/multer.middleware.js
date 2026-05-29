@@ -38,6 +38,15 @@ const multerOptions = {
 
 export const upload = multer(multerOptions);
 
+/** Gallery uploads allow larger video files (up to 100 MB). */
+export const uploadGallery = multer({
+  ...multerOptions,
+  limits: {
+    fileSize: 100 * 1024 * 1024,
+    files: 25,
+  },
+});
+
 /** Accept multipart text fields + files (use instead of .fields() when the app sends both). */
 export const uploadAny = multer(multerOptions).any();
 

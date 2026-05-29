@@ -166,7 +166,7 @@ export const basedOnRoleDisplayRepositories = async ({ ownerType, ownerId, type 
 export const addMediaREpositories = async (data) => {
   return Gallery.create({
     imageUrl: normalizeSingleUrl(data?.imageUrl ?? data?.img),
-    videoUrl: normalizeSingleUrl(data?.videoUrl),
+    videoUrl: normalizeSingleUrl(data?.videoUrl ?? data?.video),
     title: data?.title || "",
     about: data?.about || "",
     ownerType: data.ownerType,

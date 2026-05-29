@@ -15,6 +15,9 @@ const getExtension = (file) => {
         "image/jpg": "jpg",
         "image/png": "png",
         "image/webp": "webp",
+        "video/mp4": "mp4",
+        "video/webm": "webm",
+        "video/quicktime": "mov",
         "application/pdf": "pdf",
     };
     return mimeExtMap[file?.mimetype] || "bin";

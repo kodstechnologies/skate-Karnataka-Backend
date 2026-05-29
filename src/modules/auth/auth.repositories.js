@@ -403,15 +403,10 @@ const findSkatersByParentPhone = async ({ parentId, parentPhone }) => {
         return [];
     }
 
-    const normalizedPhone = String(parentPhone || "").trim();
     const query = {
         role: "Skater",
         SkaterParent: parentId,
     };
-
-    if (normalizedPhone) {
-        query.phone = normalizedPhone;
-    }
 
     return Skater.find(query)
         .select("_id fullName phone profile krsaId gender dob photo club clubStatus parent verify")

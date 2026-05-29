@@ -11,7 +11,7 @@ const getParentWithSkaters = async (id) => {
     if (!parent) return null;
 
     const skaters = await Skater.find({ SkaterParent: id, role: { $regex: /^skater$/i } })
-        .select("_id fullName phone email verify rsfiId signature")
+        .select("_id fullName dob phone email verify rsfiId signature")
         .lean();
 
     return { ...parent, skaters };
@@ -117,7 +117,7 @@ const displayParentFullDetailsRepositories = async (id) => {
     if (!parent) return null;
 
     const skaters = await Skater.find({ SkaterParent: id, role: { $regex: /^skater$/i } })
-        .select("_id fullName phone email verify rsfiId signature")
+        .select("_id fullName dob phone email verify rsfiId signature")
         .lean();
 
     return { ...parent, skaters };

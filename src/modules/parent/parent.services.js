@@ -19,6 +19,49 @@ const ALLOWED_BLOOD_GROUPS = new Set(["A+", "A-", "B+", "B-", "O+", "O-", "AB+",
 
 const toTrimmedString = (value) => (value == null ? "" : String(value).trim());
 const normalizeEmail = (value) => toTrimmedString(value).toLowerCase();
+const DOB_DMY_REGEX = /^(\d{2})[-/](\d{2})[-/](\d{4})$/;
+
+const parseDobFromDmy = (rawDob, index) => {
+    const raw = toTrimmedString(rawDob);
+    if (!raw) {
+        return undefined;
+    }
+
+    const match = raw.match(DOB_DMY_REGEX);
+    if (!match) {
+        throw new AppError(
+            `Skater ${index + 1}: dob must be in DD-MM-YYYY format`,
+            400
+        );
+    }
+
+    const day = Number(match[1]);
+    const month = Number(match[2]);
+    const year = Number(match[3]);
+
+    const parsed = new Date(year, month - 1, day);
+    const isValid =
+        !Number.isNaN(parsed.getTime()) &&
+        parsed.getFullYear() === year &&
+        parsed.getMonth() === month - 1 &&
+        parsed.getDate() === day;
+
+    if (!isValid) {
+        throw new AppError(`Skater ${index + 1}: invalid dob`, 400);
+    }
+
+    return parsed;
+};
+
+const formatDateAsDmy = (value) => {
+    if (!value) return "";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "";
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const year = d.getFullYear();
+    return `${day}-${month}-${year}`;
+};
 
 const splitEmailParts = (email = "") => {
     const atIndex = email.indexOf("@");
@@ -113,13 +156,7 @@ const validateSkaterPayload = (payload, index) => {
         throw new AppError(`Skater ${index + 1}: gender must be male, female, or other`, 400);
     }
 
-    let dob;
-    if (dobRaw) {
-        dob = new Date(dobRaw);
-        if (Number.isNaN(dob.getTime())) {
-            throw new AppError(`Skater ${index + 1}: invalid dob`, 400);
-        }
-    }
+    const dob = parseDobFromDmy(dobRaw, index);
 
     if (aadharNumber && !AADHAR_REGEX.test(aadharNumber)) {
         throw new AppError(`Skater ${index + 1}: aadharNumber must be 12 digits`, 400);
@@ -286,6 +323,7 @@ const createSkatersForParent = async (skatersInput = [], parentContext = {}) => 
             createdSkaters.push({
                 skaterId: String(created._id),
                 skaterName: created.fullName || "",
+                dob: formatDateAsDmy(created.dob),
                 rsfiId: created.rsfiId || "",
                 signature: created.signature || "",
                 verify: Boolean(created.verify),
@@ -374,6 +412,7 @@ const afterLoginFormParentService = async (data, id) => {
         skaters: (parentWithSkaters.skaters || []).map((skater) => ({
             skaterId: String(skater._id),
             skaterName: skater.fullName || "",
+            dob: formatDateAsDmy(skater.dob),
             phone: skater.phone || "",
             email: skater.email || "",
             rsfiId: skater.rsfiId || "",

@@ -254,12 +254,9 @@ const getUniqueEmailForSkater = async ({
 
 const getUniquePhoneForSkater = async ({
     preferredPhone,
-    parentPhone,
-    batchUsedPhones,
     index,
 }) => {
     const normalizedSkaterPhone = toTrimmedString(preferredPhone);
-    const normalizedParentPhone = toTrimmedString(parentPhone);
 
     if (!normalizedSkaterPhone) {
         throw new AppError(`Skater ${index + 1}: phone is required`, 400);
@@ -272,22 +269,6 @@ const getUniquePhoneForSkater = async ({
         );
     }
 
-    if (normalizedParentPhone && normalizedSkaterPhone === normalizedParentPhone) {
-        throw new AppError(`Skater ${index + 1}: phone cannot be the same as parent phone`, 400);
-    }
-
-    if (batchUsedPhones.has(normalizedSkaterPhone)) {
-        throw new AppError(`Skater ${index + 1}: phone already used in this request`, 409);
-    }
-
-    const existingPhoneUser = await findUserByPhoneOrEmailRepositories({
-        phone: normalizedSkaterPhone,
-    });
-    if (existingPhoneUser) {
-        throw new AppError(`Skater ${index + 1}: phone already used`, 409);
-    }
-
-    batchUsedPhones.add(normalizedSkaterPhone);
     return normalizedSkaterPhone;
 };
 
@@ -302,8 +283,6 @@ const createSkatersForParent = async (skatersInput = [], parentContext = {}) => 
         const validated = validateSkaterPayload(skatersInput[index], index);
         const skaterPhone = await getUniquePhoneForSkater({
             preferredPhone: validated.phone,
-            parentPhone: parentContext.phone,
-            batchUsedPhones,
             index,
         });
         const skaterEmail = await getUniqueEmailForSkater({

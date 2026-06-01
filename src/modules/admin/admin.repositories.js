@@ -623,7 +623,7 @@ export const getAllSkatersForAdmin = async ({ page = 1, limit = 10, search = "" 
   const [total, skaters] = await Promise.all([
     BaseAuth.countDocuments(query),
     BaseAuth.find(query)
-      .select("_id fullName profile phone address district gender email krsaId club")
+      .select("_id fullName profile phone address district gender email krsaId club isBlocked")
       .populate("district", "_id name")
       .populate({
         path: "club",
@@ -651,6 +651,7 @@ export const getAllSkatersForAdmin = async ({ page = 1, limit = 10, search = "" 
       gender: skater.gender || "",
       email: skater.email || "",
       krsaId: skater.krsaId || "",
+      isBlocked: Boolean(skater.isBlocked),
     };
   });
 

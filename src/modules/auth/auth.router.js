@@ -1,9 +1,9 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
-import { ContactSupport, DeleteUser, DisplayChildrenByParent, GetAchievements, GetAllSkatingEventCategoryNames, GetRankings, LoginUser, LogoutUser, RefreshToken, RegisterUser, SelectAccount, sendEmailOTP, sendPhoneOTP, ToggleNotifications, verifyEmailOTP, VerifyOTP, verifyPhoneOTP } from "./auth.controller.js";
+import { ContactSupport, DeleteUser, DisplayChildrenByParent, GetAchievements, GetAllSkatingEventCategoryNames, GetRankings, LoginUser, LogoutUser, RefreshToken, RegisterUser, SelectAccount, sendEmailOTP, sendPhoneOTP, ToggleNotifications, ToggleUserBlock, verifyEmailOTP, VerifyOTP, verifyPhoneOTP } from "./auth.controller.js";
 import { validate } from "../../middleware/validate.multiple.js";
 import { upload } from "../../middleware/multer.middleware.js";
-import { displayChildrenByParentValidation, LoginValidation, LogoutValidation, RegisterValidation, selectAccountValidation, sendEmailOTPValidation, sendPhoneOTPValidation, verifyEmailOTPValidation, VerifyOTPValidation, verifyPhoneOTPValidation } from "./auth.validation.js";
+import { displayChildrenByParentValidation, LoginValidation, LogoutValidation, RegisterValidation, selectAccountValidation, sendEmailOTPValidation, sendPhoneOTPValidation, toggleUserBlockValidation, verifyEmailOTPValidation, VerifyOTPValidation, verifyPhoneOTPValidation } from "./auth.validation.js";
 import { afterLoginSchoolForm } from "../school/school.controller.js";
 import { afterLoginSchoolFormValidation } from "../school/school.validation.js";
 
@@ -84,6 +84,13 @@ router.get("/support",
 router.delete("/delete",
     authenticate(["Skater", "Club", "State", "District", "Admin"]),
     DeleteUser);
+
+router.patch(
+    "/v1/toggle-block/:userId",
+    authenticate(["Admin", "State", "admin", "state"]),
+    validate(toggleUserBlockValidation),
+    ToggleUserBlock
+);
 
 router.get("/v1/all-skating-event-category", GetAllSkatingEventCategoryNames);
 

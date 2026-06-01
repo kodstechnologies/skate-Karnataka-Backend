@@ -38,6 +38,15 @@ export const authenticate = (allowedRoles = []) => {
         return next(new AppError("User not found", 401));
       }
 
+      if (user.isBlocked) {
+        return next(
+          new AppError(
+            "Your account has been blocked by the KRSA administrator. Please contact support if you believe this is a mistake.",
+            401
+          )
+        );
+      }
+
       // 4️⃣ Role check
       if (allowedRoles.length) {
         const userRole = (user.role || "").toLowerCase();
@@ -257,6 +266,15 @@ export const authenticateLogout = (allowedRoles = []) => {
         return next(new AppError("User not found", 401));
       }
 
+      if (user.isBlocked) {
+        return next(
+          new AppError(
+            "Your account has been blocked by the KRSA administrator. Please contact support if you believe this is a mistake.",
+            401
+          )
+        );
+      }
+
       if (allowedRoles.length) {
         const userRole = (user.role || "").toLowerCase();
         const isAllowed = allowedRoles.some(
@@ -325,6 +343,13 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
 
     if (!user || !user.refreshTokens.includes(refreshToken)) {
       throw new AppError("Invalid refresh token", 403);
+    }
+
+    if (user.isBlocked) {
+      throw new AppError(
+        "Your account has been blocked by the KRSA administrator. Please contact support if you believe this is a mistake.",
+        401
+      );
     }
 
     // 🔥 Rotate tokens

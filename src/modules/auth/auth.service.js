@@ -224,10 +224,19 @@ const verifyPhoneOTPService = async (data) => {
     return true;
 }
 
+const BLOCKED_ACCOUNT_MESSAGE =
+    "Your account has been blocked by the KRSA administrator. Please contact support if you believe this is a mistake.";
+
+const assertUserNotBlocked = (user) => {
+    if (user?.isBlocked) {
+        throw new AppError(BLOCKED_ACCOUNT_MESSAGE, 401);
+    }
+};
 
 const LoginUserService = async (identifier) => {
     const otp = generateRandomNumber();
     const createLoginResult = async (user) => {
+        assertUserNotBlocked(user);
         const userWithKrsaId = await ensureKrsaIdIfMissing(user);
         const accessToken = generateAccessToken(userWithKrsaId);
         const refreshToken = generateRefreshToken(userWithKrsaId);
@@ -296,6 +305,7 @@ const VerifyOTPService = async (userData) => {
     if (!user) {
         throw new AppError("User not found after OTP verification", 404);
     }
+    assertUserNotBlocked(user);
 
     // console.log(user, "user")
     const accessToken = generateAccessToken(user);
@@ -315,6 +325,7 @@ const SelectAccountLoginService = async (userData) => {
     if (!user) {
         throw new AppError("User not found", 404);
     }
+    assertUserNotBlocked(user);
 
     if (user?.email) {
         const existingEmailUser = await isExistEmail(user.email);
@@ -370,6 +381,33 @@ const ContactSupportService = async (userData) => {
 
 const DeleteAccountService = async (userData) => {
     await deleteAccount(userData._id);
+};
+
+const ToggleUserBlockService = async (userId, isBlocked) => {
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+        throw new AppError("Invalid user id", 400);
+    }
+
+    const user = await BaseAuth.findOne({ _id: userId, role: "Skater" });
+    if (!user) {
+        throw new AppError("Skater not found", 404);
+    }
+
+    user.isBlocked = Boolean(isBlocked);
+
+    if (user.isBlocked) {
+        user.refreshTokens = [];
+        user.firebaseTokens = [];
+    }
+
+    await user.save();
+
+    return {
+        userId: String(user._id),
+        fullName: user.fullName || "",
+        krsaId: user.krsaId || "",
+        isBlocked: user.isBlocked,
+    };
 };
 
 const displayChildrenByParentService = async (parentId) => {
@@ -456,4 +494,5 @@ export {
     getAllSkatingEventCategoryNamesService,
     DeleteAccountService,
     displayChildrenByParentService,
+    ToggleUserBlockService,
 }

@@ -316,6 +316,27 @@ const selectAccountValidation = {
             .optional(),
     }),
 };
+const toggleUserBlockValidation = {
+    params: Joi.object({
+        userId: Joi.string()
+            .trim()
+            .pattern(/^[0-9a-fA-F]{24}$/)
+            .required()
+            .messages({
+                "string.pattern.base": "Invalid user id format",
+                "any.required": "User id is required",
+                "string.empty": "User id is required",
+            }),
+    }),
+    body: Joi.object({
+        isBlocked: Joi.boolean()
+            .required()
+            .messages({
+                "boolean.base": "isBlocked must be true or false",
+                "any.required": "isBlocked is required",
+            }),
+    }),
+};
 
 
 export {
@@ -331,4 +352,5 @@ export {
     RefreshTokenValidation,
     displayChildrenByParentValidation,
     selectAccountValidation,
+    toggleUserBlockValidation,
 }

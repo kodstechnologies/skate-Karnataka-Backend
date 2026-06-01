@@ -65,6 +65,12 @@ const BaseAuthSchema = new mongoose.Schema(
       default: true,
     },
 
+    isBlocked: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
     isNotificationsEnabled: {
       type: Boolean,
       default: true,

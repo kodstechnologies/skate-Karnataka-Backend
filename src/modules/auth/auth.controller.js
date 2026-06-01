@@ -2,7 +2,7 @@ import { resolveLogoutUserId } from "../../middleware/auth.middleware.js";
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
 import { formatDate } from "../../util/time/timeUtil.js";
-import {ContactSupportService, DeleteAccountService, displayChildrenByParentService, getAllSkatingEventCategoryNamesService, GetDigitalIDCardService, GetUserProfileService, LoginUserService, LogoutUserService, RegisterUserService, SelectAccountLoginService, sendEmailOTPService, sendPhoneOTPService, ToggleNotificationsService, verifyEmailOTPService, VerifyOTPService, verifyPhoneOTPService} from "./auth.service.js";
+import {ContactSupportService, DeleteAccountService, displayChildrenByParentService, getAllSkatingEventCategoryNamesService, GetDigitalIDCardService, GetUserProfileService, LoginUserService, LogoutUserService, RegisterUserService, SelectAccountLoginService, sendEmailOTPService, sendPhoneOTPService, ToggleNotificationsService, ToggleUserBlockService, verifyEmailOTPService, VerifyOTPService, verifyPhoneOTPService} from "./auth.service.js";
 
 const RegisterUser = asyncHandler(async (req, res) => {
     const result = await RegisterUserService(req.body);
@@ -220,6 +220,20 @@ const DeleteUser = asyncHandler(async (req, res) => {
         );
 });
 
+const ToggleUserBlock = asyncHandler(async (req, res) => {
+    const result = await ToggleUserBlockService(req.params.userId, req.body.isBlocked);
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            result,
+            result.isBlocked
+                ? "Skater blocked successfully"
+                : "Skater unblocked successfully"
+        )
+    );
+});
+
 export {
 RegisterUser,
 sendEmailOTP,
@@ -240,4 +254,5 @@ GetAllSkatingEventCategoryNames,
 DisplayChildrenByParent,
 SelectAccount,
 DeleteUser,
+ToggleUserBlock,
 }

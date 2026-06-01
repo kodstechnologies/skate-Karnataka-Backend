@@ -3,6 +3,12 @@ import SkatingEventCategory from "./SkatingEventCategory.model.js";
 import { EventParticipant } from "./eventParticipant.model.js";
 import { GeneratedCertificate } from "../certificate/generatedCertificate.model.js";
 import { paginate, calcTotalPages } from "../../util/common/paginate.js";
+import {
+  approvedPublicEventFilter,
+  EVENT_ADMIN_APPROVAL,
+  EVENT_DELETE_APPROVAL,
+  requiresAdminApprovalOnCreate,
+} from "./eventApprovalPolicy.js";
 import { BaseAuth } from "../auth/baseAuth.model.js";
 import { Skater } from "../skater/skater.model.js";
 import { Club } from "../club/club.model.js";
@@ -14,6 +20,7 @@ import {
   notifyClubSkatersOfNewEvent,
   notifyDistrictMembersOfNewEvent,
   notifyStateMembersOfNewEvent,
+  notifyStateLevelOnEventPendingApproval,
   notifySkaterCertificationApproved,
 } from "../../util/firebase/sendNotification.js";
 import { AppError } from "../../util/common/AppError.js";
@@ -1785,10 +1792,27 @@ export const clubRelatedEventDisplayRepositories = async (
   }
   const districtId = clubRow.district ?? null;
   const query = {
-    $or: buildSkaterVisibleEventsOrClause({
-      clubId: resolvedClubId,
-      districtId,
-    }),
+    $or: [
+      {
+        $and: [
+          {
+            $or: buildSkaterVisibleEventsOrClause({
+              clubId: resolvedClubId,
+              districtId,
+            }),
+          },
+          approvedPublicEventFilter(),
+        ],
+      },
+      {
+        eventType: "Club",
+        eventFor: resolvedClubId,
+        adminApprovalStatus: {
+          $in: [EVENT_ADMIN_APPROVAL.PENDING, EVENT_ADMIN_APPROVAL.REJECTED],
+        },
+        deleteApprovalStatus: { $ne: EVENT_DELETE_APPROVAL.PENDING },
+      },
+    ],
   };
 
   const {
@@ -1827,24 +1851,20 @@ export const createClubEventRepositories = async (clubAuthUserId, data) => {
     ...data,
     eventType: "Club",
     eventFor: new mongoose.Types.ObjectId(resolvedClubId),
+    adminApprovalStatus: EVENT_ADMIN_APPROVAL.PENDING,
   };
 
   const event = await Event.create(payload);
 
   const club = await Club.findById(resolvedClubId).select("name").lean();
-  if (club) {
-    notifyClubSkatersOfNewEvent({
-      clubAuthUserId,
-      clubDocId: resolvedClubId,
-      clubName: club.name || "Your club",
-      event,
-    }).catch((err) => {
-      console.error(
-        "Club event skater notifications failed:",
-        err?.message || err
-      );
-    });
-  }
+  notifyStateLevelOnEventPendingApproval({
+    event,
+    eventType: "Club",
+    orgName: club?.name || "A club",
+    sentBy: clubAuthUserId,
+  }).catch((err) => {
+    console.error("Club event pending-approval notification failed:", err?.message || err);
+  });
 
   return event;
 };
@@ -1856,6 +1876,7 @@ export const districtRelatedEventDisplayRepositories = async (districtUserId, { 
   const query = {
     eventType: "District",
     eventFor: new mongoose.Types.ObjectId(districtId),
+    deleteApprovalStatus: { $ne: EVENT_DELETE_APPROVAL.PENDING },
   };
 
   const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
@@ -1889,24 +1910,23 @@ export const createDistrictEventRepositories = async (districtAuthUserId, data) 
     ...data,
     eventType: "District",
     eventFor: new mongoose.Types.ObjectId(districtId),
+    adminApprovalStatus: EVENT_ADMIN_APPROVAL.PENDING,
   };
 
   const event = await Event.create(payload);
 
   const district = await District.findById(districtId).select("name").lean();
-  if (district) {
-    notifyDistrictMembersOfNewEvent({
-      districtAuthUserId,
-      districtDocId: districtId,
-      districtName: district.name || "Your district",
-      event,
-    }).catch((err) => {
-      console.error(
-        "District event notifications failed:",
-        err?.message || err
-      );
-    });
-  }
+  notifyStateLevelOnEventPendingApproval({
+    event,
+    eventType: "District",
+    orgName: district?.name || "A district",
+    sentBy: districtAuthUserId,
+  }).catch((err) => {
+    console.error(
+      "District event pending-approval notification failed:",
+      err?.message || err
+    );
+  });
 
   return event;
 };
@@ -1948,7 +1968,7 @@ export const enrichLeanEventsSkatingCategoryNames = async (events) => {
 
 /** Public fields for event list cards (`GET .../v1/state`, `GET .../v1/district`, `GET .../v1/club`, `GET .../v1/user-all-events`, `GET .../v1/latest-event`). */
 const EVENT_CARD_LIST_PROJECTION =
-  "_id header about registerStartDate registerEndDate eventStartDate eventEndDate eventStartTime eventEndTime entryFee colorOne colorTwo textColor skatingEventCategories status address eventType";
+  "_id header about registerStartDate registerEndDate eventStartDate eventEndDate eventStartTime eventEndTime entryFee colorOne colorTwo textColor skatingEventCategories status address eventType adminApprovalStatus deleteApprovalStatus";
 
 const toValidDate = (value) => {
   if (!value) return null;
@@ -2010,6 +2030,8 @@ const toEventCardListItem = (ev) => ({
   status: resolveEventStatusByDates(ev),
   address: ev.address ?? "",
   eventType: ev.eventType ?? "",
+  adminApprovalStatus: ev.adminApprovalStatus || EVENT_ADMIN_APPROVAL.APPROVED,
+  deleteApprovalStatus: ev.deleteApprovalStatus || null,
 });
 
 const LIVE_EVENT_LIST_PROJECTION =
@@ -2087,8 +2109,10 @@ export const getLiveEventsRepository = async (role, userId, { page, limit }) => 
   }
 
   const query = {
-    ...getLiveEventDateFilter(),
-    ...roleFilter,
+    $and: [
+      { ...getLiveEventDateFilter(), ...roleFilter },
+      approvedPublicEventFilter(),
+    ],
   };
 
   const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
@@ -2414,7 +2438,7 @@ const display_latest_event_repositories = async (userId) => {
   const query = {
     $and: [
       { $or: buildSkaterVisibleEventsOrClause(scope) },
-      // registerEndDate < now → do not display; otherwise display.
+      approvedPublicEventFilter(),
       { registerEndDate: { $gte: startOfToday } },
     ],
   };
@@ -2459,8 +2483,130 @@ const edit_event_repositories = async (id, data) => {
 };
 
 const delete_event_repositories = async (id) => {
-  const event = await Event.findByIdAndDelete(id);
-}
+  await Event.findByIdAndDelete(id);
+};
+
+export const approveEventByAdminRepository = async (eventId) => {
+  const event = await Event.findById(eventId).lean();
+  if (!event) {
+    throw new AppError("Event not found", 404);
+  }
+  if (!requiresAdminApprovalOnCreate(event.eventType)) {
+    throw new AppError("This event type does not require approval", 400);
+  }
+  if (event.adminApprovalStatus === EVENT_ADMIN_APPROVAL.APPROVED) {
+    throw new AppError("Event is already approved", 400);
+  }
+
+  const updated = await Event.findByIdAndUpdate(
+    eventId,
+    { $set: { adminApprovalStatus: EVENT_ADMIN_APPROVAL.APPROVED } },
+    { new: true }
+  ).lean();
+
+  if (event.eventType === "Club") {
+    const club = await Club.findById(event.eventFor).select("name").lean();
+    if (club) {
+      notifyClubSkatersOfNewEvent({
+        clubAuthUserId: event.eventFor,
+        clubDocId: event.eventFor,
+        clubName: club.name || "Your club",
+        event: updated,
+      }).catch((err) => {
+        console.error("Club event approval notification failed:", err?.message || err);
+      });
+    }
+  }
+
+  if (event.eventType === "District") {
+    const district = await District.findById(event.eventFor).select("name").lean();
+    if (district) {
+      notifyDistrictMembersOfNewEvent({
+        districtAuthUserId: event.eventFor,
+        districtDocId: event.eventFor,
+        districtName: district.name || "Your district",
+        event: updated,
+      }).catch((err) => {
+        console.error("District event approval notification failed:", err?.message || err);
+      });
+    }
+  }
+
+  return updated;
+};
+
+export const rejectEventByAdminRepository = async (eventId) => {
+  const event = await Event.findById(eventId).lean();
+  if (!event) {
+    throw new AppError("Event not found", 404);
+  }
+  if (!requiresAdminApprovalOnCreate(event.eventType)) {
+    throw new AppError("This event type does not require approval", 400);
+  }
+
+  return Event.findByIdAndUpdate(
+    eventId,
+    { $set: { adminApprovalStatus: EVENT_ADMIN_APPROVAL.REJECTED } },
+    { new: true }
+  ).lean();
+};
+
+export const requestEventDeleteRepository = async (eventId) => {
+  const event = await Event.findById(eventId).select("eventType deleteApprovalStatus").lean();
+  if (!event) {
+    throw new AppError("Event not found", 404);
+  }
+  if (!requiresAdminApprovalOnCreate(event.eventType)) {
+    await delete_event_repositories(eventId);
+    return { deleted: true, pendingDelete: false };
+  }
+  if (event.deleteApprovalStatus === EVENT_DELETE_APPROVAL.PENDING) {
+    throw new AppError("Delete request is already pending admin approval", 400);
+  }
+
+  const registeredCount = await EventParticipant.countDocuments({ eventId });
+  if (registeredCount > 0) {
+    throw new AppError(
+      "Cannot delete event: skaters are already registered for this event",
+      400
+    );
+  }
+
+  await Event.findByIdAndUpdate(eventId, {
+    $set: { deleteApprovalStatus: EVENT_DELETE_APPROVAL.PENDING },
+  });
+
+  return { deleted: false, pendingDelete: true };
+};
+
+export const approveEventDeleteByAdminRepository = async (eventId) => {
+  const event = await Event.findById(eventId).lean();
+  if (!event) {
+    throw new AppError("Event not found", 404);
+  }
+  if (event.deleteApprovalStatus !== EVENT_DELETE_APPROVAL.PENDING) {
+    throw new AppError("No pending delete request for this event", 400);
+  }
+
+  await delete_event_repositories(eventId);
+  return { deleted: true };
+};
+
+export const rejectEventDeleteByAdminRepository = async (eventId) => {
+  const event = await Event.findById(eventId).lean();
+  if (!event) {
+    throw new AppError("Event not found", 404);
+  }
+  if (event.deleteApprovalStatus !== EVENT_DELETE_APPROVAL.PENDING) {
+    throw new AppError("No pending delete request for this event", 400);
+  }
+
+  return Event.findByIdAndUpdate(
+    eventId,
+    { $unset: { deleteApprovalStatus: "" } },
+    { new: true }
+  ).lean();
+};
 
 
 const display_all_event_based_on_user_repositories = async (userId, { page, limit }) => {
@@ -2489,6 +2635,7 @@ const display_all_event_based_on_user_repositories = async (userId, { page, limi
   const query = {
     $and: [
       { $or: buildSkaterVisibleEventsOrClause({ clubId, districtId }) },
+      approvedPublicEventFilter(),
       { skatingEventCategories: skaterCategory },
       { registerEndDate: { $gte: startOfToday } },
     ],

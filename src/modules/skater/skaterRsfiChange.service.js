@@ -49,11 +49,13 @@ export const requestSkaterRsfiChangeService = async (skaterUser, body) => {
   };
 };
 
-export const approveSkaterRsfiChangeService = async (skaterId, clubMemberId) => {
+export const approveSkaterRsfiChangeService = async (skaterOrRequestId, clubMemberId) => {
   const { skater, club, request } = await approveRsfiChangeRepository(
-    skaterId,
+    skaterOrRequestId,
     clubMemberId
   );
+
+  const skaterId = skater._id;
 
   await notifySkaterOnRsfiChangeApproved({
     skaterId,
@@ -70,18 +72,26 @@ export const approveSkaterRsfiChangeService = async (skaterId, clubMemberId) => 
   };
 };
 
-export const rejectSkaterRsfiChangeService = async (skaterId, clubMemberId) => {
+export const rejectSkaterRsfiChangeService = async (skaterOrRequestId, clubMemberId) => {
   const { skater, club, request } = await rejectRsfiChangeRepository(
-    skaterId,
+    skaterOrRequestId,
     clubMemberId
   );
 
-  await notifySkaterOnRsfiChangeRejected({
-    skaterId,
-    sentBy: clubMemberId,
-    clubDocId: club._id,
-    clubName: club.name,
-  });
+  const skaterId = skater?._id ?? request.skater?._id ?? request.skater;
 
-  return { skaterId, status: "rejected" };
+  if (skaterId) {
+    await notifySkaterOnRsfiChangeRejected({
+      skaterId,
+      sentBy: clubMemberId,
+      clubDocId: club._id,
+      clubName: club.name,
+    });
+  }
+
+  return {
+    skaterId,
+    requestId: request._id,
+    status: "rejected",
+  };
 };

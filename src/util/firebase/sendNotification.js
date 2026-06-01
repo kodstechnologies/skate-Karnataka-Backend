@@ -1,7 +1,10 @@
 import mongoose from "mongoose";
 import admin from "../../firebase/firebase.js";
 import { BaseAuth } from "../../modules/auth/baseAuth.model.js";
-import { saveNotificationRepositories } from "../../modules/notification/notification.repositories.js";
+import {
+  getStateLevelRecipientIds,
+  saveNotificationRepositories,
+} from "../../modules/notification/notification.repositories.js";
 import { Skater } from "../../modules/skater/skater.model.js";
 import { Club } from "../../modules/club/club.model.js";
 import { District } from "../../modules/district/district.model.js";
@@ -40,6 +43,7 @@ const sendEventNotifications = async ({
   body,
   sentBy,
   data,
+  notificationType = "event",
 }) => {
   if (!receiverIds.length) return;
 
@@ -49,7 +53,7 @@ const sendEventNotifications = async ({
         receiverId,
         title,
         body,
-        notificationType: "event",
+        notificationType,
         sentBy,
         data,
       }).catch((err) => {
@@ -105,24 +109,28 @@ export const sendNotification = async ({
   img = "",
   data = {},
   notificationType = "general",
-  sentBy = null
+  sentBy = null,
+  receiverRole: receiverRoleOverride = null,
 }) => {
   let savedNotification = null;
 
   try {
-    const resolved = await resolveNotificationReceiver(receiverId);
-    if (!resolved) {
-      console.log(`Receiver not found: ${receiverId}`);
+    const normalizedId = normalizeObjectId(receiverId);
+    if (!normalizedId) {
+      console.log(`Invalid receiver id for notification: ${receiverId}`);
       return null;
     }
 
-    const { normalizedId, receiver: auth } = resolved;
+    const resolved = await resolveNotificationReceiver(receiverId);
+    const auth = resolved?.receiver || null;
     const sender = await resolveNotificationSender(sentBy);
     const senderRole = sender?.role || null;
+    const receiverRole =
+      auth?.role || receiverRoleOverride || data?.receiverRole || "Guest";
 
     savedNotification = await saveNotificationRepositories({
       receiverId: normalizedId,
-      receiverRole: auth.role,
+      receiverRole,
       title,
       body,
       link,
@@ -132,6 +140,11 @@ export const sendNotification = async ({
       senderRole,
       data,
     });
+
+    if (!auth) {
+      console.log(`Notification saved (receiver not found) for ${normalizedId}`);
+      return savedNotification;
+    }
 
     const canPush =
       auth.isActive !== false &&
@@ -502,14 +515,8 @@ export const notifyStateMembersOfNewEvent = async ({
   stateName,
   event,
 }) => {
-  const [stateUsers, districts, clubs] = await Promise.all([
-    BaseAuth.find({
-      role: "State",
-      isActive: true,
-      isNotificationsEnabled: { $ne: false },
-    })
-      .select("_id")
-      .lean(),
+  const [stateLevelUserIds, districts, clubs] = await Promise.all([
+    getStateLevelRecipientIds(),
     District.find().select("members").lean(),
     Club.find().select("members").lean(),
   ]);
@@ -528,7 +535,7 @@ export const notifyStateMembersOfNewEvent = async ({
     : [];
 
   const targetUserIds = [
-    ...stateUsers.map((user) => user._id.toString()),
+    ...stateLevelUserIds,
     ...districts.flatMap((district) =>
       (district.members || []).map((id) => id.toString())
     ),
@@ -551,6 +558,35 @@ export const notifyStateMembersOfNewEvent = async ({
       eventId: String(event._id),
       stateId: String(stateDocId),
       eventType: "State",
+    },
+  });
+};
+
+/** Notify state portal users and super admin when a club/district event needs approval. */
+export const notifyStateLevelOnEventPendingApproval = async ({
+  event,
+  eventType,
+  orgName,
+  sentBy,
+}) => {
+  const recipientIds = await getStateLevelRecipientIds();
+  if (!recipientIds.length) return;
+
+  const eventTitle = (event?.header || "New event").trim();
+  const orgLabel = (orgName || eventType || "Organizer").trim();
+  const typeLabel = eventType === "District" ? "District" : "Club";
+
+  await sendEventNotifications({
+    receiverIds: recipientIds,
+    title: `${typeLabel} event pending approval`,
+    body: `${orgLabel} submitted "${eventTitle}" for your review. Open the portal to approve or reject.`,
+    sentBy,
+    notificationType: "approval",
+    data: {
+      type: "event_pending_approval",
+      eventId: String(event._id),
+      eventType: typeLabel,
+      orgName: orgLabel,
     },
   });
 };

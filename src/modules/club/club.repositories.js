@@ -797,12 +797,23 @@ export const reject_join_club_repositories = async (skaterId, clubId) => {
     return skater;
 };
 
-const resolveClubIdFromClubMember = async (clubMemberId) => {
-    const club = await Club.findOne({
-        $or: [{ _id: clubMemberId }, { members: clubMemberId }],
+/** Resolve Club document from Club doc _id or a member BaseAuth _id on `members`. */
+export const resolveClubDocumentByRef = async (clubRefOrMemberId) => {
+    if (!clubRefOrMemberId) {
+        return null;
+    }
+
+    const rawId = clubRefOrMemberId?._id ?? clubRefOrMemberId;
+
+    return Club.findOne({
+        $or: [{ _id: rawId }, { members: rawId }],
     })
         .select("_id name")
         .lean();
+};
+
+const resolveClubIdFromClubMember = async (clubMemberId) => {
+    const club = await resolveClubDocumentByRef(clubMemberId);
 
     if (!club) {
         throw new AppError("Club not found for this token", 404);
@@ -1055,11 +1066,12 @@ const display_all_apply_skater_repositories = async (
         data.push(
             formatApplyListItem(
                 "rsfiChange",
-                row._id,
+                skaterId,
                 row.fullName,
                 row.sortAt,
                 {
                     skaterID: skaterId,
+                    requestId: String(row._id || ""),
                     krsaId: row.krsaId || "",
                     currentRsfiId: row.currentRsfiId || "",
                     requestedRsfiId: row.requestedRsfiId || "",

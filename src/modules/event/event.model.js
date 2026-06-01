@@ -87,6 +87,18 @@ const eventSchema = new mongoose.Schema(
       enum: ["coming_soon", "active", "cancelled", "completed"],
       default: "coming_soon"
     },
+
+    /** Club/District: pending until Admin/State approves; State events use approved. */
+    adminApprovalStatus: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+    },
+
+    /** Set when club/district requests delete; removed after admin approves deletion. */
+    deleteApprovalStatus: {
+      type: String,
+      enum: ["pending"],
+    },
     entryFee: {
       type: String,
     },

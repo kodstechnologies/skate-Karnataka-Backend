@@ -1,7 +1,52 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { AppError } from "../../util/common/AppError.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { applyCertificationBySkaterService, approveCertificationByRoleService, rejectCertificationByRoleService, clubEventFullDetailsService, clubRelatedEventDisplayService, competitionAllSkaterService, competitionDetailsService, createClubEventService, createDistrictEventService, createEventCategoryService, createRegisterFormService, createStateEventService, create_event_schema, deleteEventCategoryService, delete_event_schema, display_all_event_based_on_user_service, display_latest_event_server, displayCertificationApplicationsService, displayEventServer, displaySingleEventDetailsServer, displaySkaterEventFullDetailsService, displaySkaterEventFormCategoryDetailsService, districtEventFullDetailsService, districtRelatedEventDisplayService, edit_event_schema, getAllPlayedEventsBySkaterService, getLiveEventsService, givenPointEventService, getAllEventCategoriesService, getAllRegisterDetailsByUserIdService, getEventCategoryByIdService, getRegisterDetailsByEventIdService, getRegisterFormByIdService, getRegisterFormByUserIdService, stateEventResultsService, stateRelatedEventDisplayService, stateEventFullDetailsService, stateEventSkatersSummaryService, updateEventCategoryService, updateStateEventSkaterTimeService } from "./event.service.js";
+import {
+  applyCertificationBySkaterService,
+  approveCertificationByRoleService,
+  rejectCertificationByRoleService,
+  approveEventByAdminService,
+  approveEventDeleteByAdminService,
+  rejectEventByAdminService,
+  rejectEventDeleteByAdminService,
+  clubEventFullDetailsService,
+  clubRelatedEventDisplayService,
+  competitionAllSkaterService,
+  competitionDetailsService,
+  createClubEventService,
+  createDistrictEventService,
+  createEventCategoryService,
+  createRegisterFormService,
+  createStateEventService,
+  create_event_schema,
+  deleteEventCategoryService,
+  delete_event_schema,
+  display_all_event_based_on_user_service,
+  display_latest_event_server,
+  displayCertificationApplicationsService,
+  displayEventServer,
+  displaySingleEventDetailsServer,
+  displaySkaterEventFullDetailsService,
+  displaySkaterEventFormCategoryDetailsService,
+  districtEventFullDetailsService,
+  districtRelatedEventDisplayService,
+  edit_event_schema,
+  getAllPlayedEventsBySkaterService,
+  getLiveEventsService,
+  givenPointEventService,
+  getAllEventCategoriesService,
+  getAllRegisterDetailsByUserIdService,
+  getEventCategoryByIdService,
+  getRegisterDetailsByEventIdService,
+  getRegisterFormByIdService,
+  getRegisterFormByUserIdService,
+  stateEventFullDetailsService,
+  stateEventResultsService,
+  stateEventSkatersSummaryService,
+  stateRelatedEventDisplayService,
+  updateEventCategoryService,
+  updateStateEventSkaterTimeService,
+} from "./event.service.js";
 import { initiateRazorpayPaymentServices } from "../payment/payment.services.js";
 
 
@@ -57,7 +102,7 @@ export const createClubEvent = asyncHandler(async (req, res) => {
         new ApiResponse(
             201,
             event,
-            "Club event created successfully"
+            "Club event submitted — pending super admin approval"
         )
     );
 });
@@ -104,7 +149,7 @@ export const createDistrictEvent = asyncHandler(async (req, res) => {
         new ApiResponse(
             201,
             event,
-            "District event created successfully"
+            "District event submitted — pending super admin approval"
         )
     );
 });
@@ -283,31 +328,58 @@ const create_event = asyncHandler(async (req, res) => {
 })
 
 const edit_event = asyncHandler(async (req, res) => {
-
     const { id } = req.params;
-    await edit_event_schema(id, req.body);
-
-    return res.status(200).json(
-        new ApiResponse(
-            201,
-            null,
-            "Event updated successfully"
-        )
-    )
-})
-
-const delete_event = asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    await delete_event_schema(id);
+    const result = await edit_event_schema(id, req.body, req.user);
 
     return res.status(200).json(
         new ApiResponse(
             200,
-            null,
-            "Event deleted successfully"
+            result,
+            result?.message || "Event updated successfully"
         )
-    )
-})
+    );
+});
+
+const delete_event = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const result = await delete_event_schema(id, req.user);
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            result,
+            result?.message || "Event deleted successfully"
+        )
+    );
+});
+
+export const approveEventByAdmin = asyncHandler(async (req, res) => {
+    const event = await approveEventByAdminService(req.params.id);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, event, "Event approved successfully"));
+});
+
+export const rejectEventByAdmin = asyncHandler(async (req, res) => {
+    const event = await rejectEventByAdminService(req.params.id);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, event, "Event rejected"));
+});
+
+export const approveEventDeleteByAdmin = asyncHandler(async (req, res) => {
+    const result = await approveEventDeleteByAdminService(req.params.id);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, result, "Event delete approved"));
+});
+
+export const rejectEventDeleteByAdmin = asyncHandler(async (req, res) => {
+    const event = await rejectEventDeleteByAdminService(req.params.id);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, event, "Event delete request rejected"));
+});
 
 const displayAllEvents = asyncHandler(async (req, res) => {
 

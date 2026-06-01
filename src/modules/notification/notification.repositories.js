@@ -1,6 +1,22 @@
 import { Notification } from "./notification.model.js";
+import { BaseAuth } from "../auth/baseAuth.model.js";
 import { paginate, calcTotalPages } from "../../util/common/paginate.js";
 import mongoose from "mongoose";
+
+/** Roles that receive state-level alerts (state portal + super admin). */
+export const STATE_LEVEL_RECEIVER_ROLES = ["State", "admin"];
+
+export const getStateLevelRecipientIds = async () => {
+    const users = await BaseAuth.find({
+        role: { $in: STATE_LEVEL_RECEIVER_ROLES },
+        isActive: true,
+        isNotificationsEnabled: { $ne: false },
+    })
+        .select("_id")
+        .lean();
+
+    return users.map((user) => String(user._id));
+};
 
 const ALLOWED_NOTIFICATION_TYPES = new Set([
     "report",
@@ -97,4 +113,36 @@ export const displayAllNotificationRepositories = async ({ id, page = 1, limit =
             totalPages: calcTotalPages(total, perPage),
         },
     };
+};
+
+const toReceiverObjectId = (id) => {
+    const rawId = String(id || "").trim();
+    if (!rawId) return null;
+    return mongoose.Types.ObjectId.isValid(rawId)
+        ? new mongoose.Types.ObjectId(rawId)
+        : id;
+};
+
+export const countUnreadNotificationRepositories = async (id) => {
+    const receiverObjectId = toReceiverObjectId(id);
+    if (!receiverObjectId) return 0;
+
+    return Notification.countDocuments({
+        receiverId: receiverObjectId,
+        isRead: false,
+    });
+};
+
+export const markAllNotificationsReadRepositories = async (id) => {
+    const receiverObjectId = toReceiverObjectId(id);
+    if (!receiverObjectId) {
+        return { modifiedCount: 0 };
+    }
+
+    const result = await Notification.updateMany(
+        { receiverId: receiverObjectId, isRead: false },
+        { $set: { isRead: true } }
+    );
+
+    return { modifiedCount: result.modifiedCount ?? 0 };
 };

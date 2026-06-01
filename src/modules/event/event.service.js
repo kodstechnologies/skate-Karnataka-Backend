@@ -7,7 +7,13 @@ import { Skater } from "../skater/skater.model.js";
 import { Event } from "./event.model.js";
 import SkatingEventCategory from "./SkatingEventCategory.model.js";
 import { EventParticipant } from "./eventParticipant.model.js";
-import { applyCertificationBySkaterRepository, approveCertificationByRoleRepository, rejectCertificationByRoleRepository, createEventCategoryRepository, createRegisterFormRepository, deleteEventCategoryRepository, displayCertificationApplicationsRepository, displaySingleEventRepository, displayAllEventRepository, create_event_repositories, edit_event_repositories, delete_event_repositories, display_latest_event_repositories, display_all_event_based_on_user_repositories, clubRelatedEventDisplayRepositories, createClubEventRepositories, districtRelatedEventDisplayRepositories, createDistrictEventRepositories, enrichLeanEventsSkatingCategoryNames, findEventParticipantForCompetitionUpdate, getAllPlayedEventsBySkaterRepository, getAllRegisterDetailsByUserIdRepository, getLiveEventsRepository, getRegisterDetailsByEventIdRepository, getRegisterFormByIdRepository, getRegisterFormByUserIdRepository, stateRelatedEventDisplayRepositories, createStateEventRepositories, getAllEventCategoriesRepository, getEventCategoryByIdRepository, updateEventCategoryRepository, getStateEventFullDetailsByIdRepository, getStateEventResultsRepository, listCompetitionCategoryRankingsRepository, listEventSkatersBasicByEventIdRepository, listEventSkatersByEventIdRepository, recalculateAndPersistCategoryRanksRepository, updateEventParticipantTimingBySkaterRepository, getSkaterEventFullDetailsDtoRepository, getSkaterEventFormCategoryDetailsRepository, getEventSkatingEventCategoriesFullRepository, resolveClubIdForClubAuthUser } from "./event.repositories.js";
+import {
+  EVENT_ADMIN_APPROVAL,
+  isEventPubliclyVisible,
+  isStateOrAdminRole,
+  requiresAdminApprovalOnCreate,
+} from "./eventApprovalPolicy.js";
+import { applyCertificationBySkaterRepository, approveCertificationByRoleRepository, rejectCertificationByRoleRepository, approveEventByAdminRepository, approveEventDeleteByAdminRepository, createEventCategoryRepository, createRegisterFormRepository, deleteEventCategoryRepository, displayCertificationApplicationsRepository, displaySingleEventRepository, displayAllEventRepository, create_event_repositories, edit_event_repositories, delete_event_repositories, display_latest_event_repositories, display_all_event_based_on_user_repositories, clubRelatedEventDisplayRepositories, createClubEventRepositories, districtRelatedEventDisplayRepositories, createDistrictEventRepositories, enrichLeanEventsSkatingCategoryNames, findEventParticipantForCompetitionUpdate, getAllPlayedEventsBySkaterRepository, getAllRegisterDetailsByUserIdRepository, getLiveEventsRepository, getRegisterDetailsByEventIdRepository, getRegisterFormByIdRepository, getRegisterFormByUserIdRepository, rejectEventByAdminRepository, rejectEventDeleteByAdminRepository, requestEventDeleteRepository, stateRelatedEventDisplayRepositories, createStateEventRepositories, getAllEventCategoriesRepository, getEventCategoryByIdRepository, updateEventCategoryRepository, getStateEventFullDetailsByIdRepository, getStateEventResultsRepository, listCompetitionCategoryRankingsRepository, listEventSkatersBasicByEventIdRepository, listEventSkatersByEventIdRepository, recalculateAndPersistCategoryRanksRepository, updateEventParticipantTimingBySkaterRepository, getSkaterEventFullDetailsDtoRepository, getSkaterEventFormCategoryDetailsRepository, getEventSkatingEventCategoriesFullRepository, resolveClubIdForClubAuthUser } from "./event.repositories.js";
 import { Club } from "../club/club.model.js";
 
 const displayEventServer = async (data) => {
@@ -167,7 +173,34 @@ const assertUserCanAccessStateEvent = async (
 };
 
 export const stateEventFullDetailsService = async (eventId, { role, userId }) => {
-    const event = await assertUserCanAccessStateEvent(eventId, { role, userId });
+    const event = await getStateEventFullDetailsByIdRepository(eventId);
+    if (!event) {
+        throw new AppError("Event not found", 404);
+    }
+
+    const normalizedRole = String(role || "").trim().toLowerCase();
+    const isAdmin = isStateOrAdminRole(role);
+    const isStateMember = normalizedRole === "state";
+
+    if (event.eventType === "State") {
+        if (!isAdmin && !isStateMember) {
+            const ownerRaw =
+                event.eventFor && typeof event.eventFor === "object" && event.eventFor._id
+                    ? event.eventFor._id
+                    : event.eventFor;
+            const ownerId = ownerRaw != null ? String(ownerRaw) : null;
+            if (!ownerId || ownerId !== String(userId)) {
+                throw new AppError("Forbidden", 403);
+            }
+        }
+    } else if (event.eventType === "Club" || event.eventType === "District") {
+        if (!isAdmin) {
+            throw new AppError("Event not found", 404);
+        }
+    } else {
+        throw new AppError("Event not found", 404);
+    }
+
     const [enriched] = await enrichLeanEventsSkatingCategoryNames([event]);
     const skatersSummary = await listEventSkatersBasicByEventIdRepository(eventId);
     const payload = { ...enriched };
@@ -827,6 +860,12 @@ export const rejectCertificationByRoleService = async (reqUser, participantId) =
 };
 
 export const displaySkaterEventFullDetailsService = async (eventId, skaterUserId) => {
+    const eventMeta = await Event.findById(eventId)
+        .select("eventType adminApprovalStatus deleteApprovalStatus")
+        .lean();
+    if (!eventMeta || !isEventPubliclyVisible(eventMeta)) {
+        throw new AppError("Event not found", 404);
+    }
     const dto = await getSkaterEventFullDetailsDtoRepository(eventId, skaterUserId);
     if (!dto) {
         throw new AppError("Event not found", 404);
@@ -835,6 +874,12 @@ export const displaySkaterEventFullDetailsService = async (eventId, skaterUserId
 };
 
 export const displaySkaterEventFormCategoryDetailsService = async (eventId, skaterUserId) => {
+    const eventMeta = await Event.findById(eventId)
+        .select("eventType adminApprovalStatus deleteApprovalStatus")
+        .lean();
+    if (!eventMeta || !isEventPubliclyVisible(eventMeta)) {
+        throw new AppError("Event not found", 404);
+    }
     const result = await getSkaterEventFormCategoryDetailsRepository(eventId, skaterUserId);
     if (!result) {
         throw new AppError("Event not found", 404);
@@ -854,26 +899,128 @@ const create_event_schema = async (data) => {
     await create_event_repositories(data);
 }
 
-const edit_event_schema = async (id, data) => {
-    await edit_event_repositories(id, data);
-}
+const assertOrgOwnsEventForEdit = async (event, user, role) => {
+    const normalizedRole = String(role || "").trim().toLowerCase();
 
-const delete_event_schema = async (id) => {
-    const event = await Event.findById(id).select("_id").lean();
+    if (normalizedRole === "club" && event.eventType === "Club") {
+        const clubId = await resolveClubIdForClubAuthUser(user._id);
+        if (String(event.eventFor) !== String(clubId)) {
+            throw new AppError("Forbidden", 403);
+        }
+        return;
+    }
+
+    if (normalizedRole === "district" && event.eventType === "District") {
+        const districtUser = await BaseAuth.findById(user._id).select("district").lean();
+        const districtId = districtUser?.district || user._id;
+        if (String(event.eventFor) !== String(districtId)) {
+            throw new AppError("Forbidden", 403);
+        }
+        return;
+    }
+
+    throw new AppError("Forbidden", 403);
+};
+
+const edit_event_schema = async (id, data, user) => {
+    const existing = await Event.findById(id).lean();
+    if (!existing) {
+        throw new AppError("Event not found", 404);
+    }
+
+    const payload = { ...data };
+    delete payload.adminApprovalStatus;
+    delete payload.deleteApprovalStatus;
+    delete payload.eventType;
+    delete payload.eventFor;
+
+    const role = String(user?.role || "").trim().toLowerCase();
+    let resubmittedForApproval = false;
+
+    if (
+        (role === "club" || role === "district") &&
+        requiresAdminApprovalOnCreate(existing.eventType)
+    ) {
+        await assertOrgOwnsEventForEdit(existing, user, role);
+
+        if (existing.adminApprovalStatus === EVENT_ADMIN_APPROVAL.REJECTED) {
+            payload.adminApprovalStatus = EVENT_ADMIN_APPROVAL.PENDING;
+            resubmittedForApproval = true;
+        }
+    }
+
+    await edit_event_repositories(id, payload);
+
+    return {
+        resubmittedForApproval,
+        message: resubmittedForApproval
+            ? "Event updated and resubmitted for admin approval"
+            : "Event updated successfully",
+    };
+};
+
+const delete_event_schema = async (id, user) => {
+    const event = await Event.findById(id)
+        .select("_id eventType deleteApprovalStatus")
+        .lean();
     if (!event) {
         throw new AppError("Event not found", 404);
     }
 
-    const registeredCount = await EventParticipant.countDocuments({ eventId: id });
-    if (registeredCount > 0) {
-        throw new AppError(
-            "Cannot delete event: skaters are already registered for this event",
-            400
-        );
+    const role = user?.role;
+    if (isStateOrAdminRole(role)) {
+        const registeredCount = await EventParticipant.countDocuments({ eventId: id });
+        if (registeredCount > 0) {
+            throw new AppError(
+                "Cannot delete event: skaters are already registered for this event",
+                400
+            );
+        }
+        await delete_event_repositories(id);
+        return {
+            message: "Event deleted successfully",
+            deleted: true,
+            pendingDelete: false,
+        };
     }
 
-    await delete_event_repositories(id);
-}
+    const result = await requestEventDeleteRepository(id);
+    return {
+        message: result.pendingDelete
+            ? "Delete request submitted for admin approval"
+            : "Event deleted successfully",
+        deleted: result.deleted,
+        pendingDelete: result.pendingDelete,
+    };
+};
+
+export const approveEventByAdminService = async (eventId) => {
+    const event = await approveEventByAdminRepository(eventId);
+    if (!event) {
+        throw new AppError("Event not found", 404);
+    }
+    return event;
+};
+
+export const rejectEventByAdminService = async (eventId) => {
+    const event = await rejectEventByAdminRepository(eventId);
+    if (!event) {
+        throw new AppError("Event not found", 404);
+    }
+    return event;
+};
+
+export const approveEventDeleteByAdminService = async (eventId) => {
+    return approveEventDeleteByAdminRepository(eventId);
+};
+
+export const rejectEventDeleteByAdminService = async (eventId) => {
+    const event = await rejectEventDeleteByAdminRepository(eventId);
+    if (!event) {
+        throw new AppError("Event not found", 404);
+    }
+    return event;
+};
 
 const display_all_event_based_on_user_service = async (id, query) => {
   return await display_all_event_based_on_user_repositories(id, query);

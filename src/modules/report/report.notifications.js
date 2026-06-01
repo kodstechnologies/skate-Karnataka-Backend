@@ -1,5 +1,5 @@
 import { sendNotification } from "../../util/firebase/sendNotification.js";
-import { BaseAuth } from "../auth/baseAuth.model.js";
+import { getStateLevelRecipientIds } from "../notification/notification.repositories.js";
 import { Club } from "../club/club.model.js";
 import { District } from "../district/district.model.js";
 import { Report } from "./report.model.js";
@@ -58,16 +58,7 @@ const getDistrictMemberIds = async (districtDocId) => {
   return (district?.members || []).map((id) => String(id));
 };
 
-const getStateUserIds = async () => {
-  const users = await BaseAuth.find({
-    role: "State",
-    isActive: true,
-    isNotificationsEnabled: { $ne: false },
-  })
-    .select("_id")
-    .lean();
-  return users.map((user) => String(user._id));
-};
+const getStateUserIds = async () => getStateLevelRecipientIds();
 
 /** Skater filed report (status pending) — notify club while clubStatus is open. */
 export const notifyClubOnNewReport = async ({ report, sentBy }) => {

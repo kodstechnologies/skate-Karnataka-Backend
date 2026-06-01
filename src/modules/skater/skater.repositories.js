@@ -15,7 +15,7 @@ import SkatingEventCategory from "../event/SkatingEventCategory.model.js";
 import { Skater } from "./skater.model.js";
 import { Club } from "../club/club.model.js";
 import { paginate, calcTotalPages } from "../../util/common/paginate.js";
-import { notifyClubMembersOnSkaterJoin } from "../../util/firebase/sendNotification.js";
+import { notifyClubMembersOnSkaterJoinApply } from "../../util/firebase/sendNotification.js";
 
 const normalizePhone = (value) => String(value ?? "").trim();
 
@@ -149,13 +149,19 @@ const normalizeObjectIdString = (value) => {
     return String(value);
 };
 
+const skaterApplyClubIncludes = (applyClub, clubId) => {
+    const target = String(clubId || "");
+    if (!target) return false;
+    return (applyClub || []).some((item) => String(item?._id ?? item) === target);
+};
+
 const after_login_skater_form_repositories = async (data, id) => {
     const existingUser = await BaseAuth.findById(id)
         .select("_id role phone email verify")
         .lean();
 
     const existingSkater = await Skater.findById(id)
-        .select("club clubStatus fullName verify")
+        .select("club clubStatus applyClub fullName verify")
         .lean();
 
     if (!existingUser) {
@@ -186,16 +192,51 @@ const after_login_skater_form_repositories = async (data, id) => {
     await assertUniqueContactForUpdate(id, setPayload, existingUser);
 
     const previousClubId = normalizeObjectIdString(existingSkater?.club);
-    const newClubId = data?.club ? normalizeObjectIdString(data.club) : "";
+    const requestedClubRaw = data?.club ? normalizeObjectIdString(data.club) : "";
     const previousClubStatus = String(existingSkater?.clubStatus || "")
         .trim()
         .toLowerCase();
-    const wasAlreadyVerified = Boolean(existingUser?.verify ?? existingSkater?.verify);
 
-    if (data?.club) {
-        setPayload.clubStatus = "join";
+    let shouldNotifyClubApply = false;
+    let resolvedClubDocId = null;
+
+    if (requestedClubRaw) {
+        const club = await Club.findOne({
+            $or: [{ _id: requestedClubRaw }, { members: requestedClubRaw }],
+        })
+            .select("_id")
+            .lean();
+
+        if (!club) {
+            throw new AppError("Club not found", 404);
+        }
+
+        resolvedClubDocId = club._id;
+        const resolvedClubId = String(club._id);
+
+        if (previousClubId === resolvedClubId && previousClubStatus === "join") {
+            setPayload.club = club._id;
+            setPayload.clubStatus = "join";
+        } else {
+            if (previousClubStatus === "join") {
+                throw new AppError("Already joined a club", 400);
+            }
+            if (previousClubStatus === "apply-leave") {
+                throw new AppError("Leave request is in progress", 400);
+            }
+
+            const alreadyApplied = skaterApplyClubIncludes(
+                existingSkater?.applyClub,
+                club._id
+            );
+
+            delete setPayload.club;
+            setPayload.clubStatus = "apply";
+            shouldNotifyClubApply = !alreadyApplied;
+        }
     } else {
-        setPayload.clubStatus = "apply";
+        delete setPayload.club;
+        delete setPayload.clubStatus;
     }
 
     delete setPayload.img;
@@ -203,6 +244,10 @@ const after_login_skater_form_repositories = async (data, id) => {
     delete setPayload.photoKey;
 
     const updateOperation = { $set: setPayload };
+
+    if (resolvedClubDocId && setPayload.clubStatus === "apply") {
+        updateOperation.$addToSet = { applyClub: resolvedClubDocId };
+    }
 
     if (Array.isArray(documents) && documents.length > 0) {
         updateOperation.$push = {
@@ -228,31 +273,17 @@ const after_login_skater_form_repositories = async (data, id) => {
 
     const profile = populated ?? updated.toObject?.() ?? updated;
 
-    const alreadyJoinedSameClub =
-        Boolean(newClubId) &&
-        previousClubId === newClubId &&
-        previousClubStatus === "join";
-
-    const shouldNotifyClubJoin =
-        Boolean(newClubId) &&
-        setPayload.clubStatus === "join" &&
-        (!wasAlreadyVerified || !alreadyJoinedSameClub);
-console.log("🚀 ~ after_login_skater_form_repositories ~ shouldNotifyClubJoin:", shouldNotifyClubJoin, { wasAlreadyVerified, alreadyJoinedSameClub, previousClubId, newClubId, previousClubStatus: previousClubStatus || "none" })
-
-    if (shouldNotifyClubJoin) {
-        const clubExists = await Club.exists({ _id: newClubId });
-        if (clubExists) {
-            notifyClubMembersOnSkaterJoin({
-                clubDocId: newClubId,
-                skaterId: id,
-                skaterName: profile?.fullName || existingSkater?.fullName || "",
-            }).catch((err) => {
-                console.error(
-                    "Skater after-login club join notification failed:",
-                    err?.message || err
-                );
-            });
-        }
+    if (shouldNotifyClubApply && resolvedClubDocId) {
+        notifyClubMembersOnSkaterJoinApply({
+            clubDocId: resolvedClubDocId,
+            skaterId: id,
+            skaterName: profile?.fullName || existingSkater?.fullName || "",
+        }).catch((err) => {
+            console.error(
+                "Skater after-login club apply notification failed:",
+                err?.message || err
+            );
+        });
     }
 
     return {
@@ -279,12 +310,12 @@ const get_skater_profile_repositories = async (id) => {
     if (!profile) return null;
 
     const withDiscipline = await attachDisciplineName(profile);
-    const medalStats = await countSkaterParticipantMedalStatsRepository(id);
+    // const medalStats = await countSkaterParticipantMedalStatsRepository(id);
 
     return {
         ...withDiscipline,
-        goldMedals: medalStats.goldMedals,
-        silverMedals: medalStats.silverMedals,
+        // goldMedals: medalStats.goldMedals,
+        // silverMedals: medalStats.silverMedals,
     };
 };
 

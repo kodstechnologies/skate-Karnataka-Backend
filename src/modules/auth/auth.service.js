@@ -9,6 +9,7 @@ import { BaseAuth } from "./baseAuth.model.js";
 import SkatingEventCategory from "../event/SkatingEventCategory.model.js";
 import mongoose from "mongoose";
 import { checkEmailOTP, checkOtp, checkPhoneOTP, deleteAccount, findParentByIdForChildren, findSkatersByParentPhone, isExist, isExistEmail, isExistKSRAId, isExistPhone, registerUser_repositories, removeFirebaseTokenAndRefressToken, removeOldEmailOtp, removeOldKRSAIdOtp, removeOldPhoneOtp, saveEmailOtp, saveFirebaseToken, saveKRSAIdOTP, savePhoneOTP, saveRefreshToken } from "./auth.repositories.js";
+import { assertMemberApprovedCanLogin } from "./authLoginPolicy.js";
 
 const ROLE_PREFIX_MAP = {
     Skater: "S",
@@ -237,6 +238,7 @@ const LoginUserService = async (identifier) => {
     const otp = generateRandomNumber();
     const createLoginResult = async (user) => {
         assertUserNotBlocked(user);
+        await assertMemberApprovedCanLogin(user);
         const userWithKrsaId = await ensureKrsaIdIfMissing(user);
         const accessToken = generateAccessToken(userWithKrsaId);
         const refreshToken = generateRefreshToken(userWithKrsaId);
@@ -306,6 +308,7 @@ const VerifyOTPService = async (userData) => {
         throw new AppError("User not found after OTP verification", 404);
     }
     assertUserNotBlocked(user);
+    await assertMemberApprovedCanLogin(user);
 
     // console.log(user, "user")
     const accessToken = generateAccessToken(user);
@@ -326,6 +329,7 @@ const SelectAccountLoginService = async (userData) => {
         throw new AppError("User not found", 404);
     }
     assertUserNotBlocked(user);
+    await assertMemberApprovedCanLogin(user);
 
     if (user?.email) {
         const existingEmailUser = await isExistEmail(user.email);

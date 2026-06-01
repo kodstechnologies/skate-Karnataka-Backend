@@ -1,7 +1,10 @@
 import jwt from "jsonwebtoken";
 import { BaseAuth } from "../modules/auth/baseAuth.model.js";
+import { Club } from "../modules/club/club.model.js";
+import { District } from "../modules/district/district.model.js";
 import { AppError } from "../util/common/AppError.js";
 import { asyncHandler } from "../util/common/asyncHandler.js";
+import { getMemberLoginError } from "../modules/auth/authLoginPolicy.js";
 
 const BLOCKED_ACCOUNT_MESSAGE =
   "Your account has been blocked by the KRSA administrator. Please contact support if you believe this is a mistake.";
@@ -54,7 +57,12 @@ export const authenticate = (allowedRoles = []) => {
         return next(blockedError);
       }
 
-      // Role check (blocked users are already rejected above for all roles)
+      const memberApprovalError = await getMemberLoginError(user);
+      if (memberApprovalError) {
+        return next(memberApprovalError);
+      }
+
+      // Role check (blocked / unapproved club-district users rejected above)
       if (allowedRoles.length) {
         const userRole = (user.role || "").toLowerCase();
         const isAllowed = allowedRoles.some(role => role.toLowerCase() === userRole);
@@ -132,6 +140,87 @@ export const ensureStateAdminOrOwnClub = (paramName = "clubId") => {
     return next(new AppError("Forbidden: Insufficient permissions", 403));
   };
 };
+
+/** Admin/State: any org. Club/District: only their own org id in route params. */
+export const ensureAdminStateOrOwnClubOrg = (paramName = "id") =>
+  asyncHandler(async (req, res, next) => {
+    const role = (req.user?.role || "").toLowerCase();
+    if (role === "admin" || role === "state") {
+      return next();
+    }
+    if (role === "club") {
+      const club = await Club.findOne({ members: req.user._id }).select("_id").lean();
+      const paramId = String(req.params[paramName] || "").trim();
+      if (club && String(club._id) === paramId) {
+        return next();
+      }
+      return next(new AppError("Forbidden: You can only access your own club", 403));
+    }
+    return next(new AppError("Forbidden: Insufficient permissions", 403));
+  });
+
+export const ensureAdminStateOrOwnDistrictOrg = (paramName = "id") =>
+  asyncHandler(async (req, res, next) => {
+    const role = (req.user?.role || "").toLowerCase();
+    if (role === "admin" || role === "state") {
+      return next();
+    }
+    if (role === "district") {
+      const user = await BaseAuth.findById(req.user._id).select("district").lean();
+      const paramId = String(req.params[paramName] || "").trim();
+      if (user?.district && String(user.district) === paramId) {
+        return next();
+      }
+      return next(new AppError("Forbidden: You can only access your own district", 403));
+    }
+    return next(new AppError("Forbidden: Insufficient permissions", 403));
+  });
+
+export const ensureAdminStateOrClubMemberInOwnClub = asyncHandler(async (req, res, next) => {
+  const role = (req.user?.role || "").toLowerCase();
+  if (role === "admin" || role === "state") {
+    return next();
+  }
+  if (role === "club") {
+    const memberId = String(req.params.id || "").trim();
+    const club = await Club.findOne({ members: req.user._id }).select("members").lean();
+    if (!club) {
+      return next(new AppError("Club not found", 404));
+    }
+    const memberIds = (club.members || []).map((id) => String(id));
+    if (memberIds.includes(memberId)) {
+      return next();
+    }
+    return next(new AppError("Forbidden: You can only manage your club members", 403));
+  }
+  return next(new AppError("Forbidden: Insufficient permissions", 403));
+});
+
+export const ensureAdminStateOrDistrictMemberInOwnDistrict = asyncHandler(
+  async (req, res, next) => {
+    const role = (req.user?.role || "").toLowerCase();
+    if (role === "admin" || role === "state") {
+      return next();
+    }
+    if (role === "district") {
+      const memberId = String(req.params.id || "").trim();
+      const user = await BaseAuth.findById(req.user._id).select("district").lean();
+      if (!user?.district) {
+        return next(new AppError("District not found", 404));
+      }
+      const district = await District.findById(user.district).select("members").lean();
+      if (!district) {
+        return next(new AppError("District not found", 404));
+      }
+      const memberIds = (district.members || []).map((id) => String(id));
+      if (memberIds.includes(memberId)) {
+        return next();
+      }
+      return next(new AppError("Forbidden: You can only manage your district members", 403));
+    }
+    return next(new AppError("Forbidden: Insufficient permissions", 403));
+  }
+);
 
 const pickBearerToken = (authHeader) => {
   if (!authHeader) return null;
@@ -278,6 +367,11 @@ export const authenticateLogout = (allowedRoles = []) => {
         return next(blockedError);
       }
 
+      const memberApprovalError = await getMemberLoginError(user);
+      if (memberApprovalError) {
+        return next(memberApprovalError);
+      }
+
       if (allowedRoles.length) {
         const userRole = (user.role || "").toLowerCase();
         const isAllowed = allowedRoles.some(
@@ -351,6 +445,11 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
     const blockedError = rejectIfUserBlocked(user);
     if (blockedError) {
       throw blockedError;
+    }
+
+    const memberApprovalError = await getMemberLoginError(user);
+    if (memberApprovalError) {
+      throw memberApprovalError;
     }
 
     // 🔥 Rotate tokens

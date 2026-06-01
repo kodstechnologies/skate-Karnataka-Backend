@@ -216,7 +216,7 @@ export const getDistrictMembersByDistrictId = async (
   const [total, data] = await Promise.all([
     BaseAuth.countDocuments(query),
     BaseAuth.find(query)
-      .select("_id fullName profile phone countryCode email gender address district role isActive isBlocked")
+      .select("_id fullName profile phone countryCode email gender address district role isActive isBlocked verify")
       .populate("district", "_id name")
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -228,6 +228,7 @@ export const getDistrictMembersByDistrictId = async (
     ...member,
     isMain: mainMemberId ? String(member._id) === mainMemberId : false,
     isBlocked: Boolean(member.isBlocked),
+    verify: member.verify === true,
   }));
 
   return {
@@ -245,6 +246,7 @@ export const createDistrictMember = async (payload) => {
   const normalizedPayload = {
     ...payload,
     role: "District",
+    verify: payload.verify === true,
   };
 
   if (normalizedPayload.email) {
@@ -271,7 +273,7 @@ export const updateDistrictMemberById = async (districtMemberId, payload) => {
     { $set: normalizedPayload },
     { new: true, runValidators: true }
   )
-    .select("_id fullName profile phone countryCode email gender address district role isActive")
+    .select("_id fullName profile phone countryCode email gender address district role isActive verify")
     .populate("district", "_id name")
     .lean();
 };
@@ -439,7 +441,7 @@ export const getClubMembersByClubId = async (
     .select("_id name members mainMember")
     .populate(
       "members",
-      "_id fullName profile phone countryCode email gender address district role isActive isBlocked"
+      "_id fullName profile phone countryCode email gender address district role isActive isBlocked verify"
     )
     .lean();
 
@@ -449,6 +451,7 @@ export const getClubMembersByClubId = async (
     ...member,
     isMain: mainMemberId ? String(member._id) === mainMemberId : false,
     isBlocked: Boolean(member.isBlocked),
+    verify: member.verify === true,
   }));
 
   const filteredMembers = trimmedSearch
@@ -507,8 +510,7 @@ export const createClubMember = async (payload) => {
   const normalizedPayload = {
     ...payload,
     role: "Club",
-    verify:true,
-
+    verify: payload.verify === true,
   };
 
   if (normalizedPayload.email) {
@@ -577,7 +579,7 @@ export const updateClubMemberById = async (clubMemberId, payload) => {
     { $set: normalizedPayload },
     { new: true, runValidators: true }
   )
-    .select("_id fullName profile phone countryCode email gender address district role isActive")
+    .select("_id fullName profile phone countryCode email gender address district role isActive verify")
     .lean();
 };
 

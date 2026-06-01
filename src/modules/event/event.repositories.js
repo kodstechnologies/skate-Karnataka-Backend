@@ -1779,9 +1779,16 @@ export const clubRelatedEventDisplayRepositories = async (
   { page, limit }
 ) => {
   const resolvedClubId = await resolveClubIdForClubAuthUser(authUserId);
+  const clubRow = await Club.findById(resolvedClubId).select("district").lean();
+  if (!clubRow) {
+    throw new AppError("Club not found", 404);
+  }
+  const districtId = clubRow.district ?? null;
   const query = {
-    eventType: "Club",
-    eventFor: new mongoose.Types.ObjectId(resolvedClubId),
+    $or: buildSkaterVisibleEventsOrClause({
+      clubId: resolvedClubId,
+      districtId,
+    }),
   };
 
   const {
@@ -1941,7 +1948,7 @@ export const enrichLeanEventsSkatingCategoryNames = async (events) => {
 
 /** Public fields for event list cards (`GET .../v1/state`, `GET .../v1/district`, `GET .../v1/club`, `GET .../v1/user-all-events`, `GET .../v1/latest-event`). */
 const EVENT_CARD_LIST_PROJECTION =
-  "_id header eventStartDate eventEndDate colorOne colorTwo textColor skatingEventCategories status address eventType";
+  "_id header about registerStartDate registerEndDate eventStartDate eventEndDate eventStartTime eventEndTime entryFee colorOne colorTwo textColor skatingEventCategories status address eventType";
 
 const toValidDate = (value) => {
   if (!value) return null;
@@ -1988,8 +1995,14 @@ export const resolveEventStatusByDates = (event) => {
 const toEventCardListItem = (ev) => ({
   _id: ev._id,
   header: ev.header ?? "",
+  about: ev.about ?? "",
+  registerStartDate: ev.registerStartDate ?? null,
+  registerEndDate: ev.registerEndDate ?? null,
   eventStartDate: ev.eventStartDate ?? null,
   eventEndDate: ev.eventEndDate ?? null,
+  eventStartTime: ev.eventStartTime ?? "",
+  eventEndTime: ev.eventEndTime ?? "",
+  entryFee: ev.entryFee ?? "",
   colorOne: ev.colorOne ?? "#6A11CB",
   colorTwo: ev.colorTwo ?? "#2575FC",
   textColor: ev.textColor ?? "#FFFFFF",

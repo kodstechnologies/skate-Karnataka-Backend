@@ -1,5 +1,11 @@
 import express from "express";
-import { authenticate } from "../../middleware/auth.middleware.js";
+import {
+  authenticate,
+  ensureAdminStateOrClubMemberInOwnClub,
+  ensureAdminStateOrDistrictMemberInOwnDistrict,
+  ensureAdminStateOrOwnClubOrg,
+  ensureAdminStateOrOwnDistrictOrg
+} from "../../middleware/auth.middleware.js";
 import { validate } from "../../middleware/validate.multiple.js";
 import {
   adminForgotPassword,
@@ -12,6 +18,8 @@ import {
   adminVerifyOtpForPassword,
   createDistrictByAdmin,
   createClubByAdmin,
+  approveClubMemberByAdmin,
+  approveDistrictMemberByAdmin,
   createClubMemberByAdmin,
   createDistrictMemberByAdmin,
   deleteClubByAdmin,
@@ -113,7 +121,8 @@ router.delete(
 // district member ===================================
 router.get(
   "/v1/district-member/:id",
-  authenticate(["State", "admin"]),
+  authenticate(["State", "admin", "District"]),
+  ensureAdminStateOrOwnDistrictOrg("id"),
   getDistrictMembersByDistrictIdByAdmin
 );
 router.patch(
@@ -124,15 +133,23 @@ router.patch(
 );
 router.post(
   "/v1/district-member/:id",
-  authenticate(["State", "admin"]),
+  authenticate(["State", "admin", "District"]),
+  ensureAdminStateOrOwnDistrictOrg("id"),
   upload.single("profile"),
   uploadToS3("profile"),
   validate(createDistrictMemberByAdminValidation),
   createDistrictMemberByAdmin
 );
 router.patch(
-  "/v1/district-member/:id",
+  "/v1/district-member/:id/approve",
   authenticate(["State", "admin"]),
+  validate(clubMemberByAdminIdValidation),
+  approveDistrictMemberByAdmin
+);
+router.patch(
+  "/v1/district-member/:id",
+  authenticate(["State", "admin", "District"]),
+  ensureAdminStateOrDistrictMemberInOwnDistrict,
   upload.single("profile"),
   uploadToS3("profile"),
   validate(updateDistrictMemberByAdminValidation),
@@ -174,7 +191,8 @@ router.delete(
 
 router.get(
   "/v1/club-member/:id",
-  authenticate(["State", "admin"]),
+  authenticate(["State", "admin", "Club"]),
+  ensureAdminStateOrOwnClubOrg("id"),
   getClubMembersByClubIdByAdmin
 );
 router.patch(
@@ -185,15 +203,23 @@ router.patch(
 );
 router.post(
   "/v1/club-member/:id",
-  authenticate(["State", "admin"]),
+  authenticate(["State", "admin", "Club"]),
+  ensureAdminStateOrOwnClubOrg("id"),
   upload.single("profile"),
   uploadToS3("profile"),
   validate(createClubMemberByAdminValidation),
   createClubMemberByAdmin
 );
 router.patch(
-  "/v1/club-member/:id",
+  "/v1/club-member/:id/approve",
   authenticate(["State", "admin"]),
+  validate(clubMemberByAdminIdValidation),
+  approveClubMemberByAdmin
+);
+router.patch(
+  "/v1/club-member/:id",
+  authenticate(["State", "admin", "Club"]),
+  ensureAdminStateOrClubMemberInOwnClub,
   upload.single("profile"),
   uploadToS3("profile"),
   validate(updateClubMemberByAdminValidation),

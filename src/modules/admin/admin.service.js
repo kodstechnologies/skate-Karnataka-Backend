@@ -1,4 +1,5 @@
 import { AppError } from "../../util/common/AppError.js";
+import { resolveMemberVerifyOnCreate } from "../auth/authLoginPolicy.js";
 import { generateAccessToken, generateRefreshToken } from "../../util/token/token.js";
 import {
   addRefreshTokenToAdmin,
@@ -307,7 +308,10 @@ export const createDistrictMemberByAdminService = async (payload) => {
     throw new AppError("District member already exists with phone or email", 409);
   }
 
-  const member = await createDistrictMember(payload);
+  const member = await createDistrictMember({
+    ...payload,
+    verify: resolveMemberVerifyOnCreate(payload.creatorRole),
+  });
   await addMemberToDistrict({ districtId: payload.district, memberId: member._id });
 
   return {
@@ -315,6 +319,7 @@ export const createDistrictMemberByAdminService = async (payload) => {
     fullName: member.fullName,
     phone: member.phone,
     role: member.role,
+    verify: member.verify === true,
   };
 };
 
@@ -564,6 +569,7 @@ export const createClubMemberByAdminService = async ({ clubId, payload }) => {
   const member = await createClubMember({
     ...payload,
     district: club?.district || undefined,
+    verify: resolveMemberVerifyOnCreate(payload.creatorRole),
   });
   await addMemberToClub({ clubId, memberId: member._id });
 
@@ -572,7 +578,36 @@ export const createClubMemberByAdminService = async ({ clubId, payload }) => {
     fullName: member.fullName,
     phone: member.phone,
     role: member.role,
+    verify: member.verify === true,
   };
+};
+
+export const approveClubMemberByAdminService = async (clubMemberId) => {
+  const existingMember = await findClubMemberById(clubMemberId);
+  if (!existingMember) {
+    throw new AppError("Club member not found", 404);
+  }
+
+  const updatedMember = await updateClubMemberById(clubMemberId, { verify: true });
+  if (!updatedMember) {
+    throw new AppError("Club member not found", 404);
+  }
+
+  return updatedMember;
+};
+
+export const approveDistrictMemberByAdminService = async (districtMemberId) => {
+  const existingMember = await findDistrictMemberById(districtMemberId);
+  if (!existingMember) {
+    throw new AppError("District member not found", 404);
+  }
+
+  const updatedMember = await updateDistrictMemberById(districtMemberId, { verify: true });
+  if (!updatedMember) {
+    throw new AppError("District member not found", 404);
+  }
+
+  return updatedMember;
 };
 
 export const updateClubMemberByAdminService = async (clubMemberId, payload) => {

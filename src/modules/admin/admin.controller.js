@@ -7,6 +7,8 @@ import {
   adminResetPasswordService,
   adminSendOtpForPasswordService,
   createDistrictByAdminService,
+  approveClubMemberByAdminService,
+  approveDistrictMemberByAdminService,
   createClubMemberByAdminService,
   createClubByAdminService,
   createDistrictMemberByAdminService,
@@ -164,6 +166,7 @@ export const createDistrictMemberByAdmin = asyncHandler(async (req, res) => {
   const result = await createDistrictMemberByAdminService({
     ...req.body,
     district: req.params.id,
+    creatorRole: req.user.role,
   });
 
   return res
@@ -247,12 +250,28 @@ export const getClubMembersByClubIdByAdmin = asyncHandler(async (req, res) => {
 export const createClubMemberByAdmin = asyncHandler(async (req, res) => {
   const result = await createClubMemberByAdminService({
     clubId: req.params.id,
-    payload: req.body,
+    payload: { ...req.body, creatorRole: req.user.role },
   });
 
   return res
     .status(201)
     .json(new ApiResponse(201, result, "Club member created successfully"));
+});
+
+export const approveDistrictMemberByAdmin = asyncHandler(async (req, res) => {
+  const result = await approveDistrictMemberByAdminService(req.params.id);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, result, "District member approved successfully"));
+});
+
+export const approveClubMemberByAdmin = asyncHandler(async (req, res) => {
+  const result = await approveClubMemberByAdminService(req.params.id);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, result, "Club member approved successfully"));
 });
 
 export const updateClubMemberByAdmin = asyncHandler(async (req, res) => {

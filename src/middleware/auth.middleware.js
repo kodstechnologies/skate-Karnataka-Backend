@@ -3,6 +3,17 @@ import { BaseAuth } from "../modules/auth/baseAuth.model.js";
 import { AppError } from "../util/common/AppError.js";
 import { asyncHandler } from "../util/common/asyncHandler.js";
 
+const BLOCKED_ACCOUNT_MESSAGE =
+  "Your account has been blocked by the KRSA administrator. Please contact support if you believe this is a mistake.";
+
+/** Applies to every BaseAuth role (Skater, Club, District, Parent, etc.). */
+const rejectIfUserBlocked = (user) => {
+  if (user?.isBlocked === true) {
+    return new AppError(BLOCKED_ACCOUNT_MESSAGE, 401);
+  }
+  return null;
+};
+
 export const authenticate = (allowedRoles = []) => {
   return async (req, res, next) => {
     try {
@@ -38,16 +49,12 @@ export const authenticate = (allowedRoles = []) => {
         return next(new AppError("User not found", 401));
       }
 
-      if (user.isBlocked) {
-        return next(
-          new AppError(
-            "Your account has been blocked by the KRSA administrator. Please contact support if you believe this is a mistake.",
-            401
-          )
-        );
+      const blockedError = rejectIfUserBlocked(user);
+      if (blockedError) {
+        return next(blockedError);
       }
 
-      // 4️⃣ Role check
+      // Role check (blocked users are already rejected above for all roles)
       if (allowedRoles.length) {
         const userRole = (user.role || "").toLowerCase();
         const isAllowed = allowedRoles.some(role => role.toLowerCase() === userRole);
@@ -266,13 +273,9 @@ export const authenticateLogout = (allowedRoles = []) => {
         return next(new AppError("User not found", 401));
       }
 
-      if (user.isBlocked) {
-        return next(
-          new AppError(
-            "Your account has been blocked by the KRSA administrator. Please contact support if you believe this is a mistake.",
-            401
-          )
-        );
+      const blockedError = rejectIfUserBlocked(user);
+      if (blockedError) {
+        return next(blockedError);
       }
 
       if (allowedRoles.length) {
@@ -345,11 +348,9 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
       throw new AppError("Invalid refresh token", 403);
     }
 
-    if (user.isBlocked) {
-      throw new AppError(
-        "Your account has been blocked by the KRSA administrator. Please contact support if you believe this is a mistake.",
-        401
-      );
+    const blockedError = rejectIfUserBlocked(user);
+    if (blockedError) {
+      throw blockedError;
     }
 
     // 🔥 Rotate tokens
@@ -379,6 +380,9 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
     });
 
   } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
     throw new AppError("Refresh token expired or invalid", 401);
   }
 });

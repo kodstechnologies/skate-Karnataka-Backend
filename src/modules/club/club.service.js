@@ -7,6 +7,10 @@ import {
     notifySkaterOnClubLeaveApproved,
     notifySkaterOnClubLeaveRejected,
 } from "../../util/firebase/sendNotification.js";
+import {
+    approveSkaterRsfiChangeService,
+    rejectSkaterRsfiChangeService,
+} from "../skater/skaterRsfiChange.service.js";
 import { addSkaterByClubRepository, affiliatedDistrictRepository, allClubsInDbRepository, allClubsRepository, apply_club_repositories, apply_leave_repository, applyForDistrictRepository, approve_join_club_repositories, approve_leave_club_repositories, clubIdStoreinDestrict, clubsForSkaterUserRepository, createClubRepository, deleteClubDetails, display_all_apply_skater_repositories, display_all_club_skater_repositories, display_club_skater_details_repositories, display_existing_club_repositories, displayClubDashboardRepositories, displayClubProfileRepositories, displayDistrictFullDetailsRepository, displayFullDetailsOfClub, exceptOwnDistrictDisplayAllDistrictRepository, isAlreadyAppliedToClubRepository, isApplyRepository, isExistClub, isThisClubExist, reject_join_club_repositories, reject_leave_club_repositories, reject_leave_district_affiliation_repository, remove_skater_from_club_repositories, removeAffiliationRepository, resolveClubIdFromClubMember, updateClubDetails } from "./club.repositories.js";
 
 
@@ -346,6 +350,14 @@ const display_existing_club_service = async (id) => {
 
 const display_all_apply_skater_service = async (clubId, { page, limit } = {}) => {
     return await display_all_apply_skater_repositories(clubId, { page, limit });
+};
+
+export const approve_rsfi_change_service = async (skaterId, clubMemberId) => {
+    return approveSkaterRsfiChangeService(skaterId, clubMemberId);
+};
+
+export const reject_rsfi_change_service = async (skaterId, clubMemberId) => {
+    return rejectSkaterRsfiChangeService(skaterId, clubMemberId);
 };
 
 export const display_all_club_skater_service = async (clubMemberId, query = {}) => {

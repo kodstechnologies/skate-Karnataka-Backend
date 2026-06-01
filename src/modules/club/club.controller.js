@@ -1,7 +1,7 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { AppError } from "../../util/common/AppError.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { addSkaterByClubService, affiliatedDistrictService, allClubService, allClubsInDbService, apply_club_service, apply_leave_service, applyForDistrictService, approve_join_club_service, approve_leave_club_service, clubsByUserDistrictService, createClubService, deleteClubSchema, display_all_apply_skater_service, display_all_club_skater_service, display_club_skater_details_service, displayDistrictFullDetailsService, display_existing_club_service, displayClubDashboardService, displayClubProfileService, displaySingleClubService, exceptOwnDistrictDisplayAllDistrictService, pendingApprovalsServices, reject_join_club_service, reject_leave_club_service, remove_skater_from_club_service, removeAffiliationService, reportServices, updateClubDetailsService } from "./club.service.js";
+import { addSkaterByClubService, affiliatedDistrictService, allClubService, allClubsInDbService, apply_club_service, apply_leave_service, applyForDistrictService, approve_join_club_service, approve_leave_club_service, approve_rsfi_change_service, clubsByUserDistrictService, createClubService, deleteClubSchema, display_all_apply_skater_service, display_all_club_skater_service, display_club_skater_details_service, displayDistrictFullDetailsService, display_existing_club_service, displayClubDashboardService, displayClubProfileService, displaySingleClubService, exceptOwnDistrictDisplayAllDistrictService, pendingApprovalsServices, reject_join_club_service, reject_leave_club_service, reject_rsfi_change_service, remove_skater_from_club_service, removeAffiliationService, reportServices, updateClubDetailsService } from "./club.service.js";
 
 const displayClubDashboard = asyncHandler(async (req, res) => {
     const id = req.user._id;
@@ -246,6 +246,24 @@ export const reject_join_club = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, null, "Club reject successfully"));
 })
 
+const approve_rsfi_change = asyncHandler(async (req, res) => {
+    const clubMemberId = req.user._id;
+    const { id } = req.params;
+    const result = await approve_rsfi_change_service(id, clubMemberId);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, result, "RSFI ID change approved successfully"));
+});
+
+const reject_rsfi_change = asyncHandler(async (req, res) => {
+    const clubMemberId = req.user._id;
+    const { id } = req.params;
+    const result = await reject_rsfi_change_service(id, clubMemberId);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, result, "RSFI ID change rejected"));
+});
+
 const apply_leave = asyncHandler(async (req, res) => {
     const userId = req.user._id;
     await apply_leave_service(userId);
@@ -373,6 +391,8 @@ export {
     display_all_Club_basedOn_user_district,
     apply_club,
     approve_join_club,
+    approve_rsfi_change,
+    reject_rsfi_change,
     apply_leave,
     approve_leave_club,
     reject_leave_club,

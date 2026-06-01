@@ -6,7 +6,7 @@ import {
     displayAllApplySkaterQueryValidation,
     editClubValidation,
 } from "./club.validation.js";
-import { addSkaterByClub, affiliatedDistrict, apply_club, apply_leave, applyForDistrict, approve_join_club, approve_leave_club, createNewClub, deleteClub, display_all_Club_basedOn_user_district, display_all_apply_skater, display_all_club_skater, display_club_skater_details, displayDistrictFullDetails, display_existing_club, displayAllClubs, displayAllClubsInDb, displayClubDashboard, displayClubProfile, displaySingleClub, exceptOwnDistrictDisplayAllDistrict, reject_join_club, reject_leave_club, remove_skater_from_club, removeAffiliation, reports, updateClub } from "./club.controller.js";
+import { addSkaterByClub, affiliatedDistrict, apply_club, apply_leave, applyForDistrict, approve_join_club, approve_leave_club, approve_rsfi_change, createNewClub, deleteClub, display_all_Club_basedOn_user_district, display_all_apply_skater, display_all_club_skater, display_club_skater_details, displayDistrictFullDetails, display_existing_club, displayAllClubs, displayAllClubsInDb, displayClubDashboard, displayClubProfile, displaySingleClub, exceptOwnDistrictDisplayAllDistrict, reject_join_club, reject_leave_club, reject_rsfi_change, remove_skater_from_club, removeAffiliation, reports, updateClub } from "./club.controller.js";
 import { upload } from "../../middleware/multer.middleware.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
@@ -98,6 +98,10 @@ router.get("/v1/reject-join/:id",
 // approve for leave
 router.get("/v1/approve-leave/:id", authenticate(["Club"]), approve_leave_club);
 router.get("/v1/reject-leave/:id", authenticate(["Club"]), reject_leave_club);
+
+// RSFI ID change (use skater id from pending list skaterID field)
+router.get("/v1/approve-rsfi/:id", authenticate(["Club"]), approve_rsfi_change);
+router.get("/v1/reject-rsfi/:id", authenticate(["Club"]), reject_rsfi_change);
 
 // ===================================================  club -> skater end ========= 3
 

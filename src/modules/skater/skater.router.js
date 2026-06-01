@@ -1,7 +1,7 @@
 import express from "express";
-import { afterLoginSkaterForm, DeleteSkater, getAllDiscipline, GetAllSkatingEventCategoriesFull, GetSkaterDigitalIdCard, GetSkaterProfile, GetSkaterResults, GetSkaterResultsEvent, UpdateSkaterProfile } from "./skater.controller.js";
+import { afterLoginSkaterForm, DeleteSkater, getAllDiscipline, GetAllSkatingEventCategoriesFull, GetSkaterDigitalIdCard, GetSkaterProfile, GetSkaterResults, GetSkaterResultsEvent, RequestSkaterRsfiChange } from "./skater.controller.js";
 import { validate } from "../../middleware/validate.multiple.js";
-import { afterLoginSkaterFormValidation, getSkaterResultsByEventValidation, UpdateProfileValidation } from "./skater.validation.js";
+import { afterLoginSkaterFormValidation, getSkaterResultsByEventValidation, SkaterRsfiChangeValidation } from "./skater.validation.js";
 import { upload } from "../../middleware/multer.middleware.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
@@ -32,17 +32,18 @@ router.get("/v1/profile",
     authenticate(["Skater"]),
     GetSkaterProfile);
 
-// edit profile ==
-
-router.patch("/v1/update-profile",
-    authenticate([]),
-    validate(UpdateProfileValidation),
-    UpdateSkaterProfile);
+// edit profile — RSFI ID change requires club approval (joined skaters only)
+router.patch(
+    "/v1/update-rsfi-profile",
+    authenticate(["Skater"]),
+    validate(SkaterRsfiChangeValidation),
+    RequestSkaterRsfiChange
+);
 
 // delete profile ==
 
 router.delete("/v1/delete",
-    authenticate([]),
+    authenticate(["Skater"]),
     DeleteSkater);
 
 

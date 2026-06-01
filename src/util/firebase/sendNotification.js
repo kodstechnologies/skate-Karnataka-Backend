@@ -699,3 +699,137 @@ export const notifySkaterOnClubLeaveRejected = async ({
     console.error("Club leave rejected skater notification failed:", err?.message || err);
   });
 };
+
+/** Notify club members when a skater requests an RSFI ID change. */
+export const notifyClubMembersOnSkaterRsfiChangeApply = async ({
+  clubDocId,
+  skaterId,
+  skaterName,
+  currentRsfiId,
+  requestedRsfiId,
+}) => {
+  if (!clubDocId || !mongoose.Types.ObjectId.isValid(String(clubDocId))) {
+    return { notifiedCount: 0, memberCount: 0 };
+  }
+
+  const club = await Club.findById(clubDocId).select("name members").lean();
+  if (!club) {
+    return { notifiedCount: 0, memberCount: 0 };
+  }
+
+  const memberObjectIds = (club.members || [])
+    .filter((memberId) => mongoose.Types.ObjectId.isValid(String(memberId)))
+    .map((memberId) => new mongoose.Types.ObjectId(String(memberId)));
+
+  if (!memberObjectIds.length) {
+    return { notifiedCount: 0, memberCount: 0 };
+  }
+
+  const clubAuthMembers = await BaseAuth.find({
+    _id: { $in: memberObjectIds },
+    isActive: { $ne: false },
+  })
+    .select("_id role fullName")
+    .lean();
+
+  const receivers = clubAuthMembers.filter(
+    (member) => String(member._id) !== String(skaterId)
+  );
+
+  if (!receivers.length) {
+    return { notifiedCount: 0, memberCount: memberObjectIds.length };
+  }
+
+  const clubName = (club?.name || "your club").trim();
+  const skaterLabel = (skaterName || "A skater").trim();
+  const fromId = (currentRsfiId || "—").trim() || "—";
+  const toId = (requestedRsfiId || "").trim();
+  const title = "RSFI ID change request";
+  const body = `${skaterLabel} requested to change RSFI ID from ${fromId} to ${toId}. Please review in pending approvals.`;
+
+  await Promise.all(
+    receivers.map((member) =>
+      sendNotification({
+        receiverId: member._id,
+        title,
+        body,
+        notificationType: "approval",
+        sentBy: skaterId,
+        data: {
+          type: "skater_rsfi_change_apply",
+          clubId: String(clubDocId),
+          skaterId: String(skaterId),
+          skaterName: skaterLabel,
+          clubName,
+          currentRsfiId: fromId,
+          requestedRsfiId: toId,
+        },
+      }).catch((err) => {
+        console.error(
+          `Skater RSFI change apply notification failed for ${member._id}:`,
+          err?.message || err
+        );
+      })
+    )
+  );
+
+  return {
+    notifiedCount: receivers.length,
+    memberCount: memberObjectIds.length,
+  };
+};
+
+export const notifySkaterOnRsfiChangeApproved = async ({
+  skaterId,
+  sentBy,
+  clubDocId,
+  clubName,
+  requestedRsfiId,
+}) => {
+  if (!skaterId) return;
+
+  const label = (clubName || "your club").trim();
+  const rsfiLabel = (requestedRsfiId || "").trim();
+
+  await sendNotification({
+    receiverId: skaterId,
+    title: "RSFI ID change approved",
+    body: `Your club (${label}) approved your RSFI ID change${rsfiLabel ? ` to ${rsfiLabel}` : ""}.`,
+    notificationType: "approval",
+    sentBy,
+    data: {
+      type: "skater_rsfi_change_approved",
+      clubId: clubDocId ? String(clubDocId) : "",
+      clubName: label,
+      requestedRsfiId: rsfiLabel,
+    },
+  }).catch((err) => {
+    console.error("RSFI change approved skater notification failed:", err?.message || err);
+  });
+};
+
+export const notifySkaterOnRsfiChangeRejected = async ({
+  skaterId,
+  sentBy,
+  clubDocId,
+  clubName,
+}) => {
+  if (!skaterId) return;
+
+  const label = (clubName || "your club").trim();
+
+  await sendNotification({
+    receiverId: skaterId,
+    title: "RSFI ID change rejected",
+    body: `Your RSFI ID change request was rejected by ${label}. You may submit a new request from your profile.`,
+    notificationType: "approval",
+    sentBy,
+    data: {
+      type: "skater_rsfi_change_rejected",
+      clubId: clubDocId ? String(clubDocId) : "",
+      clubName: label,
+    },
+  }).catch((err) => {
+    console.error("RSFI change rejected skater notification failed:", err?.message || err);
+  });
+};

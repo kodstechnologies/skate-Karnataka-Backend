@@ -92,9 +92,21 @@ const UpdateProfileValidation = {
     })
 };
 
+const SkaterRsfiChangeValidation = {
+    body: Joi.object({
+        rsfiId: Joi.string().trim().min(1).optional(),
+        // rfsiId: Joi.string().trim().min(1).optional(),
+    })
+        .or("rsfiId", "rfsiId")
+        .messages({
+            "object.missing": "RSFI ID (rsfiId) is required",
+        }),
+};
+
 
 export {
     afterLoginSkaterFormValidation,
     getSkaterResultsByEventValidation,
     UpdateProfileValidation,
+    SkaterRsfiChangeValidation,
 }

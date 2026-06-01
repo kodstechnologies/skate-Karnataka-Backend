@@ -3,6 +3,7 @@ import { AppError } from "../../util/common/AppError.js";
 // import { Skater } from "../auth/skater.model.js";
 import { District } from "../district/district.model.js";
 import { Skater } from "../skater/skater.model.js";
+import { listPendingRsfiChangesForClubRepository } from "../skater/skaterRsfiChange.repositories.js";
 import { Event } from "../event/event.model.js";
 import { EventParticipant } from "../event/eventParticipant.model.js";
 import { Club } from "./club.model.js";
@@ -1042,6 +1043,31 @@ const display_all_apply_skater_repositories = async (
         }
     }
 
+    const rsfiChangeRows = await listPendingRsfiChangesForClubRepository(clubOid);
+    const seenRsfiSkaters = new Set();
+
+    for (const row of rsfiChangeRows) {
+        const skaterId = String(row.skaterId || "");
+        if (!skaterId || seenRsfiSkaters.has(skaterId)) {
+            continue;
+        }
+        seenRsfiSkaters.add(skaterId);
+        data.push(
+            formatApplyListItem(
+                "rsfiChange",
+                row._id,
+                row.fullName,
+                row.sortAt,
+                {
+                    skaterID: skaterId,
+                    krsaId: row.krsaId || "",
+                    currentRsfiId: row.currentRsfiId || "",
+                    requestedRsfiId: row.requestedRsfiId || "",
+                }
+            )
+        );
+    }
+
     data.sort((a, b) => new Date(b.sortAt).getTime() - new Date(a.sortAt).getTime());
 
     const total = data.length;
@@ -1058,6 +1084,7 @@ const display_all_apply_skater_repositories = async (
             joinClub: countByType("joinClub"),
             leaveClub: countByType("leaveClub"),
             certificateRequest: countByType("certificateRequest"),
+            rsfiChange: countByType("rsfiChange"),
         },
         data: paged,
     };

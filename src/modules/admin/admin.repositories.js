@@ -141,7 +141,7 @@ export const createDistrictByAdmin = async (payload) => {
 };
 
 export const findDistrictById = async (districtId) => {
-  return District.findById(districtId).select("_id name members club").lean();
+  return District.findById(districtId).select("_id name members club mainMember").lean();
 };
 
 export const updateDistrictByIdForAdmin = async (districtId, payload) => {
@@ -195,6 +195,9 @@ export const getDistrictMembersByDistrictId = async (
   const skip = (currentPage - 1) * pageLimit;
   const trimmedSearch = String(search || "").trim();
 
+  const district = await District.findById(districtId).select("members mainMember").lean();
+  const mainMemberId = district?.mainMember ? String(district.mainMember) : null;
+
   const query = {
     role: "District",
     district: districtId,
@@ -213,7 +216,7 @@ export const getDistrictMembersByDistrictId = async (
   const [total, data] = await Promise.all([
     BaseAuth.countDocuments(query),
     BaseAuth.find(query)
-      .select("_id fullName profile phone countryCode email gender address district role isActive")
+      .select("_id fullName profile phone countryCode email gender address district role isActive isBlocked")
       .populate("district", "_id name")
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -221,8 +224,14 @@ export const getDistrictMembersByDistrictId = async (
       .lean(),
   ]);
 
+  const formattedData = data.map((member) => ({
+    ...member,
+    isMain: mainMemberId ? String(member._id) === mainMemberId : false,
+    isBlocked: Boolean(member.isBlocked),
+  }));
+
   return {
-    data,
+    data: formattedData,
     pagination: {
       total,
       page: currentPage,
@@ -273,18 +282,56 @@ export const deleteDistrictMemberById = async (districtMemberId) => {
 
 export const addMemberToDistrict = async ({ districtId, memberId }) => {
   if (!districtId) return null;
+
+  const district = await District.findById(districtId).select("mainMember").lean();
+  const update = {
+    $addToSet: { members: memberId },
+    $set: { verify: true },
+  };
+
+  if (!district?.mainMember) {
+    update.$set.mainMember = memberId;
+  }
+
+  return District.findByIdAndUpdate(districtId, update, { new: false }).lean();
+};
+
+export const setDistrictMainMember = async ({ districtId, memberId }) => {
+  const district = await District.findById(districtId).select("members").lean();
+  if (!district) {
+    return null;
+  }
+
+  const memberIds = (district.members || []).map((id) => String(id));
+  if (!memberIds.includes(String(memberId))) {
+    return null;
+  }
+
   return District.findByIdAndUpdate(
     districtId,
-    {
-      $addToSet: { members: memberId },
-      $set: { verify: true },
-    },
-    { new: false }
-  ).lean();
+    { $set: { mainMember: memberId } },
+    { new: true }
+  )
+    .select("_id name mainMember members")
+    .lean();
+};
+
+export const clearDistrictMainMember = async (districtMemberId) => {
+  return District.updateMany(
+    { mainMember: districtMemberId },
+    { $unset: { mainMember: "" } }
+  );
+};
+
+export const findDistrictByMainMemberId = async (memberId) => {
+  return District.findOne({ mainMember: memberId }).select("_id name").lean();
 };
 
 export const removeMemberFromDistrict = async ({ districtId, memberId }) => {
   if (!districtId) return null;
+
+  await clearDistrictMainMember(memberId);
+
   return District.findByIdAndUpdate(
     districtId,
     { $pull: { members: memberId } },
@@ -335,7 +382,7 @@ export const getAllClubsForAdmin = async ({ page = 1, limit = 10, search = "" } 
 };
 
 export const findClubByIdForAdmin = async (clubId) => {
-  return Club.findById(clubId).select("_id name district members").lean();
+  return Club.findById(clubId).select("_id name district members mainMember").lean();
 };
 
 export const countSkatersByClubIdForAdmin = async (clubId) => {
@@ -389,14 +436,20 @@ export const getClubMembersByClubId = async (
   const trimmedSearch = String(search || "").trim().toLowerCase();
 
   const club = await Club.findById(clubId)
-    .select("_id name members")
+    .select("_id name members mainMember")
     .populate(
       "members",
-      "_id fullName profile phone countryCode email gender address district role isActive"
+      "_id fullName profile phone countryCode email gender address district role isActive isBlocked"
     )
     .lean();
 
-  const allMembers = Array.isArray(club?.members) ? club.members : [];
+  const mainMemberId = club?.mainMember ? String(club.mainMember) : null;
+
+  const allMembers = (Array.isArray(club?.members) ? club.members : []).map((member) => ({
+    ...member,
+    isMain: mainMemberId ? String(member._id) === mainMemberId : false,
+    isBlocked: Boolean(member.isBlocked),
+  }));
 
   const filteredMembers = trimmedSearch
     ? allMembers.filter((member) => {
@@ -421,6 +474,7 @@ export const getClubMembersByClubId = async (
   return {
     clubId: club?._id || clubId,
     clubName: club?.name || "",
+    mainMemberId,
     data: paginatedMembers,
     pagination: {
       total: filteredMembers.length,
@@ -465,11 +519,45 @@ export const createClubMember = async (payload) => {
 };
 
 export const addMemberToClub = async ({ clubId, memberId }) => {
+  const club = await Club.findById(clubId).select("mainMember members").lean();
+  const update = { $addToSet: { members: memberId } };
+
+  if (!club?.mainMember) {
+    update.$set = { mainMember: memberId };
+  }
+
+  return Club.findByIdAndUpdate(clubId, update, { new: false }).lean();
+};
+
+export const setClubMainMember = async ({ clubId, memberId }) => {
+  const club = await Club.findById(clubId).select("members").lean();
+  if (!club) {
+    return null;
+  }
+
+  const memberIds = (club.members || []).map((id) => String(id));
+  if (!memberIds.includes(String(memberId))) {
+    return null;
+  }
+
   return Club.findByIdAndUpdate(
     clubId,
-    { $addToSet: { members: memberId } },
-    { new: false }
-  ).lean();
+    { $set: { mainMember: memberId } },
+    { new: true }
+  )
+    .select("_id name mainMember members")
+    .lean();
+};
+
+export const clearClubMainMember = async (clubMemberId) => {
+  return Club.updateMany(
+    { mainMember: clubMemberId },
+    { $unset: { mainMember: "" } }
+  );
+};
+
+export const findClubByMainMemberId = async (memberId) => {
+  return Club.findOne({ mainMember: memberId }).select("_id name").lean();
 };
 
 export const findClubMemberById = async (clubMemberId) => {
@@ -498,6 +586,8 @@ export const deleteClubMemberById = async (clubMemberId) => {
 };
 
 export const removeClubMemberFromAllClubs = async (clubMemberId) => {
+  await clearClubMainMember(clubMemberId);
+
   return Club.updateMany(
     { members: clubMemberId },
     { $pull: { members: clubMemberId } }

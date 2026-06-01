@@ -171,6 +171,19 @@ export const updateDistrictMemberByAdminValidation = {
   }).min(1),
 };
 
+export const setDistrictMainMemberValidation = {
+  params: Joi.object({
+    districtId: Joi.string().trim().pattern(/^[0-9a-fA-F]{24}$/).required().messages({
+      "string.pattern.base": "Invalid district id format",
+      "any.required": "District id is required",
+    }),
+    memberId: Joi.string().trim().pattern(/^[0-9a-fA-F]{24}$/).required().messages({
+      "string.pattern.base": "Invalid member id format",
+      "any.required": "Member id is required",
+    }),
+  }),
+};
+
 export const createClubByAdminValidation = {
   body: Joi.object({
     name: Joi.string().trim().min(2).max(100).required().messages({
@@ -267,6 +280,19 @@ export const clubMemberByAdminIdValidation = {
     id: Joi.string().trim().required().messages({
       "any.required": "Club member id is required",
       "string.empty": "Club member id is required",
+    }),
+  }),
+};
+
+export const setClubMainMemberValidation = {
+  params: Joi.object({
+    clubId: Joi.string().trim().pattern(/^[0-9a-fA-F]{24}$/).required().messages({
+      "string.pattern.base": "Invalid club id format",
+      "any.required": "Club id is required",
+    }),
+    memberId: Joi.string().trim().pattern(/^[0-9a-fA-F]{24}$/).required().messages({
+      "string.pattern.base": "Invalid member id format",
+      "any.required": "Member id is required",
     }),
   }),
 };

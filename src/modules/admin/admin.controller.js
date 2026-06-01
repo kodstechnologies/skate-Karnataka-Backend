@@ -21,6 +21,8 @@ import {
   getDistrictMembersByDistrictIdByAdminService,
   getAllDistrictsByAdminService,
   getAdminProfileService,
+  setClubMainMemberByAdminService,
+  setDistrictMainMemberByAdminService,
   updateDistrictMemberByAdminService,
   updateClubMemberByAdminService,
   updateClubByAdminService,
@@ -185,6 +187,17 @@ export const deleteDistrictMemberByAdmin = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, result, "District member deleted successfully"));
 });
 
+export const setDistrictMainMemberByAdmin = asyncHandler(async (req, res) => {
+  const result = await setDistrictMainMemberByAdminService(
+    req.params.districtId,
+    req.params.memberId
+  );
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, result, "Main district member updated successfully"));
+});
+
 export const getAllClubByAdmin = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, search = "" } = req.query;
   const result = await getAllClubByAdminService({ page, limit, search });
@@ -256,6 +269,14 @@ export const deleteClubMemberByAdmin = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, result, "Club member deleted successfully"));
+});
+
+export const setClubMainMemberByAdmin = asyncHandler(async (req, res) => {
+  const result = await setClubMainMemberByAdminService(req.params.clubId, req.params.memberId);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, result, "Main club member updated successfully"));
 });
 
 export const getAllSkatersByAdmin = asyncHandler(async (req, res) => {

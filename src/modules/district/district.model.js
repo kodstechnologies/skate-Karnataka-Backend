@@ -61,6 +61,13 @@ const districtSchema = new mongoose.Schema(
         ref: "BaseAuth",
       },
     ],
+
+    mainMember: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "BaseAuth",
+      default: null,
+      index: true,
+    },
   },
   { timestamps: true }
 );

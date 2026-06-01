@@ -37,6 +37,10 @@ import {
   removeClubFromDistrict,
   removeClubMemberFromAllClubs,
   removeRefreshTokenFromAdmin,
+  setClubMainMember,
+  findClubByMainMemberId,
+  setDistrictMainMember,
+  findDistrictByMainMemberId,
   getAllSkatersForAdmin,
   getSkaterFullDetailsByIdForAdmin,
   updateDistrictByIdForAdmin,
@@ -382,6 +386,14 @@ export const deleteDistrictMemberByAdminService = async (districtMemberId) => {
     throw new AppError("District member not found", 404);
   }
 
+  const districtWithMain = await findDistrictByMainMemberId(districtMemberId);
+  if (districtWithMain) {
+    throw new AppError(
+      "Cannot delete the main district member. Set another member as main first.",
+      400
+    );
+  }
+
   await deleteDistrictMemberById(districtMemberId);
 
   if (existingMember.district) {
@@ -392,6 +404,29 @@ export const deleteDistrictMemberByAdminService = async (districtMemberId) => {
   }
 
   return { deleted: true };
+};
+
+export const setDistrictMainMemberByAdminService = async (districtId, memberId) => {
+  const district = await findDistrictById(districtId);
+  if (!district) {
+    throw new AppError("District not found", 404);
+  }
+
+  const member = await findDistrictMemberById(memberId);
+  if (!member) {
+    throw new AppError("District member not found", 404);
+  }
+
+  const updatedDistrict = await setDistrictMainMember({ districtId, memberId });
+  if (!updatedDistrict) {
+    throw new AppError("Member does not belong to this district", 400);
+  }
+
+  return {
+    districtId: String(updatedDistrict._id),
+    mainMemberId: String(updatedDistrict.mainMember),
+    message: "Main district member updated successfully",
+  };
 };
 
 export const getAllClubByAdminService = async ({ page, limit, search }) => {
@@ -571,10 +606,41 @@ export const deleteClubMemberByAdminService = async (clubMemberId) => {
     throw new AppError("Club member not found", 404);
   }
 
+  const clubWithMain = await findClubByMainMemberId(clubMemberId);
+  if (clubWithMain) {
+    throw new AppError(
+      "Cannot delete the main club member. Set another member as main first.",
+      400
+    );
+  }
+
   await deleteClubMemberById(clubMemberId);
   await removeClubMemberFromAllClubs(clubMemberId);
 
   return { deleted: true };
+};
+
+export const setClubMainMemberByAdminService = async (clubId, memberId) => {
+  const club = await findClubByIdForAdmin(clubId);
+  if (!club) {
+    throw new AppError("Club not found", 404);
+  }
+
+  const member = await findClubMemberById(memberId);
+  if (!member) {
+    throw new AppError("Club member not found", 404);
+  }
+
+  const updatedClub = await setClubMainMember({ clubId, memberId });
+  if (!updatedClub) {
+    throw new AppError("Member does not belong to this club", 400);
+  }
+
+  return {
+    clubId: String(updatedClub._id),
+    mainMemberId: String(updatedClub.mainMember),
+    message: "Main club member updated successfully",
+  };
 };
 
 export const getAllSkatersByAdminService = async ({ page, limit, search }) => {

@@ -228,8 +228,8 @@ const ToggleUserBlock = asyncHandler(async (req, res) => {
             200,
             result,
             result.isBlocked
-                ? "Skater blocked successfully"
-                : "Skater unblocked successfully"
+                ? "User blocked successfully"
+                : "User unblocked successfully"
         )
     );
 });

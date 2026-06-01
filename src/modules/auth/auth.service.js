@@ -388,9 +388,10 @@ const ToggleUserBlockService = async (userId, isBlocked) => {
         throw new AppError("Invalid user id", 400);
     }
 
-    const user = await BaseAuth.findOne({ _id: userId, role: "Skater" });
+    const allowedRoles = ["Skater", "District", "Club"];
+    const user = await BaseAuth.findOne({ _id: userId, role: { $in: allowedRoles } });
     if (!user) {
-        throw new AppError("Skater not found", 404);
+        throw new AppError("User not found", 404);
     }
 
     user.isBlocked = Boolean(isBlocked);
@@ -406,6 +407,7 @@ const ToggleUserBlockService = async (userId, isBlocked) => {
         userId: String(user._id),
         fullName: user.fullName || "",
         krsaId: user.krsaId || "",
+        role: user.role || "",
         isBlocked: user.isBlocked,
     };
 };

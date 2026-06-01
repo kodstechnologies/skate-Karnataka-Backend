@@ -29,6 +29,8 @@ import {
   updateDistrictMemberByAdmin,
   updateDistrictByAdmin,
   updateClubMemberByAdmin,
+  setClubMainMemberByAdmin,
+  setDistrictMainMemberByAdmin,
 } from "./admin.controller.js";
 import {
   adminForgotPasswordValidation,
@@ -50,6 +52,8 @@ import {
   updateClubByAdminValidation,
   updateDistrictMemberByAdminValidation,
   updateDistrictByAdminValidation,
+  setDistrictMainMemberValidation,
+  setClubMainMemberValidation,
 } from "./admin.validation.js";
 import { upload } from "../../middleware/multer.middleware.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
@@ -112,6 +116,12 @@ router.get(
   authenticate(["State", "admin"]),
   getDistrictMembersByDistrictIdByAdmin
 );
+router.patch(
+  "/v1/district-member/:districtId/main/:memberId",
+  authenticate(["State", "admin"]),
+  validate(setDistrictMainMemberValidation),
+  setDistrictMainMemberByAdmin
+);
 router.post(
   "/v1/district-member/:id",
   authenticate(["State", "admin"]),
@@ -166,6 +176,12 @@ router.get(
   "/v1/club-member/:id",
   authenticate(["State", "admin"]),
   getClubMembersByClubIdByAdmin
+);
+router.patch(
+  "/v1/club-member/:clubId/main/:memberId",
+  authenticate(["State", "admin"]),
+  validate(setClubMainMemberValidation),
+  setClubMainMemberByAdmin
 );
 router.post(
   "/v1/club-member/:id",

@@ -6,6 +6,24 @@ import { State } from "../state/state.model.js";
 import { Skater } from "../skater/skater.model.js";
 import { Event } from "./event.model.js";
 import SkatingEventCategory from "./SkatingEventCategory.model.js";
+import {
+    assertCanMutateCategory,
+    buildAdminCategoriesListFilter,
+    buildVisibleCategoriesFilter,
+    isStandardCategory,
+    resolveCategoryOwnershipForCreate,
+} from "./skatingEventCategory.policy.js";
+import {
+    extractCustomNamesFromDoc,
+    getOrgOverrideFromStandardDoc,
+    mergeStandardWithOrgOverride,
+    normalizeCategoryFormat,
+    resolveSkatingCategoriesForEvent,
+} from "./skatingEventCategory.sync.js";
+import {
+    resolveClubOwnerIdRepositories,
+    resolveDistrictOwnerIdRepositories,
+} from "../gallery/gallery.repositories.js";
 import { EventParticipant } from "./eventParticipant.model.js";
 import {
   EVENT_ADMIN_APPROVAL,
@@ -13,7 +31,7 @@ import {
   isStateOrAdminRole,
   requiresAdminApprovalOnCreate,
 } from "./eventApprovalPolicy.js";
-import { applyCertificationBySkaterRepository, approveCertificationByRoleRepository, rejectCertificationByRoleRepository, approveEventByAdminRepository, approveEventDeleteByAdminRepository, createEventCategoryRepository, createRegisterFormRepository, deleteEventCategoryRepository, displayCertificationApplicationsRepository, displaySingleEventRepository, displayAllEventRepository, create_event_repositories, edit_event_repositories, delete_event_repositories, display_latest_event_repositories, display_all_event_based_on_user_repositories, clubRelatedEventDisplayRepositories, createClubEventRepositories, districtRelatedEventDisplayRepositories, createDistrictEventRepositories, enrichLeanEventsSkatingCategoryNames, findEventParticipantForCompetitionUpdate, getAllPlayedEventsBySkaterRepository, getAllRegisterDetailsByUserIdRepository, getLiveEventsRepository, getRegisterDetailsByEventIdRepository, getRegisterFormByIdRepository, getRegisterFormByUserIdRepository, rejectEventByAdminRepository, rejectEventDeleteByAdminRepository, requestEventDeleteRepository, stateRelatedEventDisplayRepositories, createStateEventRepositories, getAllEventCategoriesRepository, getEventCategoryByIdRepository, updateEventCategoryRepository, getStateEventFullDetailsByIdRepository, getStateEventResultsRepository, listCompetitionCategoryRankingsRepository, listEventSkatersBasicByEventIdRepository, listEventSkatersByEventIdRepository, recalculateAndPersistCategoryRanksRepository, updateEventParticipantTimingBySkaterRepository, getSkaterEventFullDetailsDtoRepository, getSkaterEventFormCategoryDetailsRepository, getEventSkatingEventCategoriesFullRepository, resolveClubIdForClubAuthUser } from "./event.repositories.js";
+import { applyCertificationBySkaterRepository, approveCertificationByRoleRepository, rejectCertificationByRoleRepository, approveEventByAdminRepository, approveEventDeleteByAdminRepository, createEventCategoryRepository, createRegisterFormRepository, deleteEventCategoryRepository, displayCertificationApplicationsRepository, displaySingleEventRepository, displayAllEventRepository, create_event_repositories, edit_event_repositories, delete_event_repositories, display_latest_event_repositories, display_all_event_based_on_user_repositories, clubRelatedEventDisplayRepositories, createClubEventRepositories, districtRelatedEventDisplayRepositories, createDistrictEventRepositories, enrichLeanEventsSkatingCategoryNames, findEventParticipantForCompetitionUpdate, getAllPlayedEventsBySkaterRepository, getAllRegisterDetailsByUserIdRepository, getLiveEventsRepository, getRegisterDetailsByEventIdRepository, getRegisterFormByIdRepository, getRegisterFormByUserIdRepository, rejectEventByAdminRepository, rejectEventDeleteByAdminRepository, requestEventDeleteRepository, stateRelatedEventDisplayRepositories, createStateEventRepositories, getAllEventCategoriesRepository, getVisibleSkatingEventCategoriesRepository, listStandardSkatingEventCategoriesRepository, listMergedStandardCategoriesForOrgRepository, getEventCategoryByIdRepository, findOrgCustomCategoryRepository, findOrgOverrideSummaryRepository, orgHasEmbeddedOverridesRepository, upsertOrgCustomCategoryRepository, upsertClubOverrideOnCategoryRepository, upsertDistrictOverrideOnCategoryRepository, updateEventCategoryRepository, getStateEventFullDetailsByIdRepository, getStateEventResultsRepository, listCompetitionCategoryRankingsRepository, listEventSkatersBasicByEventIdRepository, listEventSkatersByEventIdRepository, recalculateAndPersistCategoryRanksRepository, updateEventParticipantTimingBySkaterRepository, getSkaterEventFullDetailsDtoRepository, getSkaterEventFormCategoryDetailsRepository, getEventSkatingEventCategoriesFullRepository, resolveClubIdForClubAuthUser } from "./event.repositories.js";
 import { Club } from "../club/club.model.js";
 
 const displayEventServer = async (data) => {
@@ -91,17 +109,29 @@ export const clubEventFullDetailsService = async (eventId, { userId }) => {
     return payload;
 };
 
+const prepareClubDistrictEventPayload = (data = {}) => {
+    const payload = { ...data };
+    payload.categoryFormat = normalizeCategoryFormat(
+        payload.categoryFormat ?? payload.categorySource
+    );
+    delete payload.categorySource;
+    return payload;
+};
+
 export const createClubEventService = async (clubId, data) => {
-    return await createClubEventRepositories(clubId, data);
-}
+    return await createClubEventRepositories(clubId, prepareClubDistrictEventPayload(data));
+};
 
 export const districtRelatedEventDisplayService = async (districtUserId, query) => {
     return await districtRelatedEventDisplayRepositories(districtUserId, query);
-}
+};
 
 export const createDistrictEventService = async (districtUserId, data) => {
-    return await createDistrictEventRepositories(districtUserId, data);
-}
+    return await createDistrictEventRepositories(
+        districtUserId,
+        prepareClubDistrictEventPayload(data)
+    );
+};
 
 const assertUserCanAccessDistrictEvent = async (eventId, userId) => {
     const event = await getStateEventFullDetailsByIdRepository(eventId);
@@ -304,7 +334,9 @@ const assertCompetitionCategoryOnEvent = async (
     categoryName
 ) => {
     const event = await Event.findById(eventId)
-        .select("header skatingEventCategories colorOne colorTwo textColor")
+        .select(
+            "header skatingEventCategories categoryFormat eventType eventFor colorOne colorTwo textColor"
+        )
         .lean();
     if (!event) {
         throw new AppError("Event not found", 404);
@@ -315,10 +347,12 @@ const assertCompetitionCategoryOnEvent = async (
         throw new AppError("Skating event category is not linked to this event", 400);
     }
 
-    const skatingCategory = await SkatingEventCategory.findById(skatingEventCategoryId).lean();
-    if (!skatingCategory) {
+    const skatingCategoryRaw = await SkatingEventCategory.findById(skatingEventCategoryId).lean();
+    if (!skatingCategoryRaw) {
         throw new AppError("Skating event category not found", 404);
     }
+
+    const [skatingCategory] = resolveSkatingCategoriesForEvent(event, [skatingCategoryRaw]);
 
     const ageGroupEntry = (skatingCategory.ageGroups || []).find(
         (group) => group.label === ageGroup
@@ -691,31 +725,284 @@ export const createStateEventService = async (stateId, data, creatorUserId) => {
     return await createStateEventRepositories(resolvedStateId, data, creatorUserId);
 };
 
-export const getAllEventCategoriesService = async (query) => {
-    return await getAllEventCategoriesRepository(query);
+const enrichUserForCategoryScope = async (user) => {
+    if (!user?._id) {
+        return { clubDocId: null, districtDocId: null };
+    }
+
+    const role = String(user.role || "").toLowerCase();
+    let clubDocId = null;
+    let districtDocId = null;
+
+    if (role === "club") {
+        clubDocId = await resolveClubOwnerIdRepositories(user);
+    }
+    if (role === "district") {
+        districtDocId = await resolveDistrictOwnerIdRepositories(user);
+    }
+
+    return { clubDocId, districtDocId };
 };
 
-export const getEventCategoryByIdService = async (id) => {
+export const getVisibleSkatingEventCategoriesService = async (user) => {
+    const { clubDocId, districtDocId } = await enrichUserForCategoryScope(user);
+    return getVisibleSkatingEventCategoriesRepository({ clubId: clubDocId, districtId: districtDocId });
+};
+
+/**
+ * Event create form: standard = admin categories only.
+ * custom = district/club custom doc if it has names, else same as standard (fallback).
+ */
+export const getEventFormCategoriesService = async (user, source = "standard") => {
+    const mode = String(source || "standard").trim().toLowerCase();
+    const { clubDocId, districtDocId } = await enrichUserForCategoryScope(user);
+    const role = String(user?.role || "").toLowerCase();
+
+    if (mode === "custom" && (role === "club" || role === "district")) {
+        const orgScope =
+            role === "club"
+                ? { clubId: clubDocId }
+                : { districtId: districtDocId };
+
+        const hasEmbedded = await orgHasEmbeddedOverridesRepository(orgScope);
+        if (hasEmbedded) {
+            const merged = await listMergedStandardCategoriesForOrgRepository(orgScope);
+            return merged.filter((cat) => cat._effectiveOverride);
+        }
+
+        const customDoc =
+            role === "club"
+                ? await findOrgCustomCategoryRepository({ clubId: clubDocId })
+                : await findOrgCustomCategoryRepository({ districtId: districtDocId });
+
+        const names = extractCustomNamesFromDoc(customDoc);
+        if (customDoc && names.length) {
+            return [formatOrgCustomCategoryResponse(customDoc)];
+        }
+    }
+
+    return listStandardSkatingEventCategoriesRepository();
+};
+
+export const getOrgCategoryContextService = async (user) => {
+    const role = String(user?.role || "").toLowerCase();
+    const { clubDocId, districtDocId } = await enrichUserForCategoryScope(user);
+
+    const standardCategories = await listStandardSkatingEventCategoriesRepository();
+
+    const orgScope =
+        role === "club"
+            ? { clubId: clubDocId }
+            : role === "district"
+              ? { districtId: districtDocId }
+              : null;
+
+    if (!orgScope) {
+        throw new AppError("Only club or district accounts can view org category context", 403);
+    }
+
+    const customCategory = formatOrgCustomCategoryResponse(
+        await findOrgOverrideSummaryRepository(orgScope)
+    );
+
+    const customNames = extractCustomNamesFromDoc(customCategory);
+    const hasEmbedded = await orgHasEmbeddedOverridesRepository(orgScope);
+
+    const categories = standardCategories.map((cat) => {
+        const merged = mergeStandardWithOrgOverride(cat, orgScope);
+        const override = getOrgOverrideFromStandardDoc(cat, orgScope);
+        return {
+            ...cat,
+            typeName: cat.typeName,
+            ageGroups: merged.ageGroups,
+            hasOrgOverride: extractCustomNamesFromDoc(override).length > 0,
+        };
+    });
+
+    return {
+        categories,
+        standardCategories: categories,
+        customCategory,
+        customHasSavedNames: customNames.length > 0 || hasEmbedded,
+        usesStandardFallbackForCustom: !customNames.length && !hasEmbedded,
+    };
+};
+
+export const getAllEventCategoriesService = async (query, user) => {
+    const role = String(user?.role || "").toLowerCase();
+    const { clubDocId, districtDocId } = await enrichUserForCategoryScope(user);
+
+    let filter = {};
+    if (role === "club") {
+        filter = buildVisibleCategoriesFilter({ clubId: clubDocId });
+    } else if (role === "district") {
+        filter = buildVisibleCategoriesFilter({ districtId: districtDocId });
+    } else if (role === "state" || role === "admin") {
+        filter = buildAdminCategoriesListFilter(query);
+    } else {
+        filter = buildVisibleCategoriesFilter();
+    }
+
+    return await getAllEventCategoriesRepository({ ...query, filter });
+};
+
+export const getEventCategoryByIdService = async (id, user) => {
     const category = await getEventCategoryByIdRepository(id);
     if (!category) {
         throw new AppError("Event category not found", 404);
     }
+
+    const role = String(user?.role || "").toLowerCase();
+    if (role === "club" || role === "district") {
+        const { clubDocId, districtDocId } = await enrichUserForCategoryScope(user);
+        if (isStandardCategory(category)) {
+            return mergeStandardWithOrgOverride(category, {
+                clubId: clubDocId,
+                districtId: districtDocId,
+            });
+        }
+    }
+
     return category;
 };
 
-export const createEventCategoryService = async (payload) => {
-    return await createEventCategoryRepository(payload);
+const stripOwnershipFromPayload = (payload) => {
+    const next = { ...payload };
+    delete next.categoryStatus;
+    delete next.club;
+    delete next.clubId;
+    delete next.district;
+    delete next.districtId;
+    return next;
 };
 
-export const updateEventCategoryService = async (id, payload) => {
-    const updated = await updateEventCategoryRepository(id, payload);
+export const createEventCategoryService = async (payload, user) => {
+    const actor = { ...user, ...(await enrichUserForCategoryScope(user)) };
+    const ownership = resolveCategoryOwnershipForCreate(actor, payload);
+    const body = stripOwnershipFromPayload(payload);
+
+    return await createEventCategoryRepository({
+        ...body,
+        ...ownership,
+    });
+};
+
+export const updateEventCategoryService = async (id, payload, user) => {
+    const existing = await getEventCategoryByIdRepository(id);
+    if (!existing) {
+        throw new AppError("Event category not found", 404);
+    }
+
+    const actor = { ...user, ...(await enrichUserForCategoryScope(user)) };
+    const role = String(user?.role || "").toLowerCase();
+
+    if (isStandardCategory(existing) && (role === "club" || role === "district")) {
+        const overrideInput = {
+            typeName: payload.typeName,
+            customCategoryNames: payload.customCategoryNames ?? payload.names,
+            ageGroups: payload.ageGroups,
+        };
+
+        if (role === "club") {
+            if (!actor.clubDocId) {
+                throw new AppError("Club not found for this account", 404);
+            }
+            const updated = await upsertClubOverrideOnCategoryRepository(
+                id,
+                actor.clubDocId,
+                overrideInput
+            );
+            return mergeStandardWithOrgOverride(updated, { clubId: actor.clubDocId });
+        }
+
+        if (!actor.districtDocId) {
+            throw new AppError("District not found for this account", 404);
+        }
+        const updated = await upsertDistrictOverrideOnCategoryRepository(
+            id,
+            actor.districtDocId,
+            overrideInput
+        );
+        return mergeStandardWithOrgOverride(updated, { districtId: actor.districtDocId });
+    }
+
+    assertCanMutateCategory(actor, existing);
+
+    const body = stripOwnershipFromPayload(payload);
+    delete body.clubOverrides;
+    delete body.districtOverrides;
+
+    const updated = await updateEventCategoryRepository(id, body);
     if (!updated) {
         throw new AppError("Event category not found", 404);
     }
     return updated;
 };
 
-export const deleteEventCategoryService = async (id) => {
+const formatOrgCustomCategoryResponse = (doc) => {
+    if (!doc) {
+        return null;
+    }
+
+    return {
+        ...doc,
+        customCategoryNames: extractCustomNamesFromDoc(doc),
+    };
+};
+
+export const getOrgCustomEventCategoryService = async (user) => {
+    const role = String(user?.role || "").toLowerCase();
+    const { clubDocId, districtDocId } = await enrichUserForCategoryScope(user);
+
+    if (role === "club") {
+        const doc = await findOrgOverrideSummaryRepository({ clubId: clubDocId });
+        return formatOrgCustomCategoryResponse(doc);
+    }
+
+    if (role === "district") {
+        const doc = await findOrgOverrideSummaryRepository({ districtId: districtDocId });
+        return formatOrgCustomCategoryResponse(doc);
+    }
+
+    throw new AppError("Only club or district accounts have an org custom category list", 403);
+};
+
+export const upsertOrgCustomEventCategoryService = async (payload, user) => {
+    const role = String(user?.role || "").toLowerCase();
+    const { clubDocId, districtDocId } = await enrichUserForCategoryScope(user);
+
+    const customCategoryNames = payload?.customCategoryNames ?? payload?.names ?? [];
+
+    if (role === "club") {
+        const doc = await upsertOrgCustomCategoryRepository({
+            clubId: clubDocId,
+            typeName: payload?.typeName,
+            customCategoryNames,
+        });
+        return formatOrgCustomCategoryResponse(doc);
+    }
+
+    if (role === "district") {
+        const doc = await upsertOrgCustomCategoryRepository({
+            districtId: districtDocId,
+            typeName: payload?.typeName,
+            customCategoryNames,
+        });
+        return formatOrgCustomCategoryResponse(doc);
+    }
+
+    throw new AppError("Only club or district accounts can save org custom categories", 403);
+};
+
+export const deleteEventCategoryService = async (id, user) => {
+    const existing = await getEventCategoryByIdRepository(id);
+    if (!existing) {
+        throw new AppError("Event category not found", 404);
+    }
+
+    const actor = { ...user, ...(await enrichUserForCategoryScope(user)) };
+    assertCanMutateCategory(actor, existing);
+
     const deleted = await deleteEventCategoryRepository(id);
     if (!deleted) {
         throw new AppError("Event category not found", 404);
@@ -933,6 +1220,13 @@ const edit_event_schema = async (id, data, user) => {
     delete payload.deleteApprovalStatus;
     delete payload.eventType;
     delete payload.eventFor;
+
+    if (payload.categoryFormat != null || payload.categorySource != null) {
+        payload.categoryFormat = normalizeCategoryFormat(
+            payload.categoryFormat ?? payload.categorySource
+        );
+        delete payload.categorySource;
+    }
 
     const role = String(user?.role || "").trim().toLowerCase();
     let resubmittedForApproval = false;

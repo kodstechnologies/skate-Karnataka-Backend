@@ -23,7 +23,11 @@ router.post(
 
 
 // ===  category for events
-router.get("/v1/category-all", GetAllSkatingEventCategoriesFull);
+router.get(
+    "/v1/category-all",
+    authenticate(["Parent", "Skater", "Club", "District", "State", "Admin"]),
+    GetAllSkatingEventCategoriesFull
+);
 router.get("/v1/discipline", getAllDiscipline);
 
 // profile ===

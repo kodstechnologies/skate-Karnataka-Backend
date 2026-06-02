@@ -103,6 +103,16 @@ const eventSchema = new mongoose.Schema(
       type: String,
     },
 
+    /**
+     * Club/District events: standard = KRSA ageGroups on linked categories;
+     * custom = org override ageGroups when saved, else KRSA default.
+     */
+    categoryFormat: {
+      type: String,
+      enum: ["standard", "custom"],
+      default: "standard",
+    },
+
     // 🛼 Skating event categories (multiple SkatingEventCategory documents)
     skatingEventCategories: {
       type: [

@@ -33,6 +33,60 @@ export const approvedPublicEventFilter = () => ({
   ],
 });
 
+/** Start of local calendar day (registration open through end of that day). */
+export const startOfLocalDay = (date = new Date()) => {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+/**
+ * Skater event lists: State always (if not pending delete);
+ * Club/District only after admin approval; registration still open (registerEndDate >= today).
+ */
+export const skaterListableEventsFilter = (now = new Date()) => ({
+  deleteApprovalStatus: { $ne: EVENT_DELETE_APPROVAL.PENDING },
+  // Compare calendar dates (IST) so date-only registerEndDate values match correctly.
+  $expr: {
+    $gte: [
+      {
+        $dateToString: {
+          format: "%Y-%m-%d",
+          date: "$registerEndDate",
+          timezone: "Asia/Kolkata",
+        },
+      },
+      {
+        $dateToString: {
+          format: "%Y-%m-%d",
+          date: now,
+          timezone: "Asia/Kolkata",
+        },
+      },
+    ],
+  },
+  $or: [
+    { eventType: "State" },
+    {
+      eventType: { $in: ["Club", "District"] },
+      adminApprovalStatus: {
+        $in: [EVENT_ADMIN_APPROVAL.APPROVED, "Approved"],
+      },
+    },
+  ],
+});
+
+export const isRegistrationOpen = (registerEndDate, now = new Date()) => {
+  if (!registerEndDate) {
+    return false;
+  }
+  const end = new Date(registerEndDate);
+  if (Number.isNaN(end.getTime())) {
+    return false;
+  }
+  return end >= startOfLocalDay(now);
+};
+
 export const isEventPubliclyVisible = (event) => {
   if (!event) return false;
   if (event.deleteApprovalStatus === EVENT_DELETE_APPROVAL.PENDING) {
@@ -41,8 +95,8 @@ export const isEventPubliclyVisible = (event) => {
   if (event.eventType === "State") {
     return true;
   }
-  const status = event.adminApprovalStatus;
-  return !status || status === EVENT_ADMIN_APPROVAL.APPROVED;
+  const status = String(event.adminApprovalStatus || "").toLowerCase();
+  return status === EVENT_ADMIN_APPROVAL.APPROVED;
 };
 
 export const initialAdminApprovalStatus = (eventType) =>

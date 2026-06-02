@@ -1,5 +1,7 @@
 import Joi from "joi";
 import { AGE_GROUPS } from "./SkatingEventCategory.model.js";
+import { CATEGORY_STATUS } from "./skatingEventCategory.policy.js";
+import { EVENT_CATEGORY_FORMAT } from "./skatingEventCategory.sync.js";
 import { parseCompetitionTimeTakenToSeconds } from "../../util/time/timeUtil.js";
 
 const parseClockToMinutes = (rawValue) => {
@@ -437,6 +439,10 @@ const create_event_validation = {
     }),
 };
 
+const categoryFormatField = Joi.string()
+    .valid(EVENT_CATEGORY_FORMAT.STANDARD, EVENT_CATEGORY_FORMAT.CUSTOM)
+    .default(EVENT_CATEGORY_FORMAT.STANDARD);
+
 const create_club_event_validation = {
     body: Joi.object({
         header: Joi.string()
@@ -478,6 +484,9 @@ const create_club_event_validation = {
         status: Joi.string()
             .valid("coming_soon", "active", "cancelled", "completed")
             .optional(),
+
+        categoryFormat: categoryFormatField,
+        categorySource: categoryFormatField.optional(),
 
         skatingEventCategories: skatingEventCategoriesRequired,
     })
@@ -528,6 +537,9 @@ const create_district_event_validation = {
         status: Joi.string()
             .valid("coming_soon", "active", "cancelled", "completed")
             .optional(),
+
+        categoryFormat: categoryFormatField,
+        categorySource: categoryFormatField.optional(),
 
         skatingEventCategories: skatingEventCategoriesRequired,
     })
@@ -629,6 +641,10 @@ const update_event_validation = {
         colorOne: Joi.string().allow(""),
         colorTwo: Joi.string().allow(""),
         textColor: Joi.string().allow(""),
+
+        categoryFormat: categoryFormatField.optional(),
+        categorySource: categoryFormatField.optional(),
+        skatingEventCategories: skatingEventCategoryIds,
     })
 
 
@@ -636,6 +652,7 @@ const update_event_validation = {
 
 const categorySchema = Joi.object({
     name: Joi.string().trim().min(1).required(),
+    description: Joi.string().trim().allow("").optional(),
 });
 
 const ageGroupSchema = Joi.object({
@@ -643,10 +660,22 @@ const ageGroupSchema = Joi.object({
     categories: Joi.array().items(categorySchema).default([]),
 });
 
+const customCategoryNameItem = Joi.alternatives().try(
+    Joi.string().trim().min(1),
+    Joi.object({
+        name: Joi.string().trim().min(1).required(),
+    })
+);
+
 const create_event_category_validation = {
     body: Joi.object({
         typeName: Joi.string().trim().min(2).max(100).required(),
         ageGroups: Joi.array().items(ageGroupSchema).default([]),
+        categoryStatus: Joi.string()
+            .valid(CATEGORY_STATUS.STANDARD, CATEGORY_STATUS.CUSTOM)
+            .optional(),
+        clubId: Joi.string().trim().pattern(/^[0-9a-fA-F]{24}$/).optional(),
+        districtId: Joi.string().trim().pattern(/^[0-9a-fA-F]{24}$/).optional(),
     }),
 };
 
@@ -654,13 +683,29 @@ const update_event_category_validation = {
     body: Joi.object({
         typeName: Joi.string().trim().min(2).max(100),
         ageGroups: Joi.array().items(ageGroupSchema),
+        customCategoryNames: Joi.array().items(customCategoryNameItem).optional(),
+        names: Joi.array().items(Joi.string().trim().min(1)).optional(),
     }).min(1),
+};
+
+const upsert_org_custom_category_validation = {
+    body: Joi.object({
+        typeName: Joi.string().trim().min(2).max(100).optional(),
+        customCategoryNames: Joi.array().items(customCategoryNameItem).default([]),
+        names: Joi.array().items(Joi.string().trim().min(1)).optional(),
+    }),
 };
 
 const eventCategoryListQueryValidation = {
     query: Joi.object({
         page: Joi.number().integer().min(1).default(1),
         limit: Joi.number().integer().min(1).max(100).default(10),
+        categoryStatus: Joi.string()
+            .valid(CATEGORY_STATUS.STANDARD, CATEGORY_STATUS.CUSTOM)
+            .optional(),
+        ownerType: Joi.string().valid("club", "district").optional(),
+        clubId: Joi.string().trim().pattern(/^[0-9a-fA-F]{24}$/).optional(),
+        districtId: Joi.string().trim().pattern(/^[0-9a-fA-F]{24}$/).optional(),
     }),
 };
 
@@ -728,6 +773,7 @@ export {
     update_event_validation,
     create_event_category_validation,
     update_event_category_validation,
+    upsert_org_custom_category_validation,
     eventCategoryListQueryValidation,
     register_form_validation,
     // stateEventResultQueryValidation

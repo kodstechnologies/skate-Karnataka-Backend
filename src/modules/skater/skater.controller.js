@@ -93,15 +93,17 @@ const DeleteSkater = asyncHandler(async (req, res) => {
         );
 });
 
-const GetAllSkatingEventCategories = asyncHandler(async (_req, res) => {
-    const categories = await get_all_skating_event_categories_service();
+const GetAllSkatingEventCategories = asyncHandler(async (req, res) => {
+    const { getEventFormCategoriesService } = await import("../event/event.service.js");
+    const source = req.query?.source || "standard";
+    const categories = await getEventFormCategoriesService(req.user, source);
     return res
         .status(200)
         .json(new ApiResponse(200, categories, "Skating categories fetched successfully"));
 });
 
-const GetAllSkatingEventCategoriesFull = asyncHandler(async (_req, res) => {
-    const categories = await get_all_skating_event_categories_full_service();
+const GetAllSkatingEventCategoriesFull = asyncHandler(async (req, res) => {
+    const categories = await get_all_skating_event_categories_full_service(req.user);
     return res
         .status(200)
         .json(

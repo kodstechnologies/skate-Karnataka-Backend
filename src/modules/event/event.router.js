@@ -1,6 +1,6 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
-import { applyCertificationBySkater, approveCertification, rejectCertification, approveEventByAdmin, approveEventDeleteByAdmin, clubRelatedEventDisplay, competitionAllSkater, createClubEvent, create_event, delete_event, display_all_event_based_on_user, display_latest_event, displayAllPlayedEventBySkater, displayApplications, displayLiveEvents, displayAllEvents, displayEventById, displaySkaterEventFullDetails, displaySkaterEventFormCategoryDetails, displayCompetitionDetails, edit_event, createDistrictEvent, districtRelatedEventDisplay, givenPoint, rejectEventByAdmin, rejectEventDeleteByAdmin, stateEventResult, stateRelatedEventDisplay, stateEventSkatersSummary, updateStateSkaterTime, createStateEvent, createEventCategory, deleteEventCategory, getEventCategories, getEventCategoryById, updateEventCategory, createRegisterForm, getAllRegisterDetailsByUserId, getRegisterDetailsByEventId, getRegisterFormById, getRegisterFormByUserId } from "./event.controller.js";
+import { applyCertificationBySkater, approveCertification, rejectCertification, approveEventByAdmin, approveEventDeleteByAdmin, clubRelatedEventDisplay, competitionAllSkater, createClubEvent, create_event, delete_event, display_all_event_based_on_user, display_latest_event, displayAllPlayedEventBySkater, displayApplications, displayLiveEvents, displayAllEvents, displayEventById, displaySkaterEventFullDetails, displaySkaterEventFormCategoryDetails, displayCompetitionDetails, edit_event, createDistrictEvent, districtRelatedEventDisplay, givenPoint, rejectEventByAdmin, rejectEventDeleteByAdmin, stateEventResult, stateRelatedEventDisplay, stateEventSkatersSummary, updateStateSkaterTime, createStateEvent, createEventCategory, deleteEventCategory, getEventCategories, getOrgCustomEventCategory, getOrgCategoryContext, upsertOrgCustomEventCategory, getEventCategoryById, updateEventCategory, createRegisterForm, getAllRegisterDetailsByUserId, getRegisterDetailsByEventId, getRegisterFormById, getRegisterFormByUserId } from "./event.controller.js";
 import { validate } from "../../middleware/validate.multiple.js";
 import {
     create_event_category_validation,
@@ -18,6 +18,7 @@ import {
     stateEventListQueryValidation,
     stateEventSkatersListQueryValidation,
     update_event_category_validation,
+    upsert_org_custom_category_validation,
     update_event_validation,
     displayApplicationsQueryValidation,
     approveCertificationParamsValidation,
@@ -30,9 +31,11 @@ const router = express.Router();
 
 // ==================  categories display 
 
-router.get("/v1/category", 
-    //   authenticate(["Parent","Skater","Club","District","State", "Admin"]),
-    GetAllSkatingEventCategories);
+router.get(
+    "/v1/category",
+    authenticate(["Parent", "Skater", "Club", "District", "State", "Admin"]),
+    GetAllSkatingEventCategories
+);
 
 // Super-admin event approval (club & district create/delete)
 router.patch(
@@ -181,24 +184,55 @@ router.delete("/v1/:id", delete_event);
 // =================================== create event category 
 router.get(
     "/v1/event-categories",
-    authenticate(["State", "Admin"]),
+    authenticate(["Club", "District", "State", "Admin"]),
     validate(eventCategoryListQueryValidation),
     getEventCategories
 );
-router.get("/v1/event-categories/:id", authenticate(["State", "Admin"]), getEventCategoryById);
+router.get(
+    "/v1/event-categories/org-context",
+    authenticate(["Club", "District"]),
+    getOrgCategoryContext
+);
+router.get(
+    "/v1/event-categories/org-custom",
+    authenticate(["Club", "District"]),
+    getOrgCustomEventCategory
+);
+router.put(
+    "/v1/event-categories/org-custom",
+    authenticate(["Club", "District"]),
+    validate(upsert_org_custom_category_validation),
+    upsertOrgCustomEventCategory
+);
+/** Club/district: save override on one standard category (by category id + your club/district id). */
+router.patch(
+    "/v1/event-categories/:id/org-override",
+    authenticate(["Club", "District"]),
+    validate(update_event_category_validation),
+    updateEventCategory
+);
+router.get(
+    "/v1/event-categories/:id",
+    authenticate(["Club", "District", "State", "Admin"]),
+    getEventCategoryById
+);
 router.post(
     "/v1/event-categories",
-    authenticate(["State", "Admin"]),
+    authenticate(["Club", "District", "State", "Admin"]),
     validate(create_event_category_validation),
     createEventCategory
 );
 router.patch(
     "/v1/event-categories/:id",
-    authenticate(["State", "Admin"]),
+    authenticate(["Club", "District", "State", "Admin"]),
     validate(update_event_category_validation),
     updateEventCategory
 );
-router.delete("/v1/event-categories/:id", authenticate(["State", "Admin"]), deleteEventCategory);
+router.delete(
+    "/v1/event-categories/:id",
+    authenticate(["Club", "District", "State", "Admin"]),
+    deleteEventCategory
+);
 
 // ======================= skater event 
 

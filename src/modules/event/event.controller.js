@@ -37,6 +37,9 @@ import {
   getAllEventCategoriesService,
   getAllRegisterDetailsByUserIdService,
   getEventCategoryByIdService,
+  getOrgCustomEventCategoryService,
+  getOrgCategoryContextService,
+  upsertOrgCustomEventCategoryService,
   getRegisterDetailsByEventIdService,
   getRegisterFormByIdService,
   getRegisterFormByUserIdService,
@@ -300,7 +303,6 @@ export const createStateEvent = asyncHandler(async (req, res) => {
 
 // =====================================
 const display_all_event_based_on_user = asyncHandler(async (req, res) => {
-    console.log("jjjj")
     const userId = req.user._id; // assuming auth middleware
     const { page, limit } = req.query;
 
@@ -427,7 +429,7 @@ export const displaySkaterEventFormCategoryDetails = asyncHandler(async (req, re
 
 export const getEventCategories = asyncHandler(async (req, res) => {
     const { page = 1, limit = 10 } = req.query;
-    const categories = await getAllEventCategoriesService({ page, limit });
+    const categories = await getAllEventCategoriesService({ page, limit }, req.user);
     return res
         .status(200)
         .json(
@@ -447,29 +449,50 @@ export const getEventCategories = asyncHandler(async (req, res) => {
         );
 });
 
+export const getOrgCustomEventCategory = asyncHandler(async (req, res) => {
+    const category = await getOrgCustomEventCategoryService(req.user);
+    return res.status(200).json(
+        new ApiResponse(200, category, "Org custom event categories fetched successfully")
+    );
+});
+
+export const getOrgCategoryContext = asyncHandler(async (req, res) => {
+    const context = await getOrgCategoryContextService(req.user);
+    return res.status(200).json(
+        new ApiResponse(200, context, "Org category context fetched successfully")
+    );
+});
+
+export const upsertOrgCustomEventCategory = asyncHandler(async (req, res) => {
+    const category = await upsertOrgCustomEventCategoryService(req.body, req.user);
+    return res.status(200).json(
+        new ApiResponse(200, category, "Org custom event categories saved successfully")
+    );
+});
+
 export const getEventCategoryById = asyncHandler(async (req, res) => {
-    const category = await getEventCategoryByIdService(req.params.id);
+    const category = await getEventCategoryByIdService(req.params.id, req.user);
     return res
         .status(200)
         .json(new ApiResponse(200, category, "Event category fetched successfully"));
 });
 
 export const createEventCategory = asyncHandler(async (req, res) => {
-    const category = await createEventCategoryService(req.body);
+    const category = await createEventCategoryService(req.body, req.user);
     return res
         .status(201)
         .json(new ApiResponse(201, category, "Event category created successfully"));
 });
 
 export const updateEventCategory = asyncHandler(async (req, res) => {
-    const category = await updateEventCategoryService(req.params.id, req.body);
+    const category = await updateEventCategoryService(req.params.id, req.body, req.user);
     return res
         .status(200)
         .json(new ApiResponse(200, category, "Event category updated successfully"));
 });
 
 export const deleteEventCategory = asyncHandler(async (req, res) => {
-    await deleteEventCategoryService(req.params.id);
+    await deleteEventCategoryService(req.params.id, req.user);
     return res
         .status(200)
         .json(new ApiResponse(200, null, "Event category deleted successfully"));

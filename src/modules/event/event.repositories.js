@@ -1,5 +1,18 @@
 import { Event } from "./event.model.js";
 import SkatingEventCategory from "./SkatingEventCategory.model.js";
+import {
+  buildVisibleCategoriesFilter,
+  CATEGORY_STATUS,
+  legacyStandardCategoryClause,
+} from "./skatingEventCategory.policy.js";
+import {
+  buildOverridePayloadFromInput,
+  extractCustomNamesFromDoc,
+  getDistrictOverrideFromStandardDoc,
+  getClubOverrideFromStandardDoc,
+  mergeStandardWithOrgOverride,
+  resolveSkatingCategoriesForEvent,
+} from "./skatingEventCategory.sync.js";
 import { EventParticipant } from "./eventParticipant.model.js";
 import { GeneratedCertificate } from "../certificate/generatedCertificate.model.js";
 import { paginate, calcTotalPages } from "../../util/common/paginate.js";
@@ -7,12 +20,15 @@ import {
   approvedPublicEventFilter,
   EVENT_ADMIN_APPROVAL,
   EVENT_DELETE_APPROVAL,
+  isEventPubliclyVisible,
+  skaterListableEventsFilter,
   requiresAdminApprovalOnCreate,
 } from "./eventApprovalPolicy.js";
 import { BaseAuth } from "../auth/baseAuth.model.js";
 import { Skater } from "../skater/skater.model.js";
 import { Club } from "../club/club.model.js";
 import { District } from "../district/district.model.js";
+import { resolveDistrictOwnerIdRepositories } from "../gallery/gallery.repositories.js";
 import { State } from "../state/state.model.js";
 import mongoose from "mongoose";
 import {
@@ -89,24 +105,122 @@ export const resolveSkaterEventScope = async (userId) => {
   };
 };
 
-const buildSkaterVisibleEventsOrClause = ({ clubId, districtId }) => {
+const toObjectId = (id) => {
+  if (!id || !mongoose.Types.ObjectId.isValid(String(id))) {
+    return null;
+  }
+  return new mongoose.Types.ObjectId(String(id));
+};
+
+/** Org events may reference org doc _id or legacy auth member _id on that org. */
+const buildOrgEventForMatch = (primaryId, memberIds = []) => {
+  const ids = new Set();
+  const primaryOid = toObjectId(primaryId);
+  if (primaryOid) {
+    ids.add(String(primaryOid));
+  }
+  for (const memberId of memberIds) {
+    const oid = toObjectId(memberId);
+    if (oid) {
+      ids.add(String(oid));
+    }
+  }
+
+  const objectIds = [...ids].map((id) => new mongoose.Types.ObjectId(id));
+  if (!objectIds.length) {
+    return null;
+  }
+  if (objectIds.length === 1) {
+    return objectIds[0];
+  }
+  return { $in: objectIds };
+};
+
+const buildSkaterVisibleEventsOrClause = ({
+  clubId,
+  districtId,
+  districtMemberIds = [],
+  clubMemberIds = [],
+}) => {
   const clauses = [{ eventType: "State" }];
 
-  if (districtId) {
+  const districtEventFor = buildOrgEventForMatch(districtId, districtMemberIds);
+  if (districtEventFor) {
     clauses.push({
       eventType: "District",
-      eventFor: new mongoose.Types.ObjectId(String(districtId)),
+      eventFor: districtEventFor,
     });
   }
 
-  if (clubId) {
+  const clubEventFor = buildOrgEventForMatch(clubId, clubMemberIds);
+  if (clubEventFor) {
     clauses.push({
       eventType: "Club",
-      eventFor: new mongoose.Types.ObjectId(String(clubId)),
+      eventFor: clubEventFor,
     });
   }
 
   return clauses;
+};
+
+const loadDistrictMemberIds = async (districtId) => {
+  if (!districtId) {
+    return [];
+  }
+  const district = await District.findById(districtId).select("members").lean();
+  return (district?.members || []).map((id) => String(id));
+};
+
+const loadClubMemberIds = async (clubId) => {
+  if (!clubId) {
+    return [];
+  }
+  const club = await Club.findById(clubId).select("members").lean();
+  return (club?.members || []).map((id) => String(id));
+};
+
+/**
+ * Events store standard SkatingEventCategory ids; skater.category may be another
+ * document id with the same typeName — match all peer category ids.
+ */
+const buildSkaterCategoryMatchClause = async (skaterCategoryId) => {
+  const skaterOid = toObjectId(skaterCategoryId);
+  if (!skaterOid) {
+    return null;
+  }
+
+  const idSet = new Set([String(skaterOid)]);
+  const skaterCat = await SkatingEventCategory.findById(skaterOid)
+    .select("typeName")
+    .lean();
+
+  const typeName = String(skaterCat?.typeName || "").trim();
+  if (typeName) {
+    const peers = await SkatingEventCategory.find({
+      typeName: { $regex: new RegExp(`^${typeName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
+    })
+      .select("_id")
+      .lean();
+
+    for (const peer of peers) {
+      idSet.add(String(peer._id));
+    }
+  }
+
+  const objectIds = [...idSet].map((id) => new mongoose.Types.ObjectId(id));
+  return { skatingEventCategories: { $in: objectIds } };
+};
+
+const skaterOwnsDistrictEvent = (event, districtId, districtMemberIds = []) => {
+  const ownerRaw = event.eventFor?._id ?? event.eventFor;
+  const ownerId = ownerRaw != null ? String(ownerRaw) : null;
+  if (!ownerId || !districtId) {
+    return false;
+  }
+  if (ownerId === String(districtId)) {
+    return true;
+  }
+  return districtMemberIds.some((memberId) => ownerId === String(memberId));
 };
 
 const displayAllEventRepository = async ({ page, limit }) => {
@@ -131,16 +245,28 @@ const displayAllEventRepository = async ({ page, limit }) => {
   };
 };
 
-export const getAllEventCategoriesRepository = async ({ page, limit }) => {
+export const getVisibleSkatingEventCategoriesRepository = async ({ clubId, districtId } = {}) => {
+  const filter = buildVisibleCategoriesFilter({ clubId, districtId });
+  return SkatingEventCategory.find(filter).sort({ typeName: 1, createdAt: -1 }).lean();
+};
+
+/** All standard (super admin) skating event category documents. */
+export const listStandardSkatingEventCategoriesRepository = async () => {
+  return SkatingEventCategory.find(legacyStandardCategoryClause())
+    .sort({ typeName: 1, createdAt: -1 })
+    .lean();
+};
+
+export const getAllEventCategoriesRepository = async ({ page, limit, filter = {} }) => {
   const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
 
-  const data = await SkatingEventCategory.find()
+  const data = await SkatingEventCategory.find(filter)
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(pageLimit)
     .lean();
 
-  const total = await SkatingEventCategory.countDocuments();
+  const total = await SkatingEventCategory.countDocuments(filter);
 
   return {
     total,
@@ -168,6 +294,191 @@ export const updateEventCategoryRepository = async (id, payload) => {
 
 export const deleteEventCategoryRepository = async (id) => {
   return await SkatingEventCategory.findByIdAndDelete(id).lean();
+};
+
+export const findOrgCustomCategoryRepository = async ({ clubId, districtId } = {}) => {
+  const filter = { categoryStatus: CATEGORY_STATUS.CUSTOM };
+
+  if (clubId) {
+    filter.club = clubId;
+  } else if (districtId) {
+    filter.district = districtId;
+  } else {
+    return null;
+  }
+
+  return SkatingEventCategory.findOne(filter).lean();
+};
+
+export const upsertClubOverrideOnCategoryRepository = async (categoryId, clubId, input = {}) => {
+  const payload = buildOverridePayloadFromInput(input);
+  const doc = await SkatingEventCategory.findById(categoryId);
+  if (!doc) {
+    throw new AppError("Event category not found", 404);
+  }
+
+  const entry = {
+    club: clubId,
+    typeName: payload.typeName,
+    customCategoryNames: payload.customCategoryNames,
+    ageGroups: payload.ageGroups,
+  };
+
+  const idx = (doc.clubOverrides || []).findIndex((row) => String(row.club) === String(clubId));
+
+  if (idx >= 0) {
+    Object.assign(doc.clubOverrides[idx], entry);
+  } else {
+    doc.clubOverrides.push(entry);
+  }
+
+  await doc.save();
+  return doc.toObject();
+};
+
+export const upsertDistrictOverrideOnCategoryRepository = async (
+  categoryId,
+  districtId,
+  input = {}
+) => {
+  const payload = buildOverridePayloadFromInput(input);
+  const doc = await SkatingEventCategory.findById(categoryId);
+  if (!doc) {
+    throw new AppError("Event category not found", 404);
+  }
+
+  const entry = {
+    district: districtId,
+    typeName: payload.typeName,
+    customCategoryNames: payload.customCategoryNames,
+    ageGroups: payload.ageGroups,
+  };
+
+  const idx = (doc.districtOverrides || []).findIndex(
+    (row) => String(row.district) === String(districtId)
+  );
+
+  if (idx >= 0) {
+    Object.assign(doc.districtOverrides[idx], entry);
+  } else {
+    doc.districtOverrides.push(entry);
+  }
+
+  await doc.save();
+  return doc.toObject();
+};
+
+/** Save org custom names into districtOverrides / clubOverrides on every standard category. */
+export const syncOrgOverrideToAllStandardsRepository = async ({
+  clubId = null,
+  districtId = null,
+  typeName,
+  customCategoryNames = [],
+}) => {
+  const standards = await listStandardSkatingEventCategoriesRepository();
+  if (!standards.length) {
+    throw new AppError("No standard event categories exist yet. Ask super admin to create them.", 400);
+  }
+
+  const input = {
+    typeName:
+      typeName?.trim() ||
+      (clubId ? "Club custom categories" : "District custom categories"),
+    customCategoryNames,
+  };
+
+  const updated = [];
+  for (const cat of standards) {
+    if (clubId) {
+      updated.push(await upsertClubOverrideOnCategoryRepository(cat._id, clubId, input));
+    } else if (districtId) {
+      updated.push(await upsertDistrictOverrideOnCategoryRepository(cat._id, districtId, input));
+    }
+  }
+
+  return updated[updated.length - 1];
+};
+
+export const deleteLegacyOrgCustomCategoryRepository = async ({ clubId, districtId } = {}) => {
+  const filter = { categoryStatus: CATEGORY_STATUS.CUSTOM };
+  if (clubId) {
+    filter.club = clubId;
+  } else if (districtId) {
+    filter.district = districtId;
+  } else {
+    return null;
+  }
+
+  return SkatingEventCategory.findOneAndDelete(filter).lean();
+};
+
+/** Summary for org-custom API from embedded overrides (first standard) or legacy custom doc. */
+export const findOrgOverrideSummaryRepository = async ({ clubId, districtId } = {}) => {
+  const standards = await listStandardSkatingEventCategoriesRepository();
+
+  if (standards.length) {
+    const first = standards[0];
+    const override = clubId
+      ? getClubOverrideFromStandardDoc(first, clubId)
+      : getDistrictOverrideFromStandardDoc(first, districtId);
+
+    const names = extractCustomNamesFromDoc(override);
+    if (override && names.length) {
+      return {
+        _id: first._id,
+        categoryStatus: CATEGORY_STATUS.STANDARD,
+        typeName: override.typeName?.trim() || first.typeName,
+        customCategoryNames: override.customCategoryNames,
+        ageGroups: override.ageGroups,
+        club: clubId || null,
+        district: districtId || null,
+        _fromEmbeddedOverride: true,
+      };
+    }
+  }
+
+  return findOrgCustomCategoryRepository({ clubId, districtId });
+};
+
+export const orgHasEmbeddedOverridesRepository = async ({ clubId, districtId } = {}) => {
+  const standards = await listStandardSkatingEventCategoriesRepository();
+
+  return standards.some((cat) => {
+    const override = clubId
+      ? getClubOverrideFromStandardDoc(cat, clubId)
+      : getDistrictOverrideFromStandardDoc(cat, districtId);
+    return extractCustomNamesFromDoc(override).length > 0;
+  });
+};
+
+export const listMergedStandardCategoriesForOrgRepository = async ({
+  clubId = null,
+  districtId = null,
+} = {}) => {
+  const standards = await listStandardSkatingEventCategoriesRepository();
+  return standards.map((cat) => mergeStandardWithOrgOverride(cat, { clubId, districtId }));
+};
+
+export const upsertOrgCustomCategoryRepository = async ({
+  clubId = null,
+  districtId = null,
+  typeName,
+  customCategoryNames = [],
+}) => {
+  const doc = await syncOrgOverrideToAllStandardsRepository({
+    clubId,
+    districtId,
+    typeName,
+    customCategoryNames,
+  });
+
+  await deleteLegacyOrgCustomCategoryRepository({ clubId, districtId });
+
+  const summary = await findOrgOverrideSummaryRepository({ clubId, districtId });
+  return {
+    ...(summary || doc),
+    customCategoryNames: extractCustomNamesFromDoc(summary || doc),
+  };
 };
 
 export const getRegisterFormByUserIdRepository = async (userId) => {
@@ -1903,13 +2214,12 @@ export const districtRelatedEventDisplayRepositories = async (districtUserId, { 
 };
 
 export const createDistrictEventRepositories = async (districtAuthUserId, data) => {
-  const districtUser = await BaseAuth.findById(districtAuthUserId).select("district").lean();
-  const districtId = districtUser?.district || districtAuthUserId;
+  const districtId = await resolveDistrictOwnerIdRepositories({ _id: districtAuthUserId });
 
   const payload = {
     ...data,
     eventType: "District",
-    eventFor: new mongoose.Types.ObjectId(districtId),
+    eventFor: new mongoose.Types.ObjectId(String(districtId)),
     adminApprovalStatus: EVENT_ADMIN_APPROVAL.PENDING,
   };
 
@@ -2250,7 +2560,8 @@ const fetchEventLeanIfSkaterAccessible = async (eventId, skaterUserId, select) =
   if (event.eventType === "State") {
     // All state events (including admin-created) are visible to every skater.
   } else if (event.eventType === "District") {
-    if (!districtId || ownerId !== String(districtId)) {
+    const districtMemberIds = await loadDistrictMemberIds(districtId);
+    if (!skaterOwnsDistrictEvent(event, districtId, districtMemberIds)) {
       return null;
     }
   } else if (event.eventType === "Club") {
@@ -2258,6 +2569,10 @@ const fetchEventLeanIfSkaterAccessible = async (eventId, skaterUserId, select) =
       return null;
     }
   } else {
+    return null;
+  }
+
+  if (!isEventPubliclyVisible(event)) {
     return null;
   }
 
@@ -2324,7 +2639,7 @@ export const getSkaterEventFormCategoryDetailsRepository = async (eventId, skate
   const event = await fetchEventLeanIfSkaterAccessible(
     eventId,
     skaterUserId,
-    "skatingEventCategories eventType eventFor header entryFee"
+    "skatingEventCategories categoryFormat eventType eventFor header entryFee"
   );
   if (!event) {
     return null;
@@ -2362,9 +2677,10 @@ export const getSkaterEventFormCategoryDetailsRepository = async (eventId, skate
     const objectIds = orderedIds.map((id) => new mongoose.Types.ObjectId(id));
     const docs = await SkatingEventCategory.find({ _id: { $in: objectIds } }).lean();
     const byId = new Map(docs.map((doc) => [String(doc._id), doc]));
-    skatingEventCategories = orderedIds
-      .map((id) => byId.get(id))
-      .filter(Boolean);
+    skatingEventCategories = resolveSkatingCategoriesForEvent(
+      event,
+      orderedIds.map((id) => byId.get(id)).filter(Boolean)
+    );
   }
 
   let category = null;
@@ -2390,7 +2706,7 @@ export const getSkaterEventFormCategoryDetailsRepository = async (eventId, skate
  */
 export const getEventSkatingEventCategoriesFullRepository = async (eventId) => {
   const event = await Event.findById(eventId)
-    .select("header skatingEventCategories eventType")
+    .select("header skatingEventCategories categoryFormat eventType eventFor")
     .lean();
   if (!event) {
     return null;
@@ -2405,13 +2721,17 @@ export const getEventSkatingEventCategoriesFullRepository = async (eventId) => {
     const objectIds = orderedIds.map((id) => new mongoose.Types.ObjectId(id));
     const docs = await SkatingEventCategory.find({ _id: { $in: objectIds } }).lean();
     const byId = new Map(docs.map((doc) => [String(doc._id), doc]));
-    skatingEventCategories = orderedIds.map((id) => byId.get(id)).filter(Boolean);
+    skatingEventCategories = resolveSkatingCategoriesForEvent(
+      event,
+      orderedIds.map((id) => byId.get(id)).filter(Boolean)
+    );
   }
 
   return {
     eventId: event._id,
     eventName: event.header ?? "",
     eventType: event.eventType ?? "",
+    categoryFormat: event.categoryFormat ?? "standard",
     skatingEventCategories,
   };
 };
@@ -2431,15 +2751,23 @@ const display_latest_event_repositories = async (userId) => {
     return null;
   }
 
-  const now = new Date();
-  const startOfToday = new Date(now);
-  startOfToday.setHours(0, 0, 0, 0);
+  const { clubId, districtId } = scope;
+  const [districtMemberIds, clubMemberIds] = await Promise.all([
+    loadDistrictMemberIds(districtId),
+    loadClubMemberIds(clubId),
+  ]);
 
   const query = {
     $and: [
-      { $or: buildSkaterVisibleEventsOrClause(scope) },
-      approvedPublicEventFilter(),
-      { registerEndDate: { $gte: startOfToday } },
+      {
+        $or: buildSkaterVisibleEventsOrClause({
+          clubId,
+          districtId,
+          districtMemberIds,
+          clubMemberIds,
+        }),
+      },
+      skaterListableEventsFilter(),
     ],
   };
 
@@ -2614,41 +2942,56 @@ const display_all_event_based_on_user_repositories = async (userId, { page, limi
   if (!scope) {
     throw new Error("User not found");
   }
-
   const { skaterCategory, clubId, districtId } = scope;
 
   const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
 
-  if (!skaterCategory) {
-    return {
-      total: 0,
-      page: currentPage,
-      limit: pageLimit,
-      totalPages: 0,
-      data: [],
-    };
+  const [districtMemberIds, clubMemberIds] = await Promise.all([
+    loadDistrictMemberIds(districtId),
+    loadClubMemberIds(clubId),
+  ]);
+
+  const andClauses = [
+    {
+      $or: buildSkaterVisibleEventsOrClause({
+        clubId,
+        districtId,
+        districtMemberIds,
+        clubMemberIds,
+      }),
+    },
+    skaterListableEventsFilter(),
+  ];
+
+  const categoryClause = await buildSkaterCategoryMatchClause(skaterCategory);
+  if (categoryClause) {
+    andClauses.push(categoryClause);
   }
 
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
+  let query = { $and: andClauses };
 
-  const query = {
-    $and: [
-      { $or: buildSkaterVisibleEventsOrClause({ clubId, districtId }) },
-      approvedPublicEventFilter(),
-      { skatingEventCategories: skaterCategory },
-      { registerEndDate: { $gte: startOfToday } },
-    ],
-  };
-
-  const events = await Event.find(query)
+  let total = await Event.countDocuments(query);
+  let events = await Event.find(query)
     .select(EVENT_CARD_LIST_PROJECTION)
     .sort({ eventStartDate: 1 })
     .skip(skip)
     .limit(pageLimit)
     .lean();
 
-  const total = await Event.countDocuments(query);
+  // If typeName/id mismatch blocked results, list approved open events in scope anyway.
+  if (total === 0 && categoryClause) {
+    const queryWithoutCategory = {
+      $and: andClauses.filter((clause) => !clause.skatingEventCategories),
+    };
+    total = await Event.countDocuments(queryWithoutCategory);
+    events = await Event.find(queryWithoutCategory)
+      .select(EVENT_CARD_LIST_PROJECTION)
+      .sort({ eventStartDate: 1 })
+      .skip(skip)
+      .limit(pageLimit)
+      .lean();
+    query = queryWithoutCategory;
+  }
 
   const enriched = await enrichLeanEventsSkatingCategoryNames(events);
 
@@ -2671,7 +3014,6 @@ const display_all_event_based_on_user_repositories = async (userId, { page, limi
     ...toEventCardListItem(ev),
     isRegister: paidEventIdSet.has(String(ev._id)),
   }));
-
   return {
     total,
     page: currentPage,

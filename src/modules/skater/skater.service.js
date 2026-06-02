@@ -29,8 +29,9 @@ const get_all_skating_event_categories_service = async () => {
     return await get_all_skating_event_categories_repositories();
 };
 
-const get_all_skating_event_categories_full_service = async () => {
-    return await get_all_skating_event_categories_full_repositories();
+const get_all_skating_event_categories_full_service = async (user) => {
+    const { getVisibleSkatingEventCategoriesService } = await import("../event/event.service.js");
+    return getVisibleSkatingEventCategoriesService(user);
 };
 
 const get_all_discipline_service = async () => {

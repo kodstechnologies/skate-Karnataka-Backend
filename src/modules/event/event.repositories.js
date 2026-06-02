@@ -272,7 +272,7 @@ export const getVisibleSkatingEventCategoriesRepository = async ({ clubId, distr
 
 /** All standard (super admin) skating event category documents. */
 export const listStandardSkatingEventCategoriesRepository = async () => {
-  return SkatingEventCategory.find(legacyStandardCategoryClause())
+  return SkatingEventCategory.find(legacyStandardCategoryClause(), { _id: 1, typeName: 1 })
     .sort({ typeName: 1, createdAt: -1 })
     .lean();
 };

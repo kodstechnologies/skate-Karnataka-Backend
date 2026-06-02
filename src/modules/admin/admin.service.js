@@ -44,6 +44,7 @@ import {
   findDistrictByMainMemberId,
   getAllSkatersForAdmin,
   getSkaterFullDetailsByIdForAdmin,
+  updateSkaterByIdForAdmin,
   updateDistrictByIdForAdmin,
   updateDistrictMemberById,
   updateClubByIdForAdmin,
@@ -689,4 +690,18 @@ export const getSkaterFullDetailsByAdminService = async (skaterId) => {
   }
 
   return skater;
+};
+
+export const updateSkaterByAdminService = async (skaterId, payload) => {
+  const existing = await getSkaterFullDetailsByIdForAdmin(skaterId);
+  if (!existing) {
+    throw new AppError("Skater not found", 404);
+  }
+
+  const updated = await updateSkaterByIdForAdmin(skaterId, payload);
+  if (!updated) {
+    throw new AppError("Skater not found", 404);
+  }
+
+  return updated;
 };

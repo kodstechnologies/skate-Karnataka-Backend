@@ -313,3 +313,36 @@ export const skaterByAdminIdValidation = {
     }),
   }),
 };
+
+export const updateSkaterByAdminValidation = {
+  params: skaterByAdminIdValidation.params,
+  body: Joi.object({
+    fullName: Joi.string().trim().min(3).max(50).optional(),
+    phone: Joi.string()
+      .trim()
+      .pattern(/^[6-9]\d{9}$/)
+      .optional()
+      .messages({
+        "string.pattern.base": "Invalid Indian phone number",
+      }),
+    email: Joi.string().trim().email().lowercase().allow("").optional(),
+    gender: Joi.string().trim().lowercase().valid("male", "female", "other", "").optional(),
+    address: Joi.string().trim().max(200).allow("").optional(),
+    countryCode: Joi.string().trim().allow("").optional(),
+    rsfiId: Joi.string().trim().max(50).allow("").optional(),
+    dob: Joi.alternatives().try(Joi.date().iso(), Joi.string().trim().allow("")).optional(),
+    aadharNumber: Joi.string()
+      .trim()
+      .pattern(/^\d{12}$/)
+      .allow("")
+      .optional()
+      .messages({
+        "string.pattern.base": "Aadhaar must be 12 digits",
+      }),
+    parent: Joi.string().trim().max(100).allow("").optional(),
+    bloodGroup: Joi.string().trim().uppercase().max(5).allow("").optional(),
+    school: Joi.string().trim().max(120).allow("").optional(),
+    grade: Joi.string().trim().max(40).allow("").optional(),
+    signature: Joi.string().trim().max(500).allow("").optional(),
+  }).min(1),
+};

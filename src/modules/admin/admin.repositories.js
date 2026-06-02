@@ -5,6 +5,7 @@ import { BaseAuth } from "../auth/baseAuth.model.js";
 import { DistrictMember } from "../district/districtMember.model.js";
 import { Club } from "../club/club.model.js";
 import { ClubMember } from "../club/clubMember.model.js";
+import { Skater } from "../skater/skater.model.js";
 import { calcTotalPages } from "../../util/common/paginate.js";
 
 export const findAdminByEmail = async (email) => {
@@ -778,4 +779,38 @@ export const getSkaterFullDetailsByIdForAdmin = async (skaterId) => {
     districtName: district?.name || "",
     districtDetails: district,
   };
+};
+
+export const updateSkaterByIdForAdmin = async (skaterId, payload) => {
+  const normalizedPayload = { ...payload };
+
+  if (normalizedPayload.email) {
+    normalizedPayload.email = normalizedPayload.email.toLowerCase().trim();
+  }
+
+  if (normalizedPayload.dob === "" || normalizedPayload.dob == null) {
+    delete normalizedPayload.dob;
+  } else if (normalizedPayload.dob) {
+    normalizedPayload.dob = new Date(normalizedPayload.dob);
+  }
+
+  if (normalizedPayload.bloodGroup) {
+    normalizedPayload.bloodGroup = String(normalizedPayload.bloodGroup).trim().toUpperCase();
+  }
+
+  if (normalizedPayload.aadharNumber === "") {
+    normalizedPayload.aadharNumber = undefined;
+  }
+
+  const updated = await Skater.findOneAndUpdate(
+    { _id: skaterId, role: "Skater" },
+    { $set: normalizedPayload },
+    { new: true, runValidators: true }
+  ).lean();
+
+  if (!updated) {
+    return null;
+  }
+
+  return getSkaterFullDetailsByIdForAdmin(skaterId);
 };

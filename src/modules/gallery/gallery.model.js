@@ -29,7 +29,19 @@ const gallerySchema = new mongoose.Schema(
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
       required: true,
-      ref: "BaseAuth",
+    },
+
+    /** Club/district: pending until Admin/State approves; state/admin uploads are approved. */
+    adminApprovalStatus: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "approved",
+    },
+
+    deleteApprovalStatus: {
+      type: String,
+      enum: ["pending"],
+      default: null,
     },
     // onlyStat:{
     //   type: boolean,

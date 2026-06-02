@@ -32,6 +32,7 @@ import {
   adminVerifyOtpForPasswordService,
   getAllSkatersByAdminService,
   getSkaterFullDetailsByAdminService,
+  updateSkaterByAdminService,
 } from "./admin.service.js";
 
 export const adminLogin = asyncHandler(async (req, res) => {
@@ -313,4 +314,12 @@ export const getSkaterFullDetailsByAdmin = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, result, "Skater details fetched successfully"));
+});
+
+export const updateSkaterByAdmin = asyncHandler(async (req, res) => {
+  const result = await updateSkaterByAdminService(req.params.id, req.body);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, result, "Skater updated successfully"));
 });

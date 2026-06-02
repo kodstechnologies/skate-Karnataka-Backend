@@ -16,6 +16,7 @@ import { Club } from "../club/club.model.js";
 import { Skater } from "../skater/skater.model.js";
 import mongoose from "mongoose";
 import { Gallery } from "../gallery/gallery.model.js";
+import { approvedPublicMediaFilter } from "../gallery/galleryApprovalPolicy.js";
 
 const isGuestRole = (role) => {
     const normalized = String(role ?? "").trim().toLowerCase();
@@ -299,12 +300,15 @@ export const displayStateEventDetailsWithPodiumRepositories = async (eventId) =>
 };
 export const displayGuestStateMediaRepositories = async ({ page, limit }) => {
     const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
-
     const query = {
-        ownerType: { $in: ["state", "admin"] },
-        $or: [
-            { imageUrl: { $nin: [null, ""] } },
-            { videoUrl: { $nin: [null, ""] } },
+        $and: [
+            approvedPublicMediaFilter(),
+            {
+                $or: [
+                    { imageUrl: { $nin: [null, ""] } },
+                    { videoUrl: { $nin: [null, ""] } },
+                ],
+            },
         ],
     };
 
@@ -340,7 +344,10 @@ export const displayGuestStateMediaRepositories = async ({ page, limit }) => {
 };
 
 export const displayGuestStateMediaDetailsRepositories = async (id) => {
-    return Gallery.findOne({ _id: id, ownerType: {$in : ["state","admin"]} })
+    return Gallery.findOne({
+        _id: id,
+        ...approvedPublicMediaFilter(),
+    })
         .select("_id imageUrl videoUrl title about ownerType createdAt")
         .lean();
 };

@@ -1161,15 +1161,9 @@ export const displaySkaterEventFullDetailsService = async (eventId, skaterUserId
 };
 
 export const displaySkaterEventFormCategoryDetailsService = async (eventId, skaterUserId) => {
-    const eventMeta = await Event.findById(eventId)
-        .select("eventType adminApprovalStatus deleteApprovalStatus")
-        .lean();
-    if (!eventMeta || !isEventPubliclyVisible(eventMeta)) {
-        throw new AppError("Event not found", 404);
-    }
     const result = await getSkaterEventFormCategoryDetailsRepository(eventId, skaterUserId);
     if (!result) {
-        throw new AppError("Event not found", 404);
+        throw new AppError("Event not found or not available for registration", 404);
     }
     return result;
 };

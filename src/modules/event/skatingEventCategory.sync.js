@@ -137,11 +137,16 @@ export const resolveSkatingCategoriesForEvent = (event, docs = []) => {
     }));
   }
 
+  const eventForId =
+    event?.eventFor && typeof event.eventFor === "object" && event.eventFor._id
+      ? event.eventFor._id
+      : event?.eventFor;
+
   const scope =
     event?.eventType === "Club"
-      ? { clubId: event.eventFor }
+      ? { clubId: eventForId }
       : event?.eventType === "District"
-        ? { districtId: event.eventFor }
+        ? { districtId: eventForId }
         : {};
 
   return list.map((doc) => mergeStandardWithOrgOverride(doc, scope));

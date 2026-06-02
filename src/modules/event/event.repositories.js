@@ -211,16 +211,36 @@ const buildSkaterCategoryMatchClause = async (skaterCategoryId) => {
   return { skatingEventCategories: { $in: objectIds } };
 };
 
+const resolveEventForDocId = (eventFor) => {
+  if (!eventFor) {
+    return null;
+  }
+  if (typeof eventFor === "object" && eventFor._id) {
+    return eventFor._id;
+  }
+  return eventFor;
+};
+
 const skaterOwnsDistrictEvent = (event, districtId, districtMemberIds = []) => {
-  const ownerRaw = event.eventFor?._id ?? event.eventFor;
-  const ownerId = ownerRaw != null ? String(ownerRaw) : null;
+  const ownerId = resolveEventForDocId(event.eventFor);
   if (!ownerId || !districtId) {
     return false;
   }
-  if (ownerId === String(districtId)) {
+  if (String(ownerId) === String(districtId)) {
     return true;
   }
-  return districtMemberIds.some((memberId) => ownerId === String(memberId));
+  return districtMemberIds.some((memberId) => String(ownerId) === String(memberId));
+};
+
+const skaterOwnsClubEvent = (event, clubId, clubMemberIds = []) => {
+  const ownerId = resolveEventForDocId(event.eventFor);
+  if (!ownerId || !clubId) {
+    return false;
+  }
+  if (String(ownerId) === String(clubId)) {
+    return true;
+  }
+  return clubMemberIds.some((memberId) => String(ownerId) === String(memberId));
 };
 
 const displayAllEventRepository = async ({ page, limit }) => {
@@ -2544,28 +2564,29 @@ const fetchEventLeanIfSkaterAccessible = async (eventId, skaterUserId, select) =
     return null;
   }
 
-  let q = Event.findById(rawId).populate("eventFor", "name");
-  if (select) {
-    q = q.select(select);
-  }
-  const event = await q.lean();
+  const baseSelect =
+    "eventType eventFor adminApprovalStatus deleteApprovalStatus registerEndDate categoryFormat";
+  const mergedSelect = select ? `${baseSelect} ${select}` : baseSelect;
+
+  const event = await Event.findById(rawId).select(mergedSelect).lean();
 
   if (!event) {
     return null;
   }
 
-  const ownerRaw = event.eventFor?._id ?? event.eventFor;
-  const ownerId = ownerRaw != null ? String(ownerRaw) : null;
+  const [districtMemberIds, clubMemberIds] = await Promise.all([
+    loadDistrictMemberIds(districtId),
+    loadClubMemberIds(clubId),
+  ]);
 
   if (event.eventType === "State") {
     // All state events (including admin-created) are visible to every skater.
   } else if (event.eventType === "District") {
-    const districtMemberIds = await loadDistrictMemberIds(districtId);
     if (!skaterOwnsDistrictEvent(event, districtId, districtMemberIds)) {
       return null;
     }
   } else if (event.eventType === "Club") {
-    if (!clubId || ownerId !== String(clubId)) {
+    if (!skaterOwnsClubEvent(event, clubId, clubMemberIds)) {
       return null;
     }
   } else {
@@ -2576,6 +2597,18 @@ const fetchEventLeanIfSkaterAccessible = async (eventId, skaterUserId, select) =
     return null;
   }
 
+  return event;
+};
+
+/** Same as fetchEventLeanIfSkaterAccessible plus registration must still be open. */
+const fetchEventLeanIfSkaterCanRegister = async (eventId, skaterUserId, select) => {
+  const event = await fetchEventLeanIfSkaterAccessible(eventId, skaterUserId, select);
+  if (!event) {
+    return null;
+  }
+  if (!isRegistrationOpen(event.registerEndDate)) {
+    return null;
+  }
   return event;
 };
 
@@ -2636,10 +2669,10 @@ const toSkatingCategorySummary = (doc) =>
  * Event form details: skater `category` as `{ _id, typeName }`; event `skatingEventCategories` full documents.
  */
 export const getSkaterEventFormCategoryDetailsRepository = async (eventId, skaterUserId) => {
-  const event = await fetchEventLeanIfSkaterAccessible(
+  const event = await fetchEventLeanIfSkaterCanRegister(
     eventId,
     skaterUserId,
-    "skatingEventCategories categoryFormat eventType eventFor header entryFee"
+    "skatingEventCategories header entryFee"
   );
   if (!event) {
     return null;
@@ -2691,14 +2724,28 @@ export const getSkaterEventFormCategoryDetailsRepository = async (eventId, skate
     if (fromEventList) {
       category = toSkatingCategorySummary(fromEventList);
     } else {
-      const doc = await SkatingEventCategory.findById(skaterCategoryId)
+      const skaterCat = await SkatingEventCategory.findById(skaterCategoryId)
         .select("_id typeName")
         .lean();
-      category = toSkatingCategorySummary(doc);
+      const typeName = String(skaterCat?.typeName || "").trim();
+      const peerOnEvent = typeName
+        ? skatingEventCategories.find(
+            (doc) =>
+              String(doc?.typeName || "").trim().toLowerCase() === typeName.toLowerCase()
+          )
+        : null;
+      category = peerOnEvent
+        ? toSkatingCategorySummary(peerOnEvent)
+        : toSkatingCategorySummary(skaterCat);
     }
   }
 
-  return { ...meta, category, skatingEventCategories };
+  return {
+    ...meta,
+    categoryFormat: event.categoryFormat ?? "standard",
+    category,
+    skatingEventCategories,
+  };
 };
 
 /**
@@ -2776,7 +2823,7 @@ const display_latest_event_repositories = async (userId) => {
     .sort({ registerEndDate: -1, createdAt: -1 })
     .lean();
 
-  if (!event || !isRegistrationOpen(event.registerEndDate, now)) {
+  if (!event || !isRegistrationOpen(event.registerEndDate)) {
     return null;
   }
 

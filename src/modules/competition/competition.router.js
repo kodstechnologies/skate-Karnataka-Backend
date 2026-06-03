@@ -3,6 +3,8 @@ import { authenticate } from "../../middleware/auth.middleware.js";
 import {
     getChestNumbersByEvent,
     generateChestNumbers,
+    getCompetitionDetailsByEvent,
+    displayRound,
 } from "./competition.controller.js";
 
 const router = express.Router();
@@ -20,5 +22,21 @@ router.post(
     authenticate(["State", "Admin"]),
     generateChestNumbers
 );
+
+// display round
+router.get(
+    "/v1/display-round/:eventId",
+    authenticate(["Parent", "Skater", "Club", "District", "State", "Admin"]),
+    displayRound
+);
+
+// GET competition details by event ID
+router.get(
+    "/v1/full-details/:eventId",
+    authenticate(["Parent", "Skater", "Club", "District", "State", "Admin"]),
+    getCompetitionDetailsByEvent
+);
+
+
 
 export default router;

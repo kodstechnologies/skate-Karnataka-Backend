@@ -114,12 +114,15 @@ export const generateChestNumbersForEvent = async (eventId) => {
             // Build categories array for EventCompetition
       const categoriesArray = [];
       for (const catName in categoriesMap) {
+        const matches = catName.match(/\d+/g) || [];
+        const is1000OrMore = matches.some(num => parseInt(num, 10) >= 1000);
+
         categoriesArray.push({
           name: catName,
-          "1round": categoriesMap[catName],
-          "2ndRound": [],
-          "3rdRound": [],
-          "4thRound": [],
+          "1stRound": is1000OrMore ? [] : categoriesMap[catName],
+          "2ndRound": is1000OrMore ? categoriesMap[catName] : [],
+          "semiFinal": [],
+          "final": [],
           "1st": [],
           "2nd": [],
           "3rd": [],

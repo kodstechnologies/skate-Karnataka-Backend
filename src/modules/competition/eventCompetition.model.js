@@ -54,11 +54,7 @@ const eventCompetitionSchema = new mongoose.Schema(
           required: true,
           trim: true,
         },
-        "4thRound": {
-          type: [competitorSchema],
-          default: [],
-        },
-        "3rdRound": {
+        "1stRound": {
           type: [competitorSchema],
           default: [],
         },
@@ -66,7 +62,11 @@ const eventCompetitionSchema = new mongoose.Schema(
           type: [competitorSchema],
           default: [],
         },
-        "1round": {
+        "semiFinal": {
+          type: [competitorSchema],
+          default: [],
+        },
+        "final": {
           type: [competitorSchema],
           default: [],
         },

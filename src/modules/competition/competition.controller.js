@@ -3,6 +3,7 @@ import { generateChestNumbersForEvent } from "./skaterChestNo.service.js";
 import { SkaterChestNo } from "./SkaterChestNo.model.js";
 import { EventCompetition } from "./eventCompetition.model.js";
 import { AppError } from "../../util/common/AppError.js";
+import { buildPaginationMeta } from "../../util/common/paginate.js";
 
 const displayAllCompetition = asyncHandler(async (req, res) => { });
 const displayCompetitionById = asyncHandler(async (req, res) => { });
@@ -50,7 +51,11 @@ const generateChestNumbers = asyncHandler(async (req, res) => {
  */
 const getCompetitionDetailsByEvent = asyncHandler(async (req, res) => {
     const { eventId } = req.params;
-    const { ageGroup, name } = req.query;
+    const { ageGroup, name, round, page, limit } = req.query;
+
+    const pageNum = Math.max(Number(page) || 1, 1);
+    const limitNum = Math.max(Number(limit) || 10, 1);
+    const skipNum = (pageNum - 1) * limitNum;
 
     const query = { eventId };
     if (ageGroup) {
@@ -58,6 +63,8 @@ const getCompetitionDetailsByEvent = asyncHandler(async (req, res) => {
     }
 
     const competitions = await EventCompetition.find(query).lean();
+
+    let totalSkatersCount = 0;
 
     const formattedCompetitions = competitions.map(comp => {
         let filteredCategories = comp.categories || [];
@@ -69,6 +76,16 @@ const getCompetitionDetailsByEvent = asyncHandler(async (req, res) => {
         }
 
         const formattedCategories = filteredCategories.map(cat => {
+            if (round) {
+                const roundData = cat[round] && cat[round].length > 0 ? cat[round] : [];
+                totalSkatersCount += roundData.length;
+                const paginatedData = roundData.slice(skipNum, skipNum + limitNum);
+                return {
+                    name: cat.name,
+                    [round]: paginatedData
+                };
+            }
+
             return {
                 name: cat.name,
                 "1stRound": cat["1stRound"] && cat["1stRound"].length > 0 ? cat["1stRound"] : "pending",
@@ -87,10 +104,20 @@ const getCompetitionDetailsByEvent = asyncHandler(async (req, res) => {
         };
     });
 
-    res.status(200).json({
+    const responseJson = {
         success: true,
         data: formattedCompetitions,
-    });
+    };
+
+    if (round) {
+        responseJson.pagination = buildPaginationMeta({
+            total: totalSkatersCount,
+            page: pageNum,
+            limit: limitNum,
+        });
+    }
+
+    res.status(200).json(responseJson);
 });
 
 /**

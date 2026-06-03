@@ -25,11 +25,13 @@ const competitorSchema = new mongoose.Schema(
     time: {
       type: String,
       trim: true,
+      default: "",
     },
     position: {
       type: String,
-      enum: ["first", "second", "fail"],
+      enum: ["1", "2", "0"],
       trim: true,
+      default: "0"
     },
   },
   { _id: false }

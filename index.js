@@ -6,6 +6,7 @@ import { NODE_ENV, PORT } from "./src/config/envConfig.js";
 import { seeder } from "./src/seeder/index.js";
 import { startReportEscalationScheduler } from "./src/modules/report/report.notifications.js";
 import { startCertificationScheduler } from "./src/modules/event/event.certification.scheduler.js";
+import { startSkaterChestNoScheduler } from "./src/modules/competition/skaterChestNo.scheduler.js";
 
 const app = express();
 const server = createServer(app);
@@ -18,6 +19,7 @@ async function startServer() {
         await seeder()
         startReportEscalationScheduler()
         startCertificationScheduler()
+        startSkaterChestNoScheduler()
         server.listen(PORT, () => {
             console.log(`Server running on port ${PORT}`);
         })

@@ -1,11 +1,13 @@
 import { EventParticipant } from "../event/eventParticipant.model.js";
 import { Event } from "../event/event.model.js";
 import { SkaterChestNo } from "./SkaterChestNo.model.js";
+import { EventCompetition } from "./eventCompetition.model.js";
 
 /**
  * Generates chest numbers for a specific event.
  * Groups paid participants by age group, sorts them alphabetically by name,
  * and assigns chest numbers "001", "002", etc.
+ * Also populates EventCompetition model for each age group and category.
  */
 export const generateChestNumbersForEvent = async (eventId) => {
   const event = await Event.findById(eventId);
@@ -80,10 +82,65 @@ export const generateChestNumbersForEvent = async (eventId) => {
       await SkaterChestNo.deleteMany({ eventId: event._id, ageGroup });
       await SkaterChestNo.insertMany(skaterChestDocs);
       totalGenerated += skaterChestDocs.length;
+
+      // Group skaters by category for EventCompetition
+      const categoriesMap = {};
+      for (let i = 0; i < groupParticipants.length; i++) {
+        const participant = groupParticipants[i];
+        const chestNo = String(i + 1).padStart(3, "0");
+
+        const fullName = participant.userId?.fullName || participant.name || "";
+        const krsaId = participant.userId?.krsaId || "";
+        const rsfiId = participant.userId?.rsfiId || "";
+        const skaterId = participant.userId?._id || participant.userId || null;
+
+        for (const cat of participant.categories || []) {
+          const catName = cat.name;
+          if (catName) {
+            if (!categoriesMap[catName]) {
+              categoriesMap[catName] = [];
+            }
+            categoriesMap[catName].push({
+              skaterId,
+              chestNo,
+              fullName,
+              krsaId,
+              rsfiId,
+            });
+          }
+        }
+      }
+
+            // Build categories array for EventCompetition
+      const categoriesArray = [];
+      for (const catName in categoriesMap) {
+        categoriesArray.push({
+          name: catName,
+          "1round": categoriesMap[catName],
+          "2ndRound": [],
+          "3rdRound": [],
+          "4thRound": [],
+          "1st": [],
+          "2nd": [],
+          "3rd": [],
+        });
+      }
+
+      if (categoriesArray.length > 0) {
+        // Delete existing competition records for this event and age group to avoid duplicates
+        await EventCompetition.deleteMany({ eventId: event._id, ageGroup });
+        
+        // Create the new competition record
+        await EventCompetition.create({
+          eventId: event._id,
+          ageGroup,
+          categories: categoriesArray,
+        });
+      }
     }
   }
 
-  console.log(`Generated ${totalGenerated} chest numbers for event: ${event.header} (${eventId})`);
+  console.log(`Generated ${totalGenerated} chest numbers and created EventCompetition records for event: ${event.header} (${eventId})`);
   return { success: true, count: totalGenerated };
 };
 

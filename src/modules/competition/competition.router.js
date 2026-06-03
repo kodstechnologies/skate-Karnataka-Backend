@@ -1,10 +1,13 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
+import { validate } from "../../middleware/validate.multiple.js";
+import { updatePointsValidation } from "./competition.validation.js";
 import {
     getChestNumbersByEvent,
     generateChestNumbers,
     getCompetitionDetailsByEvent,
     displayRound,
+    updatePoints,
 } from "./competition.controller.js";
 
 const router = express.Router();
@@ -37,6 +40,12 @@ router.get(
     getCompetitionDetailsByEvent
 );
 
-
+router.post(
+    "/v1/update-points",
+    authenticate([ "Club", "District","State", "Admin"]),
+    validate(updatePointsValidation),
+    updatePoints
+);
+router.post("v1/update-round")
 
 export default router;

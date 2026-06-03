@@ -174,6 +174,87 @@ const displayRound = asyncHandler(async (req, res) => {
     });
 });
 
+/**
+ * Update time and position for competitors in a specific round.
+ *
+ * Body:
+ * {
+ *   "eventId": "<ObjectId>",
+ *   "ageGroup": "Under 14",
+ *   "round": "1stRound",          // 1stRound | 2ndRound | semiFinal | final
+ *   "categories": [
+ *     {
+ *       "name": "500m",
+ *       "competitors": [
+ *         { "skaterId": "<ObjectId>", "time": "01:23.45", "position": "1" }
+ *       ]
+ *     }
+ *   ]
+ * }
+ */
+const updatePoints = asyncHandler(async (req, res) => {
+    const { eventId, ageGroup, round, categories, skaterId, time, position } = req.body;
+
+    const competition = await EventCompetition.findOne({ eventId, ageGroup });
+    if (!competition) {
+        throw new AppError("No competition found for the given event and age group", 404);
+    }
+
+    if (skaterId) {
+        // Single skater update: find the skater across all categories in the round
+        let found = false;
+        for (const category of competition.categories) {
+            const roundData = category[round] || [];
+            const competitor = roundData.find(
+                (r) => String(r.skaterId) === String(skaterId)
+            );
+            if (competitor) {
+                if (time !== undefined) competitor.time = time;
+                if (position !== undefined) competitor.position = position;
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            throw new AppError("Skater not found in any category for the given round", 404);
+        }
+    } else {
+        // Bulk update via categories array
+        for (const catUpdate of categories) {
+            const { name, competitors } = catUpdate;
+            if (!name || !Array.isArray(competitors)) continue;
+
+            const category = competition.categories.find(
+                (c) => c.name && c.name.trim().toLowerCase() === name.trim().toLowerCase()
+            );
+
+            if (!category) continue;
+
+            const roundData = category[round] || [];
+
+            for (const comp of competitors) {
+                const competitor = roundData.find(
+                    (r) => String(r.skaterId) === String(comp.skaterId)
+                );
+
+                if (competitor) {
+                    if (comp.time !== undefined) competitor.time = comp.time;
+                    if (comp.position !== undefined) competitor.position = comp.position;
+                }
+            }
+        }
+    }
+
+    await competition.save();
+
+    res.status(200).json({
+        success: true,
+        message: "Points updated successfully",
+        data: competition,
+    });
+});
+
+
 export {
     displayAllCompetition,
     displayCompetitionById,
@@ -181,4 +262,5 @@ export {
     generateChestNumbers,
     getCompetitionDetailsByEvent,
     displayRound,
+    updatePoints,
 }

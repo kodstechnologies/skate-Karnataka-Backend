@@ -35,6 +35,21 @@ export const getRoundKeysFromFormula = (formula) => {
   return keys.length ? keys : [...DEFAULT_ROUND_KEYS];
 };
 
+export const idsEqual = (left, right) => {
+  if (left == null || right == null) {
+    return false;
+  }
+  return String(left) === String(right);
+};
+
+const formatCategoryMeta = (skatingCategory, subCategory) => ({
+  name: String(subCategory.name || "").trim(),
+  skatingEventCategoryId: skatingCategory._id,
+  skatingEventCategoryName: skatingCategory.typeName ?? "",
+  categoryId: subCategory._id,
+  formula: subCategory.formula || null,
+});
+
 export const findEventCategoryMeta = (resolvedCategories, ageGroup, categoryName) => {
   const normAge = String(ageGroup || "").trim().toLowerCase();
   const normName = String(categoryName || "").trim().toLowerCase();
@@ -54,16 +69,116 @@ export const findEventCategoryMeta = (resolvedCategories, ageGroup, categoryName
       continue;
     }
 
-    return {
-      skatingEventCategoryId: skatingCategory._id,
-      skatingEventCategoryName: skatingCategory.typeName ?? "",
-      categoryId: subCategory._id,
-      formula: subCategory.formula || null,
-    };
+    return formatCategoryMeta(skatingCategory, subCategory);
   }
 
   return null;
 };
+
+/**
+ * Resolve lap/category by id and/or name.
+ * - `categoryId` may be the lap sub-document _id OR the SkatingEventCategory document _id
+ * - `categoriesId` / `skatingEventCategoryId` = SkatingEventCategory document _id
+ */
+export const findEventCategoryByQuery = (
+  resolvedCategories,
+  { ageGroup, categoryId, categoriesId, skatingEventCategoryId, name } = {}
+) => {
+  const normAge = ageGroup ? String(ageGroup).trim().toLowerCase() : null;
+  const normName = name ? String(name).trim().toLowerCase() : null;
+  const idCandidates = [...new Set(
+    [categoryId, categoriesId, skatingEventCategoryId]
+      .filter(Boolean)
+      .map((id) => String(id).trim())
+  )];
+
+  if (!idCandidates.length && !normName) {
+    return null;
+  }
+
+  const ageGroupMatches = (label) =>
+    !normAge || String(label || "").trim().toLowerCase() === normAge;
+
+  const nameMatches = (subCategory) =>
+    !normName ||
+    String(subCategory?.name || "").trim().toLowerCase() === normName;
+
+  // 1) Lap sub-category _id (within optional age group)
+  for (const skatingCategory of resolvedCategories) {
+    for (const ageGroupEntry of skatingCategory.ageGroups || []) {
+      if (!ageGroupMatches(ageGroupEntry.label)) {
+        continue;
+      }
+      for (const subCategory of ageGroupEntry.categories || []) {
+        if (!idCandidates.some((id) => idsEqual(subCategory._id, id))) {
+          continue;
+        }
+        if (!nameMatches(subCategory)) {
+          continue;
+        }
+        return formatCategoryMeta(skatingCategory, subCategory);
+      }
+    }
+  }
+
+  // 2) SkatingEventCategory document _id + name (+ optional age group)
+  for (const skatingCategory of resolvedCategories) {
+    if (!idCandidates.some((id) => idsEqual(skatingCategory._id, id))) {
+      continue;
+    }
+
+    for (const ageGroupEntry of skatingCategory.ageGroups || []) {
+      if (!ageGroupMatches(ageGroupEntry.label)) {
+        continue;
+      }
+      for (const subCategory of ageGroupEntry.categories || []) {
+        if (!nameMatches(subCategory)) {
+          continue;
+        }
+        return formatCategoryMeta(skatingCategory, subCategory);
+      }
+    }
+  }
+
+  // 3) Name + age group only
+  if (normName && normAge) {
+    return findEventCategoryMeta(resolvedCategories, ageGroup, name);
+  }
+
+  return null;
+};
+
+export const toCategoryMetaFields = (meta) => ({
+  categoryId: meta?.categoryId ? String(meta.categoryId) : null,
+  skatingEventCategoryId: meta?.skatingEventCategoryId
+    ? String(meta.skatingEventCategoryId)
+    : null,
+  skatingEventCategoryName: meta?.skatingEventCategoryName ?? null,
+});
+
+export const scopeResolvedSkatingCategories = (
+  resolvedCategories,
+  skatingEventCategoryId
+) => {
+  if (!skatingEventCategoryId) {
+    return resolvedCategories;
+  }
+  return resolvedCategories.filter((row) => idsEqual(row._id, skatingEventCategoryId));
+};
+
+/** Round status only (for display-round API). */
+export const toDisplayRoundCategoryOnly = (formatted) => ({
+  name: formatted.name,
+  categoryId: formatted.categoryId ? String(formatted.categoryId) : null,
+  skatingEventCategoryId: formatted.skatingEventCategoryId
+    ? String(formatted.skatingEventCategoryId)
+    : null,
+  rounds: formatted.rounds,
+  activeRound: formatted.activeRound,
+  "1st": formatted["1st"],
+  "2nd": formatted["2nd"],
+  "3rd": formatted["3rd"],
+});
 
 export const listCategoryNamesForAgeGroup = (resolvedCategories, ageGroup) => {
   const normAge = String(ageGroup || "").trim().toLowerCase();

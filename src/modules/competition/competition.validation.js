@@ -107,5 +107,28 @@ export const displayRoundQueryValidation = {
     query: Joi.object({
         ageGroup: competitionAgeGroupLabel.optional(),
         name: Joi.string().trim().min(1).optional(),
+        skatingEventCategories: objectIdString.optional(),
+        skatingEventCategoryId: objectIdString.optional(),
+        categoriesId: objectIdString.optional(),
+        categoryId: objectIdString.optional(),
+    }),
+};
+
+export const fullDetailsQueryValidation = {
+    params: Joi.object({
+        eventId: objectIdString.required(),
+    }),
+    query: Joi.object({
+        ageGroup: competitionAgeGroupLabel.optional(),
+        name: Joi.string().trim().min(1).optional(),
+        categoryId: objectIdString.optional(),
+        categoriesId: objectIdString.optional(),
+        skatingEventCategoryId: objectIdString.optional(),
+        round: Joi.string()
+            .trim()
+            .valid("1stRound", "2ndRound", "semiFinal", "final")
+            .optional(),
+        page: Joi.number().integer().min(1).optional(),
+        limit: Joi.number().integer().min(1).max(100).optional(),
     }),
 };

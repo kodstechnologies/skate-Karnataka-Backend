@@ -56,6 +56,7 @@ const skaterChestNoSchema = new mongoose.Schema(
 
 // Unique constraints to prevent duplicate chest numbers for an event/ageGroup, or duplicate chest numbers for the same skater in an event.
 skaterChestNoSchema.index({ eventId: 1, ageGroup: 1, chestNo: 1 }, { unique: true });
-skaterChestNoSchema.index({ eventId: 1, krsaId: 1 }, { unique: true });
+/** Sparse: many skaters may have no krsaId yet — omit field instead of storing "". */
+skaterChestNoSchema.index({ eventId: 1, krsaId: 1 }, { unique: true, sparse: true });
 
 export const SkaterChestNo = mongoose.model("SkaterChestNo", skaterChestNoSchema);

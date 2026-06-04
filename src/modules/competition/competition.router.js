@@ -5,6 +5,7 @@ import {
     updatePointsValidation,
     promoteToNextRoundValidation,
     displayRoundQueryValidation,
+    fullDetailsQueryValidation,
 } from "./competition.validation.js";
 import {
     getChestNumbersByEvent,
@@ -43,6 +44,7 @@ router.get(
 router.get(
     "/v1/full-details/:eventId",
     authenticate(["Parent", "Skater", "Club", "District", "State", "Admin"]),
+    validate(fullDetailsQueryValidation),
     getCompetitionDetailsByEvent
 );
 

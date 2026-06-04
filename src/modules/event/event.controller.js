@@ -728,7 +728,7 @@ export const generateEventCertificatesAdmin = asyncHandler(async (req, res) => {
     }
     if (status.eligibleCount === 0) {
         throw new AppError(
-            "No participants with recorded times — enter competition times first",
+            "No medal winners to certify — complete the final round and run update-round so skaters appear in 1st, 2nd, and 3rd for each category",
             400
         );
     }

@@ -3,9 +3,16 @@ import { CertificateTemplate } from "./certificateTemplate.model.js";
 import { GeneratedCertificate } from "./generatedCertificate.model.js";
 import { Event } from "../event/event.model.js";
 import { EventParticipant } from "../event/eventParticipant.model.js";
+import { EventCompetition } from "../competition/eventCompetition.model.js";
 import { BaseAuth } from "../auth/baseAuth.model.js";
 import { Skater } from "../skater/skater.model.js";
 import { paginate, calcTotalPages } from "../../util/common/paginate.js";
+
+const MEDAL_ROUND_KEYS = [
+    { key: "1st", placement: 1 },
+    { key: "2nd", placement: 2 },
+    { key: "3rd", placement: 3 },
+];
 
 const EVENT_TYPE_TEMPLATE_FLAG = {
     Club: "CLUB",
@@ -335,6 +342,47 @@ const participantHasRecordedTime = (participant) =>
             category.timeTaken > 0
     );
 
+/**
+ * Podium skaters from EventCompetition only (category keys 1st / 2nd / 3rd).
+ * Map: skaterId string → [{ ageGroup, categoryName, placement: 1|2|3 }]
+ */
+const buildPodiumPlacementsBySkaterForEvent = async (eventId) => {
+    if (!mongoose.Types.ObjectId.isValid(String(eventId))) {
+        return new Map();
+    }
+
+    const competitions = await EventCompetition.find({
+        eventId: new mongoose.Types.ObjectId(String(eventId)),
+    }).lean();
+
+    const bySkater = new Map();
+
+    for (const competition of competitions) {
+        const ageGroup = competition.ageGroup || "";
+        for (const category of competition.categories || []) {
+            const categoryName = category.name || "";
+            for (const { key, placement } of MEDAL_ROUND_KEYS) {
+                const rows = category[key] || [];
+                for (const row of rows) {
+                    const skaterId = row?.skaterId;
+                    if (!skaterId) continue;
+                    const sid = String(skaterId);
+                    if (!bySkater.has(sid)) {
+                        bySkater.set(sid, []);
+                    }
+                    bySkater.get(sid).push({
+                        ageGroup,
+                        categoryName,
+                        placement,
+                    });
+                }
+            }
+        }
+    }
+
+    return bySkater;
+};
+
 const formatCertificatePlacement = (rank) => {
     const placement = Number(rank);
     if (placement === 1 || placement === 2 || placement === 3) {
@@ -345,6 +393,17 @@ const formatCertificatePlacement = (rank) => {
 
 const buildCertificateTableRows = (participant) => {
     const discipline = participant.categoriesId?.typeName || "";
+    const podiumRows = participant._podiumPlacements || [];
+
+    if (podiumRows.length) {
+        return podiumRows
+            .filter((row) => row.ageGroup === participant.ageGroup)
+            .map((row) => ({
+                discipline,
+                distance: row.categoryName || "",
+                placement: formatCertificatePlacement(row.placement),
+            }));
+    }
 
     return (participant.categories || [])
         .filter(
@@ -386,13 +445,37 @@ const list_eligible_participants_for_event_repository = async (eventId) => {
         return [];
     }
 
+    const podiumBySkater = await buildPodiumPlacementsBySkaterForEvent(eventId);
+    if (!podiumBySkater.size) {
+        return [];
+    }
+
+    const skaterIds = [...podiumBySkater.keys()]
+        .filter((id) => mongoose.Types.ObjectId.isValid(id))
+        .map((id) => new mongoose.Types.ObjectId(id));
+
     const eventOid = new mongoose.Types.ObjectId(String(eventId));
-    const participants = await EventParticipant.find({ eventId: eventOid })
+    const participants = await EventParticipant.find({
+        eventId: eventOid,
+        userId: { $in: skaterIds },
+    })
         .populate("userId", "fullName krsaId")
         .populate("categoriesId", "typeName")
         .lean();
 
-    return participants.filter(participantHasRecordedTime);
+    return participants
+        .filter((participant) => {
+            const userId = String(participant.userId?._id || participant.userId || "");
+            const placements = podiumBySkater.get(userId) || [];
+            return placements.some((row) => row.ageGroup === participant.ageGroup);
+        })
+        .map((participant) => {
+            const userId = String(participant.userId?._id || participant.userId || "");
+            return {
+                ...participant,
+                _podiumPlacements: podiumBySkater.get(userId) || [],
+            };
+        });
 };
 
 const find_generated_certificate_repository = async (eventId, participantId) => {
@@ -479,20 +562,8 @@ const count_skater_certificate_medal_stats_repository = async ({ userId } = {}) 
 };
 
 const event_has_any_recorded_participant_time_repository = async (eventId) => {
-    if (!mongoose.Types.ObjectId.isValid(String(eventId))) {
-        return false;
-    }
-
-    const exists = await EventParticipant.exists({
-        eventId: new mongoose.Types.ObjectId(String(eventId)),
-        categories: {
-            $elemMatch: {
-                timeTaken: { $type: "number", $gt: 0 },
-            },
-        },
-    });
-
-    return Boolean(exists);
+    const podiumBySkater = await buildPodiumPlacementsBySkaterForEvent(eventId);
+    return podiumBySkater.size > 0;
 };
 
 /** At least one eligible participant still lacks a GeneratedCertificate row. */
@@ -509,25 +580,19 @@ const event_has_pending_certificate_generation_repository = async (eventId) => {
 };
 
 /**
- * Events where (eventEnd + 1 day) < now, at least one category time is recorded,
- * and not every eligible participant already has a generated certificate.
+ * Events where (eventEnd + 1 day) < now, competition has 1st/2nd/3rd podium skaters,
+ * and not every eligible medal winner already has a generated certificate.
  */
 const list_events_for_auto_certificate_generation_repository = async (
     referenceDate = new Date()
 ) => {
-    const eventIdsWithTimes = await EventParticipant.distinct("eventId", {
-        categories: {
-            $elemMatch: {
-                timeTaken: { $type: "number", $gt: 0 },
-            },
-        },
-    });
+    const eventIdsWithCompetition = await EventCompetition.distinct("eventId");
 
-    if (!eventIdsWithTimes.length) {
+    if (!eventIdsWithCompetition.length) {
         return { eventsEndedPlusOneDay: 0, events: [] };
     }
 
-    const events = await Event.find({ _id: { $in: eventIdsWithTimes } })
+    const events = await Event.find({ _id: { $in: eventIdsWithCompetition } })
         .select("_id header eventType eventEndDate eventEndTime")
         .lean();
 
@@ -537,8 +602,10 @@ const list_events_for_auto_certificate_generation_repository = async (
 
     const pending = [];
     for (const event of eventsEndedPlusOneDay) {
-        const hasTime = await event_has_any_recorded_participant_time_repository(event._id);
-        if (!hasTime) continue;
+        const hasPodium = await event_has_any_recorded_participant_time_repository(
+            event._id
+        );
+        if (!hasPodium) continue;
 
         const needsGeneration = await event_has_pending_certificate_generation_repository(
             event._id
@@ -572,6 +639,12 @@ const summarize_event_certificate_status = async (event) => {
     const eligibleCount = eligible.length;
     const pendingCount = Math.max(eligibleCount - generatedCount, 0);
 
+    const podiumBySkater = await buildPodiumPlacementsBySkaterForEvent(eventId);
+    let medalWinnerCount = 0;
+    for (const placements of podiumBySkater.values()) {
+        medalWinnerCount += placements.length;
+    }
+
     return {
         eventId: String(eventId),
         header: event.header || "",
@@ -580,10 +653,13 @@ const summarize_event_certificate_status = async (event) => {
         eventEndTime: event.eventEndTime || "",
         eventEnded: true,
         eligibleCount,
+        medalWinnerCount,
         generatedCount,
         pendingCount,
         canGenerate: eligibleCount > 0 && pendingCount > 0,
         allGenerated: eligibleCount > 0 && pendingCount === 0,
+        requiresPodium:
+            "Certificates only for skaters in EventCompetition 1st / 2nd / 3rd (after final update-round).",
     };
 };
 

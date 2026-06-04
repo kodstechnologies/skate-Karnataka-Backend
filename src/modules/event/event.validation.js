@@ -270,6 +270,14 @@ export const competitionDetailsParamsValidation = {
     }),
 };
 
+export const eventCertificateParamsValidation = {
+    params: Joi.object({
+        id: objectIdString.required().messages({
+            "string.pattern.base": "id must be a valid event id",
+        }),
+    }),
+};
+
 const competitionAgeGroupLabel = Joi.string()
     .trim()
     .valid(...AGE_GROUPS.map((g) => g.label))

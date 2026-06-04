@@ -1,6 +1,30 @@
 /**
- * Promotion using Formula rounds (qualifyCount, groupSize, qualifyPerGroup).
+ * Promotion: TIME = fastest times up to limit.
+ * POSITION = position qualifiers (per group or all), then fastest times to fill qualifyCount.
  */
+
+/** Fastest times among skaters not already selected (ignores position for fill). */
+const fillByFastestTime = (
+  rows,
+  selectedIds,
+  count,
+  getSecondsFromTime
+) => {
+  const limit = Math.max(Number(count) || 0, 0);
+  if (!limit) {
+    return [];
+  }
+
+  return rows
+    .filter((row) => {
+      if (selectedIds.has(String(row.skaterId))) {
+        return false;
+      }
+      return row.time && String(row.time).trim() !== "";
+    })
+    .sort((a, b) => getSecondsFromTime(a.time) - getSecondsFromTime(b.time))
+    .slice(0, limit);
+};
 
 const positionQualifies = (position, qualifyPerGroup) => {
   const value = String(position ?? "").trim();
@@ -10,33 +34,40 @@ const positionQualifies = (position, qualifyPerGroup) => {
   return value === "1";
 };
 
-const pickFromGroup = (group, qualifyPerGroup, getSecondsFromTime) => {
-  const perGroup = Math.max(Number(qualifyPerGroup) || 1, 1);
-  const cap = Math.min(perGroup, group.length);
-  if (!cap) {
-    return [];
+/** All position qualifiers in the round, then fastest times to reach cap. */
+const selectPositionPromotedGlobal = (
+  currentRoundData,
+  qualifyPerGroup,
+  getSecondsFromTime,
+  cap
+) => {
+  const targetTotal = Math.max(Number(cap) || 0, 0);
+  if (!targetTotal) {
+    return { promoted: [], selectedByPosition: [], selectedByTime: [] };
   }
 
-  const selectedByPosition = group
-    .filter((row) => positionQualifies(row.position, perGroup))
+  const selectedByPosition = currentRoundData
+    .filter((row) => positionQualifies(row.position, qualifyPerGroup))
     .sort((a, b) => getSecondsFromTime(a.time) - getSecondsFromTime(b.time));
 
-  if (selectedByPosition.length >= cap) {
-    return selectedByPosition.slice(0, cap);
+  const selectedIds = new Set(
+    selectedByPosition.map((row) => String(row.skaterId))
+  );
+  let selectedByTime = [];
+
+  if (selectedByPosition.length < targetTotal) {
+    const pending = targetTotal - selectedByPosition.length;
+    selectedByTime = fillByFastestTime(
+      currentRoundData,
+      selectedIds,
+      pending,
+      getSecondsFromTime
+    );
   }
 
-  const selectedIds = new Set(selectedByPosition.map((row) => String(row.skaterId)));
-  const selectedByTime = group
-    .filter(
-      (row) =>
-        !selectedIds.has(String(row.skaterId)) &&
-        row.time &&
-        String(row.time).trim() !== ""
-    )
-    .sort((a, b) => getSecondsFromTime(a.time) - getSecondsFromTime(b.time))
-    .slice(0, cap - selectedByPosition.length);
+  const promoted = [...selectedByPosition, ...selectedByTime].slice(0, targetTotal);
 
-  return [...selectedByPosition, ...selectedByTime];
+  return { promoted, selectedByPosition, selectedByTime };
 };
 
 const selectPositionPromoted = (
@@ -50,61 +81,79 @@ const selectPositionPromoted = (
   const targetTotal = Math.max(Number(cap) || 0, 0);
 
   if (!targetTotal) {
-    return [];
+    return { promoted: [], selectedByPosition: [], selectedByTime: [] };
   }
 
-  let promoted = [];
-
-  if (groupSize > 0) {
-    for (let i = 0; i < currentRoundData.length; i += groupSize) {
-      const group = currentRoundData.slice(i, i + groupSize);
-      promoted.push(...pickFromGroup(group, qualifyPerGroup, getSecondsFromTime));
-    }
-    return promoted.slice(0, targetTotal);
+  if (groupSize <= 0) {
+    return selectPositionPromotedGlobal(
+      currentRoundData,
+      qualifyPerGroup,
+      getSecondsFromTime,
+      targetTotal
+    );
   }
 
-  promoted = pickFromGroup(currentRoundData, qualifyPerGroup, getSecondsFromTime);
-
-  if (promoted.length < targetTotal) {
-    const selectedIds = new Set(promoted.map((row) => String(row.skaterId)));
-    const fillPool = currentRoundData
-      .filter((row) => {
-        if (selectedIds.has(String(row.skaterId))) {
-          return false;
-        }
-        if (!row.time || !String(row.time).trim()) {
-          return false;
-        }
-        const pos = String(row.position ?? "").trim();
-        if (qualifyPerGroup >= 2) {
-          return pos !== "1" && pos !== "2";
-        }
-        return pos !== "1";
-      })
+  // Phase 1: all position-marked skaters in each group (position 1, or 1+2 if qualifyPerGroup >= 2).
+  let selectedByPosition = [];
+  for (let i = 0; i < currentRoundData.length; i += groupSize) {
+    const group = currentRoundData.slice(i, i + groupSize);
+    const byPosition = group
+      .filter((row) => positionQualifies(row.position, qualifyPerGroup))
       .sort((a, b) => getSecondsFromTime(a.time) - getSecondsFromTime(b.time));
-
-    promoted = [
-      ...promoted,
-      ...fillPool.slice(0, targetTotal - promoted.length),
-    ];
+    selectedByPosition.push(...byPosition);
   }
 
-  return promoted.slice(0, targetTotal);
+  selectedByPosition.sort(
+    (a, b) => getSecondsFromTime(a.time) - getSecondsFromTime(b.time)
+  );
+  if (selectedByPosition.length > targetTotal) {
+    selectedByPosition = selectedByPosition.slice(0, targetTotal);
+  }
+
+  const selectedIds = new Set(
+    selectedByPosition.map((row) => String(row.skaterId))
+  );
+  let selectedByTime = [];
+
+  // Phase 2: fill remaining slots by fastest time (global, up to qualifyCount).
+  if (selectedByPosition.length < targetTotal) {
+    const pending = targetTotal - selectedByPosition.length;
+    selectedByTime = fillByFastestTime(
+      currentRoundData,
+      selectedIds,
+      pending,
+      getSecondsFromTime
+    );
+  }
+
+  const promoted = [...selectedByPosition, ...selectedByTime];
+
+  return {
+    promoted,
+    selectedByPosition,
+    selectedByTime,
+  };
 };
 
 const selectTimePromoted = (currentRoundData, cap, getSecondsFromTime) => {
   const limit = Math.max(Number(cap) || 0, 0);
   if (!limit) {
-    return [];
+    return { promoted: [], selectedByPosition: [], selectedByTime: [] };
   }
 
-  return currentRoundData
+  const promoted = currentRoundData
     .filter((row) => row.time && String(row.time).trim() !== "")
     .sort((a, b) => getSecondsFromTime(a.time) - getSecondsFromTime(b.time))
     .slice(0, limit);
+
+  return {
+    promoted,
+    selectedByPosition: [],
+    selectedByTime: promoted,
+  };
 };
 
-export const selectPromotedCompetitors = (
+export const selectPromotedCompetitorsWithBreakdown = (
   currentRoundData,
   cap,
   qualificationType,
@@ -112,12 +161,20 @@ export const selectPromotedCompetitors = (
   formulaRound = null
 ) => {
   if (!Array.isArray(currentRoundData) || !currentRoundData.length) {
-    return [];
+    return {
+      promoted: [],
+      selectedByPosition: [],
+      selectedByTime: [],
+    };
   }
 
   const limit = Math.max(Number(cap) || 0, 0);
   if (!limit) {
-    return [];
+    return {
+      promoted: [],
+      selectedByPosition: [],
+      selectedByTime: [],
+    };
   }
 
   if (qualificationType === "POSITION" && formulaRound) {
@@ -131,6 +188,21 @@ export const selectPromotedCompetitors = (
 
   return selectTimePromoted(currentRoundData, limit, getSecondsFromTime);
 };
+
+export const selectPromotedCompetitors = (
+  currentRoundData,
+  cap,
+  qualificationType,
+  getSecondsFromTime,
+  formulaRound = null
+) =>
+  selectPromotedCompetitorsWithBreakdown(
+    currentRoundData,
+    cap,
+    qualificationType,
+    getSecondsFromTime,
+    formulaRound
+  ).promoted;
 
 export const selectFinalWinners = (finalRoundData, medalCount, getSecondsFromTime) => {
   const data = Array.isArray(finalRoundData) ? finalRoundData : [];

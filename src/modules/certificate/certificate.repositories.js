@@ -55,6 +55,20 @@ const isEventEndedPlusOneDay = (event, referenceDate = new Date()) => {
     return threshold < referenceDate;
 };
 
+const toLocalCalendarDay = (value) => {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return null;
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+};
+
+/** True when today is the end date or later — date only, ignores eventEndTime. */
+const isEventEnded = (event, referenceDate = new Date()) => {
+    const endDay = toLocalCalendarDay(event?.eventEndDate);
+    if (!endDay) return false;
+    const today = toLocalCalendarDay(referenceDate);
+    return today.getTime() >= endDay.getTime();
+};
+
 
 /**
  * Create a brand-new certificate template document.
@@ -540,6 +554,86 @@ const list_events_for_auto_certificate_generation_repository = async (
     };
 };
 
+const summarize_event_certificate_status = async (event) => {
+    const eventId = event._id;
+    const eligible = await list_eligible_participants_for_event_repository(eventId);
+    let generatedCount = 0;
+
+    for (const participant of eligible) {
+        const existing = await find_generated_certificate_repository(
+            eventId,
+            participant._id
+        );
+        if (existing) {
+            generatedCount += 1;
+        }
+    }
+
+    const eligibleCount = eligible.length;
+    const pendingCount = Math.max(eligibleCount - generatedCount, 0);
+
+    return {
+        eventId: String(eventId),
+        header: event.header || "",
+        eventType: event.eventType || "",
+        eventEndDate: event.eventEndDate || null,
+        eventEndTime: event.eventEndTime || "",
+        eventEnded: true,
+        eligibleCount,
+        generatedCount,
+        pendingCount,
+        canGenerate: eligibleCount > 0 && pendingCount > 0,
+        allGenerated: eligibleCount > 0 && pendingCount === 0,
+    };
+};
+
+/**
+ * Admin: events whose end datetime is in the past and certificate work may remain.
+ */
+const list_events_ended_for_admin_certificate_repository = async (
+    referenceDate = new Date()
+) => {
+    const events = await Event.find({
+        eventEndDate: { $exists: true, $ne: null },
+        status: { $ne: "cancelled" },
+    })
+        .select("_id header eventType eventEndDate eventEndTime status")
+        .sort({ eventEndDate: -1 })
+        .lean();
+
+    const ended = events.filter((event) => isEventEnded(event, referenceDate));
+    const summaries = [];
+
+    for (const event of ended) {
+        summaries.push(await summarize_event_certificate_status(event));
+    }
+
+    return {
+        totalEnded: summaries.length,
+        events: summaries,
+    };
+};
+
+const get_event_certificate_status_repository = async (eventId) => {
+    if (!mongoose.Types.ObjectId.isValid(String(eventId))) {
+        return null;
+    }
+
+    const event = await Event.findById(eventId)
+        .select("_id header eventType eventEndDate eventEndTime status")
+        .lean();
+
+    if (!event) {
+        return null;
+    }
+
+    const summary = await summarize_event_certificate_status(event);
+    return {
+        ...summary,
+        eventEnded: isEventEnded(event),
+    };
+};
+
 const build_participant_certificate_payload_repository = async (
     participant,
     event,
@@ -567,7 +661,10 @@ const build_participant_certificate_payload_repository = async (
 export {
     formatIssueDate,
     participantHasRecordedTime,
+    isEventEnded,
     isEventEndedPlusOneDay,
+    list_events_ended_for_admin_certificate_repository,
+    get_event_certificate_status_repository,
     list_events_for_auto_certificate_generation_repository,
     create_template_repository,
     update_template_repository,

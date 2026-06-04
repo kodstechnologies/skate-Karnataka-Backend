@@ -79,23 +79,29 @@ export const getNextCompetitionRound = (competitionRound) =>
   NEXT_COMPETITION_ROUND[String(competitionRound || "").trim().toLowerCase()] || null;
 
 /**
- * How many may advance from the current round (Formula.model.js).
+ * How many may advance (Formula.model.js).
+ *
+ * - **1stRound only**: qualifyCountLessThan65 / qualifyCountMoreThan65 vs maxParticipants (65).
+ * - **All other rounds**: qualifyCount only (fixed number from formula).
  */
-export const getPromotionLimit = (formulaRound, { currentRoundCount } = {}) => {
+export const getPromotionLimit = (
+  formulaRound,
+  { currentRoundCount, competitionRound } = {}
+) => {
   if (!formulaRound) {
-    return { limit: null, limitSource: null };
+    return { limit: null, limitSource: null, threshold: null };
   }
 
   const current = Math.max(Number(currentRoundCount) || 0, 0);
-  const primary = Number(formulaRound.qualifyCount);
+  const isFirstRound =
+    String(competitionRound || "").trim().toLowerCase() === "1stround";
+
   let limit = null;
   let limitSource = null;
+  let threshold = null;
 
-  if (Number.isFinite(primary) && primary > 0) {
-    limit = primary;
-    limitSource = "qualifyCount";
-  } else {
-    const threshold =
+  if (isFirstRound) {
+    threshold =
       Number(formulaRound.maxParticipants) > 0
         ? Number(formulaRound.maxParticipants)
         : 65;
@@ -105,19 +111,28 @@ export const getPromotionLimit = (formulaRound, { currentRoundCount } = {}) => {
     if (current >= threshold && Number.isFinite(more) && more > 0) {
       limit = more;
       limitSource = "qualifyCountMoreThan65";
-    } else if (current < threshold && Number.isFinite(less) && less > 0) {
+    } else if (Number.isFinite(less) && less > 0) {
       limit = less;
       limitSource = "qualifyCountLessThan65";
+    } else if (Number(formulaRound.qualifyCount) > 0) {
+      limit = Number(formulaRound.qualifyCount);
+      limitSource = "qualifyCount";
+    }
+  } else {
+    const count = Number(formulaRound.qualifyCount);
+    if (Number.isFinite(count) && count > 0) {
+      limit = count;
+      limitSource = "qualifyCount";
     }
   }
 
   const n = Number(limit);
   if (!Number.isFinite(n) || n <= 0) {
-    return { limit: null, limitSource: null };
+    return { limit: null, limitSource: null, threshold };
   }
 
   const capped = current > 0 ? Math.min(n, current) : n;
-  return { limit: capped, limitSource };
+  return { limit: capped, limitSource, threshold: isFirstRound ? threshold : null };
 };
 
 export const loadCategoryMetaForCompetition = async (

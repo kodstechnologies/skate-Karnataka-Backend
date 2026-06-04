@@ -1,6 +1,11 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { AppError } from "../../util/common/AppError.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
+import { generate_event_certificates_service } from "../certificate/certificate.service.js";
+import {
+    get_event_certificate_status_repository,
+    list_events_ended_for_admin_certificate_repository,
+} from "../certificate/certificate.repositories.js";
 import {
   applyCertificationBySkaterService,
   approveCertificationByRoleService,
@@ -691,6 +696,52 @@ export const deleteFormula = asyncHandler(async (req, res) => {
     return res
         .status(200)
         .json(new ApiResponse(200, null, "Formula deleted successfully"));
+});
+
+/** Admin: events past end date that can have certificates generated. */
+export const listEndedEventsForCertificates = asyncHandler(async (req, res) => {
+    const data = await list_events_ended_for_admin_certificate_repository();
+    return res.status(200).json(
+        new ApiResponse(200, data, "Ended events for certificate generation")
+    );
+});
+
+/** Admin: certificate generation status for one event. */
+export const getEventCertificateStatus = asyncHandler(async (req, res) => {
+    const status = await get_event_certificate_status_repository(req.params.id);
+    if (!status) {
+        throw new AppError("Event not found", 404);
+    }
+    return res.status(200).json(
+        new ApiResponse(200, status, "Event certificate status")
+    );
+});
+
+/** Admin: generate GeneratedCertificate rows for every eligible skater in the event. */
+export const generateEventCertificatesAdmin = asyncHandler(async (req, res) => {
+    const status = await get_event_certificate_status_repository(req.params.id);
+    if (!status) {
+        throw new AppError("Event not found", 404);
+    }
+    if (!status.eventEnded) {
+        throw new AppError("Certificates can only be generated after the event has ended", 400);
+    }
+    if (status.eligibleCount === 0) {
+        throw new AppError(
+            "No participants with recorded times — enter competition times first",
+            400
+        );
+    }
+    if (status.allGenerated) {
+        return res.status(200).json(
+            new ApiResponse(200, status, "Certificates already generated for all eligible skaters")
+        );
+    }
+
+    const result = await generate_event_certificates_service(req.params.id);
+    return res.status(200).json(
+        new ApiResponse(200, result, "Event certificates processed successfully")
+    );
 });
 
 export {

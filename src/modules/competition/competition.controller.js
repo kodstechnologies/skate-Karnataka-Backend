@@ -18,7 +18,7 @@ import {
 } from "./competition.formulaResolve.js";
 import {
     selectFinalWinners,
-    selectPromotedCompetitors,
+    selectPromotedCompetitorsWithBreakdown,
 } from "./competition.promotion.js";
 import {
     buildCategoriesForAgeGroup,
@@ -643,14 +643,16 @@ const promoteToNextRound = asyncHandler(async (req, res) => {
         );
     }
 
-    const { limit: promoteLimit, limitSource } = getPromotionLimit(
+    const { limit: promoteLimit, limitSource, threshold } = getPromotionLimit(
         promotionCtx.formulaRound,
-        { currentRoundCount }
+        { currentRoundCount, competitionRound: round }
     );
 
     if (promoteLimit == null || promoteLimit <= 0) {
         throw new AppError(
-            `Formula round "${round}" has no valid qualify count. Set qualifyCount (or qualifyCountLessThan65 / qualifyCountMoreThan65).`,
+            round === "1stRound"
+                ? `Formula 1stRound needs qualifyCountLessThan65 and/or qualifyCountMoreThan65 (maxParticipants threshold ${threshold ?? 65}).`
+                : `Formula round "${round}" needs qualifyCount (fixed number — less/more than 65 applies to 1stRound only).`,
             400
         );
     }
@@ -670,7 +672,7 @@ const promoteToNextRound = asyncHandler(async (req, res) => {
         totalPromoted =
             (firstPlace ? 1 : 0) + (secondPlace ? 1 : 0) + (thirdPlace ? 1 : 0);
     } else {
-        const promoted = selectPromotedCompetitors(
+        const breakdown = selectPromotedCompetitorsWithBreakdown(
             currentRoundData,
             promoteLimit,
             promotionCtx.qualificationType,
@@ -678,17 +680,18 @@ const promoteToNextRound = asyncHandler(async (req, res) => {
             promotionCtx.formulaRound
         );
 
-        if (!promoted.length) {
+        if (!breakdown.promoted.length) {
+            const perGroup = promotionCtx.formulaRound?.qualifyPerGroup ?? 1;
             throw new AppError(
                 promotionCtx.qualificationType === "POSITION"
-                    ? `No skaters qualify (POSITION: need position qualifiers or fastest times up to ${promoteLimit})`
-                    : `No skaters with valid times to promote (limit ${promoteLimit})`,
+                    ? `No skaters qualify (POSITION: marked position "${perGroup >= 2 ? '1" or "2' : '1'}" then fastest times to reach ${promoteLimit})`
+                    : `No skaters with valid times to promote (fastest ${promoteLimit} required)`,
                 400
             );
         }
 
-        category[targetRound] = promoted.map(mapCompetitorWithReset);
-        totalPromoted = promoted.length;
+        category[targetRound] = breakdown.promoted.map(mapCompetitorWithReset);
+        totalPromoted = breakdown.promoted.length;
     }
 
     if (totalPromoted === 0) {
@@ -696,6 +699,15 @@ const promoteToNextRound = asyncHandler(async (req, res) => {
     }
 
     await competition.save();
+
+    const nextRoundParticipants =
+        targetRound === "winners"
+            ? {
+                  "1st": (category["1st"] || []).map((row) => mapCompetitor(row)),
+                  "2nd": (category["2nd"] || []).map((row) => mapCompetitor(row)),
+                  "3rd": (category["3rd"] || []).map((row) => mapCompetitor(row)),
+              }
+            : (category[targetRound] || []).map((row) => mapCompetitor(row));
 
     res.status(200).json({
         success: true,
@@ -709,17 +721,8 @@ const promoteToNextRound = asyncHandler(async (req, res) => {
             name: category.name,
             fromRound: round,
             toRound: targetRound,
-            qualificationType: promotionCtx.qualificationType,
-            formulaId: promotionCtx.formulaId,
-            formulaName: promotionCtx.formula?.formulaName,
-            formulaRoundName: promotionCtx.formulaRound.roundName,
-            promoteLimit,
-            limitSource,
-            groupSize: promotionCtx.formulaRound.groupSize ?? null,
-            qualifyPerGroup: promotionCtx.formulaRound.qualifyPerGroup ?? null,
             promotedCount: totalPromoted,
-            inRoundCount: currentRoundCount,
-            category,
+            [targetRound]: nextRoundParticipants,
         },
     });
 });

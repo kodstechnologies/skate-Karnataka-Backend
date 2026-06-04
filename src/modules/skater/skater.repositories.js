@@ -5,9 +5,18 @@ import { DisciplineService } from "../discipline/discipline.model.js";
 import { Discipline } from "../guest/disciplines.model.js";
 import {
   countSkaterParticipantMedalStatsRepository,
+  getEventSkatingEventCategoriesFullRepository,
   hasParticipantRecordedTime,
   listCompetitionCategoryRankingsRepository,
 } from "../event/event.repositories.js";
+import { EventCompetition } from "../competition/eventCompetition.model.js";
+import { ensureFormulaDocument } from "../competition/competition.formulaResolve.js";
+import {
+  DEFAULT_ROUND_KEYS,
+  findEventCategoryByQuery,
+  getRoundKeysFromFormula,
+  scopeResolvedSkatingCategories,
+} from "../competition/displayRound.util.js";
 import { sortCompetitionByTime } from "../../util/competition/rankUtil.js";
 import { formatCompetitionTimeTakenFromSeconds } from "../../util/time/timeUtil.js";
 import { EventParticipant } from "../event/eventParticipant.model.js";
@@ -550,6 +559,177 @@ const hasAnyRecordedResultForEventAgeGroup = async (eventId, ageGroup) => {
     );
 };
 
+const loadEventCompetitionByAgeGroupKey = async (eventIds) => {
+    if (!eventIds.length) return new Map();
+
+    const rows = await EventCompetition.find({ eventId: { $in: eventIds } })
+        .select("eventId ageGroup categories")
+        .lean();
+
+    const map = new Map();
+    for (const row of rows) {
+        map.set(buildEventAgeGroupKey(row.eventId, row.ageGroup), row);
+    }
+    return map;
+};
+
+const findCompetitionCategoryByName = (competition, categoryName) => {
+    const norm = String(categoryName || "").trim().toLowerCase();
+    if (!norm) return null;
+
+    return (competition?.categories || []).find(
+        (row) => String(row?.name || "").trim().toLowerCase() === norm
+    );
+};
+
+const competitionSkaterInCategory = (categoryDoc, skaterUserId, roundKeys) => {
+    const keysToCheck = [...roundKeys, "1st", "2nd", "3rd"];
+    return keysToCheck.some((key) =>
+        (categoryDoc[key] || []).some(
+            (row) => row.skaterId && String(row.skaterId) === String(skaterUserId)
+        )
+    );
+};
+
+/** True when 2ndRound has skaters or the round after 1stRound has any entries. */
+const competitionHasRoundProgressBeyondFirst = (categoryDoc, roundKeys) => {
+    if ((categoryDoc["2ndRound"] || []).length > 0) {
+        return true;
+    }
+
+    const keys = roundKeys?.length ? roundKeys : [...DEFAULT_ROUND_KEYS];
+    const firstIdx = keys.indexOf("1stRound");
+    const idx = firstIdx >= 0 ? firstIdx : 0;
+    const nextKey = keys[idx + 1];
+    return Boolean(nextKey && (categoryDoc[nextKey] || []).length > 0);
+};
+
+const resolveRoundKeysForParticipantCategory = async (
+    eventMeta,
+    { ageGroup, categoryName, skatingEventCategoryId }
+) => {
+    if (!eventMeta) return [...DEFAULT_ROUND_KEYS];
+
+    const scoped = scopeResolvedSkatingCategories(
+        eventMeta.skatingEventCategories || [],
+        skatingEventCategoryId
+    );
+
+    const meta = findEventCategoryByQuery(scoped, {
+        ageGroup,
+        name: categoryName,
+        skatingEventCategoryId,
+        categoriesId: skatingEventCategoryId,
+    });
+
+    if (!meta?.formula) {
+        return [...DEFAULT_ROUND_KEYS];
+    }
+
+    const formula = await ensureFormulaDocument(meta.formula);
+    return getRoundKeysFromFormula(formula);
+};
+
+const participantHasCompetitionResultsVisible = async (
+    participant,
+    eventId,
+    skaterUserId,
+    competitionByKey,
+    eventMetaCache,
+    formulaRoundKeysCache
+) => {
+    const compKey = buildEventAgeGroupKey(eventId, participant.ageGroup);
+    const competition = competitionByKey.get(compKey);
+    if (!competition) return false;
+
+    const skatingEventCategoryId = participant.categoriesId ?? null;
+
+    for (const cat of participant.categories || []) {
+        const categoryName = String(cat?.name || "").trim();
+        if (!categoryName) continue;
+
+        const competitionCategory = findCompetitionCategoryByName(
+            competition,
+            categoryName
+        );
+        if (!competitionCategory) continue;
+
+        const cacheKey = `${String(eventId)}:${normalizeAgeGroupKey(participant.ageGroup)}:${categoryName.toLowerCase()}:${String(skatingEventCategoryId || "")}`;
+        let roundKeys = formulaRoundKeysCache.get(cacheKey);
+        if (roundKeys === undefined) {
+            let eventMeta = eventMetaCache.get(String(eventId));
+            if (eventMeta === undefined) {
+                eventMeta = await getEventSkatingEventCategoriesFullRepository(eventId);
+                eventMetaCache.set(String(eventId), eventMeta);
+            }
+            roundKeys = await resolveRoundKeysForParticipantCategory(eventMeta, {
+                ageGroup: participant.ageGroup,
+                categoryName,
+                skatingEventCategoryId,
+            });
+            formulaRoundKeysCache.set(cacheKey, roundKeys);
+        }
+
+        if (
+            !competitionSkaterInCategory(
+                competitionCategory,
+                skaterUserId,
+                roundKeys
+            )
+        ) {
+            continue;
+        }
+
+        if (
+            competitionHasRoundProgressBeyondFirst(competitionCategory, roundKeys)
+        ) {
+            return true;
+        }
+    }
+
+    return false;
+};
+
+const buildCompetitionVisibleAgeGroupKeys = async (
+    candidates,
+    skaterUserId,
+    resultKeys
+) => {
+    const needsCheck = candidates.filter(
+        (row) =>
+            !resultKeys.has(
+                buildEventAgeGroupKey(row.event._id, row.participant.ageGroup)
+            )
+    );
+    if (!needsCheck.length) return new Set();
+
+    const eventIds = [...new Set(needsCheck.map((row) => row.event._id))];
+    const competitionByKey = await loadEventCompetitionByAgeGroupKey(eventIds);
+    const eventMetaCache = new Map();
+    const formulaRoundKeysCache = new Map();
+    const visibleKeys = new Set();
+
+    for (const row of needsCheck) {
+        const key = buildEventAgeGroupKey(
+            row.event._id,
+            row.participant.ageGroup
+        );
+        if (visibleKeys.has(key)) continue;
+
+        const ok = await participantHasCompetitionResultsVisible(
+            row.participant,
+            row.event._id,
+            skaterUserId,
+            competitionByKey,
+            eventMetaCache,
+            formulaRoundKeysCache
+        );
+        if (ok) visibleKeys.add(key);
+    }
+
+    return visibleKeys;
+};
+
 const emptySkaterResultsEventPage = (page, limit) => ({
     data: [],
     pagination: {
@@ -579,7 +759,9 @@ const get_skater_results_event_repositories = async (userId, page, limit) => {
             select:
                 "header eventType eventStartDate eventEndDate eventStartTime eventEndTime address status colorOne colorTwo textColor",
         })
-        .select("userId eventId ageGroup categories paymentStatus createdAt")
+        .select(
+            "userId eventId ageGroup categories categoriesId paymentStatus createdAt"
+        )
         .sort({ createdAt: -1 })
         .lean();
 
@@ -618,12 +800,20 @@ const get_skater_results_event_repositories = async (userId, page, limit) => {
         candidates.map((row) => row.event._id)
     );
 
+    const competitionVisibleKeys = await buildCompetitionVisibleAgeGroupKeys(
+        candidates,
+        skaterUserId,
+        resultKeys
+    );
+
     const events = candidates
-        .filter((row) =>
-            resultKeys.has(
-                buildEventAgeGroupKey(row.event._id, row.participant.ageGroup)
-            )
-        )
+        .filter((row) => {
+            const key = buildEventAgeGroupKey(
+                row.event._id,
+                row.participant.ageGroup
+            );
+            return resultKeys.has(key) || competitionVisibleKeys.has(key);
+        })
         .map(({ participant, event, eventEnded }) => ({
             participantId: participant._id,
             isRegistered: true,

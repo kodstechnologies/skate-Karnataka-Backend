@@ -27,6 +27,11 @@ const CategorySchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    formula: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Formula",
+      default: null,
+    },
   },
   { _id: true }
 );
@@ -52,6 +57,12 @@ const CustomCategoryNameSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+    },
+    /** Competition formula for this lap/time label (one Formula per custom name). */
+    formula: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Formula",
+      default: null,
     },
   },
   { _id: false }

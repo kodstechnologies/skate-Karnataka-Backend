@@ -14,10 +14,12 @@ import {
     resolveCategoryOwnershipForCreate,
 } from "./skatingEventCategory.policy.js";
 import {
+    extractCustomCategoryRowsFromDoc,
     extractCustomNamesFromDoc,
     getOrgOverrideFromStandardDoc,
     mergeStandardWithOrgOverride,
     normalizeCategoryFormat,
+    prepareEventCategoryPayload,
     resolveSkatingCategoriesForEvent,
 } from "./skatingEventCategory.sync.js";
 import {
@@ -879,7 +881,7 @@ const stripOwnershipFromPayload = (payload) => {
 export const createEventCategoryService = async (payload, user) => {
     const actor = { ...user, ...(await enrichUserForCategoryScope(user)) };
     const ownership = resolveCategoryOwnershipForCreate(actor, payload);
-    const body = stripOwnershipFromPayload(payload);
+    const body = prepareEventCategoryPayload(stripOwnershipFromPayload(payload));
 
     return await createEventCategoryRepository({
         ...body,
@@ -928,7 +930,7 @@ export const updateEventCategoryService = async (id, payload, user) => {
 
     assertCanMutateCategory(actor, existing);
 
-    const body = stripOwnershipFromPayload(payload);
+    const body = prepareEventCategoryPayload(stripOwnershipFromPayload(payload));
     delete body.clubOverrides;
     delete body.districtOverrides;
 
@@ -946,7 +948,7 @@ const formatOrgCustomCategoryResponse = (doc) => {
 
     return {
         ...doc,
-        customCategoryNames: extractCustomNamesFromDoc(doc),
+        customCategoryNames: extractCustomCategoryRowsFromDoc(doc),
     };
 };
 

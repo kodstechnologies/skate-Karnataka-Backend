@@ -51,6 +51,7 @@ import {
   updateStateEventSkaterTimeService,
 } from "./event.service.js";
 import { initiateRazorpayPaymentServices } from "../payment/payment.services.js";
+import Formula from "./Formula.model.js";
 
 
 const display_latest_event = asyncHandler(async (req, res) => {
@@ -611,6 +612,85 @@ export const rejectCertification = asyncHandler(async (req, res) => {
     return res
         .status(200)
         .json(new ApiResponse(200, data, "Certification rejected successfully"));
+});
+
+// ======================== formula CRUD
+
+export const getFormulas = asyncHandler(async (req, res) => {
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 10));
+    const skip = (page - 1) * limit;
+
+    const [formulas, total] = await Promise.all([
+        Formula.find().sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+        Formula.countDocuments(),
+    ]);
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                data: formulas,
+                pagination: {
+                    total,
+                    page,
+                    limit,
+                    totalPages: Math.ceil(total / limit),
+                },
+            },
+            "Formulas fetched successfully"
+        )
+    );
+});
+
+export const getFormulaById = asyncHandler(async (req, res) => {
+    const formula = await Formula.findById(req.params.id).lean();
+    if (!formula) {
+        throw new AppError("Formula not found", 404);
+    }
+    return res
+        .status(200)
+        .json(new ApiResponse(200, formula, "Formula fetched successfully"));
+});
+
+export const getAllFormulasLight = asyncHandler(async (req, res) => {
+    const formulas = await Formula.find()
+        .select("_id categoryName")
+        .sort({ createdAt: -1 })
+        .lean();
+    return res
+        .status(200)
+        .json(new ApiResponse(200, formulas, "Formulas fetched successfully"));
+});
+
+export const createFormula = asyncHandler(async (req, res) => {
+    const formula = await Formula.create(req.body);
+    return res
+        .status(201)
+        .json(new ApiResponse(201, formula, "Formula created successfully"));
+});
+
+export const updateFormula = asyncHandler(async (req, res) => {
+    const formula = await Formula.findByIdAndUpdate(req.params.id, req.body, {
+        new: true,
+        runValidators: true,
+    });
+    if (!formula) {
+        throw new AppError("Formula not found", 404);
+    }
+    return res
+        .status(200)
+        .json(new ApiResponse(200, formula, "Formula updated successfully"));
+});
+
+export const deleteFormula = asyncHandler(async (req, res) => {
+    const formula = await Formula.findByIdAndDelete(req.params.id);
+    if (!formula) {
+        throw new AppError("Formula not found", 404);
+    }
+    return res
+        .status(200)
+        .json(new ApiResponse(200, null, "Formula deleted successfully"));
 });
 
 export {

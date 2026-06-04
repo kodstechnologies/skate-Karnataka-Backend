@@ -2,33 +2,99 @@ import { AGE_GROUPS } from "./SkatingEventCategory.model.js";
 
 const AGE_GROUP_LABELS = AGE_GROUPS.map((g) => g.label);
 
-/** Normalize custom name rows from API or DB into trimmed strings. */
-export const normalizeCustomCategoryNames = (input) => {
+const isValidFormulaId = (value) =>
+  /^[0-9a-fA-F]{24}$/.test(String(value || "").trim());
+
+/** Normalize custom name rows from API or DB (name + optional formula per lap/time). */
+export const normalizeCustomCategoryNameRows = (input) => {
   if (!Array.isArray(input)) {
     return [];
   }
 
-  return input
-    .map((row) => {
-      if (typeof row === "string") {
-        return row.trim();
+  const rows = [];
+  const seen = new Set();
+
+  for (const item of input) {
+    let name = "";
+    let formula = null;
+
+    if (typeof item === "string") {
+      name = item.trim();
+    } else if (item && typeof item === "object") {
+      name = String(item.name || "").trim();
+      if (isValidFormulaId(item.formula)) {
+        formula = String(item.formula).trim();
       }
-      if (row && typeof row === "object") {
-        return String(row.name || "").trim();
+    }
+
+    if (!name || seen.has(name)) {
+      continue;
+    }
+    seen.add(name);
+
+    const row = { name };
+    if (formula) {
+      row.formula = formula;
+    }
+    rows.push(row);
+  }
+
+  return rows;
+};
+
+/** Normalize custom name rows from API or DB into trimmed strings. */
+export const normalizeCustomCategoryNames = (input) =>
+  normalizeCustomCategoryNameRows(input).map((row) => row.name);
+
+const rowToCategory = ({ name, formula }) => {
+  const category = { name };
+  if (formula) {
+    category.formula = formula;
+  }
+  return category;
+};
+
+/** Copy formula from customCategoryNames onto ageGroups categories matched by name. */
+export const mergeFormulasIntoAgeGroups = (ageGroups, customRows = []) => {
+  if (!Array.isArray(ageGroups) || !ageGroups.length) {
+    return ageGroups;
+  }
+
+  const formulaByName = new Map(
+    normalizeCustomCategoryNameRows(customRows)
+      .filter((row) => row.formula)
+      .map((row) => [row.name, row.formula])
+  );
+
+  if (!formulaByName.size) {
+    return ageGroups;
+  }
+
+  return ageGroups.map((ageGroup) => ({
+    ...ageGroup,
+    categories: (ageGroup.categories || []).map((category) => {
+      const name = String(category?.name || "").trim();
+      const formula =
+        (isValidFormulaId(category?.formula) ? String(category.formula).trim() : null) ||
+        formulaByName.get(name) ||
+        null;
+
+      if (!formula) {
+        return category;
       }
-      return "";
-    })
-    .filter(Boolean);
+      return { ...category, formula };
+    }),
+  }));
 };
 
 /** Each custom lap name is available under every age group (for event registration). */
 export const buildAgeGroupsFromCustomNames = (customCategoryNames) => {
-  const names = normalizeCustomCategoryNames(customCategoryNames);
-  if (!names.length) {
+  const rows = normalizeCustomCategoryNameRows(customCategoryNames);
+  if (!rows.length) {
     return [];
   }
 
-  const categories = names.map((name) => ({ name }));
+  const categories = rows.map(rowToCategory);
 
   return AGE_GROUP_LABELS.map((label) => ({
     label,
@@ -36,21 +102,35 @@ export const buildAgeGroupsFromCustomNames = (customCategoryNames) => {
   }));
 };
 
-export const extractCustomNamesFromDoc = (doc) => {
+export const extractCustomCategoryRowsFromDoc = (doc) => {
   if (!doc) {
     return [];
   }
 
   if (Array.isArray(doc.customCategoryNames) && doc.customCategoryNames.length) {
-    return normalizeCustomCategoryNames(doc.customCategoryNames);
+    return normalizeCustomCategoryNameRows(doc.customCategoryNames);
   }
 
-  const fromAgeGroups = (doc.ageGroups || []).flatMap((ag) =>
-    (ag.categories || []).map((c) => c?.name || "")
-  );
+  const fromAgeGroups = (doc.ageGroups || []).flatMap((ag) => ag.categories || []);
+  const byName = new Map();
 
-  return [...new Set(normalizeCustomCategoryNames(fromAgeGroups))];
+  for (const category of fromAgeGroups) {
+    const name = String(category?.name || "").trim();
+    if (!name || byName.has(name)) {
+      continue;
+    }
+    const row = { name };
+    if (isValidFormulaId(category?.formula)) {
+      row.formula = String(category.formula).trim();
+    }
+    byName.set(name, row);
+  }
+
+  return [...byName.values()];
 };
+
+export const extractCustomNamesFromDoc = (doc) =>
+  extractCustomCategoryRowsFromDoc(doc).map((row) => row.name);
 
 export const getClubOverrideFromStandardDoc = (standardDoc, clubId) => {
   if (!standardDoc || !clubId) {
@@ -93,20 +173,20 @@ export const mergeStandardWithOrgOverride = (standardDoc, { clubId = null, distr
     return standardDoc;
   }
 
-  const names = extractCustomNamesFromDoc(override);
-  if (!names.length) {
+  const rows = extractCustomCategoryRowsFromDoc(override);
+  if (!rows.length) {
     return standardDoc;
   }
 
   const ageGroups =
     Array.isArray(override.ageGroups) && override.ageGroups.length
-      ? override.ageGroups
-      : buildAgeGroupsFromCustomNames(names);
+      ? mergeFormulasIntoAgeGroups(override.ageGroups, rows)
+      : buildAgeGroupsFromCustomNames(rows);
 
   return {
     ...standardDoc,
     typeName: override.typeName?.trim() || standardDoc.typeName,
-    customCategoryNames: override.customCategoryNames,
+    customCategoryNames: rows,
     ageGroups,
     _effectiveOverride: true,
   };
@@ -153,17 +233,40 @@ export const resolveSkatingCategoriesForEvent = (event, docs = []) => {
 };
 
 export const buildOverridePayloadFromInput = ({ typeName, customCategoryNames, names, ageGroups } = {}) => {
-  const normalizedNames = normalizeCustomCategoryNames(
-    customCategoryNames ?? names ?? []
-  );
+  const rows = normalizeCustomCategoryNameRows(customCategoryNames ?? names ?? []);
   const resolvedAgeGroups =
     Array.isArray(ageGroups) && ageGroups.length
-      ? ageGroups
-      : buildAgeGroupsFromCustomNames(normalizedNames);
+      ? mergeFormulasIntoAgeGroups(ageGroups, rows)
+      : buildAgeGroupsFromCustomNames(rows);
 
   return {
     typeName: typeName?.trim() || "",
-    customCategoryNames: normalizedNames.map((name) => ({ name })),
+    customCategoryNames: rows.map(rowToCategory),
     ageGroups: resolvedAgeGroups,
   };
+};
+
+/** Prepare create/update payload: sync customCategoryNames → ageGroups with per-name formula. */
+export const prepareEventCategoryPayload = (payload = {}) => {
+  const rows = normalizeCustomCategoryNameRows(
+    payload.customCategoryNames ?? payload.names ?? []
+  );
+
+  let ageGroups = payload.ageGroups;
+  if (Array.isArray(ageGroups) && ageGroups.length) {
+    ageGroups = mergeFormulasIntoAgeGroups(ageGroups, rows);
+  } else if (rows.length) {
+    ageGroups = buildAgeGroupsFromCustomNames(rows);
+  } else {
+    ageGroups = Array.isArray(ageGroups) ? ageGroups : [];
+  }
+
+  const next = { ...payload, ageGroups };
+  delete next.names;
+
+  if (rows.length) {
+    next.customCategoryNames = rows.map(rowToCategory);
+  }
+
+  return next;
 };

@@ -7,6 +7,7 @@ import {
 } from "./skatingEventCategory.policy.js";
 import {
   buildOverridePayloadFromInput,
+  extractCustomCategoryRowsFromDoc,
   extractCustomNamesFromDoc,
   getDistrictOverrideFromStandardDoc,
   getClubOverrideFromStandardDoc,
@@ -265,14 +266,27 @@ const displayAllEventRepository = async ({ page, limit }) => {
   };
 };
 
+const CATEGORY_FORMULA_POPULATE = [
+  "ageGroups.categories.formula",
+  "customCategoryNames.formula",
+  "clubOverrides.ageGroups.categories.formula",
+  "clubOverrides.customCategoryNames.formula",
+  "districtOverrides.ageGroups.categories.formula",
+  "districtOverrides.customCategoryNames.formula",
+];
+
 export const getVisibleSkatingEventCategoriesRepository = async ({ clubId, districtId } = {}) => {
   const filter = buildVisibleCategoriesFilter({ clubId, districtId });
-  return SkatingEventCategory.find(filter).sort({ typeName: 1, createdAt: -1 }).lean();
+  return SkatingEventCategory.find(filter)
+    .populate(CATEGORY_FORMULA_POPULATE)
+    .sort({ typeName: 1, createdAt: -1 })
+    .lean();
 };
 
 /** All standard (super admin) skating event category documents. */
 export const listStandardSkatingEventCategoriesRepository = async () => {
-  return SkatingEventCategory.find(legacyStandardCategoryClause(), { _id: 1, typeName: 1 })
+  return SkatingEventCategory.find(legacyStandardCategoryClause())
+    .populate(CATEGORY_FORMULA_POPULATE)
     .sort({ typeName: 1, createdAt: -1 })
     .lean();
 };
@@ -281,6 +295,7 @@ export const getAllEventCategoriesRepository = async ({ page, limit, filter = {}
   const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
 
   const data = await SkatingEventCategory.find(filter)
+    .populate(CATEGORY_FORMULA_POPULATE)
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(pageLimit)
@@ -298,18 +313,25 @@ export const getAllEventCategoriesRepository = async ({ page, limit, filter = {}
 };
 
 export const getEventCategoryByIdRepository = async (id) => {
-  return await SkatingEventCategory.findById(id).lean();
+  return await SkatingEventCategory.findById(id)
+    .populate(CATEGORY_FORMULA_POPULATE)
+    .lean();
 };
 
 export const createEventCategoryRepository = async (payload) => {
-  return await SkatingEventCategory.create(payload);
+  const doc = await SkatingEventCategory.create(payload);
+  return SkatingEventCategory.findById(doc._id)
+    .populate(CATEGORY_FORMULA_POPULATE)
+    .lean();
 };
 
 export const updateEventCategoryRepository = async (id, payload) => {
   return await SkatingEventCategory.findByIdAndUpdate(id, payload, {
     new: true,
     runValidators: true,
-  }).lean();
+  })
+    .populate(CATEGORY_FORMULA_POPULATE)
+    .lean();
 };
 
 export const deleteEventCategoryRepository = async (id) => {
@@ -327,7 +349,9 @@ export const findOrgCustomCategoryRepository = async ({ clubId, districtId } = {
     return null;
   }
 
-  return SkatingEventCategory.findOne(filter).lean();
+  return SkatingEventCategory.findOne(filter)
+    .populate(CATEGORY_FORMULA_POPULATE)
+    .lean();
 };
 
 export const upsertClubOverrideOnCategoryRepository = async (categoryId, clubId, input = {}) => {
@@ -353,6 +377,7 @@ export const upsertClubOverrideOnCategoryRepository = async (categoryId, clubId,
   }
 
   await doc.save();
+  await doc.populate(CATEGORY_FORMULA_POPULATE);
   return doc.toObject();
 };
 
@@ -385,6 +410,7 @@ export const upsertDistrictOverrideOnCategoryRepository = async (
   }
 
   await doc.save();
+  await doc.populate(CATEGORY_FORMULA_POPULATE);
   return doc.toObject();
 };
 
@@ -497,7 +523,7 @@ export const upsertOrgCustomCategoryRepository = async ({
   const summary = await findOrgOverrideSummaryRepository({ clubId, districtId });
   return {
     ...(summary || doc),
-    customCategoryNames: extractCustomNamesFromDoc(summary || doc),
+    customCategoryNames: extractCustomCategoryRowsFromDoc(summary || doc),
   };
 };
 
@@ -2708,7 +2734,9 @@ export const getSkaterEventFormCategoryDetailsRepository = async (eventId, skate
   let skatingEventCategories = [];
   if (orderedIds.length > 0) {
     const objectIds = orderedIds.map((id) => new mongoose.Types.ObjectId(id));
-    const docs = await SkatingEventCategory.find({ _id: { $in: objectIds } }).lean();
+    const docs = await SkatingEventCategory.find({ _id: { $in: objectIds } })
+      .populate(CATEGORY_FORMULA_POPULATE)
+      .lean();
     const byId = new Map(docs.map((doc) => [String(doc._id), doc]));
     skatingEventCategories = resolveSkatingCategoriesForEvent(
       event,
@@ -2766,7 +2794,9 @@ export const getEventSkatingEventCategoriesFullRepository = async (eventId) => {
   let skatingEventCategories = [];
   if (orderedIds.length > 0) {
     const objectIds = orderedIds.map((id) => new mongoose.Types.ObjectId(id));
-    const docs = await SkatingEventCategory.find({ _id: { $in: objectIds } }).lean();
+    const docs = await SkatingEventCategory.find({ _id: { $in: objectIds } })
+      .populate(CATEGORY_FORMULA_POPULATE)
+      .lean();
     const byId = new Map(docs.map((doc) => [String(doc._id), doc]));
     skatingEventCategories = resolveSkatingCategoriesForEvent(
       event,

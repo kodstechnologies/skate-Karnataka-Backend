@@ -5,6 +5,8 @@ import { EventCompetition } from "./eventCompetition.model.js";
 import { AppError } from "../../util/common/AppError.js";
 import { buildPaginationMeta } from "../../util/common/paginate.js";
 import { parseCompetitionTimeTakenToSeconds } from "../../util/time/timeUtil.js";
+import { Event } from "../event/event.model.js";
+import { resolveSkatingCategoriesForEvent } from "../event/skatingEventCategory.sync.js";
 
 const displayAllCompetition = asyncHandler(async (req, res) => { });
 const displayCompetitionById = asyncHandler(async (req, res) => { });
@@ -344,24 +346,94 @@ const promoteToNextRound = asyncHandler(async (req, res) => {
 
         if (round === "1stRound") {
             targetRound = "2ndRound";
-            const totalSkaters = currentRoundData.length;
-            if (totalSkaters > 60) {
-                limit = 24;
-            } else {
-                limit = totalSkaters;
-            }
         } else if (round === "2ndRound") {
             targetRound = "semiFinal";
-            limit = 12;
         } else if (round === "semiFinal") {
             targetRound = "final";
-            limit = 8;
         } else if (round === "final") {
             targetRound = "winners";
         }
 
         if (!targetRound) continue;
         targetRoundName = targetRound;
+
+        // Try to fetch formula from DB
+        let formulaRound = null;
+        try {
+            const eventDoc = await Event.findById(eventId)
+                .populate({
+                    path: "skatingEventCategories",
+                    populate: [
+                        { path: "ageGroups.categories.formula" },
+                        { path: "clubOverrides.ageGroups.categories.formula" },
+                        { path: "districtOverrides.ageGroups.categories.formula" }
+                    ]
+                })
+                .lean();
+
+            if (eventDoc) {
+                const resolvedCategories = resolveSkatingCategoriesForEvent(eventDoc, eventDoc.skatingEventCategories || []);
+                let foundSubCategory = null;
+                for (const rc of resolvedCategories) {
+                    const ageGroupEntry = (rc.ageGroups || []).find(
+                        (g) => String(g.label || "").trim().toLowerCase() === String(ageGroup).trim().toLowerCase()
+                    );
+                    if (ageGroupEntry) {
+                        const subCat = (ageGroupEntry.categories || []).find(
+                            (c) => String(c.name || "").trim().toLowerCase() === String(name).trim().toLowerCase()
+                        );
+                        if (subCat) {
+                            foundSubCategory = subCat;
+                            break;
+                        }
+                    }
+                }
+
+                if (foundSubCategory && foundSubCategory.formula) {
+                    const formulaObj = foundSubCategory.formula;
+                    const normRound = round.toLowerCase();
+                    let searchNames = [];
+                    if (normRound === "1stround") {
+                        searchNames = ["1stround"];
+                    } else if (normRound === "2ndround") {
+                        searchNames = ["2ndround", "quarterfinal"];
+                    } else if (normRound === "semifinal") {
+                        searchNames = ["semifinal"];
+                    } else if (normRound === "final") {
+                        searchNames = ["final"];
+                    }
+
+                    formulaRound = (formulaObj.rounds || []).find((r) =>
+                        searchNames.includes(String(r.roundName || "").toLowerCase())
+                    );
+                }
+            }
+        } catch (err) {
+            console.error("Error loading formula for competition promotion:", err);
+        }
+
+        if (formulaRound) {
+            const totalSkaters = (category["1stRound"] || []).length || currentRoundData.length;
+            if (totalSkaters < 65) {
+                limit = formulaRound.qualifyCountLessThan65 ?? formulaRound.qualifyCount ?? currentRoundData.length;
+            } else {
+                limit = formulaRound.qualifyCountMoreThan65 ?? formulaRound.qualifyCount ?? currentRoundData.length;
+            }
+        } else {
+            // Default fallback logic
+            if (round === "1stRound") {
+                const totalSkaters = currentRoundData.length;
+                if (totalSkaters > 60) {
+                    limit = 24;
+                } else {
+                    limit = totalSkaters;
+                }
+            } else if (round === "2ndRound") {
+                limit = 12;
+            } else if (round === "semiFinal") {
+                limit = 8;
+            }
+        }
 
         if (targetRound === "winners") {
             // Find skaters in final round and place in 1st, 2nd, 3rd arrays

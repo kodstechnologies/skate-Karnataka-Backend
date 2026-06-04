@@ -419,6 +419,14 @@ const get_all_skating_event_categories_repositories = async () => {
 
 const get_all_skating_event_categories_full_repositories = async () => {
     return await SkatingEventCategory.find({})
+        .populate([
+            "ageGroups.categories.formula",
+            "customCategoryNames.formula",
+            "clubOverrides.ageGroups.categories.formula",
+            "clubOverrides.customCategoryNames.formula",
+            "districtOverrides.ageGroups.categories.formula",
+            "districtOverrides.customCategoryNames.formula",
+        ])
         .sort({ typeName: 1 })
         .lean();
 };

@@ -650,9 +650,16 @@ const update_event_validation = {
 
 };
 
+const formulaIdField = Joi.string()
+    .trim()
+    .pattern(/^[0-9a-fA-F]{24}$/)
+    .allow(null, "")
+    .optional();
+
 const categorySchema = Joi.object({
     name: Joi.string().trim().min(1).required(),
     description: Joi.string().trim().allow("").optional(),
+    formula: formulaIdField,
 });
 
 const ageGroupSchema = Joi.object({
@@ -664,6 +671,7 @@ const customCategoryNameItem = Joi.alternatives().try(
     Joi.string().trim().min(1),
     Joi.object({
         name: Joi.string().trim().min(1).required(),
+        formula: formulaIdField,
     })
 );
 
@@ -671,6 +679,8 @@ const create_event_category_validation = {
     body: Joi.object({
         typeName: Joi.string().trim().min(2).max(100).required(),
         ageGroups: Joi.array().items(ageGroupSchema).default([]),
+        customCategoryNames: Joi.array().items(customCategoryNameItem).default([]),
+        names: Joi.array().items(Joi.string().trim().min(1)).optional(),
         categoryStatus: Joi.string()
             .valid(CATEGORY_STATUS.STANDARD, CATEGORY_STATUS.CUSTOM)
             .optional(),
@@ -763,6 +773,78 @@ export const approveCertificationParamsValidation = {
     }),
 };
 
+const FORMULA_ROUND_NAMES = [
+    "1stRound",
+    "2ndRound",
+    "quarterFinal",
+    "semiFinal",
+    "final",
+];
+
+/** Maps legacy / alternate round labels to canonical names (matches competition rounds). */
+const normalizeFormulaRoundName = (value) => {
+    const raw = String(value ?? "").trim();
+    if (!raw) return null;
+    if (FORMULA_ROUND_NAMES.includes(raw)) return raw;
+
+    const aliases = {
+        "1stround": "1stRound",
+        "2ndround": "2ndRound",
+        quarterfinal: "quarterFinal",
+        semifinal: "semiFinal",
+        QuarterFinal: "quarterFinal",
+        SemiFinal: "semiFinal",
+        Final: "final",
+    };
+
+    return aliases[raw] ?? aliases[raw.toLowerCase()] ?? null;
+};
+
+const formulaRoundItem = Joi.object({
+    roundName: Joi.string()
+        .trim()
+        .required()
+        .custom((value, helpers) => {
+            const normalized = normalizeFormulaRoundName(value);
+            if (!normalized) {
+                return helpers.error("any.invalid");
+            }
+            return normalized;
+        })
+        .messages({
+            "any.invalid": `roundName must be one of: ${FORMULA_ROUND_NAMES.join(", ")}`,
+        }),
+    qualificationType: Joi.string()
+        .trim()
+        .valid("TIME", "POSITION")
+        .required(),
+    minParticipants: Joi.number().integer().optional(),
+    maxParticipants: Joi.number().integer().optional(),
+    qualifyCount: Joi.number().integer().optional(),
+    qualifyCountLessThan65: Joi.number().integer().optional(),
+    qualifyCountMoreThan65: Joi.number().integer().optional(),
+    groupSize: Joi.number().integer().optional(),
+    qualifyPerGroup: Joi.number().integer().optional(),
+});
+
+const create_formula_validation = {
+    body: Joi.object({
+        categoryName: Joi.string().trim().min(1).max(200).required(),
+        ageGroup: Joi.string().trim().min(1).required(),
+        rounds: Joi.array().items(formulaRoundItem).default([]),
+        finalSelectionCount: Joi.number().integer().min(1).default(3),
+    }),
+};
+
+const update_formula_validation = {
+    body: Joi.object({
+        categoryName: Joi.string().trim().min(1).max(200),
+        ageGroup: Joi.string().trim().min(1),
+        rounds: Joi.array().items(formulaRoundItem),
+        finalSelectionCount: Joi.number().integer().min(1),
+    }).min(1),
+};
+
 export {
     state_skater_time_update_validation,
     given_point_validation,
@@ -776,5 +858,7 @@ export {
     upsert_org_custom_category_validation,
     eventCategoryListQueryValidation,
     register_form_validation,
+    create_formula_validation,
+    update_formula_validation,
     // stateEventResultQueryValidation
 };

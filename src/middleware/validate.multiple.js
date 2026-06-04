@@ -25,32 +25,42 @@ export const validate = (schemas) => {
                 throw new AppError("Invalid validation schema", 500);
             }
 
-            // 🔥 Loop through all schema types (body, query, params)
+            // Loop through all schema types (body, query, params)
             for (const [property, schema] of Object.entries(finalSchemas)) {
+                if (!schema) continue;
 
-                if (schema && req[property]) {
-
-                    // Skip empty query
-                    if (property === "query" && Object.keys(req[property]).length === 0) {
-                        continue;
-                    }
-
-                    const { error, value } = schema.validate(req[property], {
-                        abortEarly: false,
-                        stripUnknown: true,
-                        allowUnknown: true
-                    });
-
-                    if (error) {
-                        const errorMessage = error.details
-                            .map((detail) => detail.message.replace(/"/g, ""))
-                            .join(", ");
-
-                        return next(new AppError(errorMessage, 400));
-                    }
-
-                    assignValidatedSlice(req, property, value);
+                // Skip empty query
+                if (
+                    property === "query" &&
+                    Object.keys(req.query || {}).length === 0
+                ) {
+                    continue;
                 }
+
+                const input =
+                    property === "body"
+                        ? req.body ?? {}
+                        : req[property];
+
+                if (property !== "body" && !input) {
+                    continue;
+                }
+
+                const { error, value } = schema.validate(input, {
+                    abortEarly: false,
+                    stripUnknown: true,
+                    allowUnknown: true,
+                });
+
+                if (error) {
+                    const errorMessage = error.details
+                        .map((detail) => detail.message.replace(/"/g, ""))
+                        .join(", ");
+
+                    return next(new AppError(errorMessage, 400));
+                }
+
+                assignValidatedSlice(req, property, value);
             }
 
             next();

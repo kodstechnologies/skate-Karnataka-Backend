@@ -83,7 +83,8 @@ const getCompetitionDetailsByEvent = asyncHandler(async (req, res) => {
                 const paginatedData = roundData.slice(skipNum, skipNum + limitNum);
                 return {
                     name: cat.name,
-                    [round]: paginatedData
+                    round: round,
+                    participants: paginatedData
                 };
             }
 

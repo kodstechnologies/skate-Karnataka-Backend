@@ -76,3 +76,18 @@ const singleUpdateBody = Joi.object({
 export const updatePointsValidation = {
     body: Joi.alternatives().try(bulkUpdateBody, singleUpdateBody),
 };
+
+export const promoteToNextRoundValidation = {
+    body: Joi.object({
+        eventId: objectIdString.required(),
+        ageGroup: Joi.string().trim().min(1).required(),
+        round: Joi.string()
+            .trim()
+            .valid("1stRound", "2ndRound", "semiFinal", "final")
+            .required()
+            .messages({
+                "any.only": "round must be one of: 1stRound, 2ndRound, semiFinal, final",
+            }),
+        name: Joi.string().trim().min(1).required(),
+    }),
+};

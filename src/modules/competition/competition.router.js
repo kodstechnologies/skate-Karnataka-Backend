@@ -1,13 +1,14 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import { validate } from "../../middleware/validate.multiple.js";
-import { updatePointsValidation } from "./competition.validation.js";
+import { updatePointsValidation, promoteToNextRoundValidation } from "./competition.validation.js";
 import {
     getChestNumbersByEvent,
     generateChestNumbers,
     getCompetitionDetailsByEvent,
     displayRound,
     updatePoints,
+    promoteToNextRound,
 } from "./competition.controller.js";
 
 const router = express.Router();
@@ -40,12 +41,20 @@ router.get(
     getCompetitionDetailsByEvent
 );
 
+// Update time/position for competitors in a round
 router.post(
     "/v1/update-points",
-    authenticate([ "Club", "District","State", "Admin"]),
+    authenticate(["Club", "District", "State", "Admin"]),
     validate(updatePointsValidation),
     updatePoints
 );
-router.post("v1/update-round")
+
+// Promote qualified skaters from current round to the next round
+router.post(
+    "/v1/update-round",
+    authenticate(["Club", "District", "State", "Admin"]),
+    validate(promoteToNextRoundValidation),
+    promoteToNextRound
+);
 
 export default router;

@@ -7,7 +7,7 @@ const msUntil1AM = () => {
   const next = new Date(now);
 
   // Set time to 1:00 AM
-  next.setHours(0, 26, 0, 0);
+  next.setHours(1, 34, 0, 0);
 
   if (next <= now) {
     next.setDate(next.getDate() + 1);

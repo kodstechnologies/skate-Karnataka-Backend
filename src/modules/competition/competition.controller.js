@@ -4,6 +4,7 @@ import { SkaterChestNo } from "./SkaterChestNo.model.js";
 import { EventCompetition } from "./eventCompetition.model.js";
 import { AppError } from "../../util/common/AppError.js";
 import { buildPaginationMeta } from "../../util/common/paginate.js";
+import { parseCompetitionTimeTakenToSeconds } from "../../util/time/timeUtil.js";
 
 const displayAllCompetition = asyncHandler(async (req, res) => { });
 const displayCompetitionById = asyncHandler(async (req, res) => { });
@@ -200,9 +201,11 @@ const updatePoints = asyncHandler(async (req, res) => {
         throw new AppError("No competition found for the given event and age group", 404);
     }
 
+    const responseCategories = [];
+
     if (skaterId) {
         // Single skater update: find the skater across all categories in the round
-        let found = false;
+        let foundCategory = null;
         for (const category of competition.categories) {
             const roundData = category[round] || [];
             const competitor = roundData.find(
@@ -211,13 +214,17 @@ const updatePoints = asyncHandler(async (req, res) => {
             if (competitor) {
                 if (time !== undefined) competitor.time = time;
                 if (position !== undefined) competitor.position = position;
-                found = true;
+                foundCategory = category;
                 break;
             }
         }
-        if (!found) {
+        if (!foundCategory) {
             throw new AppError("Skater not found in any category for the given round", 404);
         }
+        responseCategories.push({
+            name: foundCategory.name,
+            competitors: foundCategory[round]
+        });
     } else {
         // Bulk update via categories array
         for (const catUpdate of categories) {
@@ -242,6 +249,10 @@ const updatePoints = asyncHandler(async (req, res) => {
                     if (comp.position !== undefined) competitor.position = comp.position;
                 }
             }
+            responseCategories.push({
+                name: category.name,
+                competitors: category[round]
+            });
         }
     }
 
@@ -250,12 +261,177 @@ const updatePoints = asyncHandler(async (req, res) => {
     res.status(200).json({
         success: true,
         message: "Points updated successfully",
-        data: competition,
+        data: {
+            eventId: competition.eventId,
+            ageGroup: competition.ageGroup,
+            round: round,
+            categories: responseCategories
+        },
     });
 });
 
+// Helpers for round progression
+const getSecondsFromTime = (timeStr) => {
+    if (!timeStr || typeof timeStr !== "string") return Infinity;
+    const trimmed = timeStr.trim();
+    if (!trimmed) return Infinity;
+    try {
+        return parseCompetitionTimeTakenToSeconds(trimmed);
+    } catch (err) {
+        const parsed = parseFloat(trimmed);
+        return isNaN(parsed) ? Infinity : parsed;
+    }
+};
+
+const mapCompetitor = (c) => ({
+    skaterId: c.skaterId,
+    chestNo: c.chestNo || "",
+    fullName: c.fullName || "",
+    krsaId: c.krsaId || "",
+    rsfiId: c.rsfiId || "",
+    time: c.time || "",
+    position: c.position || "0",
+});
+
+const mapCompetitorWithReset = (c) => ({
+    skaterId: c.skaterId,
+    chestNo: c.chestNo || "",
+    fullName: c.fullName || "",
+    krsaId: c.krsaId || "",
+    rsfiId: c.rsfiId || "",
+    time: "",
+    position: "0",
+});
+
+/**
+ * Promote qualified skaters from the current round to the next round.
+ *
+ * Body: { eventId, ageGroup, round }
+ *
+ * Progression logic (per category):
+ *   - 1stRound:
+ *     - If skaters > 60: promotes top 24 to 2ndRound
+ *     - If skaters <= 60: promotes top 12 to semiFinal (skips 2ndRound)
+ *   - 2ndRound:
+ *     - Promotes top 12 to semiFinal
+ *   - semiFinal:
+ *     - Promotes top 8 to final
+ *   - final:
+ *     - Places top 3 into 1st, 2nd, and 3rd place arrays
+ */
+const promoteToNextRound = asyncHandler(async (req, res) => {
+    const { eventId, ageGroup, round, name } = req.body;
+
+    const competition = await EventCompetition.findOne({ eventId, ageGroup });
+    if (!competition) {
+        throw new AppError("No competition found for the given event and age group", 404);
+    }
+
+    let totalPromoted = 0;
+    let targetRoundName = "";
+
+    for (const category of competition.categories) {
+        if (!category.name || category.name.trim().toLowerCase() !== name.trim().toLowerCase()) {
+            continue;
+        }
+
+        const currentRoundData = category[round] || [];
+        if (currentRoundData.length === 0) continue;
+
+        let targetRound;
+        let limit;
+
+        if (round === "1stRound") {
+            targetRound = "2ndRound";
+            const totalSkaters = currentRoundData.length;
+            if (totalSkaters > 60) {
+                limit = 24;
+            } else {
+                limit = totalSkaters;
+            }
+        } else if (round === "2ndRound") {
+            targetRound = "semiFinal";
+            limit = 12;
+        } else if (round === "semiFinal") {
+            targetRound = "final";
+            limit = 8;
+        } else if (round === "final") {
+            targetRound = "winners";
+        }
+
+        if (!targetRound) continue;
+        targetRoundName = targetRound;
+
+        if (targetRound === "winners") {
+            // Find skaters in final round and place in 1st, 2nd, 3rd arrays
+            let firstPlace = currentRoundData.find(c => c.position === "1");
+            let secondPlace = currentRoundData.find(c => c.position === "2");
+
+            const remaining = currentRoundData
+                .filter(c => c !== firstPlace && c !== secondPlace)
+                .sort((a, b) => getSecondsFromTime(a.time) - getSecondsFromTime(b.time));
+
+            if (!firstPlace && remaining.length > 0) {
+                firstPlace = remaining.shift();
+            }
+            if (!secondPlace && remaining.length > 0) {
+                secondPlace = remaining.shift();
+            }
+            const thirdPlace = remaining.length > 0 ? remaining[0] : null;
+
+            category["1st"] = firstPlace ? [mapCompetitor(firstPlace)] : [];
+            category["2nd"] = secondPlace ? [mapCompetitor(secondPlace)] : [];
+            category["3rd"] = thirdPlace ? [mapCompetitor(thirdPlace)] : [];
+
+            totalPromoted += (firstPlace ? 1 : 0) + (secondPlace ? 1 : 0) + (thirdPlace ? 1 : 0);
+        } else {
+            // 1. Auto-promote: position "1" or "2"
+            const autoPromoted = currentRoundData.filter(
+                (c) => c.position === "1" || c.position === "2"
+            );
+
+            // 2. Time-based: remaining skaters with a non-empty time, sorted ascending
+            const autoIds = new Set(autoPromoted.map((c) => String(c.skaterId)));
+            const remainingWithTime = currentRoundData
+                .filter((c) => !autoIds.has(String(c.skaterId)) && c.time && c.time.trim() !== "")
+                .sort((a, b) => getSecondsFromTime(a.time) - getSecondsFromTime(b.time));
+
+            // Combine up to limit
+            const promoted = [...autoPromoted, ...remainingWithTime].slice(0, limit);
+
+            category[targetRound] = promoted.map(mapCompetitorWithReset);
+            totalPromoted += promoted.length;
+        }
+    }
+
+    if (totalPromoted === 0) {
+        throw new AppError(
+            `No skaters qualified to progress from "${round}"`,
+            400
+        );
+    }
+
+    await competition.save();
+
+    const matchedCategory = competition.categories.find(
+        (c) => c.name && c.name.trim().toLowerCase() === name.trim().toLowerCase()
+    );
+
+    res.status(200).json({
+        success: true,
+        message: targetRoundName === "winners"
+            ? `Successfully populated 1st, 2nd, 3rd places from final round`
+            : `Promoted ${totalPromoted} skater(s) from ${round} to ${targetRoundName}`,
+        data: {
+            eventId: competition.eventId,
+            ageGroup: competition.ageGroup,
+            category: matchedCategory
+        },
+    });
+});
 
 export {
+
     displayAllCompetition,
     displayCompetitionById,
     getChestNumbersByEvent,
@@ -263,4 +439,5 @@ export {
     getCompetitionDetailsByEvent,
     displayRound,
     updatePoints,
+    promoteToNextRound,
 }

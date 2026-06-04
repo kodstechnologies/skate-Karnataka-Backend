@@ -5,6 +5,7 @@ import { EventCompetition } from "./eventCompetition.model.js";
 import { AppError } from "../../util/common/AppError.js";
 import { buildPaginationMeta } from "../../util/common/paginate.js";
 import {
+    formatCompetitionTimeDisplay,
     normalizeCompetitionTimeForStorage,
     parseCompetitionTimeTakenToSeconds,
 } from "../../util/time/timeUtil.js";
@@ -36,6 +37,38 @@ const applyCompetitorPointsUpdate = (competitor, { time, position }, qualificati
         competitor.position = position;
     }
 };
+
+const getSecondsFromTime = (timeStr) => {
+    if (!timeStr || typeof timeStr !== "string") return Infinity;
+    const trimmed = timeStr.trim();
+    if (!trimmed) return Infinity;
+    try {
+        return parseCompetitionTimeTakenToSeconds(trimmed);
+    } catch (err) {
+        const parsed = parseFloat(trimmed);
+        return isNaN(parsed) ? Infinity : parsed;
+    }
+};
+
+const mapCompetitor = (c) => ({
+    skaterId: c.skaterId,
+    chestNo: c.chestNo || "",
+    fullName: c.fullName || "",
+    krsaId: c.krsaId || "",
+    rsfiId: c.rsfiId || "",
+    time: formatCompetitionTimeDisplay(c.time),
+    position: c.position || "0",
+});
+
+const mapCompetitorWithReset = (c) => ({
+    skaterId: c.skaterId,
+    chestNo: c.chestNo || "",
+    fullName: c.fullName || "",
+    krsaId: c.krsaId || "",
+    rsfiId: c.rsfiId || "",
+    time: "",
+    position: "0",
+});
 
 const displayAllCompetition = asyncHandler(async (req, res) => { });
 const displayCompetitionById = asyncHandler(async (req, res) => { });
@@ -168,10 +201,17 @@ const getCompetitionDetailsByEvent = asyncHandler(async (req, res) => {
 
             const metaFields = toCategoryMetaFields(meta);
 
+            const formatRoundList = (rows) =>
+                Array.isArray(rows) && rows.length > 0
+                    ? rows.map((row) => mapCompetitor(row))
+                    : [];
+
             if (round) {
                 const roundData = cat[round] && cat[round].length > 0 ? cat[round] : [];
                 totalSkatersCount += roundData.length;
-                const paginatedData = roundData.slice(skipNum, skipNum + limitNum);
+                const paginatedData = roundData
+                    .slice(skipNum, skipNum + limitNum)
+                    .map((row) => mapCompetitor(row));
                 const qualificationType = getQualificationTypeFromFormula(
                     meta?.formula,
                     round
@@ -188,16 +228,13 @@ const getCompetitionDetailsByEvent = asyncHandler(async (req, res) => {
             return {
                 name: cat.name,
                 ...metaFields,
-                "1stRound":
-                    cat["1stRound"] && cat["1stRound"].length > 0 ? cat["1stRound"] : "pending",
-                "2ndRound":
-                    cat["2ndRound"] && cat["2ndRound"].length > 0 ? cat["2ndRound"] : "pending",
-                "semiFinal":
-                    cat["semiFinal"] && cat["semiFinal"].length > 0 ? cat["semiFinal"] : "pending",
-                "final": cat["final"] && cat["final"].length > 0 ? cat["final"] : "pending",
-                "1st": cat["1st"] && cat["1st"].length > 0 ? cat["1st"] : "pending",
-                "2nd": cat["2nd"] && cat["2nd"].length > 0 ? cat["2nd"] : "pending",
-                "3rd": cat["3rd"] && cat["3rd"].length > 0 ? cat["3rd"] : "pending",
+                "1stRound": formatRoundList(cat["1stRound"]),
+                "2ndRound": formatRoundList(cat["2ndRound"]),
+                "semiFinal": formatRoundList(cat["semiFinal"]),
+                "final": formatRoundList(cat["final"]),
+                "1st": formatRoundList(cat["1st"]),
+                "2nd": formatRoundList(cat["2nd"]),
+                "3rd": formatRoundList(cat["3rd"]),
             };
         });
 
@@ -473,11 +510,11 @@ const updatePoints = asyncHandler(async (req, res) => {
             qualificationType
         );
 
-        responseCategories.push({
-            name: foundCategory.name,
-            qualificationType,
-            competitors: foundCategory[round],
-        });
+            responseCategories.push({
+                name: foundCategory.name,
+                qualificationType,
+                competitors: (foundCategory[round] || []).map((row) => mapCompetitor(row)),
+            });
     } else {
         for (const catUpdate of categories) {
             const { name, competitors } = catUpdate;
@@ -521,7 +558,7 @@ const updatePoints = asyncHandler(async (req, res) => {
             responseCategories.push({
                 name: category.name,
                 qualificationType,
-                competitors: category[round],
+                competitors: (category[round] || []).map((row) => mapCompetitor(row)),
             });
         }
     }
@@ -538,39 +575,6 @@ const updatePoints = asyncHandler(async (req, res) => {
             categories: responseCategories
         },
     });
-});
-
-// Helpers for round progression
-const getSecondsFromTime = (timeStr) => {
-    if (!timeStr || typeof timeStr !== "string") return Infinity;
-    const trimmed = timeStr.trim();
-    if (!trimmed) return Infinity;
-    try {
-        return parseCompetitionTimeTakenToSeconds(trimmed);
-    } catch (err) {
-        const parsed = parseFloat(trimmed);
-        return isNaN(parsed) ? Infinity : parsed;
-    }
-};
-
-const mapCompetitor = (c) => ({
-    skaterId: c.skaterId,
-    chestNo: c.chestNo || "",
-    fullName: c.fullName || "",
-    krsaId: c.krsaId || "",
-    rsfiId: c.rsfiId || "",
-    time: c.time || "",
-    position: c.position || "0",
-});
-
-const mapCompetitorWithReset = (c) => ({
-    skaterId: c.skaterId,
-    chestNo: c.chestNo || "",
-    fullName: c.fullName || "",
-    krsaId: c.krsaId || "",
-    rsfiId: c.rsfiId || "",
-    time: "",
-    position: "0",
 });
 
 /**

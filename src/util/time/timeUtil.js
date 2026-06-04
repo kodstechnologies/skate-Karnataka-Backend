@@ -199,8 +199,8 @@ const timeAgo = (value) => {
 const pad2TimePart = (value) => String(Math.max(0, Number(value) || 0)).padStart(2, "0");
 
 /**
- * Parse competition time to total seconds (stored in DB).
- * Accepts a number (already seconds) or "minutes:seconds:milliseconds" string, e.g. "4:21:30".
+ * Parse competition time to total seconds.
+ * Accepts MM:SS, legacy MM:SS:mm, decimal M.SS, or raw seconds number.
  */
 const parseCompetitionTimeTakenToSeconds = (value) => {
     if (value === null || value === undefined) {
@@ -215,7 +215,7 @@ const parseCompetitionTimeTakenToSeconds = (value) => {
     }
 
     if (typeof value !== "string") {
-        throw new Error('timeTaken must be a number or "minutes:seconds:milliseconds" string');
+        throw new Error('timeTaken must be a number or "MM:SS" string');
     }
 
     const trimmed = value.trim();
@@ -223,28 +223,46 @@ const parseCompetitionTimeTakenToSeconds = (value) => {
         throw new Error("timeTaken cannot be empty");
     }
 
-    if (/^\d+(\.\d+)?$/.test(trimmed)) {
+    // Decimal minutes.seconds — e.g. 1.03 → 1 min 3 sec
+    if (/^\d+\.\d+$/.test(trimmed)) {
+        const [minutePart, secondPart] = trimmed.split(".");
+        const minutes = Number(minutePart);
+        const seconds = Number(secondPart.padEnd(2, "0").slice(0, 2));
+        if ([minutes, seconds].some((n) => Number.isNaN(n) || n < 0)) {
+            throw new Error("timeTaken minutes and seconds must be non-negative");
+        }
+        return minutes * 60 + seconds;
+    }
+
+    if (trimmed.includes(":")) {
+        const parts = trimmed.split(":").map((part) => part.trim());
+        if (parts.length === 2 || parts.length === 3) {
+            const minutes = Number(parts[0]);
+            const seconds = Number(parts[1]);
+            const third = parts.length === 3 ? Number(parts[2]) : 0;
+
+            if ([minutes, seconds, third].some((n) => Number.isNaN(n) || n < 0)) {
+                throw new Error("timeTaken must use non-negative MM:SS values");
+            }
+
+            // Legacy MM:SS:mm — third segment is milliseconds when 3 parts
+            if (parts.length === 3) {
+                return minutes * 60 + seconds + third / 1000;
+            }
+            return minutes * 60 + seconds;
+        }
+        throw new Error('timeTaken must be in "MM:SS" format (e.g. "01:03")');
+    }
+
+    if (/^\d+$/.test(trimmed)) {
         return Number(trimmed);
     }
 
-    const parts = trimmed.split(":").map((part) => part.trim());
-    if (parts.length !== 3) {
-        throw new Error('timeTaken must be in "minutes:seconds:milliseconds" format (e.g. "4:21:30")');
-    }
-
-    const minutes = Number(parts[0]);
-    const seconds = Number(parts[1]);
-    const milliseconds = Number(parts[2]);
-
-    if ([minutes, seconds, milliseconds].some((n) => Number.isNaN(n) || n < 0)) {
-        throw new Error("timeTaken minutes, seconds, and milliseconds must be non-negative numbers");
-    }
-
-    return minutes * 60 + seconds + milliseconds / 1000;
+    throw new Error('timeTaken must be in "MM:SS" format (e.g. "01:03")');
 };
 
 /**
- * Format stored seconds as "minutes:seconds:milliseconds" (e.g. 480 → "08:00:00").
+ * Format seconds as MM:SS (e.g. 63 → "01:03", 0 → "00:00").
  */
 const formatCompetitionTimeTakenFromSeconds = (totalSeconds) => {
     if (totalSeconds === null || totalSeconds === undefined) {
@@ -257,16 +275,13 @@ const formatCompetitionTimeTakenFromSeconds = (totalSeconds) => {
 
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = Math.floor(totalSeconds % 60);
-    const milliseconds = Math.round((totalSeconds % 1) * 1000);
+    const minutePart = minutes < 100 ? pad2TimePart(minutes) : String(minutes);
 
-    const pad2 = (value) => String(value).padStart(2, "0");
-    const minutePart = minutes < 100 ? pad2(minutes) : String(minutes);
-
-    return `${minutePart}:${pad2(seconds)}:${pad2(milliseconds)}`;
+    return `${minutePart}:${pad2TimePart(seconds)}`;
 };
 
 /**
- * Normalize API time input for storage as MM:SS:00 (e.g. "1.03" → "01:03:00").
+ * Normalize API / DB time to MM:SS (e.g. "1.03" → "01:03", "01:03:00" → "01:03").
  */
 const normalizeCompetitionTimeForStorage = (value) => {
     if (value === null || value === undefined) {
@@ -278,24 +293,20 @@ const normalizeCompetitionTimeForStorage = (value) => {
         return "";
     }
 
-    // Decimal minutes.seconds — e.g. 1.03 → 01:03:00
     if (/^\d+\.\d+$/.test(trimmed)) {
         const [minutePart, secondPart] = trimmed.split(".");
         const seconds = secondPart.padEnd(2, "0").slice(0, 2);
         const minutes = Number(minutePart);
         const minuteStr = minutes < 100 ? pad2TimePart(minutes) : String(minutes);
-        return `${minuteStr}:${pad2TimePart(seconds)}:00`;
+        return `${minuteStr}:${pad2TimePart(seconds)}`;
     }
 
     if (trimmed.includes(":")) {
         const parts = trimmed.split(":").map((part) => part.trim());
-        if (parts.length === 2) {
-            return `${pad2TimePart(parts[0])}:${pad2TimePart(parts[1])}:00`;
-        }
-        if (parts.length === 3) {
+        if (parts.length >= 2) {
             const minutes = Number(parts[0]);
             const minuteStr = minutes < 100 ? pad2TimePart(minutes) : String(minutes);
-            return `${minuteStr}:${pad2TimePart(parts[1])}:${pad2TimePart(parts[2])}`;
+            return `${minuteStr}:${pad2TimePart(parts[1])}`;
         }
     }
 
@@ -309,6 +320,12 @@ const normalizeCompetitionTimeForStorage = (value) => {
     return trimmed;
 };
 
+/** Display competition time as MM:SS (empty stays empty). */
+const formatCompetitionTimeDisplay = (value) => {
+    const normalized = normalizeCompetitionTimeForStorage(value);
+    return normalized || "";
+};
+
 export {
     now,
     toISO,
@@ -320,6 +337,7 @@ export {
     diffInMinutes,
     timeAgo,
     normalizeCompetitionTimeForStorage,
+    formatCompetitionTimeDisplay,
     parseCompetitionTimeTakenToSeconds,
     formatCompetitionTimeTakenFromSeconds,
 };

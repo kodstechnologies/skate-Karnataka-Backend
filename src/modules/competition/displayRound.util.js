@@ -42,12 +42,34 @@ export const idsEqual = (left, right) => {
   return String(left) === String(right);
 };
 
+const pickFormulaForCategory = (skatingCategory, subCategory) => {
+  if (subCategory?.formula) {
+    return subCategory.formula;
+  }
+
+  const normName = String(subCategory?.name || "").trim().toLowerCase();
+  if (!normName) {
+    return null;
+  }
+
+  for (const row of skatingCategory?.customCategoryNames || []) {
+    if (
+      String(row?.name || "").trim().toLowerCase() === normName &&
+      row.formula
+    ) {
+      return row.formula;
+    }
+  }
+
+  return null;
+};
+
 const formatCategoryMeta = (skatingCategory, subCategory) => ({
   name: String(subCategory.name || "").trim(),
   skatingEventCategoryId: skatingCategory._id,
   skatingEventCategoryName: skatingCategory.typeName ?? "",
   categoryId: subCategory._id,
-  formula: subCategory.formula || null,
+  formula: pickFormulaForCategory(skatingCategory, subCategory),
 });
 
 export const findEventCategoryMeta = (resolvedCategories, ageGroup, categoryName) => {

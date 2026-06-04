@@ -1,6 +1,43 @@
 /**
- * Who advances from a round — respects formula qualifyCount (e.g. semiFinal → 4 only).
+ * Promotion using Formula rounds (qualifyCount, groupSize, qualifyPerGroup).
  */
+
+const positionQualifies = (position, qualifyPerGroup) => {
+  const value = String(position ?? "").trim();
+  if (qualifyPerGroup >= 2) {
+    return value === "1" || value === "2";
+  }
+  return value === "1";
+};
+
+const pickFromGroup = (group, qualifyPerGroup, getSecondsFromTime) => {
+  const perGroup = Math.max(Number(qualifyPerGroup) || 1, 1);
+  const cap = Math.min(perGroup, group.length);
+  if (!cap) {
+    return [];
+  }
+
+  const selectedByPosition = group
+    .filter((row) => positionQualifies(row.position, perGroup))
+    .sort((a, b) => getSecondsFromTime(a.time) - getSecondsFromTime(b.time));
+
+  if (selectedByPosition.length >= cap) {
+    return selectedByPosition.slice(0, cap);
+  }
+
+  const selectedIds = new Set(selectedByPosition.map((row) => String(row.skaterId)));
+  const selectedByTime = group
+    .filter(
+      (row) =>
+        !selectedIds.has(String(row.skaterId)) &&
+        row.time &&
+        String(row.time).trim() !== ""
+    )
+    .sort((a, b) => getSecondsFromTime(a.time) - getSecondsFromTime(b.time))
+    .slice(0, cap - selectedByPosition.length);
+
+  return [...selectedByPosition, ...selectedByTime];
+};
 
 const selectPositionPromoted = (
   currentRoundData,
@@ -9,28 +46,27 @@ const selectPositionPromoted = (
   cap
 ) => {
   const qualifyPerGroup = Math.max(Number(formulaRound?.qualifyPerGroup) || 1, 1);
+  const groupSize = Math.max(Number(formulaRound?.groupSize) || 0, 0);
   const targetTotal = Math.max(Number(cap) || 0, 0);
+
   if (!targetTotal) {
     return [];
   }
 
-  const positionQualifies = (position) => {
-    const value = String(position ?? "").trim();
-    if (qualifyPerGroup >= 2) {
-      return value === "1" || value === "2";
+  let promoted = [];
+
+  if (groupSize > 0) {
+    for (let i = 0; i < currentRoundData.length; i += groupSize) {
+      const group = currentRoundData.slice(i, i + groupSize);
+      promoted.push(...pickFromGroup(group, qualifyPerGroup, getSecondsFromTime));
     }
-    return value === "1";
-  };
+    return promoted.slice(0, targetTotal);
+  }
 
-  const selectedByPosition = currentRoundData
-    .filter((row) => positionQualifies(row.position))
-    .sort((a, b) => getSecondsFromTime(a.time) - getSecondsFromTime(b.time));
+  promoted = pickFromGroup(currentRoundData, qualifyPerGroup, getSecondsFromTime);
 
-  const selectedIds = new Set(selectedByPosition.map((row) => String(row.skaterId)));
-  let selectedByTime = [];
-
-  if (selectedByPosition.length < targetTotal) {
-    const pending = targetTotal - selectedByPosition.length;
+  if (promoted.length < targetTotal) {
+    const selectedIds = new Set(promoted.map((row) => String(row.skaterId)));
     const fillPool = currentRoundData
       .filter((row) => {
         if (selectedIds.has(String(row.skaterId))) {
@@ -47,11 +83,13 @@ const selectPositionPromoted = (
       })
       .sort((a, b) => getSecondsFromTime(a.time) - getSecondsFromTime(b.time));
 
-    selectedByTime = fillPool.slice(0, pending);
+    promoted = [
+      ...promoted,
+      ...fillPool.slice(0, targetTotal - promoted.length),
+    ];
   }
 
-  const combined = [...selectedByPosition, ...selectedByTime];
-  return combined.slice(0, targetTotal);
+  return promoted.slice(0, targetTotal);
 };
 
 const selectTimePromoted = (currentRoundData, cap, getSecondsFromTime) => {
@@ -91,8 +129,7 @@ export const selectPromotedCompetitors = (
     );
   }
 
-  const promoted = selectTimePromoted(currentRoundData, limit, getSecondsFromTime);
-  return promoted.slice(0, limit);
+  return selectTimePromoted(currentRoundData, limit, getSecondsFromTime);
 };
 
 export const selectFinalWinners = (finalRoundData, medalCount, getSecondsFromTime) => {

@@ -196,6 +196,8 @@ const timeAgo = (value) => {
 
 // =====================================
 
+const pad2TimePart = (value) => String(Math.max(0, Number(value) || 0)).padStart(2, "0");
+
 /**
  * Parse competition time to total seconds (stored in DB).
  * Accepts a number (already seconds) or "minutes:seconds:milliseconds" string, e.g. "4:21:30".
@@ -263,6 +265,50 @@ const formatCompetitionTimeTakenFromSeconds = (totalSeconds) => {
     return `${minutePart}:${pad2(seconds)}:${pad2(milliseconds)}`;
 };
 
+/**
+ * Normalize API time input for storage as MM:SS:00 (e.g. "1.03" → "01:03:00").
+ */
+const normalizeCompetitionTimeForStorage = (value) => {
+    if (value === null || value === undefined) {
+        return "";
+    }
+
+    const trimmed = String(value).trim();
+    if (!trimmed) {
+        return "";
+    }
+
+    // Decimal minutes.seconds — e.g. 1.03 → 01:03:00
+    if (/^\d+\.\d+$/.test(trimmed)) {
+        const [minutePart, secondPart] = trimmed.split(".");
+        const seconds = secondPart.padEnd(2, "0").slice(0, 2);
+        const minutes = Number(minutePart);
+        const minuteStr = minutes < 100 ? pad2TimePart(minutes) : String(minutes);
+        return `${minuteStr}:${pad2TimePart(seconds)}:00`;
+    }
+
+    if (trimmed.includes(":")) {
+        const parts = trimmed.split(":").map((part) => part.trim());
+        if (parts.length === 2) {
+            return `${pad2TimePart(parts[0])}:${pad2TimePart(parts[1])}:00`;
+        }
+        if (parts.length === 3) {
+            const minutes = Number(parts[0]);
+            const minuteStr = minutes < 100 ? pad2TimePart(minutes) : String(minutes);
+            return `${minuteStr}:${pad2TimePart(parts[1])}:${pad2TimePart(parts[2])}`;
+        }
+    }
+
+    if (/^\d+$/.test(trimmed)) {
+        const totalSeconds = Number(trimmed);
+        if (!Number.isNaN(totalSeconds)) {
+            return formatCompetitionTimeTakenFromSeconds(totalSeconds) || trimmed;
+        }
+    }
+
+    return trimmed;
+};
+
 export {
     now,
     toISO,
@@ -273,6 +319,7 @@ export {
     formatDateTime,
     diffInMinutes,
     timeAgo,
+    normalizeCompetitionTimeForStorage,
     parseCompetitionTimeTakenToSeconds,
     formatCompetitionTimeTakenFromSeconds,
 };

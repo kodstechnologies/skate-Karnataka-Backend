@@ -3,8 +3,8 @@ import { generateChestNumbersForExpiredEvents } from "./skaterChestNo.service.js
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Daily run at 13:17 (1:17 PM) server local time — only time chest numbers are auto-generated. */
-const SCHEDULE_HOUR = 13;
-const SCHEDULE_MINUTE = 49;
+const SCHEDULE_HOUR = 15;
+const SCHEDULE_MINUTE = 30;
 
 const msUntilNextScheduledRun = () => {
   const now = new Date();

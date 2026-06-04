@@ -4,7 +4,10 @@ import { SkaterChestNo } from "./SkaterChestNo.model.js";
 import { EventCompetition } from "./eventCompetition.model.js";
 import { AppError } from "../../util/common/AppError.js";
 import { buildPaginationMeta } from "../../util/common/paginate.js";
-import { parseCompetitionTimeTakenToSeconds } from "../../util/time/timeUtil.js";
+import {
+    normalizeCompetitionTimeForStorage,
+    parseCompetitionTimeTakenToSeconds,
+} from "../../util/time/timeUtil.js";
 import { getEventSkatingEventCategoriesFullRepository } from "../event/event.repositories.js";
 import {
     getFormulaQualificationTypeForRound,
@@ -28,7 +31,7 @@ import {
 } from "./displayRound.util.js";
 
 const applyCompetitorPointsUpdate = (competitor, { time, position }, qualificationType) => {
-    competitor.time = time;
+    competitor.time = normalizeCompetitionTimeForStorage(time);
     if (qualificationType === "POSITION") {
         competitor.position = position;
     }
@@ -622,16 +625,16 @@ const promoteToNextRound = asyncHandler(async (req, res) => {
 
     const currentRoundCount = currentRoundData.length;
 
-    if (!promotionCtx.meta?.formula) {
+    if (!promotionCtx.formula?.rounds?.length) {
         throw new AppError(
-            "No formula linked to this category. Link a formula with qualifyCount per round.",
+            "No formula linked to this category (set formula on lap \"100\" in event category config).",
             400
         );
     }
 
     if (!promotionCtx.formulaRound) {
         throw new AppError(
-            `Formula has no "${round}" round (roundName must match: 1stRound, 2ndRound, quarterFinal, semiFinal, final).`,
+            `Formula "${promotionCtx.formula.formulaName || promotionCtx.formulaId}" has no "${round}" round.`,
             400
         );
     }
@@ -703,9 +706,13 @@ const promoteToNextRound = asyncHandler(async (req, res) => {
             fromRound: round,
             toRound: targetRound,
             qualificationType: promotionCtx.qualificationType,
+            formulaId: promotionCtx.formulaId,
+            formulaName: promotionCtx.formula?.formulaName,
             formulaRoundName: promotionCtx.formulaRound.roundName,
             promoteLimit,
             limitSource,
+            groupSize: promotionCtx.formulaRound.groupSize ?? null,
+            qualifyPerGroup: promotionCtx.formulaRound.qualifyPerGroup ?? null,
             promotedCount: totalPromoted,
             inRoundCount: currentRoundCount,
             category,

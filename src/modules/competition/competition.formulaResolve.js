@@ -1,5 +1,6 @@
-import { Event } from "../event/event.model.js";
-import { resolveSkatingCategoriesForEvent } from "../event/skatingEventCategory.sync.js";
+import mongoose from "mongoose";
+import Formula from "../event/Formula.model.js";
+import { getEventSkatingEventCategoriesFullRepository } from "../event/event.repositories.js";
 import {
   findEventCategoryByQuery,
   scopeResolvedSkatingCategories,
@@ -12,7 +13,27 @@ const FORMULA_ROUND_SEARCH = {
   final: ["final"],
 };
 
-/** Resolve TIME | POSITION from an already-populated formula document. */
+/** Load full Formula document when only ObjectId was stored on the category. */
+export const ensureFormulaDocument = async (formula) => {
+  if (!formula) {
+    return null;
+  }
+
+  if (Array.isArray(formula.rounds)) {
+    return formula;
+  }
+
+  const id =
+    typeof formula === "object" && formula._id != null ? formula._id : formula;
+
+  if (!mongoose.Types.ObjectId.isValid(String(id))) {
+    return null;
+  }
+
+  return Formula.findById(id).lean();
+};
+
+/** Resolve TIME | POSITION from a populated formula document. */
 export const getQualificationTypeFromFormula = (formula, competitionRound) => {
   if (!formula?.rounds?.length) {
     return "TIME";
@@ -28,48 +49,6 @@ export const getQualificationTypeFromFormula = (formula, competitionRound) => {
   );
 
   return formulaRound?.qualificationType === "POSITION" ? "POSITION" : "TIME";
-};
-
-/**
- * Returns "TIME" or "POSITION" for a competition round from the linked formula.
- * Defaults to TIME when no formula is configured.
- */
-export const getFormulaQualificationTypeForRound = async (
-  eventId,
-  { ageGroup, categoryName, round, skatingEventCategoryId } = {}
-) => {
-  const eventDoc = await Event.findById(eventId)
-    .populate({
-      path: "skatingEventCategories",
-      populate: [
-        { path: "ageGroups.categories.formula" },
-        { path: "clubOverrides.ageGroups.categories.formula" },
-        { path: "districtOverrides.ageGroups.categories.formula" },
-      ],
-    })
-    .lean();
-
-  if (!eventDoc) {
-    return "TIME";
-  }
-
-  const resolved = resolveSkatingCategoriesForEvent(
-    eventDoc,
-    eventDoc.skatingEventCategories || []
-  );
-  const scoped = scopeResolvedSkatingCategories(
-    resolved,
-    skatingEventCategoryId
-  );
-
-  const meta = findEventCategoryByQuery(scoped, {
-    ageGroup,
-    name: categoryName,
-    skatingEventCategoryId,
-    categoriesId: skatingEventCategoryId,
-  });
-
-  return getQualificationTypeFromFormula(meta?.formula, round);
 };
 
 export const findFormulaRoundInFormula = (formula, competitionRound) => {
@@ -101,15 +80,10 @@ export const getNextCompetitionRound = (competitionRound) =>
 
 /**
  * How many may advance from the current round (Formula.model.js).
- *
- * Priority:
- * 1) qualifyCount — used when set (never promote more than this)
- * 2) Else qualifyCountLessThan65 / qualifyCountMoreThan65 vs maxParticipants (default 65),
- *    based on skaters in the **current** round only
  */
 export const getPromotionLimit = (formulaRound, { currentRoundCount } = {}) => {
   if (!formulaRound) {
-    return null;
+    return { limit: null, limitSource: null };
   }
 
   const current = Math.max(Number(currentRoundCount) || 0, 0);
@@ -146,49 +120,17 @@ export const getPromotionLimit = (formulaRound, { currentRoundCount } = {}) => {
   return { limit: capped, limitSource };
 };
 
-/** @deprecated Use getPromotionLimit return object */
-export const getPromotionLimitValue = (formulaRound, ctx) =>
-  getPromotionLimit(formulaRound, ctx).limit;
-
-export const getDefaultPromotionLimit = (round, currentRoundData) => {
-  const count = Array.isArray(currentRoundData) ? currentRoundData.length : 0;
-  if (round === "1stRound") {
-    return count > 60 ? 24 : count;
-  }
-  if (round === "2ndRound") {
-    return Math.min(12, count);
-  }
-  if (round === "semiFinal") {
-    return Math.min(4, count);
-  }
-  return count;
-};
-
-export const resolvePromotionContext = async (
+export const loadCategoryMetaForCompetition = async (
   eventId,
-  { ageGroup, categoryName, round, skatingEventCategoryId } = {}
+  { ageGroup, categoryName, skatingEventCategoryId } = {}
 ) => {
-  const eventDoc = await Event.findById(eventId)
-    .populate({
-      path: "skatingEventCategories",
-      populate: [
-        { path: "ageGroups.categories.formula" },
-        { path: "clubOverrides.ageGroups.categories.formula" },
-        { path: "districtOverrides.ageGroups.categories.formula" },
-      ],
-    })
-    .lean();
-
-  if (!eventDoc) {
+  const eventMeta = await getEventSkatingEventCategoriesFullRepository(eventId);
+  if (!eventMeta) {
     return null;
   }
 
-  const resolved = resolveSkatingCategoriesForEvent(
-    eventDoc,
-    eventDoc.skatingEventCategories || []
-  );
   const scoped = scopeResolvedSkatingCategories(
-    resolved,
+    eventMeta.skatingEventCategories || [],
     skatingEventCategoryId
   );
 
@@ -204,15 +146,54 @@ export const resolvePromotionContext = async (
     return null;
   }
 
-  const formulaRound = findFormulaRoundInFormula(meta.formula, round);
-  const qualificationType = getQualificationTypeFromFormula(meta.formula, round);
-  const nextRound = getNextCompetitionRound(round);
+  const formula = await ensureFormulaDocument(meta.formula);
+  return {
+    ...meta,
+    formula,
+    formulaId: formula?._id ? String(formula._id) : null,
+  };
+};
+
+/**
+ * Returns "TIME" or "POSITION" for a competition round from the linked formula.
+ */
+export const getFormulaQualificationTypeForRound = async (
+  eventId,
+  { ageGroup, categoryName, round, skatingEventCategoryId } = {}
+) => {
+  const meta = await loadCategoryMetaForCompetition(eventId, {
+    ageGroup,
+    categoryName,
+    skatingEventCategoryId,
+  });
+
+  return getQualificationTypeFromFormula(meta?.formula, round);
+};
+
+export const resolvePromotionContext = async (
+  eventId,
+  { ageGroup, categoryName, round, skatingEventCategoryId } = {}
+) => {
+  const meta = await loadCategoryMetaForCompetition(eventId, {
+    ageGroup,
+    categoryName,
+    skatingEventCategoryId,
+  });
+
+  if (!meta) {
+    return null;
+  }
+
+  const formula = meta.formula;
+  const formulaRound = findFormulaRoundInFormula(formula, round);
 
   return {
     meta,
+    formula,
+    formulaId: meta.formulaId,
     formulaRound,
-    qualificationType,
-    nextRound,
-    finalSelectionCount: meta.formula?.finalSelectionCount ?? 3,
+    qualificationType: getQualificationTypeFromFormula(formula, round),
+    nextRound: getNextCompetitionRound(round),
+    finalSelectionCount: formula?.finalSelectionCount ?? 3,
   };
 };

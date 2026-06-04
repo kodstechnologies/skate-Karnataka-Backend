@@ -10,7 +10,7 @@ const objectIdString = Joi.string()
 
 const competitorUpdateItem = Joi.object({
     skaterId: objectIdString.required(),
-    time: Joi.string().trim().allow("").optional(),
+    time: Joi.string().trim().min(1).required(),
     position: Joi.string()
         .trim()
         .valid("0", "1", "2")
@@ -36,6 +36,9 @@ const bulkUpdateBody = Joi.object({
         .messages({
             "any.only": "round must be one of: 1stRound, 2ndRound, semiFinal, final",
         }),
+    skatingEventCategoryId: objectIdString.optional(),
+    skatingEventCategories: objectIdString.optional(),
+    categoriesId: objectIdString.optional(),
     categories: Joi.array().items(categoryUpdateItem).min(1).required(),
     skaterId: Joi.forbidden(),
     time: Joi.forbidden(),
@@ -53,8 +56,11 @@ const singleUpdateBody = Joi.object({
         .messages({
             "any.only": "round must be one of: 1stRound, 2ndRound, semiFinal, final",
         }),
+    skatingEventCategoryId: objectIdString.optional(),
+    skatingEventCategories: objectIdString.optional(),
+    categoriesId: objectIdString.optional(),
     skaterId: objectIdString.required(),
-    time: Joi.string().trim().allow("").optional(),
+    time: Joi.string().trim().min(1).required(),
     position: Joi.string()
         .trim()
         .valid("0", "1", "2")
@@ -63,15 +69,6 @@ const singleUpdateBody = Joi.object({
             "any.only": "position must be one of: 0, 1, 2",
         }),
     categories: Joi.forbidden(),
-}).custom((value, helpers) => {
-    if (value.time === undefined && value.position === undefined) {
-        return helpers.error("any.custom", {
-            message: "At least one of time or position is required",
-        });
-    }
-    return value;
-}).messages({
-    "any.custom": "{{#message}}",
 });
 
 export const updatePointsValidation = {

@@ -9,6 +9,10 @@ import { Event } from "../event/event.model.js";
 import { getEventSkatingEventCategoriesFullRepository } from "../event/event.repositories.js";
 import { resolveSkatingCategoriesForEvent } from "../event/skatingEventCategory.sync.js";
 import {
+    getFormulaQualificationTypeForRound,
+    getQualificationTypeFromFormula,
+} from "./competition.formulaResolve.js";
+import {
     buildCategoriesForAgeGroup,
     collectAgeGroupLabels,
     findEventCategoryByQuery,
@@ -18,6 +22,13 @@ import {
     toCategoryMetaFields,
     toDisplayRoundCategoryOnly,
 } from "./displayRound.util.js";
+
+const applyCompetitorPointsUpdate = (competitor, { time, position }, qualificationType) => {
+    competitor.time = time;
+    if (qualificationType === "POSITION") {
+        competitor.position = position;
+    }
+};
 
 const displayAllCompetition = asyncHandler(async (req, res) => { });
 const displayCompetitionById = asyncHandler(async (req, res) => { });
@@ -154,10 +165,15 @@ const getCompetitionDetailsByEvent = asyncHandler(async (req, res) => {
                 const roundData = cat[round] && cat[round].length > 0 ? cat[round] : [];
                 totalSkatersCount += roundData.length;
                 const paginatedData = roundData.slice(skipNum, skipNum + limitNum);
+                const qualificationType = getQualificationTypeFromFormula(
+                    meta?.formula,
+                    round
+                );
                 return {
                     name: cat.name,
                     ...metaFields,
                     round,
+                    qualificationType,
                     participants: paginatedData,
                 };
             }
@@ -193,6 +209,13 @@ const getCompetitionDetailsByEvent = asyncHandler(async (req, res) => {
     if (resolvedCategoryMeta) {
         responseJson.category = toCategoryMetaFields(resolvedCategoryMeta);
         responseJson.category.name = resolvedCategoryMeta.name;
+        if (round) {
+            responseJson.category.qualificationType = getQualificationTypeFromFormula(
+                resolvedCategoryMeta.formula,
+                round
+            );
+            responseJson.qualificationType = responseJson.category.qualificationType;
+        }
     }
 
     if (round) {
@@ -366,63 +389,132 @@ const displayRound = asyncHandler(async (req, res) => {
  */
 const updatePoints = asyncHandler(async (req, res) => {
     const { eventId, ageGroup, round, categories, skaterId, time, position } = req.body;
+    const skatingEventCategoryId =
+        req.body.skatingEventCategoryId ||
+        req.body.skatingEventCategories ||
+        req.body.categoriesId ||
+        null;
 
     const competition = await EventCompetition.findOne({ eventId, ageGroup });
     if (!competition) {
         throw new AppError("No competition found for the given event and age group", 404);
     }
 
+    const qualificationTypeCache = new Map();
+    const resolveQualificationType = async (categoryName) => {
+        const key = String(categoryName || "").trim().toLowerCase();
+        if (!qualificationTypeCache.has(key)) {
+            const type = await getFormulaQualificationTypeForRound(eventId, {
+                ageGroup,
+                categoryName,
+                round,
+                skatingEventCategoryId,
+            });
+            qualificationTypeCache.set(key, type);
+        }
+        return qualificationTypeCache.get(key);
+    };
+
+    const validateCompetitorPayload = (comp, qualificationType, categoryName) => {
+        if (comp.time === undefined || comp.time === null || !String(comp.time).trim()) {
+            throw new AppError(
+                `time is required for category "${categoryName}"`,
+                400
+            );
+        }
+        if (qualificationType === "POSITION") {
+            if (comp.position === undefined || comp.position === null) {
+                throw new AppError(
+                    `position is required for POSITION qualification in category "${categoryName}" (round ${round})`,
+                    400
+                );
+            }
+        }
+    };
+
     const responseCategories = [];
 
     if (skaterId) {
-        // Single skater update: find the skater across all categories in the round
         let foundCategory = null;
+        let foundCompetitor = null;
+
         for (const category of competition.categories) {
             const roundData = category[round] || [];
             const competitor = roundData.find(
-                (r) => String(r.skaterId) === String(skaterId)
+                (row) => String(row.skaterId) === String(skaterId)
             );
             if (competitor) {
-                if (time !== undefined) competitor.time = time;
-                if (position !== undefined) competitor.position = position;
                 foundCategory = category;
+                foundCompetitor = competitor;
                 break;
             }
         }
-        if (!foundCategory) {
+
+        if (!foundCategory || !foundCompetitor) {
             throw new AppError("Skater not found in any category for the given round", 404);
         }
+
+        const qualificationType = await resolveQualificationType(foundCategory.name);
+        validateCompetitorPayload(
+            { time, position },
+            qualificationType,
+            foundCategory.name
+        );
+        applyCompetitorPointsUpdate(
+            foundCompetitor,
+            { time, position },
+            qualificationType
+        );
+
         responseCategories.push({
             name: foundCategory.name,
-            competitors: foundCategory[round]
+            qualificationType,
+            competitors: foundCategory[round],
         });
     } else {
-        // Bulk update via categories array
         for (const catUpdate of categories) {
             const { name, competitors } = catUpdate;
-            if (!name || !Array.isArray(competitors)) continue;
+            if (!name || !Array.isArray(competitors)) {
+                continue;
+            }
 
             const category = competition.categories.find(
-                (c) => c.name && c.name.trim().toLowerCase() === name.trim().toLowerCase()
+                (row) =>
+                    row.name &&
+                    row.name.trim().toLowerCase() === name.trim().toLowerCase()
             );
 
-            if (!category) continue;
+            if (!category) {
+                throw new AppError(
+                    `Category "${name}" not found for age group ${ageGroup}`,
+                    404
+                );
+            }
 
+            const qualificationType = await resolveQualificationType(category.name);
             const roundData = category[round] || [];
 
             for (const comp of competitors) {
+                validateCompetitorPayload(comp, qualificationType, category.name);
+
                 const competitor = roundData.find(
-                    (r) => String(r.skaterId) === String(comp.skaterId)
+                    (row) => String(row.skaterId) === String(comp.skaterId)
                 );
 
-                if (competitor) {
-                    if (comp.time !== undefined) competitor.time = comp.time;
-                    if (comp.position !== undefined) competitor.position = comp.position;
+                if (!competitor) {
+                    throw new AppError(
+                        `Skater ${comp.skaterId} not found in "${category.name}" for ${round}`,
+                        404
+                    );
                 }
+
+                applyCompetitorPointsUpdate(competitor, comp, qualificationType);
             }
+
             responseCategories.push({
                 name: category.name,
-                competitors: category[round]
+                qualificationType,
+                competitors: category[round],
             });
         }
     }

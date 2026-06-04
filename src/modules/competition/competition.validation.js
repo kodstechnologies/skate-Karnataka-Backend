@@ -87,6 +87,10 @@ export const promoteToNextRoundValidation = {
                 "any.only": "round must be one of: 1stRound, 2ndRound, semiFinal, final",
             }),
         name: Joi.string().trim().min(1).required(),
+        skatingEventCategoryId: objectIdString.optional(),
+        skatingEventCategories: objectIdString.optional(),
+        categoriesId: objectIdString.optional(),
+        categoryId: objectIdString.optional(),
     }),
 };
 

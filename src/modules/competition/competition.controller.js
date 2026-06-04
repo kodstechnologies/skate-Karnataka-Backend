@@ -5,13 +5,17 @@ import { EventCompetition } from "./eventCompetition.model.js";
 import { AppError } from "../../util/common/AppError.js";
 import { buildPaginationMeta } from "../../util/common/paginate.js";
 import { parseCompetitionTimeTakenToSeconds } from "../../util/time/timeUtil.js";
-import { Event } from "../event/event.model.js";
 import { getEventSkatingEventCategoriesFullRepository } from "../event/event.repositories.js";
-import { resolveSkatingCategoriesForEvent } from "../event/skatingEventCategory.sync.js";
 import {
     getFormulaQualificationTypeForRound,
+    getPromotionLimit,
     getQualificationTypeFromFormula,
+    resolvePromotionContext,
 } from "./competition.formulaResolve.js";
+import {
+    selectFinalWinners,
+    selectPromotedCompetitors,
+} from "./competition.promotion.js";
 import {
     buildCategoriesForAgeGroup,
     collectAgeGroupLabels,
@@ -567,208 +571,144 @@ const mapCompetitorWithReset = (c) => ({
 });
 
 /**
- * Promote qualified skaters from the current round to the next round.
+ * Promote qualified skaters from the current round to the next (formula qualifyCount).
  *
- * Body: { eventId, ageGroup, round }
- *
- * Progression logic (per category):
- *   - 1stRound:
- *     - If skaters > 60: promotes top 24 to 2ndRound
- *     - If skaters <= 60: promotes top 12 to semiFinal (skips 2ndRound)
- *   - 2ndRound:
- *     - Promotes top 12 to semiFinal
- *   - semiFinal:
- *     - Promotes top 8 to final
- *   - final:
- *     - Places top 3 into 1st, 2nd, and 3rd place arrays
+ * Body: { eventId, ageGroup, round, name, skatingEventCategoryId? }
  */
 const promoteToNextRound = asyncHandler(async (req, res) => {
     const { eventId, ageGroup, round, name } = req.body;
+    const skatingEventCategoryId =
+        req.body.skatingEventCategoryId ||
+        req.body.skatingEventCategories ||
+        req.body.categoriesId ||
+        req.body.categoryId ||
+        null;
 
     const competition = await EventCompetition.findOne({ eventId, ageGroup });
     if (!competition) {
         throw new AppError("No competition found for the given event and age group", 404);
     }
 
-    let totalPromoted = 0;
-    let targetRoundName = "";
+    const category = competition.categories.find(
+        (row) =>
+            row.name &&
+            row.name.trim().toLowerCase() === String(name || "").trim().toLowerCase()
+    );
 
-    for (const category of competition.categories) {
-        if (!category.name || category.name.trim().toLowerCase() !== name.trim().toLowerCase()) {
-            continue;
-        }
-
-        const currentRoundData = category[round] || [];
-        if (currentRoundData.length === 0) continue;
-
-        let targetRound;
-        let limit;
-
-        if (round === "1stRound") {
-            targetRound = "2ndRound";
-        } else if (round === "2ndRound") {
-            targetRound = "semiFinal";
-        } else if (round === "semiFinal") {
-            targetRound = "final";
-        } else if (round === "final") {
-            targetRound = "winners";
-        }
-
-        if (!targetRound) continue;
-        targetRoundName = targetRound;
-
-        // Try to fetch formula from DB
-        let formulaRound = null;
-        try {
-            const eventDoc = await Event.findById(eventId)
-                .populate({
-                    path: "skatingEventCategories",
-                    populate: [
-                        { path: "ageGroups.categories.formula" },
-                        { path: "clubOverrides.ageGroups.categories.formula" },
-                        { path: "districtOverrides.ageGroups.categories.formula" }
-                    ]
-                })
-                .lean();
-
-            if (eventDoc) {
-                const resolvedCategories = resolveSkatingCategoriesForEvent(eventDoc, eventDoc.skatingEventCategories || []);
-                let foundSubCategory = null;
-                for (const rc of resolvedCategories) {
-                    const ageGroupEntry = (rc.ageGroups || []).find(
-                        (g) => String(g.label || "").trim().toLowerCase() === String(ageGroup).trim().toLowerCase()
-                    );
-                    if (ageGroupEntry) {
-                        const subCat = (ageGroupEntry.categories || []).find(
-                            (c) => String(c.name || "").trim().toLowerCase() === String(name).trim().toLowerCase()
-                        );
-                        if (subCat) {
-                            foundSubCategory = subCat;
-                            break;
-                        }
-                    }
-                }
-
-                if (foundSubCategory && foundSubCategory.formula) {
-                    const formulaObj = foundSubCategory.formula;
-                    const normRound = round.toLowerCase();
-                    let searchNames = [];
-                    if (normRound === "1stround") {
-                        searchNames = ["1stround"];
-                    } else if (normRound === "2ndround") {
-                        searchNames = ["2ndround", "quarterfinal"];
-                    } else if (normRound === "semifinal") {
-                        searchNames = ["semifinal"];
-                    } else if (normRound === "final") {
-                        searchNames = ["final"];
-                    }
-
-                    formulaRound = (formulaObj.rounds || []).find((r) =>
-                        searchNames.includes(String(r.roundName || "").toLowerCase())
-                    );
-                }
-            }
-        } catch (err) {
-            console.error("Error loading formula for competition promotion:", err);
-        }
-
-        if (formulaRound) {
-            const totalSkaters = (category["1stRound"] || []).length || currentRoundData.length;
-            const maxThreshold =
-                Number(formulaRound.maxParticipants) > 0
-                    ? Number(formulaRound.maxParticipants)
-                    : 65;
-            if (totalSkaters >= maxThreshold) {
-                limit =
-                    formulaRound.qualifyCountMoreThan65 ??
-                    formulaRound.qualifyCount ??
-                    currentRoundData.length;
-            } else {
-                limit =
-                    formulaRound.qualifyCountLessThan65 ??
-                    formulaRound.qualifyCount ??
-                    currentRoundData.length;
-            }
-        } else {
-            // Default fallback logic
-            if (round === "1stRound") {
-                const totalSkaters = currentRoundData.length;
-                if (totalSkaters > 60) {
-                    limit = 24;
-                } else {
-                    limit = totalSkaters;
-                }
-            } else if (round === "2ndRound") {
-                limit = 12;
-            } else if (round === "semiFinal") {
-                limit = 8;
-            }
-        }
-
-        if (targetRound === "winners") {
-            // Find skaters in final round and place in 1st, 2nd, 3rd arrays
-            let firstPlace = currentRoundData.find(c => c.position === "1");
-            let secondPlace = currentRoundData.find(c => c.position === "2");
-
-            const remaining = currentRoundData
-                .filter(c => c !== firstPlace && c !== secondPlace)
-                .sort((a, b) => getSecondsFromTime(a.time) - getSecondsFromTime(b.time));
-
-            if (!firstPlace && remaining.length > 0) {
-                firstPlace = remaining.shift();
-            }
-            if (!secondPlace && remaining.length > 0) {
-                secondPlace = remaining.shift();
-            }
-            const thirdPlace = remaining.length > 0 ? remaining[0] : null;
-
-            category["1st"] = firstPlace ? [mapCompetitor(firstPlace)] : [];
-            category["2nd"] = secondPlace ? [mapCompetitor(secondPlace)] : [];
-            category["3rd"] = thirdPlace ? [mapCompetitor(thirdPlace)] : [];
-
-            totalPromoted += (firstPlace ? 1 : 0) + (secondPlace ? 1 : 0) + (thirdPlace ? 1 : 0);
-        } else {
-            // 1. Auto-promote: position "1" or "2"
-            const autoPromoted = currentRoundData.filter(
-                (c) => c.position === "1" || c.position === "2"
-            );
-
-            // 2. Time-based: remaining skaters with a non-empty time, sorted ascending
-            const autoIds = new Set(autoPromoted.map((c) => String(c.skaterId)));
-            const remainingWithTime = currentRoundData
-                .filter((c) => !autoIds.has(String(c.skaterId)) && c.time && c.time.trim() !== "")
-                .sort((a, b) => getSecondsFromTime(a.time) - getSecondsFromTime(b.time));
-
-            // Combine up to limit
-            const promoted = [...autoPromoted, ...remainingWithTime].slice(0, limit);
-
-            category[targetRound] = promoted.map(mapCompetitorWithReset);
-            totalPromoted += promoted.length;
-        }
+    if (!category) {
+        throw new AppError(`Category "${name}" not found for age group ${ageGroup}`, 404);
     }
 
-    if (totalPromoted === 0) {
+    const currentRoundData = category[round] || [];
+    if (!currentRoundData.length) {
+        throw new AppError(`No skaters in ${round} for "${name}"`, 400);
+    }
+
+    const promotionCtx = await resolvePromotionContext(eventId, {
+        ageGroup,
+        categoryName: name,
+        round,
+        skatingEventCategoryId,
+    });
+
+    if (!promotionCtx) {
+        throw new AppError("Category not found for this event", 404);
+    }
+
+    const targetRound = promotionCtx.nextRound;
+    if (!targetRound) {
+        throw new AppError(`Cannot promote from round "${round}"`, 400);
+    }
+
+    const currentRoundCount = currentRoundData.length;
+
+    if (!promotionCtx.meta?.formula) {
         throw new AppError(
-            `No skaters qualified to progress from "${round}"`,
+            "No formula linked to this category. Link a formula with qualifyCount per round.",
             400
         );
     }
 
-    await competition.save();
+    if (!promotionCtx.formulaRound) {
+        throw new AppError(
+            `Formula has no "${round}" round (roundName must match: 1stRound, 2ndRound, quarterFinal, semiFinal, final).`,
+            400
+        );
+    }
 
-    const matchedCategory = competition.categories.find(
-        (c) => c.name && c.name.trim().toLowerCase() === name.trim().toLowerCase()
+    const { limit: promoteLimit, limitSource } = getPromotionLimit(
+        promotionCtx.formulaRound,
+        { currentRoundCount }
     );
+
+    if (promoteLimit == null || promoteLimit <= 0) {
+        throw new AppError(
+            `Formula round "${round}" has no valid qualify count. Set qualifyCount (or qualifyCountLessThan65 / qualifyCountMoreThan65).`,
+            400
+        );
+    }
+
+    let totalPromoted = 0;
+
+    if (targetRound === "winners") {
+        const { firstPlace, secondPlace, thirdPlace } = selectFinalWinners(
+            currentRoundData,
+            promotionCtx.finalSelectionCount,
+            getSecondsFromTime
+        );
+
+        category["1st"] = firstPlace ? [mapCompetitor(firstPlace)] : [];
+        category["2nd"] = secondPlace ? [mapCompetitor(secondPlace)] : [];
+        category["3rd"] = thirdPlace ? [mapCompetitor(thirdPlace)] : [];
+        totalPromoted =
+            (firstPlace ? 1 : 0) + (secondPlace ? 1 : 0) + (thirdPlace ? 1 : 0);
+    } else {
+        const promoted = selectPromotedCompetitors(
+            currentRoundData,
+            promoteLimit,
+            promotionCtx.qualificationType,
+            getSecondsFromTime,
+            promotionCtx.formulaRound
+        );
+
+        if (!promoted.length) {
+            throw new AppError(
+                promotionCtx.qualificationType === "POSITION"
+                    ? `No skaters qualify (POSITION: need position qualifiers or fastest times up to ${promoteLimit})`
+                    : `No skaters with valid times to promote (limit ${promoteLimit})`,
+                400
+            );
+        }
+
+        category[targetRound] = promoted.map(mapCompetitorWithReset);
+        totalPromoted = promoted.length;
+    }
+
+    if (totalPromoted === 0) {
+        throw new AppError(`No skaters qualified to progress from "${round}"`, 400);
+    }
+
+    await competition.save();
 
     res.status(200).json({
         success: true,
-        message: targetRoundName === "winners"
-            ? `Successfully populated 1st, 2nd, 3rd places from final round`
-            : `Promoted ${totalPromoted} skater(s) from ${round} to ${targetRoundName}`,
+        message:
+            targetRound === "winners"
+                ? "Successfully populated medal places from final round"
+                : `Promoted ${totalPromoted} skater(s) from ${round} to ${targetRound} (limit ${promoteLimit})`,
         data: {
             eventId: competition.eventId,
             ageGroup: competition.ageGroup,
-            category: matchedCategory
+            name: category.name,
+            fromRound: round,
+            toRound: targetRound,
+            qualificationType: promotionCtx.qualificationType,
+            formulaRoundName: promotionCtx.formulaRound.roundName,
+            promoteLimit,
+            limitSource,
+            promotedCount: totalPromoted,
+            inRoundCount: currentRoundCount,
+            category,
         },
     });
 });

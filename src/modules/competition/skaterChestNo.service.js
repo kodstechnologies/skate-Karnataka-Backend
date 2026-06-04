@@ -194,19 +194,18 @@ export const generateChestNumbersForEvent = async (eventId) => {
           fullName,
           krsaId,
           rsfiId,
+          time: "",
+          position: "0",
         });
       }
     }
 
     const categoriesArray = [];
     for (const catName in categoriesMap) {
-      const matches = catName.match(/\d+/g) || [];
-      const is1000OrMore = matches.some((num) => parseInt(num, 10) >= 1000);
-
       categoriesArray.push({
         name: catName,
-        "1stRound": is1000OrMore ? [] : categoriesMap[catName],
-        "2ndRound": is1000OrMore ? categoriesMap[catName] : [],
+        "1stRound": categoriesMap[catName],
+        "2ndRound": [],
         "semiFinal": [],
         "final": [],
         "1st": [],

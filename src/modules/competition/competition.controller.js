@@ -6,7 +6,14 @@ import { AppError } from "../../util/common/AppError.js";
 import { buildPaginationMeta } from "../../util/common/paginate.js";
 import { parseCompetitionTimeTakenToSeconds } from "../../util/time/timeUtil.js";
 import { Event } from "../event/event.model.js";
+import { getEventSkatingEventCategoriesFullRepository } from "../event/event.repositories.js";
 import { resolveSkatingCategoriesForEvent } from "../event/skatingEventCategory.sync.js";
+import {
+    buildCategoriesForAgeGroup,
+    collectAgeGroupLabels,
+    findEventCategoryMeta,
+    formatCategoryRoundDisplay,
+} from "./displayRound.util.js";
 
 const displayAllCompetition = asyncHandler(async (req, res) => { });
 const displayCompetitionById = asyncHandler(async (req, res) => { });
@@ -125,56 +132,116 @@ const getCompetitionDetailsByEvent = asyncHandler(async (req, res) => {
 });
 
 /**
- * Display competition round details for an event, filtered by age group and category name.
+ * Display competition round progress for an event.
+ *
+ * Query:
+ *   - (none) → all age groups and categories
+ *   - ageGroup → all categories for that age group
+ *   - ageGroup + name → one category (lap / event name)
  */
 const displayRound = asyncHandler(async (req, res) => {
     const { eventId } = req.params;
-    const { ageGroup, name } = req.query;
+    const ageGroup = req.query.ageGroup ? String(req.query.ageGroup).trim() : "";
+    const name = req.query.name ? String(req.query.name).trim() : "";
 
-    const query = { eventId };
-    if (ageGroup) {
-        query.ageGroup = ageGroup;
+    const eventMeta = await getEventSkatingEventCategoriesFullRepository(eventId);
+    if (!eventMeta) {
+        throw new AppError("Event not found", 404);
     }
 
-    const competition = await EventCompetition.findOne(query).lean();
-    if (!competition) {
-        throw new AppError("No competition found for the given event and age group", 404);
-    }
+    const resolvedCategories = eventMeta.skatingEventCategories || [];
+    const competitions = await EventCompetition.find({ eventId }).lean();
+    const competitionByAge = new Map(
+        competitions.map((row) => [String(row.ageGroup || "").trim(), row])
+    );
 
-    let category = null;
-    if (name) {
-        category = (competition.categories || []).find(
-            cat => cat.name && cat.name.trim().toLowerCase() === name.trim().toLowerCase()
-        );
-    } else {
-        category = (competition.categories || [])[0]; // fallback to first category if name not provided
-    }
+    const skatingEventCategories = resolvedCategories.map((row) => ({
+        _id: row._id,
+        typeName: row.typeName ?? "",
+    }));
 
-    if (!category) {
-        throw new AppError("Category not found", 404);
-    }
+    if (ageGroup && name) {
+        const competition = competitionByAge.get(ageGroup) || null;
+        const competitionCategory = competition
+            ? (competition.categories || []).find(
+                  (row) =>
+                      row.name &&
+                      row.name.trim().toLowerCase() === name.trim().toLowerCase()
+              )
+            : null;
+        const meta = findEventCategoryMeta(resolvedCategories, ageGroup, name);
 
-    // Format the category rounds
-    const formattedCategory = {
-        name: category.name,
-        rounds: [
-            { round: "1stRound", status: !!(category["1stRound"] && category["1stRound"].length > 0) },
-            { round: "2ndRound", status: !!(category["2ndRound"] && category["2ndRound"].length > 0) },
-            { round: "semiFinal", status: !!(category["semiFinal"] && category["semiFinal"].length > 0) },
-            { round: "final", status: !!(category["final"] && category["final"].length > 0) }
-        ],
-        "1st": !!(category["1st"] && category["1st"].length > 0),
-        "2nd": !!(category["2nd"] && category["2nd"].length > 0),
-        "3rd": !!(category["3rd"] && category["3rd"].length > 0),
-    };
-
-    res.status(200).json({
-        success: true,
-        data: {
-            eventId: competition.eventId,
-            ageGroup: competition.ageGroup,
-            category: formattedCategory
+        if (!competitionCategory && !meta) {
+            throw new AppError("Category not found for this event and age group", 404);
         }
+
+        const formattedCategory = formatCategoryRoundDisplay(
+            competitionCategory || { name },
+            meta?.formula,
+            meta
+                ? {
+                      skatingEventCategoryId: String(meta.skatingEventCategoryId),
+                      skatingEventCategoryName: meta.skatingEventCategoryName,
+                      categoryId: String(meta.categoryId),
+                  }
+                : {}
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: "Competition round details fetched successfully",
+            data: {
+                eventId,
+                eventName: eventMeta.eventName ?? "",
+                ageGroup,
+                category: formattedCategory,
+            },
+        });
+    }
+
+    if (ageGroup) {
+        const competition = competitionByAge.get(ageGroup) || null;
+        const categories = buildCategoriesForAgeGroup({
+            ageGroup,
+            resolvedCategories,
+            competition,
+        });
+
+        if (!categories.length) {
+            throw new AppError("No categories configured for this age group", 404);
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Competition round details fetched successfully",
+            data: {
+                eventId,
+                eventName: eventMeta.eventName ?? "",
+                ageGroup,
+                categories,
+            },
+        });
+    }
+
+    const ageGroupLabels = collectAgeGroupLabels(resolvedCategories, competitions);
+    const ageGroups = ageGroupLabels.map((label) => ({
+        ageGroup: label,
+        categories: buildCategoriesForAgeGroup({
+            ageGroup: label,
+            resolvedCategories,
+            competition: competitionByAge.get(label) || null,
+        }),
+    }));
+
+    return res.status(200).json({
+        success: true,
+        message: "Competition round details fetched successfully",
+        data: {
+            eventId,
+            eventName: eventMeta.eventName ?? "",
+            skatingEventCategories,
+            ageGroups,
+        },
     });
 });
 
@@ -414,10 +481,20 @@ const promoteToNextRound = asyncHandler(async (req, res) => {
 
         if (formulaRound) {
             const totalSkaters = (category["1stRound"] || []).length || currentRoundData.length;
-            if (totalSkaters < 65) {
-                limit = formulaRound.qualifyCountLessThan65 ?? formulaRound.qualifyCount ?? currentRoundData.length;
+            const maxThreshold =
+                Number(formulaRound.maxParticipants) > 0
+                    ? Number(formulaRound.maxParticipants)
+                    : 65;
+            if (totalSkaters >= maxThreshold) {
+                limit =
+                    formulaRound.qualifyCountMoreThan65 ??
+                    formulaRound.qualifyCount ??
+                    currentRoundData.length;
             } else {
-                limit = formulaRound.qualifyCountMoreThan65 ?? formulaRound.qualifyCount ?? currentRoundData.length;
+                limit =
+                    formulaRound.qualifyCountLessThan65 ??
+                    formulaRound.qualifyCount ??
+                    currentRoundData.length;
             }
         } else {
             // Default fallback logic

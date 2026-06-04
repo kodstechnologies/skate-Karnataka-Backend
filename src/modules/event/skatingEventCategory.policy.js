@@ -8,9 +8,32 @@ export const CATEGORY_STATUS = Object.freeze({
 
 const normalizeRole = (role) => String(role || "").trim().toLowerCase();
 
-export const isStateOrAdminRole = (role) => {
-  const r = normalizeRole(role);
-  return r === "state" || r === "admin";
+/** Resolve role from Mongoose docs, plain objects, or JWT user payloads. */
+export const getAuthRole = (user) => {
+  if (!user) {
+    return "";
+  }
+  if (typeof user.get === "function") {
+    const fromDoc = user.get("role");
+    if (fromDoc) {
+      return normalizeRole(fromDoc);
+    }
+  }
+  if (typeof user.toObject === "function") {
+    const plain = user.toObject({ getters: true });
+    if (plain?.role) {
+      return normalizeRole(plain.role);
+    }
+  }
+  return normalizeRole(user.role ?? user.__t ?? "");
+};
+
+export const isStateOrAdminRole = (roleOrUser) => {
+  const r =
+    roleOrUser && typeof roleOrUser === "object" && !Array.isArray(roleOrUser)
+      ? getAuthRole(roleOrUser)
+      : normalizeRole(roleOrUser);
+  return r === "state" || r === "admin" || r === "superadmin";
 };
 
 /** Legacy rows created before categoryStatus existed are treated as standard. */
@@ -64,7 +87,7 @@ export const buildAdminCategoriesListFilter = (query = {}) => {
 };
 
 export const resolveCategoryOwnershipForCreate = (user, body = {}) => {
-  const role = normalizeRole(user?.role);
+  const role = getAuthRole(user);
 
   if (role === "club") {
     if (!user?.clubDocId) {
@@ -133,13 +156,13 @@ export const assertCanMutateCategory = (user, category) => {
     throw new AppError("Event category not found", 404);
   }
 
-  const role = normalizeRole(user?.role);
+  const role = getAuthRole(user);
   if (isStateOrAdminRole(role)) {
     return;
   }
 
-  if (category.categoryStatus === CATEGORY_STATUS.STANDARD) {
-    throw new AppError("Only super admin can change standard categories", 403);
+  if (isStandardCategory(category)) {
+    throw new AppError("Only state admin can change standard categories", 403);
   }
 
   if (role === "club") {

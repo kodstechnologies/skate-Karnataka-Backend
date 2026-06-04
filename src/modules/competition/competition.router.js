@@ -1,7 +1,11 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import { validate } from "../../middleware/validate.multiple.js";
-import { updatePointsValidation, promoteToNextRoundValidation } from "./competition.validation.js";
+import {
+    updatePointsValidation,
+    promoteToNextRoundValidation,
+    displayRoundQueryValidation,
+} from "./competition.validation.js";
 import {
     getChestNumbersByEvent,
     generateChestNumbers,
@@ -31,6 +35,7 @@ router.post(
 router.get(
     "/v1/display-round/:eventId",
     authenticate(["Parent", "Skater", "Club", "District", "State", "Admin"]),
+    validate(displayRoundQueryValidation),
     displayRound
 );
 

@@ -1,4 +1,5 @@
 import Joi from "joi";
+import { AGE_GROUPS } from "../event/SkatingEventCategory.model.js";
 
 const objectIdString = Joi.string()
     .trim()
@@ -89,5 +90,22 @@ export const promoteToNextRoundValidation = {
                 "any.only": "round must be one of: 1stRound, 2ndRound, semiFinal, final",
             }),
         name: Joi.string().trim().min(1).required(),
+    }),
+};
+
+const competitionAgeGroupLabel = Joi.string()
+    .trim()
+    .valid(...AGE_GROUPS.map((group) => group.label))
+    .messages({
+        "any.only": `ageGroup must be one of: ${AGE_GROUPS.map((group) => group.label).join(", ")}`,
+    });
+
+export const displayRoundQueryValidation = {
+    params: Joi.object({
+        eventId: objectIdString.required(),
+    }),
+    query: Joi.object({
+        ageGroup: competitionAgeGroupLabel.optional(),
+        name: Joi.string().trim().min(1).optional(),
     }),
 };

@@ -655,7 +655,7 @@ export const getFormulaById = asyncHandler(async (req, res) => {
 
 export const getAllFormulasLight = asyncHandler(async (req, res) => {
     const formulas = await Formula.find()
-        .select("_id categoryName")
+        .select("_id formulaName categoryName")
         .sort({ createdAt: -1 })
         .lean();
     return res

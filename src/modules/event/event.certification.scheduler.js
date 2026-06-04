@@ -8,7 +8,7 @@ const msUntilNextRun = () => {
   const next = new Date(now);
 
   // 14:15 = 2:15 PM
-  next.setHours(9, 0, 0, 0);
+  next.setHours(12, 18, 0, 0);
 
   if (next <= now) {
     next.setDate(next.getDate() + 1);

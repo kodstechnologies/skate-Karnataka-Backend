@@ -8,6 +8,7 @@ import { Event } from "./event.model.js";
 import SkatingEventCategory from "./SkatingEventCategory.model.js";
 import {
     assertCanMutateCategory,
+    getAuthRole,
     buildAdminCategoriesListFilter,
     buildVisibleCategoriesFilter,
     isStandardCategory,
@@ -19,6 +20,7 @@ import {
     getOrgOverrideFromStandardDoc,
     mergeStandardWithOrgOverride,
     normalizeCategoryFormat,
+    assertAgeGroupCategoriesHaveFormula,
     prepareEventCategoryPayload,
     resolveSkatingCategoriesForEvent,
 } from "./skatingEventCategory.sync.js";
@@ -879,9 +881,13 @@ const stripOwnershipFromPayload = (payload) => {
 };
 
 export const createEventCategoryService = async (payload, user) => {
-    const actor = { ...user, ...(await enrichUserForCategoryScope(user)) };
-    const ownership = resolveCategoryOwnershipForCreate(actor, payload);
+    const scope = await enrichUserForCategoryScope(user);
+    const ownership = resolveCategoryOwnershipForCreate(
+        { ...scope, role: getAuthRole(user) },
+        payload
+    );
     const body = prepareEventCategoryPayload(stripOwnershipFromPayload(payload));
+    assertAgeGroupCategoriesHaveFormula(body.ageGroups);
 
     return await createEventCategoryRepository({
         ...body,
@@ -895,8 +901,9 @@ export const updateEventCategoryService = async (id, payload, user) => {
         throw new AppError("Event category not found", 404);
     }
 
-    const actor = { ...user, ...(await enrichUserForCategoryScope(user)) };
-    const role = String(user?.role || "").toLowerCase();
+    const scope = await enrichUserForCategoryScope(user);
+    const actor = { ...user, ...scope };
+    const role = getAuthRole(user);
 
     if (isStandardCategory(existing) && (role === "club" || role === "district")) {
         const overrideInput = {
@@ -928,9 +935,10 @@ export const updateEventCategoryService = async (id, payload, user) => {
         return mergeStandardWithOrgOverride(updated, { districtId: actor.districtDocId });
     }
 
-    assertCanMutateCategory(actor, existing);
+    assertCanMutateCategory(user, existing);
 
     const body = prepareEventCategoryPayload(stripOwnershipFromPayload(payload));
+    assertAgeGroupCategoriesHaveFormula(body.ageGroups);
     delete body.clubOverrides;
     delete body.districtOverrides;
 
@@ -1002,8 +1010,7 @@ export const deleteEventCategoryService = async (id, user) => {
         throw new AppError("Event category not found", 404);
     }
 
-    const actor = { ...user, ...(await enrichUserForCategoryScope(user)) };
-    assertCanMutateCategory(actor, existing);
+    assertCanMutateCategory(user, existing);
 
     const deleted = await deleteEventCategoryRepository(id);
     if (!deleted) {

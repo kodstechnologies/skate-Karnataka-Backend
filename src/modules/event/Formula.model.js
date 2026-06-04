@@ -38,15 +38,22 @@ const RoundSchema = new mongoose.Schema(
 
 const FormulaSchema = new mongoose.Schema(
   {
-    categoryName: {
+    formulaName: {
       type: String,
       required: true,
       trim: true,
     },
 
+    /** @deprecated Optional legacy fields — use formulaName for display */
+    categoryName: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
     ageGroup: {
       type: String,
-      required: true,
+      default: "",
     },
 
     rounds: {
@@ -61,5 +68,12 @@ const FormulaSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+/** Backfill formulaName from legacy categoryName on older documents */
+FormulaSchema.pre("validate", function backfillFormulaName() {
+  if (!String(this.formulaName || "").trim() && String(this.categoryName || "").trim()) {
+    this.formulaName = String(this.categoryName).trim();
+  }
+});
 
 export default mongoose.model("Formula", FormulaSchema);

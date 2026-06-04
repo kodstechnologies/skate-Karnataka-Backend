@@ -829,8 +829,9 @@ const formulaRoundItem = Joi.object({
 
 const create_formula_validation = {
     body: Joi.object({
-        categoryName: Joi.string().trim().min(1).max(200).required(),
-        ageGroup: Joi.string().trim().min(1).required(),
+        formulaName: Joi.string().trim().min(1).max(200).required(),
+        categoryName: Joi.string().trim().max(200).allow("").optional(),
+        ageGroup: Joi.string().trim().allow("").optional(),
         rounds: Joi.array().items(formulaRoundItem).default([]),
         finalSelectionCount: Joi.number().integer().min(1).default(3),
     }),
@@ -838,8 +839,9 @@ const create_formula_validation = {
 
 const update_formula_validation = {
     body: Joi.object({
-        categoryName: Joi.string().trim().min(1).max(200),
-        ageGroup: Joi.string().trim().min(1),
+        formulaName: Joi.string().trim().min(1).max(200),
+        categoryName: Joi.string().trim().max(200).allow(""),
+        ageGroup: Joi.string().trim().allow(""),
         rounds: Joi.array().items(formulaRoundItem),
         finalSelectionCount: Joi.number().integer().min(1),
     }).min(1),

@@ -1,9 +1,32 @@
+import { AppError } from "../../util/common/AppError.js";
 import { AGE_GROUPS } from "./SkatingEventCategory.model.js";
 
 const AGE_GROUP_LABELS = AGE_GROUPS.map((g) => g.label);
 
 const isValidFormulaId = (value) =>
   /^[0-9a-fA-F]{24}$/.test(String(value || "").trim());
+
+/** Every named lap/category row must reference a Formula document (admin saves). */
+export const assertAgeGroupCategoriesHaveFormula = (ageGroups = []) => {
+  if (!Array.isArray(ageGroups)) {
+    return;
+  }
+
+  for (const ageGroup of ageGroups) {
+    for (const category of ageGroup.categories || []) {
+      const name = String(category?.name || "").trim();
+      if (!name) {
+        continue;
+      }
+      if (!isValidFormulaId(category?.formula)) {
+        throw new AppError(
+          `Formula is required for category "${name}"`,
+          400
+        );
+      }
+    }
+  }
+};
 
 /** Normalize custom name rows from API or DB (name + optional formula per lap/time). */
 export const normalizeCustomCategoryNameRows = (input) => {

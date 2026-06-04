@@ -69,16 +69,30 @@ const afterLoginSkaterFormValidation = {
 };
 
 
-const getSkaterResultsByEventValidation = {
+const eventIdParamValidation = {
     params: Joi.object({
         id: Joi.string()
             .trim()
             .pattern(/^[0-9a-fA-F]{24}$/)
             .required(),
     }),
+};
+
+const getSkaterResultsByEventValidation = {
+    ...eventIdParamValidation,
     query: Joi.object({
         categoryName: Joi.string().trim().optional(),
         category: Joi.string().trim().optional(),
+    }),
+};
+
+const getSkaterResultsEventRoundsValidation = {
+    ...eventIdParamValidation,
+    query: Joi.object({
+        name: Joi.string().trim().optional(),
+        categoryName: Joi.string().trim().optional(),
+        category: Joi.string().trim().optional(),
+        label: Joi.string().trim().optional(),
     }),
 };
 
@@ -106,7 +120,9 @@ const SkaterRsfiChangeValidation = {
 
 export {
     afterLoginSkaterFormValidation,
+    eventIdParamValidation,
     getSkaterResultsByEventValidation,
+    getSkaterResultsEventRoundsValidation,
     UpdateProfileValidation,
     SkaterRsfiChangeValidation,
 }

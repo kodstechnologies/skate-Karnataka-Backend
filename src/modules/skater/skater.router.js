@@ -1,7 +1,7 @@
 import express from "express";
-import { afterLoginSkaterForm, DeleteSkater, getAllDiscipline, GetAllSkatingEventCategoriesFull, GetSkaterDigitalIdCard, GetSkaterProfile, GetSkaterResults, GetSkaterResultsEvent, RequestSkaterRsfiChange } from "./skater.controller.js";
+import { afterLoginSkaterForm, DeleteSkater, getAllDiscipline, GetAllSkatingEventCategoriesFull, GetSkaterDigitalIdCard, GetSkaterProfile, GetSkaterResults, GetSkaterResultsEvent, GetSkaterResultsEventNames, GetSkaterResultsEventRounds, RequestSkaterRsfiChange } from "./skater.controller.js";
 import { validate } from "../../middleware/validate.multiple.js";
-import { afterLoginSkaterFormValidation, getSkaterResultsByEventValidation, SkaterRsfiChangeValidation } from "./skater.validation.js";
+import { afterLoginSkaterFormValidation, eventIdParamValidation, getSkaterResultsByEventValidation, getSkaterResultsEventRoundsValidation, SkaterRsfiChangeValidation } from "./skater.validation.js";
 import { upload } from "../../middleware/multer.middleware.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
@@ -62,6 +62,20 @@ router.get(
     "/v1/results-event",
     authenticate(["Skater"]),
     GetSkaterResultsEvent
+);
+
+router.get(
+    "/v1/results-event/name/:id",
+    authenticate(["Skater"]),
+    validate(eventIdParamValidation),
+    GetSkaterResultsEventNames
+);
+
+router.get(
+    "/v1/results-event/rounds/:id",
+    authenticate(["Skater"]),
+    validate(getSkaterResultsEventRoundsValidation),
+    GetSkaterResultsEventRounds
 );
 
 router.get(

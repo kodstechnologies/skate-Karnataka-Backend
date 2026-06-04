@@ -56,7 +56,14 @@ import {
   updateStateEventSkaterTimeService,
 } from "./event.service.js";
 import { initiateRazorpayPaymentServices } from "../payment/payment.services.js";
-import Formula from "./Formula.model.js";
+import {
+    createAdminFormula,
+    deleteAdminFormula,
+    getFormulaByIdOrThrow,
+    listAdminFormulasLight,
+    listAdminFormulasPaginated,
+    updateAdminFormula,
+} from "./formula.service.js";
 
 
 const display_latest_event = asyncHandler(async (req, res) => {
@@ -624,33 +631,16 @@ export const rejectCertification = asyncHandler(async (req, res) => {
 export const getFormulas = asyncHandler(async (req, res) => {
     const page = Math.max(1, Number(req.query.page) || 1);
     const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 10));
-    const skip = (page - 1) * limit;
-
-    const [formulas, total] = await Promise.all([
-        Formula.find().sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
-        Formula.countDocuments(),
-    ]);
+    const result = await listAdminFormulasPaginated({ page, limit });
 
     return res.status(200).json(
-        new ApiResponse(
-            200,
-            {
-                data: formulas,
-                pagination: {
-                    total,
-                    page,
-                    limit,
-                    totalPages: Math.ceil(total / limit),
-                },
-            },
-            "Formulas fetched successfully"
-        )
+        new ApiResponse(200, result, "Formulas fetched successfully")
     );
 });
 
 export const getFormulaById = asyncHandler(async (req, res) => {
-    const formula = await Formula.findById(req.params.id).lean();
-    if (!formula) {
+    const formula = await getFormulaByIdOrThrow(req.params.id);
+    if (formula.club || formula.district) {
         throw new AppError("Formula not found", 404);
     }
     return res
@@ -659,40 +649,28 @@ export const getFormulaById = asyncHandler(async (req, res) => {
 });
 
 export const getAllFormulasLight = asyncHandler(async (req, res) => {
-    const formulas = await Formula.find()
-        .select("_id formulaName categoryName")
-        .sort({ createdAt: -1 })
-        .lean();
+    const formulas = await listAdminFormulasLight();
     return res
         .status(200)
         .json(new ApiResponse(200, formulas, "Formulas fetched successfully"));
 });
 
 export const createFormula = asyncHandler(async (req, res) => {
-    const formula = await Formula.create(req.body);
+    const formula = await createAdminFormula(req.body);
     return res
         .status(201)
         .json(new ApiResponse(201, formula, "Formula created successfully"));
 });
 
 export const updateFormula = asyncHandler(async (req, res) => {
-    const formula = await Formula.findByIdAndUpdate(req.params.id, req.body, {
-        new: true,
-        runValidators: true,
-    });
-    if (!formula) {
-        throw new AppError("Formula not found", 404);
-    }
+    const formula = await updateAdminFormula(req.params.id, req.body);
     return res
         .status(200)
         .json(new ApiResponse(200, formula, "Formula updated successfully"));
 });
 
 export const deleteFormula = asyncHandler(async (req, res) => {
-    const formula = await Formula.findByIdAndDelete(req.params.id);
-    if (!formula) {
-        throw new AppError("Formula not found", 404);
-    }
+    await deleteAdminFormula(req.params.id);
     return res
         .status(200)
         .json(new ApiResponse(200, null, "Formula deleted successfully"));

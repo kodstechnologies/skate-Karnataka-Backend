@@ -65,6 +65,22 @@ const FormulaSchema = new mongoose.Schema(
       type: Number,
       default: 3, // Gold Silver Bronze
     },
+
+    /** Set for club-owned formulas; null/omitted = state admin (global) formula */
+    club: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Club",
+      default: null,
+      index: true,
+    },
+
+    /** Set for district-owned formulas */
+    district: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "District",
+      default: null,
+      index: true,
+    },
   },
   { timestamps: true }
 );

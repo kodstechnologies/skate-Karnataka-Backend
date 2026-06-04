@@ -53,7 +53,19 @@ const editDistrictValidation = {
       .messages({
         "string.max": "About cannot exceed 500 characters",
       }),
+    formulaSource: Joi.string().valid("admin", "district", "both").optional(),
   }).min(1),
+};
+
+const districtFormulaSourceValidation = {
+  body: Joi.object({
+    formulaSource: Joi.string()
+      .valid("admin", "district", "both")
+      .required()
+      .messages({
+        "any.only": "formulaSource must be admin, district, or both",
+      }),
+  }),
 };
 
 const districtPendingApprovalsQueryValidation = {
@@ -66,5 +78,6 @@ const districtPendingApprovalsQueryValidation = {
 export {
   createDistrictValidation,
   editDistrictValidation,
+  districtFormulaSourceValidation,
   districtPendingApprovalsQueryValidation,
 };

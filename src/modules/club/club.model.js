@@ -79,6 +79,16 @@ const clubSchema = new mongoose.Schema(
       min: 0,
     },
 
+    /**
+     * Which formulas appear when assigning laps on club event categories:
+     * admin = state formulas only, club = this club's formulas only, both = both lists
+     */
+    formulaSource: {
+      type: String,
+      enum: ["admin", "club", "both"],
+      default: "both",
+    },
+
     members: [
       {
         type: mongoose.Schema.Types.ObjectId,

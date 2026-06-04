@@ -14,8 +14,11 @@ import { ensureFormulaDocument } from "../competition/competition.formulaResolve
 import {
   DEFAULT_ROUND_KEYS,
   findEventCategoryByQuery,
+  findEventCategoryMeta,
+  formatCategoryRoundDisplay,
   getRoundKeysFromFormula,
   scopeResolvedSkatingCategories,
+  toDisplayRoundCategoryOnly,
 } from "../competition/displayRound.util.js";
 import { sortCompetitionByTime } from "../../util/competition/rankUtil.js";
 import { formatCompetitionTimeTakenFromSeconds } from "../../util/time/timeUtil.js";
@@ -1086,6 +1089,208 @@ const get_skater_results_by_event_repositories = async (
     };
 };
 
+const loadSkaterEventParticipant = async (userId, eventId) => {
+    if (!mongoose.Types.ObjectId.isValid(String(eventId))) {
+        throw new AppError("Invalid event id", 400);
+    }
+
+    const skaterUserId = mongoose.Types.ObjectId.isValid(String(userId))
+        ? new mongoose.Types.ObjectId(String(userId))
+        : null;
+    if (!skaterUserId) {
+        return null;
+    }
+
+    return EventParticipant.findOne({
+        userId: skaterUserId,
+        eventId,
+    })
+        .populate({
+            path: "eventId",
+            select: "header eventType eventStartDate eventEndDate",
+        })
+        .lean();
+};
+
+const skaterEventResultsVisible = async (participant, eventId, skaterUserId) => {
+    if (!participant || participant.paymentStatus !== "paid") {
+        return false;
+    }
+
+    const ageGroup = participant.ageGroup || "";
+    if (await hasAnyRecordedResultForEventAgeGroup(eventId, ageGroup)) {
+        return true;
+    }
+
+    const competitionByKey = await loadEventCompetitionByAgeGroupKey([eventId]);
+    const eventMetaCache = new Map();
+    const formulaRoundKeysCache = new Map();
+
+    return participantHasCompetitionResultsVisible(
+        participant,
+        eventId,
+        skaterUserId,
+        competitionByKey,
+        eventMetaCache,
+        formulaRoundKeysCache
+    );
+};
+
+const get_skater_results_event_names_repository = async (userId, eventId) => {
+    const participant = await loadSkaterEventParticipant(userId, eventId);
+
+    if (!participant?.eventId?._id) {
+        return {
+            eventId,
+            resultsAvailable: false,
+            ageGroup: "",
+            labels: [],
+            categories: [],
+        };
+    }
+
+    const event = participant.eventId;
+    const skaterUserId = participant.userId?._id ?? participant.userId;
+    const resultsAvailable = await skaterEventResultsVisible(
+        participant,
+        event._id,
+        skaterUserId
+    );
+
+    const ageGroup = String(participant.ageGroup || "").trim();
+    const categories = (participant.categories || [])
+        .map((row, index) => ({
+            eventNo: index + 1,
+            name: String(row?.name || "").trim(),
+        }))
+        .filter((row) => row.name);
+
+    return {
+        eventId: event._id,
+        eventName: event.header || "",
+        resultsAvailable,
+        ageGroup,
+        labels: resultsAvailable && ageGroup ? [{ label: ageGroup }] : [],
+        categories: resultsAvailable ? categories : [],
+    };
+};
+
+const get_skater_results_event_rounds_repository = async (
+    userId,
+    eventId,
+    categoryName
+) => {
+    const categoryLabel = String(categoryName || "").trim();
+
+    if (!categoryLabel) {
+        throw new AppError("Category name is required", 400);
+    }
+
+    const participant = await loadSkaterEventParticipant(userId, eventId);
+
+    if (!participant?.eventId?._id) {
+        return {
+            eventId,
+            resultsAvailable: false,
+            ageGroup: "",
+            categoryName: categoryLabel,
+            roundCount: 0,
+            rounds: [],
+            activeRound: null,
+        };
+    }
+
+    const event = participant.eventId;
+    const skaterUserId = participant.userId?._id ?? participant.userId;
+    const resultsAvailable = await skaterEventResultsVisible(
+        participant,
+        event._id,
+        skaterUserId
+    );
+
+    const ageGroup = String(participant.ageGroup || "").trim();
+    const emptyRounds = {
+        eventId: event._id,
+        eventName: event.header || "",
+        resultsAvailable,
+        ageGroup,
+        categoryName: categoryLabel,
+        roundCount: 0,
+        rounds: [],
+        activeRound: null,
+    };
+
+    if (!resultsAvailable) {
+        return emptyRounds;
+    }
+
+    const registered = (participant.categories || []).some(
+        (row) => String(row?.name || "").trim() === categoryLabel
+    );
+    if (!registered) {
+        throw new AppError("You are not registered for this category", 404);
+    }
+
+    const eventMeta = await getEventSkatingEventCategoriesFullRepository(event._id);
+    const skatingEventCategoryId = participant.categoriesId ?? null;
+    const scopedCategories = scopeResolvedSkatingCategories(
+        eventMeta?.skatingEventCategories || [],
+        skatingEventCategoryId
+    );
+
+    const competition = await EventCompetition.findOne({
+        eventId: event._id,
+        ageGroup,
+    })
+        .select("categories")
+        .lean();
+
+    const competitionCategory = findCompetitionCategoryByName(
+        competition,
+        categoryLabel
+    );
+
+    let meta = findEventCategoryByQuery(scopedCategories, {
+        ageGroup,
+        name: categoryLabel,
+        skatingEventCategoryId,
+        categoriesId: skatingEventCategoryId,
+    });
+    if (!meta) {
+        meta = findEventCategoryMeta(scopedCategories, ageGroup, categoryLabel);
+    }
+
+    if (!competitionCategory && !meta) {
+        throw new AppError("Category not found for this event and age group", 404);
+    }
+
+    const formatted = toDisplayRoundCategoryOnly(
+        formatCategoryRoundDisplay(
+            competitionCategory || { name: categoryLabel },
+            meta?.formula,
+            meta
+                ? {
+                      skatingEventCategoryId: meta.skatingEventCategoryId
+                          ? String(meta.skatingEventCategoryId)
+                          : null,
+                      skatingEventCategoryName: meta.skatingEventCategoryName || null,
+                      categoryId: meta.categoryId ? String(meta.categoryId) : null,
+                  }
+                : {}
+        )
+    );
+
+    return {
+        eventId: event._id,
+        eventName: event.header || "",
+        resultsAvailable: true,
+        ageGroup,
+        categoryName: categoryLabel,
+        roundCount: formatted.rounds?.length ?? 0,
+        ...formatted,
+    };
+};
+
 
 export {
     after_login_skater_form_repositories,
@@ -1097,5 +1302,7 @@ export {
     get_all_skating_event_categories_full_repositories,
     get_all_discipline_repositories,
     get_skater_results_event_repositories,
+    get_skater_results_event_names_repository,
+    get_skater_results_event_rounds_repository,
     get_skater_results_by_event_repositories,
 }

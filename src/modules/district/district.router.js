@@ -1,6 +1,25 @@
 import express from "express";
 import { validate } from "../../middleware/validate.multiple.js";
-import { createDistrictValidation, districtPendingApprovalsQueryValidation, editDistrictValidation } from "./district.validation.js";
+import {
+    createDistrictValidation,
+    districtFormulaSourceValidation,
+    districtPendingApprovalsQueryValidation,
+    editDistrictValidation,
+} from "./district.validation.js";
+import {
+    create_formula_validation,
+    update_formula_validation,
+} from "../event/event.validation.js";
+import {
+    createDistrictFormulaHandler,
+    deleteDistrictFormulaHandler,
+    getDistrictFormulaById,
+    getDistrictFormulaOptions,
+    getDistrictFormulaSourceSetting,
+    getDistrictFormulas,
+    patchDistrictFormulaSourceSetting,
+    updateDistrictFormulaHandler,
+} from "./district.formula.controller.js";
 import { acceptClub, createNewDistrict, deleteDistrict, displayAllApply, displayApplyAllClub, displayAllDistrict, displayDistrictClubSkaters, displayDistrictDashboard, displayDistrictProfile, displaySingleDistrictAllClubs, displaySingleDistrictMembers, displaySkaterDetails, displayTotalClubs, displayTotalSkater, districtClubDetails, districtUnLinkClub, leaveClub, rejectClub, rejectLeaveClub, updateDistrict } from "./district.controller.js";
 import { upload } from "../../middleware/multer.middleware.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
@@ -33,7 +52,35 @@ router.get("/v1/unlink-club/:id" , authenticate(["District"]) , districtUnLinkCl
 router.get("/v1/profile", authenticate(["District"]) ,displayDistrictProfile);
 router.get("/v1/dashboard",authenticate(["District"]) ,displayDistrictDashboard);
 
-// router.get()
+router.get("/v1/formula", authenticate(["District"]), getDistrictFormulas);
+router.get("/v1/formula/options", authenticate(["District"]), getDistrictFormulaOptions);
+router.get(
+    "/v1/formula/source",
+    authenticate(["District"]),
+    getDistrictFormulaSourceSetting
+);
+router.patch(
+    "/v1/formula/source",
+    authenticate(["District"]),
+    validate(districtFormulaSourceValidation),
+    patchDistrictFormulaSourceSetting
+);
+router.get("/v1/formula/:id", authenticate(["District"]), getDistrictFormulaById);
+router.post(
+    "/v1/formula",
+    authenticate(["District"]),
+    validate(create_formula_validation),
+    createDistrictFormulaHandler
+);
+router.patch(
+    "/v1/formula/:id",
+    authenticate(["District"]),
+    validate(update_formula_validation),
+    updateDistrictFormulaHandler
+);
+router.delete("/v1/formula/:id", authenticate(["District"]), deleteDistrictFormulaHandler);
+
+// router.get())
 router.get("/v1/total-club",authenticate(["District"]) ,displayTotalClubs);
 router.get("/v1/total-skater",authenticate(["District"]) ,displayTotalSkater);
 router.get("/v1/skater/:id",authenticate(["District"]) ,displaySkaterDetails);

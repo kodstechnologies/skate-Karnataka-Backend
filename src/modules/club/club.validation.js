@@ -28,8 +28,20 @@ const editClubValidation = {
         phone: Joi.string().allow(""),
         gender: Joi.string().allow(""),
         email: Joi.string().allow(""),
+        formulaSource: Joi.string().valid("admin", "club", "both").optional(),
     })
 }
+
+const clubFormulaSourceValidation = {
+    body: Joi.object({
+        formulaSource: Joi.string()
+            .valid("admin", "club", "both")
+            .required()
+            .messages({
+                "any.only": "formulaSource must be admin, club, or both",
+            }),
+    }),
+};
 
 
 const addSkaterValidation = {
@@ -90,6 +102,7 @@ const displayAllApplySkaterQueryValidation = {
 export {
     createClubValidation,
     editClubValidation,
+    clubFormulaSourceValidation,
     addSkaterValidation,
     displayAllApplySkaterQueryValidation,
 }

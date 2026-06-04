@@ -2,10 +2,25 @@ import express from "express";
 import { validate } from "../../middleware/validate.multiple.js";
 import {
     addSkaterValidation,
+    clubFormulaSourceValidation,
     createClubValidation,
     displayAllApplySkaterQueryValidation,
     editClubValidation,
 } from "./club.validation.js";
+import {
+    create_formula_validation,
+    update_formula_validation,
+} from "../event/event.validation.js";
+import {
+    createClubFormulaHandler,
+    deleteClubFormulaHandler,
+    getClubFormulaById,
+    getClubFormulaOptions,
+    getClubFormulaSourceSetting,
+    getClubFormulas,
+    patchClubFormulaSourceSetting,
+    updateClubFormulaHandler,
+} from "./club.formula.controller.js";
 import { addSkaterByClub, affiliatedDistrict, apply_club, apply_leave, applyForDistrict, approve_join_club, approve_leave_club, approve_rsfi_change, createNewClub, deleteClub, display_all_Club_basedOn_user_district, display_all_apply_skater, display_all_club_skater, display_club_skater_details, displayDistrictFullDetails, display_existing_club, displayAllClubs, displayAllClubsInDb, displayClubDashboard, displayClubProfile, displaySingleClub, exceptOwnDistrictDisplayAllDistrict, reject_join_club, reject_leave_club, reject_rsfi_change, remove_skater_from_club, removeAffiliation, reports, updateClub } from "./club.controller.js";
 import { upload } from "../../middleware/multer.middleware.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
@@ -58,6 +73,35 @@ router.get(
 );
 
 router.get("/v1/reports", authenticate(["Club"]), reports);
+
+// competition formulas (club-owned + preference for admin vs club formulas)
+router.get("/v1/formula", authenticate(["Club"]), getClubFormulas);
+router.get("/v1/formula/options", authenticate(["Club"]), getClubFormulaOptions);
+router.get(
+    "/v1/formula/source",
+    authenticate(["Club"]),
+    getClubFormulaSourceSetting
+);
+router.patch(
+    "/v1/formula/source",
+    authenticate(["Club"]),
+    validate(clubFormulaSourceValidation),
+    patchClubFormulaSourceSetting
+);
+router.get("/v1/formula/:id", authenticate(["Club"]), getClubFormulaById);
+router.post(
+    "/v1/formula",
+    authenticate(["Club"]),
+    validate(create_formula_validation),
+    createClubFormulaHandler
+);
+router.patch(
+    "/v1/formula/:id",
+    authenticate(["Club"]),
+    validate(update_formula_validation),
+    updateClubFormulaHandler
+);
+router.delete("/v1/formula/:id", authenticate(["Club"]), deleteClubFormulaHandler);
 
 // skater =====================================  1
 

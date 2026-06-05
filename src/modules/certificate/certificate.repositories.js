@@ -287,20 +287,20 @@ const list_skater_participants_for_certificate_repository = async (userId, page,
 
         return {
             _id: p._id,
-            winnerKRSAId: p.user?.krsaId ?? null,
-            name: p.name ?? null,
-            division: p.division || p.ageGroup || null,
-            ageGroup: p.ageGroup || null,
+            winnerKRSAId: p.user?.krsaId || "",
+            name: p.name || "",
+            division: p.division || p.ageGroup || "",
+            ageGroup: p.ageGroup || "",
             eventName: p.event?.header || "",
             request: Boolean(p.skaterApply),
             clubAllow: Boolean(p.clubAllow),
             districtAllow: Boolean(p.districtAllow),
             stateAllow: Boolean(p.stateAllow),
-            certificateID: p.certificateID ?? null,
+            certificateID: p.certificateID || "",
             paymentStatus: p.paymentStatus || "pending",
-            event: formatCertificateEvent(p.event),
-            certificateAvailable: true,
-            documentLink,
+            event: formatCertificateEvent(p.event) || {},
+            certificateAvailable: Boolean(documentLink),
+            documentLink: documentLink || "",
         };
     });
 
@@ -495,7 +495,7 @@ const save_generated_certificate_repository = async (payload) => {
     return await GeneratedCertificate.create(payload);
 };
 
-const formatGeneratedCertificateListRow = (cert) => {
+const formatGeneratedCertificateListRow = (cert, participant = null) => {
     const eventDoc = cert.eventId;
     const pdfUrl = String(cert.pdfUrl || "").trim();
 
@@ -518,6 +518,11 @@ const formatGeneratedCertificateListRow = (cert) => {
         events: Array.isArray(cert.events) ? cert.events : [],
         event: formatCertificateEvent(eventDoc),
         certificateAvailable: Boolean(pdfUrl),
+        request: Boolean(participant?.skaterApply),
+        clubAllow: Boolean(participant?.clubAllow),
+        districtAllow: Boolean(participant?.districtAllow),
+        stateAllow: Boolean(participant?.stateAllow),
+        paymentStatus: participant?.paymentStatus || "pending",
         createdAt: cert.createdAt ?? null,
         updatedAt: cert.updatedAt ?? null,
     };
@@ -556,8 +561,32 @@ const list_generated_certificates_by_user_repository = async (userId, page, limi
             .lean(),
     ]);
 
+    const participantIds = [
+        ...new Set(
+            certificates
+                .map((cert) => cert.participantId)
+                .filter((id) => id && mongoose.Types.ObjectId.isValid(String(id)))
+                .map((id) => String(id))
+        ),
+    ];
+
+    const participants = participantIds.length
+        ? await EventParticipant.find({ _id: { $in: participantIds } })
+              .select("skaterApply clubAllow districtAllow stateAllow paymentStatus")
+              .lean()
+        : [];
+
+    const participantById = new Map(
+        participants.map((participant) => [String(participant._id), participant])
+    );
+
     return {
-        data: certificates.map(formatGeneratedCertificateListRow),
+        data: certificates.map((cert) =>
+            formatGeneratedCertificateListRow(
+                cert,
+                participantById.get(String(cert.participantId)) || null
+            )
+        ),
         pagination: {
             total,
             page: currentPage,

@@ -5,7 +5,7 @@ import {
     get_all_templates_repository,
     get_template_repository,
     get_template_by_id_repository,
-    list_generated_certificates_by_user_repository,
+    list_skater_participants_for_certificate_repository,
     formatIssueDate,
     get_event_for_certificate_repository,
     get_active_template_for_event_type_repository,
@@ -108,7 +108,7 @@ const get_template_by_id_service = async (id) => {
 };
 
 const get_skater_certificate_list_service = async (userId, page, limit) => {
-    return await list_generated_certificates_by_user_repository(userId, page, limit);
+    return await list_skater_participants_for_certificate_repository(userId, page, limit);
 };
 
 

@@ -8,9 +8,24 @@ const objectIdString = Joi.string()
         "string.pattern.base": "{{#label}} must be a valid 24-character hex id",
     });
 
+const hasNonEmptyTime = (value) =>
+    value !== undefined && value !== null && String(value).trim() !== "";
+
+const hasProvidedPosition = (value) =>
+    value !== undefined && value !== null && String(value).trim() !== "";
+
+const requireTimeOrPosition = (value, helpers) => {
+    if (!hasNonEmptyTime(value?.time) && !hasProvidedPosition(value?.position)) {
+        return helpers.message({
+            custom: "At least one of time or position is required",
+        });
+    }
+    return value;
+};
+
 const competitorUpdateItem = Joi.object({
     skaterId: objectIdString.required(),
-    time: Joi.string().trim().min(1).required(),
+    time: Joi.string().trim().allow("").optional(),
     position: Joi.string()
         .trim()
         .valid("0", "1", "2")
@@ -18,7 +33,7 @@ const competitorUpdateItem = Joi.object({
         .messages({
             "any.only": "position must be one of: 0, 1, 2",
         }),
-});
+}).custom(requireTimeOrPosition);
 
 const categoryUpdateItem = Joi.object({
     name: Joi.string().trim().min(1).required(),
@@ -60,7 +75,7 @@ const singleUpdateBody = Joi.object({
     skatingEventCategories: objectIdString.optional(),
     categoriesId: objectIdString.optional(),
     skaterId: objectIdString.required(),
-    time: Joi.string().trim().min(1).required(),
+    time: Joi.string().trim().allow("").optional(),
     position: Joi.string()
         .trim()
         .valid("0", "1", "2")
@@ -69,7 +84,7 @@ const singleUpdateBody = Joi.object({
             "any.only": "position must be one of: 0, 1, 2",
         }),
     categories: Joi.forbidden(),
-});
+}).custom(requireTimeOrPosition);
 
 export const updatePointsValidation = {
     body: Joi.alternatives().try(bulkUpdateBody, singleUpdateBody),

@@ -51,10 +51,43 @@ const competitionRoundHasSkaters = (competitions, { ageGroup, categoryName, roun
     });
 };
 
+const normalizeCompetitionPosition = (value) => {
+    const raw = String(value ?? "").trim();
+    return raw === "1" || raw === "2" ? raw : "0";
+};
+
+/** Fresh competitor row for the next round — never copy time/position from prior round. */
+const cloneCompetitorForNextRound = (source) => ({
+    skaterId: source?.skaterId,
+    chestNo: String(source?.chestNo || ""),
+    fullName: String(source?.fullName || ""),
+    krsaId: String(source?.krsaId || ""),
+    rsfiId: String(source?.rsfiId || ""),
+    time: "",
+    position: "0",
+});
+
+const hasNonEmptyTime = (value) =>
+    value !== undefined && value !== null && String(value).trim() !== "";
+
+const hasProvidedPosition = (value) =>
+    value !== undefined && value !== null && String(value).trim() !== "";
+
+/** Partial update: only fields sent in the request are changed for this round. */
 const applyCompetitorPointsUpdate = (competitor, { time, position }, qualificationType) => {
-    competitor.time = normalizeCompetitionTimeForStorage(time);
+    if (hasNonEmptyTime(time)) {
+        competitor.time = normalizeCompetitionTimeForStorage(time);
+    }
+
     if (qualificationType === "POSITION") {
-        competitor.position = position;
+        if (hasProvidedPosition(position)) {
+            competitor.position = normalizeCompetitionPosition(position);
+        }
+        return;
+    }
+
+    if (hasProvidedPosition(position)) {
+        competitor.position = "0";
     }
 };
 
@@ -80,14 +113,14 @@ const mapCompetitor = (c) => ({
     position: c.position || "0",
 });
 
-const mapCompetitorWithReset = (c) => ({
-    skaterId: c.skaterId,
-    chestNo: c.chestNo || "",
-    fullName: c.fullName || "",
-    krsaId: c.krsaId || "",
-    rsfiId: c.rsfiId || "",
-    time: "",
-    position: "0",
+const mapCompetitorForMedal = (source, medalPosition) => ({
+    skaterId: source?.skaterId,
+    chestNo: String(source?.chestNo || ""),
+    fullName: String(source?.fullName || ""),
+    krsaId: String(source?.krsaId || ""),
+    rsfiId: String(source?.rsfiId || ""),
+    time: formatCompetitionTimeDisplay(source?.time),
+    position: normalizeCompetitionPosition(medalPosition),
 });
 
 const displayAllCompetition = asyncHandler(async (req, res) => { });
@@ -507,20 +540,12 @@ const updatePoints = asyncHandler(async (req, res) => {
         return qualificationTypeCache.get(key);
     };
 
-    const validateCompetitorPayload = (comp, qualificationType, categoryName) => {
-        if (comp.time === undefined || comp.time === null || !String(comp.time).trim()) {
+    const validateCompetitorPayload = (comp, categoryName) => {
+        if (!hasNonEmptyTime(comp.time) && !hasProvidedPosition(comp.position)) {
             throw new AppError(
-                `time is required for category "${categoryName}"`,
+                `At least one of time or position is required for category "${categoryName}"`,
                 400
             );
-        }
-        if (qualificationType === "POSITION") {
-            if (comp.position === undefined || comp.position === null) {
-                throw new AppError(
-                    `position is required for POSITION qualification in category "${categoryName}" (round ${round})`,
-                    400
-                );
-            }
         }
     };
 
@@ -547,11 +572,7 @@ const updatePoints = asyncHandler(async (req, res) => {
         }
 
         const qualificationType = await resolveQualificationType(foundCategory.name);
-        validateCompetitorPayload(
-            { time, position },
-            qualificationType,
-            foundCategory.name
-        );
+        validateCompetitorPayload({ time, position }, foundCategory.name);
         applyCompetitorPointsUpdate(
             foundCompetitor,
             { time, position },
@@ -587,7 +608,7 @@ const updatePoints = asyncHandler(async (req, res) => {
             const roundData = category[round] || [];
 
             for (const comp of competitors) {
-                validateCompetitorPayload(comp, qualificationType, category.name);
+                validateCompetitorPayload(comp, category.name);
 
                 const competitor = roundData.find(
                     (row) => String(row.skaterId) === String(comp.skaterId)
@@ -611,6 +632,7 @@ const updatePoints = asyncHandler(async (req, res) => {
         }
     }
 
+    competition.markModified("categories");
     await competition.save();
 
     res.status(200).json({
@@ -718,9 +740,9 @@ const promoteToNextRound = asyncHandler(async (req, res) => {
             getSecondsFromTime
         );
 
-        category["1st"] = firstPlace ? [mapCompetitor(firstPlace)] : [];
-        category["2nd"] = secondPlace ? [mapCompetitor(secondPlace)] : [];
-        category["3rd"] = thirdPlace ? [mapCompetitor(thirdPlace)] : [];
+        category["1st"] = firstPlace ? [mapCompetitorForMedal(firstPlace, "1")] : [];
+        category["2nd"] = secondPlace ? [mapCompetitorForMedal(secondPlace, "2")] : [];
+        category["3rd"] = thirdPlace ? [mapCompetitorForMedal(thirdPlace, "0")] : [];
         totalPromoted =
             (firstPlace ? 1 : 0) + (secondPlace ? 1 : 0) + (thirdPlace ? 1 : 0);
     } else {
@@ -742,7 +764,7 @@ const promoteToNextRound = asyncHandler(async (req, res) => {
             );
         }
 
-        category[targetRound] = breakdown.promoted.map(mapCompetitorWithReset);
+        category[targetRound] = breakdown.promoted.map(cloneCompetitorForNextRound);
         totalPromoted = breakdown.promoted.length;
     }
 
@@ -750,6 +772,7 @@ const promoteToNextRound = asyncHandler(async (req, res) => {
         throw new AppError(`No skaters qualified to progress from "${round}"`, 400);
     }
 
+    competition.markModified("categories");
     await competition.save();
 
     const nextRoundParticipants =

@@ -711,13 +711,17 @@ export const generateEventCertificatesAdmin = asyncHandler(async (req, res) => {
     }
     if (status.eligibleCount === 0) {
         throw new AppError(
-            "No medal winners to certify — complete the final round and run update-round so skaters appear in 1st, 2nd, and 3rd for each category",
+            "No competition participants to certify — add skaters to EventCompetition rounds (1stRound / final / 1st / 2nd / 3rd) first",
             400
         );
     }
     if (status.allGenerated) {
         return res.status(200).json(
-            new ApiResponse(200, status, "Certificates already generated")
+            new ApiResponse(
+                200,
+                status,
+                status.summaryMessage || "Certificates already generated"
+            )
         );
     }
 
@@ -726,7 +730,7 @@ export const generateEventCertificatesAdmin = asyncHandler(async (req, res) => {
         result.generated === 0 && result.skipped > 0 && result.failed === 0;
     const message = allSkipped
         ? "Certificates already generated"
-        : "Event certificates processed successfully";
+        : result.summaryMessage || "Event certificates processed successfully";
 
     return res.status(200).json(new ApiResponse(200, result, message));
 });

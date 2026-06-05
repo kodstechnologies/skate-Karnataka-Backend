@@ -10,6 +10,7 @@ import {
     get_event_for_certificate_repository,
     get_active_template_for_event_type_repository,
     list_eligible_participants_for_event_repository,
+    list_event_certificate_skater_breakdown_repository,
     find_generated_certificate_repository,
     save_generated_certificate_repository,
     build_participant_certificate_payload_repository,
@@ -346,20 +347,32 @@ const generate_event_certificates_service = async (eventId) => {
         );
     }
 
-    const participants = await list_eligible_participants_for_event_repository(eventId);
+    const [participants, breakdown] = await Promise.all([
+        list_eligible_participants_for_event_repository(eventId),
+        list_event_certificate_skater_breakdown_repository(eventId),
+    ]);
     const issueDate = formatIssueDate(event.eventEndDate);
+
+    const skaterStatusByParticipant = new Map(
+        breakdown.skaters.map((row) => [String(row.participantId), row])
+    );
 
     const summary = {
         eventId: event._id,
         eventName: event.header || "",
         eventType: event.eventType || "",
         templateId: template._id,
+        registeredCount: breakdown.registeredCount,
+        playedCount: breakdown.playedCount,
         totalEligible: participants.length,
+        eligibleCount: breakdown.eligibleCount,
+        notPlayedCount: breakdown.notPlayedCount,
         generated: 0,
         skipped: 0,
         failed: 0,
         certificates: [],
         errors: [],
+        skaters: breakdown.skaters,
     };
 
     for (const participant of participants) {
@@ -375,6 +388,12 @@ const generate_event_certificates_service = async (eventId) => {
                 pdfUrl: existing.pdfUrl,
                 status: "skipped",
             });
+            const row = skaterStatusByParticipant.get(String(participant._id));
+            if (row) {
+                row.status = "skipped";
+                row.statusMessage = "Certificate already generated";
+                row.pdfUrl = existing.pdfUrl || "";
+            }
             continue;
         }
 
@@ -421,16 +440,58 @@ const generate_event_certificates_service = async (eventId) => {
                 pdfUrl: saved.pdfUrl,
                 status: "generated",
             });
+            const row = skaterStatusByParticipant.get(String(participant._id));
+            if (row) {
+                row.status = "generated";
+                row.statusMessage =
+                    row.placement && row.placement !== "attended"
+                        ? `Certificate generated — placement ${row.placement}`
+                        : "Certificate generated — attended";
+                row.pdfUrl = saved.pdfUrl || "";
+            }
         } catch (err) {
             summary.failed += 1;
+            const failMessage = err?.message || "Certificate generation failed";
             summary.errors.push({
                 participantId: participant._id,
-                message: err?.message || "Certificate generation failed",
+                message: failMessage,
             });
+            const row = skaterStatusByParticipant.get(String(participant._id));
+            if (row) {
+                row.status = "failed";
+                row.statusMessage = failMessage;
+            }
         }
     }
 
+    summary.skaters = breakdown.skaters;
+    summary.summaryMessage = buildCertificateGenerationSummaryMessage(summary);
+
     return summary;
+};
+
+const buildCertificateGenerationSummaryMessage = (summary) => {
+    const generated = summary.generated ?? 0;
+    const skipped = summary.skipped ?? 0;
+    const failed = summary.failed ?? 0;
+
+    if (generated === 0 && skipped > 0 && failed === 0) {
+        return "Certificates already generated";
+    }
+
+    if (generated > 0 && failed === 0) {
+        return `${generated} certificate${generated === 1 ? "" : "s"} generated`;
+    }
+
+    if (generated > 0 && failed > 0) {
+        return `${generated} certificate${generated === 1 ? "" : "s"} generated, ${failed} failed`;
+    }
+
+    if (failed > 0) {
+        return `${failed} certificate${failed === 1 ? "" : "s"} failed`;
+    }
+
+    return "No certificates generated";
 };
 
 /**

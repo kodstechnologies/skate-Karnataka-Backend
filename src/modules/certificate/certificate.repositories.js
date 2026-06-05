@@ -14,6 +14,52 @@ const MEDAL_ROUND_KEYS = [
     { key: "3rd", placement: 3 },
 ];
 
+const COMPETITION_PARTICIPATION_ROUND_KEYS = [
+    "1stRound",
+    "2ndRound",
+    "semiFinal",
+    "final",
+];
+
+const placementCategoryKey = (ageGroup, categoryName) =>
+    `${ageGroup}::${categoryName}`;
+
+const upsertCertificatePlacement = (map, skaterId, entry) => {
+    if (!skaterId || !mongoose.Types.ObjectId.isValid(String(skaterId))) {
+        return;
+    }
+
+    const sid = String(skaterId);
+    if (!map.has(sid)) {
+        map.set(sid, []);
+    }
+
+    const list = map.get(sid);
+    const key = placementCategoryKey(entry.ageGroup, entry.categoryName);
+    const existingIdx = list.findIndex(
+        (row) => placementCategoryKey(row.ageGroup, row.categoryName) === key
+    );
+
+    const isMedal =
+        typeof entry.placement === "number" &&
+        entry.placement >= 1 &&
+        entry.placement <= 3;
+
+    if (existingIdx >= 0) {
+        const existing = list[existingIdx];
+        const existingIsMedal =
+            typeof existing.placement === "number" &&
+            existing.placement >= 1 &&
+            existing.placement <= 3;
+        if (isMedal || !existingIsMedal) {
+            list[existingIdx] = entry;
+        }
+        return;
+    }
+
+    list.push(entry);
+};
+
 const EVENT_TYPE_TEMPLATE_FLAG = {
     Club: "CLUB",
     District: "DISTRICT",
@@ -343,10 +389,11 @@ const participantHasRecordedTime = (participant) =>
     );
 
 /**
- * Podium skaters from EventCompetition only (category keys 1st / 2nd / 3rd).
- * Map: skaterId string → [{ ageGroup, categoryName, placement: 1|2|3 }]
+ * All competition skaters from EventCompetition rounds.
+ * Map: skaterId → [{ ageGroup, categoryName, placement: 1|2|3|null }]
+ * placement null = attended (not 1st/2nd/3rd).
  */
-const buildPodiumPlacementsBySkaterForEvent = async (eventId) => {
+const buildCertificatePlacementsBySkaterForEvent = async (eventId) => {
     if (!mongoose.Types.ObjectId.isValid(String(eventId))) {
         return new Map();
     }
@@ -361,16 +408,20 @@ const buildPodiumPlacementsBySkaterForEvent = async (eventId) => {
         const ageGroup = competition.ageGroup || "";
         for (const category of competition.categories || []) {
             const categoryName = category.name || "";
+
+            for (const roundKey of COMPETITION_PARTICIPATION_ROUND_KEYS) {
+                for (const row of category[roundKey] || []) {
+                    upsertCertificatePlacement(bySkater, row?.skaterId, {
+                        ageGroup,
+                        categoryName,
+                        placement: null,
+                    });
+                }
+            }
+
             for (const { key, placement } of MEDAL_ROUND_KEYS) {
-                const rows = category[key] || [];
-                for (const row of rows) {
-                    const skaterId = row?.skaterId;
-                    if (!skaterId) continue;
-                    const sid = String(skaterId);
-                    if (!bySkater.has(sid)) {
-                        bySkater.set(sid, []);
-                    }
-                    bySkater.get(sid).push({
+                for (const row of category[key] || []) {
+                    upsertCertificatePlacement(bySkater, row?.skaterId, {
                         ageGroup,
                         categoryName,
                         placement,
@@ -383,6 +434,26 @@ const buildPodiumPlacementsBySkaterForEvent = async (eventId) => {
     return bySkater;
 };
 
+/** Podium-only subset (1st / 2nd / 3rd) for medal counts. */
+const buildPodiumPlacementsBySkaterForEvent = async (eventId) => {
+    const bySkater = await buildCertificatePlacementsBySkaterForEvent(eventId);
+    const podiumOnly = new Map();
+
+    for (const [skaterId, rows] of bySkater.entries()) {
+        const medals = rows.filter(
+            (row) =>
+                typeof row.placement === "number" &&
+                row.placement >= 1 &&
+                row.placement <= 3
+        );
+        if (medals.length) {
+            podiumOnly.set(skaterId, medals);
+        }
+    }
+
+    return podiumOnly;
+};
+
 const formatCertificatePlacement = (rank) => {
     const placement = Number(rank);
     if (placement === 1 || placement === 2 || placement === 3) {
@@ -393,10 +464,11 @@ const formatCertificatePlacement = (rank) => {
 
 const buildCertificateTableRows = (participant) => {
     const discipline = participant.categoriesId?.typeName || "";
-    const podiumRows = participant._podiumPlacements || [];
+    const placementRows =
+        participant._certificatePlacements || participant._podiumPlacements || [];
 
-    if (podiumRows.length) {
-        return podiumRows
+    if (placementRows.length) {
+        return placementRows
             .filter((row) => row.ageGroup === participant.ageGroup)
             .map((row) => ({
                 discipline,
@@ -445,12 +517,12 @@ const list_eligible_participants_for_event_repository = async (eventId) => {
         return [];
     }
 
-    const podiumBySkater = await buildPodiumPlacementsBySkaterForEvent(eventId);
-    if (!podiumBySkater.size) {
+    const placementsBySkater = await buildCertificatePlacementsBySkaterForEvent(eventId);
+    if (!placementsBySkater.size) {
         return [];
     }
 
-    const skaterIds = [...podiumBySkater.keys()]
+    const skaterIds = [...placementsBySkater.keys()]
         .filter((id) => mongoose.Types.ObjectId.isValid(id))
         .map((id) => new mongoose.Types.ObjectId(id));
 
@@ -466,14 +538,25 @@ const list_eligible_participants_for_event_repository = async (eventId) => {
     return participants
         .filter((participant) => {
             const userId = String(participant.userId?._id || participant.userId || "");
-            const placements = podiumBySkater.get(userId) || [];
+            const placements = placementsBySkater.get(userId) || [];
             return placements.some((row) => row.ageGroup === participant.ageGroup);
         })
         .map((participant) => {
             const userId = String(participant.userId?._id || participant.userId || "");
+            const allPlacements = placementsBySkater.get(userId) || [];
+            const ageGroupPlacements = allPlacements.filter(
+                (row) => row.ageGroup === participant.ageGroup
+            );
+
             return {
                 ...participant,
-                _podiumPlacements: podiumBySkater.get(userId) || [],
+                _certificatePlacements: ageGroupPlacements,
+                _podiumPlacements: ageGroupPlacements.filter(
+                    (row) =>
+                        typeof row.placement === "number" &&
+                        row.placement >= 1 &&
+                        row.placement <= 3
+                ),
             };
         });
 };
@@ -663,8 +746,8 @@ const count_skater_certificate_medal_stats_repository = async ({ userId } = {}) 
 };
 
 const event_has_any_recorded_participant_time_repository = async (eventId) => {
-    const podiumBySkater = await buildPodiumPlacementsBySkaterForEvent(eventId);
-    return podiumBySkater.size > 0;
+    const placementsBySkater = await buildCertificatePlacementsBySkaterForEvent(eventId);
+    return placementsBySkater.size > 0;
 };
 
 /** At least one eligible participant still lacks a GeneratedCertificate row. */
@@ -759,8 +842,9 @@ const summarize_event_certificate_status = async (event) => {
         pendingCount,
         canGenerate: eligibleCount > 0 && pendingCount > 0,
         allGenerated: eligibleCount > 0 && pendingCount === 0,
+        attendedCount: Math.max(eligibleCount - medalWinnerCount, 0),
         requiresPodium:
-            "Certificates only for skaters in EventCompetition 1st / 2nd / 3rd (after final update-round).",
+            "Certificates for all competition participants; 1st/2nd/3rd show medal placement, others show attended.",
     };
 };
 
@@ -791,6 +875,52 @@ const list_events_ended_for_admin_certificate_repository = async (
     };
 };
 
+const enrich_certificate_skater_breakdown_with_generated_status = async (
+    eventId,
+    breakdown
+) => {
+    if (!breakdown?.skaters?.length) {
+        return breakdown;
+    }
+
+    const certificates = await GeneratedCertificate.find({
+        eventId: new mongoose.Types.ObjectId(String(eventId)),
+        participantId: {
+            $in: breakdown.skaters.map((row) => row.participantId).filter(Boolean),
+        },
+    })
+        .select("participantId pdfUrl certificateID")
+        .lean();
+
+    const certByParticipant = new Map(
+        certificates.map((cert) => [String(cert.participantId), cert])
+    );
+
+    const skaters = breakdown.skaters.map((row) => {
+        const cert = certByParticipant.get(String(row.participantId));
+        if (!cert) {
+            return row;
+        }
+
+        return {
+            ...row,
+            status: row.eligible ? "generated" : row.status,
+            statusMessage: row.eligible
+                ? row.placement && row.placement !== "attended"
+                    ? `Certificate generated — placement ${row.placement}`
+                    : "Certificate generated — attended"
+                : row.statusMessage,
+            pdfUrl: cert.pdfUrl || "",
+            certificateID: cert.certificateID || "",
+        };
+    });
+
+    return {
+        ...breakdown,
+        skaters,
+    };
+};
+
 const get_event_certificate_status_repository = async (eventId) => {
     if (!mongoose.Types.ObjectId.isValid(String(eventId))) {
         return null;
@@ -804,10 +934,152 @@ const get_event_certificate_status_repository = async (eventId) => {
         return null;
     }
 
-    const summary = await summarize_event_certificate_status(event);
+    const [summary, breakdown] = await Promise.all([
+        summarize_event_certificate_status(event),
+        list_event_certificate_skater_breakdown_repository(eventId),
+    ]);
+
+    const enrichedBreakdown =
+        await enrich_certificate_skater_breakdown_with_generated_status(
+            eventId,
+            breakdown
+        );
+
     return {
         ...summary,
         eventEnded: isEventEnded(event),
+        registeredCount: enrichedBreakdown.registeredCount,
+        playedCount: enrichedBreakdown.playedCount,
+        notPlayedCount: enrichedBreakdown.notPlayedCount,
+        skaters: enrichedBreakdown.skaters,
+        summaryMessage: buildCertificateStatusSummaryMessage({
+            ...summary,
+            registeredCount: enrichedBreakdown.registeredCount,
+            notPlayedCount: enrichedBreakdown.notPlayedCount,
+        }),
+    };
+};
+
+const buildCertificateStatusSummaryMessage = (summary) => {
+    if (summary.allGenerated) {
+        return "Certificates already generated";
+    }
+
+    if (summary.generatedCount > 0) {
+        return `${summary.generatedCount} certificate${summary.generatedCount === 1 ? "" : "s"} generated`;
+    }
+
+    if (summary.eligibleCount > 0) {
+        return `${summary.eligibleCount} certificate${summary.eligibleCount === 1 ? "" : "s"} pending generation`;
+    }
+
+    return "No certificates to generate";
+};
+
+const formatPodiumPlacementLabel = (placements = []) => {
+    if (!placements.length) {
+        return null;
+    }
+
+    const labels = [...new Set(placements.map((row) => String(row.placement)))].sort();
+    return labels.join(", ");
+};
+
+const formatCertificatePlacementLabel = (placements = []) => {
+    const medals = placements.filter(
+        (row) =>
+            typeof row.placement === "number" &&
+            row.placement >= 1 &&
+            row.placement <= 3
+    );
+
+    if (medals.length) {
+        return formatPodiumPlacementLabel(medals);
+    }
+
+    if (placements.length) {
+        return "attended";
+    }
+
+    return null;
+};
+
+/**
+ * All registered skaters for an event with played / eligible / certificate status.
+ */
+const list_event_certificate_skater_breakdown_repository = async (eventId) => {
+    if (!mongoose.Types.ObjectId.isValid(String(eventId))) {
+        return {
+            registeredCount: 0,
+            playedCount: 0,
+            eligibleCount: 0,
+            notPlayedCount: 0,
+            skaters: [],
+        };
+    }
+
+    const eventOid = new mongoose.Types.ObjectId(String(eventId));
+    const [allParticipants, placementsBySkater, eligibleParticipants] = await Promise.all([
+        EventParticipant.find({ eventId: eventOid })
+            .populate("userId", "fullName krsaId")
+            .lean(),
+        buildCertificatePlacementsBySkaterForEvent(eventId),
+        list_eligible_participants_for_event_repository(eventId),
+    ]);
+
+    const eligibleIds = new Set(eligibleParticipants.map((row) => String(row._id)));
+
+    const skaters = allParticipants.map((participant) => {
+        const userId = String(participant.userId?._id || participant.userId || "");
+        const competitionPlacements = (placementsBySkater.get(userId) || []).filter(
+            (row) => row.ageGroup === participant.ageGroup
+        );
+        const played =
+            participantHasRecordedTime(participant) || competitionPlacements.length > 0;
+        const isEligible = eligibleIds.has(String(participant._id));
+        const placement = formatCertificatePlacementLabel(competitionPlacements);
+        const isMedalWinner = competitionPlacements.some(
+            (row) =>
+                typeof row.placement === "number" &&
+                row.placement >= 1 &&
+                row.placement <= 3
+        );
+
+        let status = "not_played";
+        let statusMessage = "Not played";
+
+        if (isEligible) {
+            status = "eligible";
+            if (isMedalWinner) {
+                statusMessage = `Medal winner (${placement}) — certificate eligible`;
+            } else {
+                statusMessage = "Attended — certificate eligible";
+            }
+        } else if (played) {
+            status = "played";
+            statusMessage = "Played — not in competition rounds";
+        }
+
+        return {
+            participantId: participant._id,
+            userId: participant.userId?._id || participant.userId || null,
+            name: participant.name || participant.userId?.fullName || "",
+            krsaId: participant.userId?.krsaId || "",
+            ageGroup: participant.ageGroup || "",
+            placement,
+            played,
+            eligible: isEligible,
+            status,
+            statusMessage,
+        };
+    });
+
+    return {
+        registeredCount: skaters.length,
+        playedCount: skaters.filter((row) => row.played).length,
+        eligibleCount: skaters.filter((row) => row.eligible).length,
+        notPlayedCount: skaters.filter((row) => row.status === "not_played").length,
+        skaters,
     };
 };
 
@@ -857,5 +1129,6 @@ export {
     find_generated_certificate_repository,
     save_generated_certificate_repository,
     build_participant_certificate_payload_repository,
+    list_event_certificate_skater_breakdown_repository,
     count_skater_certificate_medal_stats_repository,
 };

@@ -297,13 +297,24 @@ export const syncEventCompetitionFromParticipants = async (
         freshCat["1stRound"] || []
       );
 
-      if (mergedFirst.length !== (category["1stRound"] || []).length) {
-        category["1stRound"] = mergedFirst;
+      const prevFirst = category["1stRound"] || [];
+      if (
+        mergedFirst.length !== prevFirst.length ||
+        mergedFirst.some(
+          (row, idx) => String(row?.skaterId) !== String(prevFirst[idx]?.skaterId)
+        )
+      ) {
+        if (typeof category.set === "function") {
+          category.set("1stRound", mergedFirst);
+        } else {
+          category["1stRound"] = mergedFirst;
+        }
         dirty = true;
       }
     }
 
     if (dirty) {
+      competition.markModified("categories");
       await competition.save();
       syncedAgeGroups += 1;
     }

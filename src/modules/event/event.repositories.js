@@ -21,6 +21,7 @@ import {
   approvedPublicEventFilter,
   EVENT_ADMIN_APPROVAL,
   EVENT_DELETE_APPROVAL,
+  initialAdminApprovalStatus,
   isEventPubliclyVisible,
   skaterListableEventsFilter,
   requiresAdminApprovalOnCreate,
@@ -2532,26 +2533,34 @@ export const stateRelatedEventDisplayRepositories = async (stateId, { page, limi
   };
 };
 
-export const createStateEventRepositories = async (stateId, data, creatorUserId) => {
+export const createStateEventRepositories = async (stateId, data, creatorUserId, creatorRole) => {
+  const approvalStatus = initialAdminApprovalStatus("State", creatorRole);
   const payload = {
     ...data,
     eventType: "State",
     eventFor: new mongoose.Types.ObjectId(stateId),
+    adminApprovalStatus: approvalStatus,
   };
 
   const event = await Event.create(payload);
 
   const state = await State.findById(stateId).select("name").lean();
-  console.log("State event created:", {
-    eventId: event._id,
-    stateId,
-    creatorUserId,
-  });
-  if (state && creatorUserId) {
+  const stateName = state?.name || "Karnataka";
+
+  if (approvalStatus === EVENT_ADMIN_APPROVAL.PENDING) {
+    notifyStateLevelOnEventPendingApproval({
+      event,
+      eventType: "State",
+      orgName: stateName,
+      sentBy: creatorUserId,
+    }).catch((err) => {
+      console.error("State event pending-approval notification failed:", err?.message || err);
+    });
+  } else if (state && creatorUserId) {
     notifyStateMembersOfNewEvent({
       creatorUserId,
       stateDocId: stateId,
-      stateName: state.name || "Karnataka",
+      stateName,
       event,
     }).catch((err) => {
       console.error("State event notifications failed:", err?.message || err);
@@ -2935,6 +2944,18 @@ export const approveEventByAdminRepository = async (eventId) => {
         console.error("District event approval notification failed:", err?.message || err);
       });
     }
+  }
+
+  if (event.eventType === "State") {
+    const state = await State.findById(event.eventFor).select("name").lean();
+    notifyStateMembersOfNewEvent({
+      creatorUserId: null,
+      stateDocId: event.eventFor,
+      stateName: state?.name || "Karnataka",
+      event: updated,
+    }).catch((err) => {
+      console.error("State event approval notification failed:", err?.message || err);
+    });
   }
 
   return updated;

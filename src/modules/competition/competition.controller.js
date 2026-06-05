@@ -73,6 +73,59 @@ const hasNonEmptyTime = (value) =>
 const hasProvidedPosition = (value) =>
     value !== undefined && value !== null && String(value).trim() !== "";
 
+const COMPETITION_ROUND_ORDER = ["1stRound", "2ndRound", "semiFinal", "final"];
+const MEDAL_ROUNDS = ["1st", "2nd", "3rd"];
+
+/** Persist round array on a Mongoose category subdocument. */
+const setCategoryRound = (category, roundKey, rows) => {
+    if (typeof category.set === "function") {
+        category.set(roundKey, rows);
+        return;
+    }
+    category[roundKey] = rows;
+};
+
+const toPlainCompetitorRow = (row) =>
+    row && typeof row.toObject === "function" ? row.toObject() : row;
+
+const countSkatersWithRecordedTime = (rows = []) =>
+    rows.filter((row) => {
+        const time = String(row?.time ?? "").trim();
+        if (!time) {
+            return false;
+        }
+        try {
+            parseCompetitionTimeTakenToSeconds(time);
+            return true;
+        } catch {
+            return false;
+        }
+    }).length;
+
+/**
+ * Changing an earlier round invalidates later rounds for the same category.
+ * - 1stRound change → 2ndRound, semiFinal, final, medals all cleared
+ * - 2ndRound change → 1stRound untouched; semiFinal+ and medals cleared
+ * - semiFinal change → final + medals cleared
+ * - final change → medals cleared
+ */
+const clearSubsequentRoundsInCategory = (category, updatedRound) => {
+    const roundIndex = COMPETITION_ROUND_ORDER.indexOf(updatedRound);
+    if (roundIndex < 0) {
+        return;
+    }
+
+    const subsequentRounds = COMPETITION_ROUND_ORDER.slice(roundIndex + 1);
+
+    for (const nextRound of subsequentRounds) {
+        setCategoryRound(category, nextRound, []);
+    }
+
+    for (const medalRound of MEDAL_ROUNDS) {
+        setCategoryRound(category, medalRound, []);
+    }
+};
+
 /** Partial update: only fields sent in the request are changed for this round. */
 const applyCompetitorPointsUpdate = (competitor, { time, position }, qualificationType) => {
     if (hasNonEmptyTime(time)) {
@@ -234,14 +287,15 @@ const getCompetitionDetailsByEvent = asyncHandler(async (req, res) => {
 
     let competitions = await EventCompetition.find(query).lean();
 
+    // Only auto-sync when 1stRound is missing — not when a later round (e.g. 2ndRound) is empty
+    // before promotion; syncing cannot fill later rounds and confuses "no skaters" reads.
     const shouldSyncCompetition =
         competitions.length === 0 ||
-        (round &&
-            categoryFilterName &&
+        (categoryFilterName &&
             !competitionRoundHasSkaters(competitions, {
                 ageGroup,
                 categoryName: categoryFilterName,
-                round,
+                round: "1stRound",
             }));
 
     if (shouldSyncCompetition) {
@@ -578,8 +632,9 @@ const updatePoints = asyncHandler(async (req, res) => {
             { time, position },
             qualificationType
         );
+        clearSubsequentRoundsInCategory(foundCategory, round);
 
-            responseCategories.push({
+        responseCategories.push({
                 name: foundCategory.name,
                 qualificationType,
                 competitors: (foundCategory[round] || []).map((row) => mapCompetitor(row)),
@@ -623,6 +678,8 @@ const updatePoints = asyncHandler(async (req, res) => {
 
                 applyCompetitorPointsUpdate(competitor, comp, qualificationType);
             }
+
+            clearSubsequentRoundsInCategory(category, round);
 
             responseCategories.push({
                 name: category.name,
@@ -680,7 +737,7 @@ const promoteToNextRound = asyncHandler(async (req, res) => {
         throw new AppError(`Category "${name}" not found for age group ${ageGroup}`, 404);
     }
 
-    const currentRoundData = category[round] || [];
+    const currentRoundData = (category[round] || []).map(toPlainCompetitorRow);
     if (!currentRoundData.length) {
         throw new AppError(`No skaters in ${round} for "${name}"`, 400);
     }
@@ -732,6 +789,7 @@ const promoteToNextRound = asyncHandler(async (req, res) => {
     }
 
     let totalPromoted = 0;
+    let promotionBreakdown = null;
 
     if (targetRound === "winners") {
         const { firstPlace, secondPlace, thirdPlace } = selectFinalWinners(
@@ -740,13 +798,25 @@ const promoteToNextRound = asyncHandler(async (req, res) => {
             getSecondsFromTime
         );
 
-        category["1st"] = firstPlace ? [mapCompetitorForMedal(firstPlace, "1")] : [];
-        category["2nd"] = secondPlace ? [mapCompetitorForMedal(secondPlace, "2")] : [];
-        category["3rd"] = thirdPlace ? [mapCompetitorForMedal(thirdPlace, "0")] : [];
+        setCategoryRound(
+            category,
+            "1st",
+            firstPlace ? [mapCompetitorForMedal(firstPlace, "1")] : []
+        );
+        setCategoryRound(
+            category,
+            "2nd",
+            secondPlace ? [mapCompetitorForMedal(secondPlace, "2")] : []
+        );
+        setCategoryRound(
+            category,
+            "3rd",
+            thirdPlace ? [mapCompetitorForMedal(thirdPlace, "0")] : []
+        );
         totalPromoted =
             (firstPlace ? 1 : 0) + (secondPlace ? 1 : 0) + (thirdPlace ? 1 : 0);
     } else {
-        const breakdown = selectPromotedCompetitorsWithBreakdown(
+        promotionBreakdown = selectPromotedCompetitorsWithBreakdown(
             currentRoundData,
             promoteLimit,
             promotionCtx.qualificationType,
@@ -754,49 +824,96 @@ const promoteToNextRound = asyncHandler(async (req, res) => {
             promotionCtx.formulaRound
         );
 
-        if (!breakdown.promoted.length) {
+        if (!promotionBreakdown.promoted.length) {
             const perGroup = promotionCtx.formulaRound?.qualifyPerGroup ?? 1;
+            const timedCount = countSkatersWithRecordedTime(currentRoundData);
             throw new AppError(
                 promotionCtx.qualificationType === "POSITION"
                     ? `No skaters qualify (POSITION: marked position "${perGroup >= 2 ? '1" or "2' : '1'}" then fastest times to reach ${promoteLimit})`
-                    : `No skaters with valid times to promote (fastest ${promoteLimit} required)`,
+                    : `No skaters with valid times to promote (${timedCount} of ${currentRoundData.length} have a recorded time; fastest ${promoteLimit} required)`,
                 400
             );
         }
 
-        category[targetRound] = breakdown.promoted.map(cloneCompetitorForNextRound);
-        totalPromoted = breakdown.promoted.length;
+        setCategoryRound(
+            category,
+            targetRound,
+            promotionBreakdown.promoted.map(cloneCompetitorForNextRound)
+        );
+        totalPromoted = promotionBreakdown.promoted.length;
+
+        // Only the next round is populated; later rounds + medals must not keep stale data.
+        clearSubsequentRoundsInCategory(category, targetRound);
     }
 
     if (totalPromoted === 0) {
         throw new AppError(`No skaters qualified to progress from "${round}"`, 400);
     }
 
+    const categoryIndex = competition.categories.findIndex(
+        (row) =>
+            row.name &&
+            row.name.trim().toLowerCase() === String(name || "").trim().toLowerCase()
+    );
     competition.markModified("categories");
+    if (categoryIndex >= 0) {
+        competition.markModified(`categories.${categoryIndex}`);
+        if (targetRound !== "winners") {
+            competition.markModified(`categories.${categoryIndex}.${targetRound}`);
+        }
+    }
     await competition.save();
+
+    const saved = await EventCompetition.findOne({ eventId, ageGroup });
+    const savedCategory = saved?.categories?.find(
+        (row) =>
+            row.name &&
+            row.name.trim().toLowerCase() === String(name || "").trim().toLowerCase()
+    );
 
     const nextRoundParticipants =
         targetRound === "winners"
             ? {
-                  "1st": (category["1st"] || []).map((row) => mapCompetitor(row)),
-                  "2nd": (category["2nd"] || []).map((row) => mapCompetitor(row)),
-                  "3rd": (category["3rd"] || []).map((row) => mapCompetitor(row)),
+                  "1st": (savedCategory?.["1st"] || []).map((row) => mapCompetitor(row)),
+                  "2nd": (savedCategory?.["2nd"] || []).map((row) => mapCompetitor(row)),
+                  "3rd": (savedCategory?.["3rd"] || []).map((row) => mapCompetitor(row)),
               }
-            : (category[targetRound] || []).map((row) => mapCompetitor(row));
+            : (savedCategory?.[targetRound] || []).map((row) => mapCompetitor(row));
+
+    const promotedIds = new Set(
+        (promotionBreakdown?.promoted || []).map((row) => String(row.skaterId))
+    );
+    const notPromoted =
+        promotionBreakdown?.promoted?.length
+            ? currentRoundData
+                  .filter((row) => !promotedIds.has(String(row.skaterId)))
+                  .map((row) => ({
+                      ...mapCompetitor(row),
+                      reason: countSkatersWithRecordedTime([row])
+                          ? "exceeded_formula_limit"
+                          : "no_valid_time",
+                  }))
+            : [];
 
     res.status(200).json({
         success: true,
         message:
             targetRound === "winners"
                 ? "Successfully populated medal places from final round"
-                : `Promoted ${totalPromoted} skater(s) from ${round} to ${targetRound} (limit ${promoteLimit})`,
+                : `Promoted ${totalPromoted} of ${currentRoundData.length} skater(s) from ${round} to ${targetRound} (${promotionCtx.qualificationType}, formula limit ${promoteLimit})`,
         data: {
-            eventId: competition.eventId,
-            ageGroup: competition.ageGroup,
-            name: category.name,
+            eventId: saved?.eventId ?? competition.eventId,
+            ageGroup: saved?.ageGroup ?? competition.ageGroup,
+            name: savedCategory?.name ?? category.name,
             fromRound: round,
             toRound: targetRound,
+            qualificationType: promotionCtx.qualificationType,
+            promotionLimit: promoteLimit,
+            limitSource,
+            totalInFromRound: currentRoundData.length,
             promotedCount: totalPromoted,
+            promotedSkaters: nextRoundParticipants,
+            notPromoted,
             [targetRound]: nextRoundParticipants,
         },
     });

@@ -3,6 +3,15 @@
  * POSITION = position qualifiers (per group or all), then fastest times to fill qualifyCount.
  */
 
+const hasValidRecordedTime = (row, getSecondsFromTime) => {
+  const time = String(row?.time ?? "").trim();
+  if (!time) {
+    return false;
+  }
+  const seconds = getSecondsFromTime(time);
+  return Number.isFinite(seconds) && seconds !== Infinity;
+};
+
 /** Fastest times among skaters not already selected (ignores position for fill). */
 const fillByFastestTime = (
   rows,
@@ -20,7 +29,7 @@ const fillByFastestTime = (
       if (selectedIds.has(String(row.skaterId))) {
         return false;
       }
-      return row.time && String(row.time).trim() !== "";
+      return hasValidRecordedTime(row, getSecondsFromTime);
     })
     .sort((a, b) => getSecondsFromTime(a.time) - getSecondsFromTime(b.time))
     .slice(0, limit);
@@ -142,7 +151,7 @@ const selectTimePromoted = (currentRoundData, cap, getSecondsFromTime) => {
   }
 
   const promoted = currentRoundData
-    .filter((row) => row.time && String(row.time).trim() !== "")
+    .filter((row) => hasValidRecordedTime(row, getSecondsFromTime))
     .sort((a, b) => getSecondsFromTime(a.time) - getSecondsFromTime(b.time))
     .slice(0, limit);
 

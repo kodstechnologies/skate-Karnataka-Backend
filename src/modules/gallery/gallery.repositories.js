@@ -151,7 +151,7 @@ export const displayPendingMediaForAdminRepositories = async (page, limit) => {
   const { skip, limit: perPage, page: currentPage } = paginate(page, limit);
 
   const query = {
-    ownerType: { $in: ["club", "district"] },
+    ownerType: { $in: ["club", "district", "state"] },
     $or: [
       { adminApprovalStatus: MEDIA_ADMIN_APPROVAL.PENDING },
       { deleteApprovalStatus: MEDIA_DELETE_APPROVAL.PENDING },
@@ -249,7 +249,7 @@ export const addMediaREpositories = async (data) => {
     about: data?.about || "",
     ownerType,
     ownerId: data.ownerId,
-    adminApprovalStatus: initialMediaApprovalStatus(ownerType),
+    adminApprovalStatus: initialMediaApprovalStatus(ownerType, data.uploaderRole),
     deleteApprovalStatus: null,
   });
 };

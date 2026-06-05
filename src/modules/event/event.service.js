@@ -31,6 +31,8 @@ import {
 import { EventParticipant } from "./eventParticipant.model.js";
 import {
   EVENT_ADMIN_APPROVAL,
+  canReviewerApproveEventType,
+  isAdminRole,
   isEventPubliclyVisible,
   isStateOrAdminRole,
   requiresAdminApprovalOnCreate,
@@ -710,13 +712,18 @@ export const updateStateEventSkaterTimeService = async (
     };
 };
 
-export const createStateEventService = async (stateId, data, creatorUserId) => {
+export const createStateEventService = async (stateId, data, creatorUserId, creatorRole) => {
     let resolvedStateId = stateId;
 
     if (resolvedStateId) {
         const state = await State.findById(resolvedStateId).select("_id").lean();
         if (state) {
-            return await createStateEventRepositories(resolvedStateId, data, creatorUserId);
+            return await createStateEventRepositories(
+                resolvedStateId,
+                data,
+                creatorUserId,
+                creatorRole
+            );
         }
     }
 
@@ -726,7 +733,12 @@ export const createStateEventService = async (stateId, data, creatorUserId) => {
     }
 
     resolvedStateId = fallbackState._id;
-    return await createStateEventRepositories(resolvedStateId, data, creatorUserId);
+    return await createStateEventRepositories(
+        resolvedStateId,
+        data,
+        creatorUserId,
+        creatorRole
+    );
 };
 
 const enrichUserForCategoryScope = async (user) => {
@@ -1234,11 +1246,21 @@ const edit_event_schema = async (id, data, user) => {
     const role = String(user?.role || "").trim().toLowerCase();
     let resubmittedForApproval = false;
 
-    if (
-        (role === "club" || role === "district") &&
-        requiresAdminApprovalOnCreate(existing.eventType)
-    ) {
-        await assertOrgOwnsEventForEdit(existing, user, role);
+    if (requiresAdminApprovalOnCreate(existing.eventType)) {
+        if (role === "club" || role === "district") {
+            await assertOrgOwnsEventForEdit(existing, user, role);
+        } else if (role === "state") {
+            if (existing.eventType !== "State") {
+                throw new AppError("Forbidden", 403);
+            }
+            const ownerId =
+                existing.eventFor != null ? String(existing.eventFor) : null;
+            if (!ownerId || ownerId !== String(user._id)) {
+                throw new AppError("Forbidden", 403);
+            }
+        } else if (!isAdminRole(role)) {
+            throw new AppError("Forbidden", 403);
+        }
 
         if (existing.adminApprovalStatus === EVENT_ADMIN_APPROVAL.REJECTED) {
             payload.adminApprovalStatus = EVENT_ADMIN_APPROVAL.PENDING;
@@ -1264,8 +1286,9 @@ const delete_event_schema = async (id, user) => {
         throw new AppError("Event not found", 404);
     }
 
-    const role = user?.role;
-    if (isStateOrAdminRole(role)) {
+    const role = String(user?.role || "").trim().toLowerCase();
+
+    if (isAdminRole(role)) {
         const registeredCount = await EventParticipant.countDocuments({ eventId: id });
         if (registeredCount > 0) {
             throw new AppError(
@@ -1291,7 +1314,15 @@ const delete_event_schema = async (id, user) => {
     };
 };
 
-export const approveEventByAdminService = async (eventId) => {
+export const approveEventByAdminService = async (eventId, reviewerRole) => {
+    const existing = await Event.findById(eventId).select("eventType").lean();
+    if (!existing) {
+        throw new AppError("Event not found", 404);
+    }
+    if (!canReviewerApproveEventType(existing.eventType, reviewerRole)) {
+        throw new AppError("Forbidden", 403);
+    }
+
     const event = await approveEventByAdminRepository(eventId);
     if (!event) {
         throw new AppError("Event not found", 404);
@@ -1299,7 +1330,15 @@ export const approveEventByAdminService = async (eventId) => {
     return event;
 };
 
-export const rejectEventByAdminService = async (eventId) => {
+export const rejectEventByAdminService = async (eventId, reviewerRole) => {
+    const existing = await Event.findById(eventId).select("eventType").lean();
+    if (!existing) {
+        throw new AppError("Event not found", 404);
+    }
+    if (!canReviewerApproveEventType(existing.eventType, reviewerRole)) {
+        throw new AppError("Forbidden", 403);
+    }
+
     const event = await rejectEventByAdminRepository(eventId);
     if (!event) {
         throw new AppError("Event not found", 404);

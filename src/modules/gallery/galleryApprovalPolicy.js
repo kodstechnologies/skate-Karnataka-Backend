@@ -1,4 +1,4 @@
-/** Club and district media require super-admin approval before skaters can see them. */
+/** Club, district, and state media require admin approval before skaters can see them. */
 
 export const MEDIA_ADMIN_APPROVAL = {
   PENDING: "pending",
@@ -12,7 +12,7 @@ export const MEDIA_DELETE_APPROVAL = {
 
 export const requiresMediaApproval = (ownerType) => {
   const type = String(ownerType || "").trim().toLowerCase();
-  return type === "club" || type === "district";
+  return type === "club" || type === "district" || type === "state";
 };
 
 export const isStateOrAdminRole = (role) => {
@@ -20,21 +20,37 @@ export const isStateOrAdminRole = (role) => {
   return normalized === "state" || normalized === "admin" || normalized === "superadmin";
 };
 
-export const initialMediaApprovalStatus = (ownerType) =>
-  requiresMediaApproval(ownerType)
-    ? MEDIA_ADMIN_APPROVAL.PENDING
-    : MEDIA_ADMIN_APPROVAL.APPROVED;
+export const isAdminRole = (role) => {
+  const normalized = String(role || "").trim().toLowerCase();
+  return normalized === "admin" || normalized === "superadmin";
+};
+
+/** State media is approved by Admin only; club/district by Admin or State. */
+export const canReviewerApproveMediaOwner = (ownerType, reviewerRole) => {
+  const type = String(ownerType || "").trim().toLowerCase();
+  const role = String(reviewerRole || "").trim().toLowerCase();
+  if (type === "state") {
+    return isAdminRole(role);
+  }
+  return isStateOrAdminRole(role);
+};
+
+export const initialMediaApprovalStatus = (ownerType, uploaderRole) => {
+  if (!requiresMediaApproval(ownerType)) {
+    return MEDIA_ADMIN_APPROVAL.APPROVED;
+  }
+  if (isAdminRole(uploaderRole)) {
+    return MEDIA_ADMIN_APPROVAL.APPROVED;
+  }
+  return MEDIA_ADMIN_APPROVAL.PENDING;
+};
 
 /** Mongo filter: media visible to skaters. */
 export const approvedPublicMediaFilter = () => ({
   deleteApprovalStatus: { $ne: MEDIA_DELETE_APPROVAL.PENDING },
   $or: [
-    { ownerType: { $in: ["state", "admin"] } },
     { adminApprovalStatus: MEDIA_ADMIN_APPROVAL.APPROVED },
-    {
-      ownerType: { $in: ["club", "district"] },
-      adminApprovalStatus: { $exists: false },
-    },
+    { adminApprovalStatus: { $exists: false } },
   ],
 });
 

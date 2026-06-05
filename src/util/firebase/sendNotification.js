@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import admin from "../../firebase/firebase.js";
 import { BaseAuth } from "../../modules/auth/baseAuth.model.js";
 import {
+  getAdminRecipientIds,
   getStateLevelRecipientIds,
   saveNotificationRepositories,
 } from "../../modules/notification/notification.repositories.js";
@@ -562,19 +563,28 @@ export const notifyStateMembersOfNewEvent = async ({
   });
 };
 
-/** Notify state portal users and super admin when a club/district event needs approval. */
+/** Notify reviewers when a club/district/state event needs approval. */
 export const notifyStateLevelOnEventPendingApproval = async ({
   event,
   eventType,
   orgName,
   sentBy,
 }) => {
-  const recipientIds = await getStateLevelRecipientIds();
+  const normalizedType = String(eventType || "").trim();
+  const recipientIds =
+    normalizedType === "State"
+      ? await getAdminRecipientIds()
+      : await getStateLevelRecipientIds();
   if (!recipientIds.length) return;
 
   const eventTitle = (event?.header || "New event").trim();
   const orgLabel = (orgName || eventType || "Organizer").trim();
-  const typeLabel = eventType === "District" ? "District" : "Club";
+  const typeLabel =
+    normalizedType === "District"
+      ? "District"
+      : normalizedType === "State"
+        ? "State"
+        : "Club";
 
   await sendEventNotifications({
     receiverIds: recipientIds,

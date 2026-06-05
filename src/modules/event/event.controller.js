@@ -302,13 +302,18 @@ export const createStateEvent = asyncHandler(async (req, res) => {
     const body = req.body || {};
     const { stateId: bodyStateId, ...payload } = body;
     const stateId = role === "admin" ? bodyStateId : req.user._id;
-    const event = await createStateEventService(stateId, payload, req.user._id);
+    const event = await createStateEventService(stateId, payload, req.user._id, req.user.role);
+
+    const message =
+        event?.adminApprovalStatus === "pending"
+            ? "State event submitted — pending admin approval"
+            : "State event created successfully";
 
     return res.status(201).json(
         new ApiResponse(
             201,
             event,
-            "State event created successfully"
+            message
         )
     );
 });
@@ -369,14 +374,14 @@ const delete_event = asyncHandler(async (req, res) => {
 });
 
 export const approveEventByAdmin = asyncHandler(async (req, res) => {
-    const event = await approveEventByAdminService(req.params.id);
+    const event = await approveEventByAdminService(req.params.id, req.user.role);
     return res
         .status(200)
         .json(new ApiResponse(200, event, "Event approved successfully"));
 });
 
 export const rejectEventByAdmin = asyncHandler(async (req, res) => {
-    const event = await rejectEventByAdminService(req.params.id);
+    const event = await rejectEventByAdminService(req.params.id, req.user.role);
     return res
         .status(200)
         .json(new ApiResponse(200, event, "Event rejected"));

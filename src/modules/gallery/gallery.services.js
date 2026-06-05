@@ -15,6 +15,8 @@ import {
     updateMediaRepositories,
 } from "./gallery.repositories.js";
 import {
+    canReviewerApproveMediaOwner,
+    isAdminRole,
     isStateOrAdminRole,
     MEDIA_ADMIN_APPROVAL,
     requiresMediaApproval,
@@ -102,6 +104,7 @@ export const addMediaService = async (data, user) => {
         ...data,
         ownerType,
         ownerId,
+        uploaderRole: user?.role,
     });
 
     if (requiresMediaApproval(ownerType)) {
@@ -170,11 +173,11 @@ export const deleteMediaService = async (id, user) => {
         throw new AppError("Media not found or access denied", 404);
     }
 
-    const isApprovedClubOrDistrict =
+    const isApprovedRequiringDeleteApproval =
         requiresMediaApproval(existing.ownerType) &&
         existing.adminApprovalStatus === MEDIA_ADMIN_APPROVAL.APPROVED;
 
-    if (isApprovedClubOrDistrict && !isStateOrAdminRole(role)) {
+    if (isApprovedRequiringDeleteApproval && !isAdminRole(role)) {
         const pending = await requestMediaDeleteRepositories(id, accessFilter);
         if (!pending) {
             throw new AppError("Media not found or access denied", 404);
@@ -207,7 +210,15 @@ export const deleteMediaService = async (id, user) => {
     return { deleted: true, pendingDelete: false, message: "Media deleted successfully" };
 };
 
-export const approveMediaByAdminService = async (id, reviewerId) => {
+export const approveMediaByAdminService = async (id, reviewerId, reviewerRole) => {
+    const existing = await Gallery.findById(id).select("ownerType").lean();
+    if (!existing) {
+        throw new AppError("Media not found", 404);
+    }
+    if (!canReviewerApproveMediaOwner(existing.ownerType, reviewerRole)) {
+        throw new AppError("Forbidden", 403);
+    }
+
     const updated = await approveMediaByAdminRepositories(id);
     if (!updated) {
         throw new AppError("Media not found", 404);
@@ -230,7 +241,15 @@ export const approveMediaByAdminService = async (id, reviewerId) => {
     return updated;
 };
 
-export const rejectMediaByAdminService = async (id, reviewerId) => {
+export const rejectMediaByAdminService = async (id, reviewerId, reviewerRole) => {
+    const existing = await Gallery.findById(id).select("ownerType").lean();
+    if (!existing) {
+        throw new AppError("Media not found", 404);
+    }
+    if (!canReviewerApproveMediaOwner(existing.ownerType, reviewerRole)) {
+        throw new AppError("Forbidden", 403);
+    }
+
     const updated = await rejectMediaByAdminRepositories(id);
     if (!updated) {
         throw new AppError("Media not found", 404);

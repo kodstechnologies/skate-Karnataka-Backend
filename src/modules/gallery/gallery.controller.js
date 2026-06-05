@@ -72,14 +72,14 @@ export const deleteMedia = asyncHandler(async (req, res) => {
 });
 
 export const approveMediaByAdmin = asyncHandler(async (req, res) => {
-  const result = await approveMediaByAdminService(req.params.id, req.user?._id);
+  const result = await approveMediaByAdminService(req.params.id, req.user?._id, req.user?.role);
   return res
     .status(200)
     .json(new ApiResponse(200, result, "Media approved — visible to skaters"));
 });
 
 export const rejectMediaByAdmin = asyncHandler(async (req, res) => {
-  const result = await rejectMediaByAdminService(req.params.id, req.user?._id);
+  const result = await rejectMediaByAdminService(req.params.id, req.user?._id, req.user?.role);
   return res.status(200).json(new ApiResponse(200, result, "Media rejected"));
 });
 

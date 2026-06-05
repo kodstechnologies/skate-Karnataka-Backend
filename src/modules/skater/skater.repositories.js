@@ -1236,12 +1236,30 @@ const get_skater_results_event_names_repository = async (userId, eventId) => {
     );
 
     const ageGroup = String(participant.ageGroup || "").trim();
-    const categories = (participant.categories || [])
+    const registeredCategories = (participant.categories || [])
         .map((row, index) => ({
             eventNo: index + 1,
             name: String(row?.name || "").trim(),
         }))
         .filter((row) => row.name);
+
+    const categories = [];
+    for (const category of registeredCategories) {
+        const roundDisplay = await buildCategoryRoundDisplayForSkater(
+            event._id,
+            participant,
+            category.name
+        );
+        categories.push({
+            ...category,
+            roundCount: roundDisplay.roundCount ?? 0,
+            rounds: roundDisplay.rounds ?? [],
+            activeRound: roundDisplay.activeRound ?? null,
+            "1st": Boolean(roundDisplay["1st"]),
+            "2nd": Boolean(roundDisplay["2nd"]),
+            "3rd": Boolean(roundDisplay["3rd"]),
+        });
+    }
 
     return {
         eventId: event._id,

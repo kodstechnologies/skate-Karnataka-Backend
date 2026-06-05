@@ -6,9 +6,23 @@ import mongoose from "mongoose";
 /** Roles that receive state-level alerts (state portal + super admin). */
 export const STATE_LEVEL_RECEIVER_ROLES = ["State", "admin"];
 
+export const ADMIN_RECEIVER_ROLES = ["admin", "superadmin"];
+
 export const getStateLevelRecipientIds = async () => {
     const users = await BaseAuth.find({
         role: { $in: STATE_LEVEL_RECEIVER_ROLES },
+        isActive: true,
+        isNotificationsEnabled: { $ne: false },
+    })
+        .select("_id")
+        .lean();
+
+    return users.map((user) => String(user._id));
+};
+
+export const getAdminRecipientIds = async () => {
+    const users = await BaseAuth.find({
+        role: { $in: ADMIN_RECEIVER_ROLES },
         isActive: true,
         isNotificationsEnabled: { $ne: false },
     })

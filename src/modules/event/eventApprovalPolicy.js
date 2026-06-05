@@ -1,4 +1,4 @@
-/** Club and district events require super-admin (Admin/State) approval before public display. */
+/** Club, district, and state events require admin approval before public display. */
 
 export const EVENT_ADMIN_APPROVAL = {
   PENDING: "pending",
@@ -12,7 +12,7 @@ export const EVENT_DELETE_APPROVAL = {
 
 export const requiresAdminApprovalOnCreate = (eventType) => {
   const type = String(eventType || "").trim();
-  return type === "Club" || type === "District";
+  return type === "Club" || type === "District" || type === "State";
 };
 
 export const isStateOrAdminRole = (role) => {
@@ -20,16 +20,27 @@ export const isStateOrAdminRole = (role) => {
   return normalized === "state" || normalized === "admin" || normalized === "superadmin";
 };
 
+export const isAdminRole = (role) => {
+  const normalized = String(role || "").trim().toLowerCase();
+  return normalized === "admin" || normalized === "superadmin";
+};
+
+/** State events are approved by Admin only; club/district by Admin or State. */
+export const canReviewerApproveEventType = (eventType, reviewerRole) => {
+  const type = String(eventType || "").trim();
+  const role = String(reviewerRole || "").trim().toLowerCase();
+  if (type === "State") {
+    return isAdminRole(role);
+  }
+  return isStateOrAdminRole(role);
+};
+
 /** Mongo filter: events visible to skaters / registration lists (approved only). */
 export const approvedPublicEventFilter = () => ({
   deleteApprovalStatus: { $ne: EVENT_DELETE_APPROVAL.PENDING },
   $or: [
-    { eventType: "State" },
     { adminApprovalStatus: EVENT_ADMIN_APPROVAL.APPROVED },
-    {
-      eventType: { $in: ["Club", "District"] },
-      adminApprovalStatus: { $exists: false },
-    },
+    { adminApprovalStatus: { $exists: false } },
   ],
 });
 
@@ -41,8 +52,7 @@ export const startOfLocalDay = (date = new Date()) => {
 };
 
 /**
- * Skater event lists: State always (if not pending delete);
- * Club/District only after admin approval; registration still open (registerEndDate >= today).
+ * Skater event lists: approved events only; registration still open (registerEndDate >= today).
  */
 export const skaterListableEventsFilter = (now = new Date()) => ({
   deleteApprovalStatus: { $ne: EVENT_DELETE_APPROVAL.PENDING },
@@ -66,13 +76,12 @@ export const skaterListableEventsFilter = (now = new Date()) => ({
     ],
   },
   $or: [
-    { eventType: "State" },
     {
-      eventType: { $in: ["Club", "District"] },
       adminApprovalStatus: {
         $in: [EVENT_ADMIN_APPROVAL.APPROVED, "Approved"],
       },
     },
+    { adminApprovalStatus: { $exists: false } },
   ],
 });
 
@@ -92,14 +101,16 @@ export const isEventPubliclyVisible = (event) => {
   if (event.deleteApprovalStatus === EVENT_DELETE_APPROVAL.PENDING) {
     return false;
   }
-  if (event.eventType === "State") {
-    return true;
-  }
   const status = String(event.adminApprovalStatus || "").toLowerCase();
-  return status === EVENT_ADMIN_APPROVAL.APPROVED;
+  return !status || status === EVENT_ADMIN_APPROVAL.APPROVED;
 };
 
-export const initialAdminApprovalStatus = (eventType) =>
-  requiresAdminApprovalOnCreate(eventType)
-    ? EVENT_ADMIN_APPROVAL.PENDING
-    : EVENT_ADMIN_APPROVAL.APPROVED;
+export const initialAdminApprovalStatus = (eventType, creatorRole) => {
+  if (!requiresAdminApprovalOnCreate(eventType)) {
+    return EVENT_ADMIN_APPROVAL.APPROVED;
+  }
+  if (isAdminRole(creatorRole)) {
+    return EVENT_ADMIN_APPROVAL.APPROVED;
+  }
+  return EVENT_ADMIN_APPROVAL.PENDING;
+};

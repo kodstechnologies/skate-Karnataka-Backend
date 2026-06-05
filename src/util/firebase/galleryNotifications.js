@@ -1,7 +1,10 @@
 import { Club } from "../../modules/club/club.model.js";
 import { District } from "../../modules/district/district.model.js";
 import { Skater } from "../../modules/skater/skater.model.js";
-import { getStateLevelRecipientIds } from "../../modules/notification/notification.repositories.js";
+import {
+  getAdminRecipientIds,
+  getStateLevelRecipientIds,
+} from "../../modules/notification/notification.repositories.js";
 import { sendNotification } from "./sendNotification.js";
 
 const mediaTitle = (media) => (media?.title || "Untitled media").trim();
@@ -104,13 +107,17 @@ const buildAdminMediaLink = (ownerType, ownerId) => {
 
 /** Super admin / state: new club or district media awaiting approval. */
 export const notifyStateLevelOnMediaPendingApproval = async ({ media, sentBy }) => {
-  const recipientIds = await getStateLevelRecipientIds();
+  const ownerType = String(media?.ownerType || "").toLowerCase();
+  const recipientIds =
+    ownerType === "state"
+      ? await getAdminRecipientIds()
+      : await getStateLevelRecipientIds();
   if (!recipientIds.length || !media) return;
 
-  const ownerType = media.ownerType;
   const ownerId = media.ownerId;
   const orgName = await resolveMediaOrgName(ownerType, ownerId);
-  const typeLabel = String(ownerType || "").toLowerCase() === "district" ? "District" : "Club";
+  const typeLabel =
+    ownerType === "district" ? "District" : ownerType === "state" ? "State" : "Club";
   const title = `${typeLabel} media pending approval`;
   const body = `${orgName} submitted "${mediaTitle(media)}" for your review. Approve to show it to skaters in the gallery.`;
 
@@ -132,13 +139,17 @@ export const notifyStateLevelOnMediaPendingApproval = async ({ media, sentBy }) 
 
 /** Super admin / state: club or district requested to delete approved media. */
 export const notifyStateLevelOnMediaDeletePending = async ({ media, sentBy }) => {
-  const recipientIds = await getStateLevelRecipientIds();
+  const ownerType = String(media?.ownerType || "").toLowerCase();
+  const recipientIds =
+    ownerType === "state"
+      ? await getAdminRecipientIds()
+      : await getStateLevelRecipientIds();
   if (!recipientIds.length || !media) return;
 
-  const ownerType = media.ownerType;
   const ownerId = media.ownerId;
   const orgName = await resolveMediaOrgName(ownerType, ownerId);
-  const typeLabel = String(ownerType || "").toLowerCase() === "district" ? "District" : "Club";
+  const typeLabel =
+    ownerType === "district" ? "District" : ownerType === "state" ? "State" : "Club";
   const title = `${typeLabel} media delete request`;
   const body = `${orgName} asked to remove "${mediaTitle(media)}" from the gallery. Review and approve or cancel the delete.`;
 

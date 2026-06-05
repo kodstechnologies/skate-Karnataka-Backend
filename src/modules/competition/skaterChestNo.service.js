@@ -110,6 +110,208 @@ const buildChestDoc = (participant, eventId, ageGroup, chestNo) => {
   return doc;
 };
 
+const sortParticipantsByName = (participants = []) =>
+  [...participants].sort((a, b) => {
+    const nameA = (a.userId?.fullName || a.name || "").trim().toLowerCase();
+    const nameB = (b.userId?.fullName || b.name || "").trim().toLowerCase();
+    return nameA.localeCompare(nameB);
+  });
+
+const resolveChestNoForParticipant = (participant, index, existingChestDocs = []) => {
+  const fullName = (participant.userId?.fullName || participant.name || "").trim();
+  const krsaId = String(participant.userId?.krsaId || "").trim();
+  const normName = fullName.toLowerCase();
+
+  const matched = existingChestDocs.find((row) => {
+    if (krsaId && row.krsaId && String(row.krsaId).trim() === krsaId) {
+      return true;
+    }
+    return String(row.fullName || "").trim().toLowerCase() === normName;
+  });
+
+  if (matched?.chestNo) {
+    return matched.chestNo;
+  }
+
+  return String(index + 1).padStart(3, "0");
+};
+
+/** Build EventCompetition.categories[] for one age group from registrations. */
+export const buildCompetitionCategoriesFromGroup = (
+  groupParticipants = [],
+  existingChestDocs = []
+) => {
+  const sorted = sortParticipantsByName(groupParticipants);
+  const categoriesMap = {};
+
+  for (let i = 0; i < sorted.length; i++) {
+    const participant = sorted[i];
+    const chestNo = resolveChestNoForParticipant(participant, i, existingChestDocs);
+    const fullName = participant.userId?.fullName || participant.name || "";
+    const krsaId = participant.userId?.krsaId || "";
+    const rsfiId = participant.userId?.rsfiId || "";
+    const skaterId = participant.userId?._id || participant.userId || null;
+
+    for (const cat of participant.categories || []) {
+      const catName = String(cat?.name || "").trim();
+      if (!catName) {
+        continue;
+      }
+      if (!categoriesMap[catName]) {
+        categoriesMap[catName] = [];
+      }
+      categoriesMap[catName].push({
+        skaterId,
+        chestNo,
+        fullName,
+        krsaId,
+        rsfiId,
+        time: "",
+        position: "0",
+      });
+    }
+  }
+
+  return Object.keys(categoriesMap).map((catName) => ({
+    name: catName,
+    "1stRound": categoriesMap[catName],
+    "2ndRound": [],
+    semiFinal: [],
+    final: [],
+    "1st": [],
+    "2nd": [],
+    "3rd": [],
+  }));
+};
+
+const mergeFirstRoundRows = (existingRows = [], freshRows = []) => {
+  if (!Array.isArray(existingRows) || existingRows.length === 0) {
+    return freshRows;
+  }
+
+  const bySkaterId = new Map(
+    existingRows
+      .filter((row) => row?.skaterId)
+      .map((row) => [String(row.skaterId), row])
+  );
+
+  const merged = freshRows.map((row) => {
+    const prev = bySkaterId.get(String(row.skaterId));
+    if (!prev) {
+      return row;
+    }
+    return {
+      ...row,
+      chestNo: prev.chestNo || row.chestNo,
+      time: prev.time ?? row.time ?? "",
+      position: prev.position ?? row.position ?? "0",
+    };
+  });
+
+  const seen = new Set(merged.map((row) => String(row.skaterId)));
+  for (const row of existingRows) {
+    if (row?.skaterId && !seen.has(String(row.skaterId))) {
+      merged.push(row);
+    }
+  }
+
+  return merged;
+};
+
+/**
+ * Ensure EventCompetition rows exist for registered skaters (club, district, state).
+ * Safe to call on read — fills missing docs / empty 1stRound without wiping later rounds.
+ */
+export const syncEventCompetitionFromParticipants = async (
+  eventId,
+  { ageGroup = null } = {}
+) => {
+  const participants = await EventParticipant.find(chestParticipantFilter(eventId)).populate(
+    "userId"
+  );
+
+  if (!participants.length) {
+    return { synced: false, reason: "no_participants" };
+  }
+
+  const groups = {};
+  for (const participant of participants) {
+    const groupLabel = participant.ageGroup || "Unknown";
+    if (ageGroup && groupLabel !== ageGroup) {
+      continue;
+    }
+    if (!groups[groupLabel]) {
+      groups[groupLabel] = [];
+    }
+    groups[groupLabel].push(participant);
+  }
+
+  let syncedAgeGroups = 0;
+
+  for (const groupLabel of Object.keys(groups)) {
+    const groupParticipants = groups[groupLabel];
+    const existingChest = await SkaterChestNo.find({
+      eventId,
+      ageGroup: groupLabel,
+    }).lean();
+    const freshCategories = buildCompetitionCategoriesFromGroup(
+      groupParticipants,
+      existingChest
+    );
+
+    if (!freshCategories.length) {
+      continue;
+    }
+
+    let competition = await EventCompetition.findOne({
+      eventId,
+      ageGroup: groupLabel,
+    });
+
+    if (!competition) {
+      await EventCompetition.create({
+        eventId,
+        ageGroup: groupLabel,
+        categories: freshCategories,
+      });
+      syncedAgeGroups += 1;
+      continue;
+    }
+
+    let dirty = false;
+
+    for (const freshCat of freshCategories) {
+      const normName = String(freshCat.name || "").trim().toLowerCase();
+      let category = (competition.categories || []).find(
+        (row) => String(row?.name || "").trim().toLowerCase() === normName
+      );
+
+      if (!category) {
+        competition.categories.push(freshCat);
+        dirty = true;
+        continue;
+      }
+
+      const mergedFirst = mergeFirstRoundRows(
+        category["1stRound"] || [],
+        freshCat["1stRound"] || []
+      );
+
+      if (mergedFirst.length !== (category["1stRound"] || []).length) {
+        category["1stRound"] = mergedFirst;
+        dirty = true;
+      }
+    }
+
+    if (dirty) {
+      await competition.save();
+      syncedAgeGroups += 1;
+    }
+  }
+
+  return { synced: syncedAgeGroups > 0, syncedAgeGroups };
+};
+
 /**
  * Generates chest numbers for a specific event.
  * Groups paid participants by age group, sorts them alphabetically by name,
@@ -145,13 +347,7 @@ export const generateChestNumbersForEvent = async (eventId) => {
   let totalGenerated = 0;
 
   for (const ageGroup in groups) {
-    const groupParticipants = groups[ageGroup];
-
-    groupParticipants.sort((a, b) => {
-      const nameA = (a.userId?.fullName || a.name || "").trim().toLowerCase();
-      const nameB = (b.userId?.fullName || b.name || "").trim().toLowerCase();
-      return nameA.localeCompare(nameB);
-    });
+    const groupParticipants = sortParticipantsByName(groups[ageGroup]);
 
     const skaterChestDocs = groupParticipants.map((participant, index) =>
       buildChestDoc(
@@ -170,49 +366,7 @@ export const generateChestNumbersForEvent = async (eventId) => {
     await SkaterChestNo.insertMany(skaterChestDocs);
     totalGenerated += skaterChestDocs.length;
 
-    const categoriesMap = {};
-    for (let i = 0; i < groupParticipants.length; i++) {
-      const participant = groupParticipants[i];
-      const chestNo = String(i + 1).padStart(3, "0");
-
-      const fullName = participant.userId?.fullName || participant.name || "";
-      const krsaId = participant.userId?.krsaId || "";
-      const rsfiId = participant.userId?.rsfiId || "";
-      const skaterId = participant.userId?._id || participant.userId || null;
-
-      for (const cat of participant.categories || []) {
-        const catName = cat.name;
-        if (!catName) {
-          continue;
-        }
-        if (!categoriesMap[catName]) {
-          categoriesMap[catName] = [];
-        }
-        categoriesMap[catName].push({
-          skaterId,
-          chestNo,
-          fullName,
-          krsaId,
-          rsfiId,
-          time: "",
-          position: "0",
-        });
-      }
-    }
-
-    const categoriesArray = [];
-    for (const catName in categoriesMap) {
-      categoriesArray.push({
-        name: catName,
-        "1stRound": categoriesMap[catName],
-        "2ndRound": [],
-        "semiFinal": [],
-        "final": [],
-        "1st": [],
-        "2nd": [],
-        "3rd": [],
-      });
-    }
+    const categoriesArray = buildCompetitionCategoriesFromGroup(groupParticipants);
 
     if (categoriesArray.length > 0) {
       await EventCompetition.deleteMany({ eventId: event._id, ageGroup });

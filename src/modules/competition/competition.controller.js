@@ -1,5 +1,8 @@
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { generateChestNumbersForEvent } from "./skaterChestNo.service.js";
+import {
+    generateChestNumbersForEvent,
+    syncEventCompetitionFromParticipants,
+} from "./skaterChestNo.service.js";
 import { SkaterChestNo } from "./SkaterChestNo.model.js";
 import { EventCompetition } from "./eventCompetition.model.js";
 import { AppError } from "../../util/common/AppError.js";
@@ -30,6 +33,23 @@ import {
     toCategoryMetaFields,
     toDisplayRoundCategoryOnly,
 } from "./displayRound.util.js";
+
+const competitionRoundHasSkaters = (competitions, { ageGroup, categoryName, round }) => {
+    const normName = String(categoryName || "").trim().toLowerCase();
+    const normRound = String(round || "").trim();
+
+    return competitions.some((comp) => {
+        if (ageGroup && String(comp.ageGroup || "").trim() !== String(ageGroup).trim()) {
+            return false;
+        }
+        return (comp.categories || []).some(
+            (cat) =>
+                String(cat?.name || "").trim().toLowerCase() === normName &&
+                Array.isArray(cat[normRound]) &&
+                cat[normRound].length > 0
+        );
+    });
+};
 
 const applyCompetitorPointsUpdate = (competitor, { time, position }, qualificationType) => {
     competitor.time = normalizeCompetitionTimeForStorage(time);
@@ -136,14 +156,17 @@ const getCompetitionDetailsByEvent = asyncHandler(async (req, res) => {
         throw new AppError("Event not found", 404);
     }
 
-    const resolvedCategories = eventMeta.skatingEventCategories || [];
+    const skatingCategoryScopeId =
+        categoryId || categoriesId || skatingEventCategoryId || null;
+    const resolvedCategories = scopeResolvedSkatingCategories(
+        eventMeta.skatingEventCategories || [],
+        skatingCategoryScopeId
+    );
 
     let categoryFilterName = name ? String(name).trim() : null;
     let resolvedCategoryMeta = null;
 
-    const hasCategoryIdLookup = Boolean(
-        categoryId || categoriesId || skatingEventCategoryId
-    );
+    const hasCategoryIdLookup = Boolean(skatingCategoryScopeId);
 
     if (hasCategoryIdLookup || categoryFilterName) {
         resolvedCategoryMeta = findEventCategoryByQuery(resolvedCategories, {
@@ -176,7 +199,24 @@ const getCompetitionDetailsByEvent = asyncHandler(async (req, res) => {
         query.ageGroup = ageGroup;
     }
 
-    const competitions = await EventCompetition.find(query).lean();
+    let competitions = await EventCompetition.find(query).lean();
+
+    const shouldSyncCompetition =
+        competitions.length === 0 ||
+        (round &&
+            categoryFilterName &&
+            !competitionRoundHasSkaters(competitions, {
+                ageGroup,
+                categoryName: categoryFilterName,
+                round,
+            }));
+
+    if (shouldSyncCompetition) {
+        await syncEventCompetitionFromParticipants(eventId, {
+            ageGroup: ageGroup || null,
+        });
+        competitions = await EventCompetition.find(query).lean();
+    }
 
     let totalSkatersCount = 0;
 
@@ -247,7 +287,11 @@ const getCompetitionDetailsByEvent = asyncHandler(async (req, res) => {
 
     const responseJson = {
         success: true,
-        data: formattedCompetitions,
+        data: round
+            ? formattedCompetitions.flatMap((comp) =>
+                  (comp.categories || []).flatMap((cat) => cat.participants || [])
+              )
+            : formattedCompetitions,
     };
 
     if (resolvedCategoryMeta) {
@@ -439,7 +483,11 @@ const updatePoints = asyncHandler(async (req, res) => {
         req.body.categoriesId ||
         null;
 
-    const competition = await EventCompetition.findOne({ eventId, ageGroup });
+    let competition = await EventCompetition.findOne({ eventId, ageGroup });
+    if (!competition) {
+        await syncEventCompetitionFromParticipants(eventId, { ageGroup });
+        competition = await EventCompetition.findOne({ eventId, ageGroup });
+    }
     if (!competition) {
         throw new AppError("No competition found for the given event and age group", 404);
     }
@@ -591,7 +639,11 @@ const promoteToNextRound = asyncHandler(async (req, res) => {
         req.body.categoryId ||
         null;
 
-    const competition = await EventCompetition.findOne({ eventId, ageGroup });
+    let competition = await EventCompetition.findOne({ eventId, ageGroup });
+    if (!competition) {
+        await syncEventCompetitionFromParticipants(eventId, { ageGroup });
+        competition = await EventCompetition.findOne({ eventId, ageGroup });
+    }
     if (!competition) {
         throw new AppError("No competition found for the given event and age group", 404);
     }

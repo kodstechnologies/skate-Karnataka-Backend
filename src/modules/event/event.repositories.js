@@ -759,6 +759,74 @@ export const getCertificateEventIdsEndedPlusTwoDays = async () => {
   return events.filter(isEventEndedPlusTwoDays).map((event) => event._id);
 };
 
+const CERTIFICATION_APPLICATION_VISIBILITY_MS = 2 * 24 * 60 * 60 * 1000;
+
+/** Events whose end date is at least 2 days ago (same rule as skater certificate list). */
+export const getCertificationApplicationEligibleEventIds = async () => {
+  const twoDaysAgo = new Date(Date.now() - CERTIFICATION_APPLICATION_VISIBILITY_MS);
+
+  const events = await Event.find({
+    eventEndDate: { $exists: true, $ne: null, $lte: twoDaysAgo },
+  })
+    .select("_id")
+    .lean();
+
+  return events.map((event) => event._id);
+};
+
+const attachDocumentLinksToCertificationApplications = async (rows, isStateCompactView) => {
+  if (!Array.isArray(rows) || !rows.length) {
+    return rows;
+  }
+
+  const participantIds = rows
+    .map((row) => row.participantId || row.id)
+    .filter((id) => id && mongoose.Types.ObjectId.isValid(String(id)));
+
+  if (!participantIds.length) {
+    return rows.map((row) => ({
+      ...row,
+      documentLink: "",
+      certificateAvailable: false,
+    }));
+  }
+
+  const certificates = await GeneratedCertificate.find({
+    participantId: { $in: participantIds },
+  })
+    .select("participantId pdfUrl")
+    .sort({ updatedAt: -1 })
+    .lean();
+
+  const linkByParticipant = new Map();
+  for (const cert of certificates) {
+    const participantKey = String(cert.participantId || "");
+    const pdfUrl = String(cert.pdfUrl || "").trim();
+    if (participantKey && pdfUrl && !linkByParticipant.has(participantKey)) {
+      linkByParticipant.set(participantKey, pdfUrl);
+    }
+  }
+
+  return rows.map((row) => {
+    const participantKey = String(row.participantId || row.id || "");
+    const documentLink = linkByParticipant.get(participantKey) || "";
+
+    if (isStateCompactView) {
+      return {
+        ...row,
+        documentLink,
+        certificateAvailable: Boolean(documentLink),
+      };
+    }
+
+    return {
+      ...row,
+      documentLink,
+      certificateAvailable: Boolean(documentLink),
+    };
+  });
+};
+
 /**
  * Daily job: for certificate events ended 2+ days ago, auto-approve club step when
  * the skater has a generated certificate, club no longer exists, recorded times exist,
@@ -1058,7 +1126,7 @@ export const displayCertificationApplicationsRepository = async (
   const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
   const role = String(reqUser?.role || "").trim().toLowerCase();
 
-  const eligibleEventIds = await getCertificateEventIdsEndedPlusTwoDays();
+  const eligibleEventIds = await getCertificationApplicationEligibleEventIds();
   if (!eligibleEventIds.length) {
     return {
       data: [],
@@ -1076,10 +1144,13 @@ export const displayCertificationApplicationsRepository = async (
     eventId: { $in: eligibleEventIds },
   };
 
-  if (role === "district" || role === "state" || role === "admin") {
+  if (role === "club") {
+    baseMatch.clubAllow = { $ne: true };
+  } else if (role === "district") {
     baseMatch.clubAllow = true;
-  }
-  if (role === "state" || role === "admin") {
+    baseMatch.districtAllow = { $ne: true };
+  } else if (role === "state" || role === "admin") {
+    baseMatch.clubAllow = true;
     baseMatch.districtAllow = true;
     baseMatch.stateAllow = { $ne: true };
   }
@@ -1155,6 +1226,7 @@ export const displayCertificationApplicationsRepository = async (
           _id: 0,
           type: { $literal: "certificateRequest" },
           id: "$_id",
+          participantId: "$_id",
           krsaId: { $ifNull: ["$user.krsaId", ""] },
           fullName: { $ifNull: ["$user.fullName", "$name"] },
           clubId: { $ifNull: ["$club.clubId", ""] },
@@ -1163,6 +1235,11 @@ export const displayCertificationApplicationsRepository = async (
           eventType: { $ifNull: ["$event.eventType", ""] },
           ageGroup: { $ifNull: ["$ageGroup", ""] },
           districtName: { $ifNull: ["$district.name", ""] },
+          skaterApply: { $toBool: "$skaterApply" },
+          clubAllow: { $toBool: "$clubAllow" },
+          districtAllow: { $toBool: "$districtAllow" },
+          stateAllow: { $toBool: "$stateAllow" },
+          paymentStatus: { $ifNull: ["$paymentStatus", "pending"] },
           colorOne: { $ifNull: ["$event.colorOne", "#6A11CB"] },
           colorTwo: { $ifNull: ["$event.colorTwo", "#2575FC"] },
           textColor: { $ifNull: ["$event.textColor", "#FFFFFF"] },
@@ -1222,7 +1299,11 @@ export const displayCertificationApplicationsRepository = async (
 
   const [result] = await EventParticipant.aggregate(pipeline);
   const total = result?.total ?? 0;
-  const data = Array.isArray(result?.data) ? result.data : [];
+  const rawData = Array.isArray(result?.data) ? result.data : [];
+  const data = await attachDocumentLinksToCertificationApplications(
+    rawData,
+    isStateCompactView
+  );
 
   return {
     data,

@@ -24,11 +24,12 @@ export const displayAllMediaBasedOnSkater = asyncHandler(async (req, res) => {
 export const displayAllMedia = asyncHandler(async (req, res) => {
   const { ownerType, ownerId, mediaType, type, page = 1, limit = 10 } = req.query;
 
+  const resolvedOwnerType = ownerType || type;
   const media = await displayAllMediaServices(
     {
-      ownerType: ownerType || type,
+      ownerType: resolvedOwnerType === "all" ? undefined : resolvedOwnerType,
       ownerId,
-      mediaType,
+      mediaType: mediaType === "all" ? undefined : mediaType,
     },
     page,
     limit

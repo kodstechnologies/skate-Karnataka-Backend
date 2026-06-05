@@ -717,14 +717,18 @@ export const generateEventCertificatesAdmin = asyncHandler(async (req, res) => {
     }
     if (status.allGenerated) {
         return res.status(200).json(
-            new ApiResponse(200, status, "Certificates already generated for all eligible skaters")
+            new ApiResponse(200, status, "Certificates already generated")
         );
     }
 
     const result = await generate_event_certificates_service(req.params.id);
-    return res.status(200).json(
-        new ApiResponse(200, result, "Event certificates processed successfully")
-    );
+    const allSkipped =
+        result.generated === 0 && result.skipped > 0 && result.failed === 0;
+    const message = allSkipped
+        ? "Certificates already generated"
+        : "Event certificates processed successfully";
+
+    return res.status(200).json(new ApiResponse(200, result, message));
 });
 
 export {

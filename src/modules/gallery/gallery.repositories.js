@@ -90,7 +90,7 @@ export const displayAllMediaRepositories = async (type = {}, page, limit) => {
     requestedOwnerType === "state"
   ) {
     filter.ownerType = { $in: ["state", "admin"] };
-  } else if (requestedOwnerType) {
+  } else if (requestedOwnerType && requestedOwnerType !== "all") {
     filter.ownerType = requestedOwnerType;
   }
 

@@ -692,13 +692,39 @@ export const getSkaterFullDetailsByAdminService = async (skaterId) => {
   return skater;
 };
 
+const parseJsonField = (value, fallback = null) => {
+  if (value == null || value === "") return fallback;
+  if (Array.isArray(value)) return value;
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return fallback;
+    }
+  }
+  return value;
+};
+
 export const updateSkaterByAdminService = async (skaterId, payload) => {
   const existing = await getSkaterFullDetailsByIdForAdmin(skaterId);
   if (!existing) {
     throw new AppError("Skater not found", 404);
   }
 
-  const updated = await updateSkaterByIdForAdmin(skaterId, payload);
+  const normalizedPayload = { ...payload };
+
+  if (normalizedPayload.removeDocumentUrls != null) {
+    normalizedPayload.removeDocumentUrls = parseJsonField(
+      normalizedPayload.removeDocumentUrls,
+      []
+    );
+  }
+
+  if (normalizedPayload.documents != null && typeof normalizedPayload.documents === "string") {
+    normalizedPayload.documents = parseJsonField(normalizedPayload.documents, []);
+  }
+
+  const updated = await updateSkaterByIdForAdmin(skaterId, normalizedPayload);
   if (!updated) {
     throw new AppError("Skater not found", 404);
   }

@@ -344,5 +344,24 @@ export const updateSkaterByAdminValidation = {
     school: Joi.string().trim().max(120).allow("").optional(),
     grade: Joi.string().trim().max(40).allow("").optional(),
     signature: Joi.string().trim().max(500).allow("").optional(),
+    district: Joi.string().trim().allow("").optional(),
+    club: Joi.string().trim().allow("").optional(),
+    category: Joi.string().trim().allow("").optional(),
+    photo: Joi.string().trim().uri().allow("").optional(),
+    removeDocumentUrls: Joi.alternatives()
+      .try(Joi.array().items(Joi.string().trim().uri()), Joi.string().trim())
+      .optional(),
+    documents: Joi.alternatives()
+      .try(
+        Joi.array().items(
+          Joi.object({
+            url: Joi.string().trim().uri().required(),
+            name: Joi.string().trim().max(200).optional(),
+            uploadedAt: Joi.alternatives().try(Joi.date(), Joi.string()).optional(),
+          })
+        ),
+        Joi.string().trim()
+      )
+      .optional(),
   }).min(1),
 };

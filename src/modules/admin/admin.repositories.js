@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { Admin } from "./admin.model.js";
 import { AdminPasswordReset } from "./admin.passwordReset.model.js";
 import { District } from "../district/district.model.js";
@@ -6,6 +7,8 @@ import { DistrictMember } from "../district/districtMember.model.js";
 import { Club } from "../club/club.model.js";
 import { ClubMember } from "../club/clubMember.model.js";
 import { Skater } from "../skater/skater.model.js";
+import SkatingEventCategory from "../event/SkatingEventCategory.model.js";
+import { AppError } from "../../util/common/AppError.js";
 import { calcTotalPages } from "../../util/common/paginate.js";
 
 export const findAdminByEmail = async (email) => {
@@ -760,10 +763,11 @@ export const getAllSkatersForAdmin = async ({ page = 1, limit = 10, search = "" 
 };
 
 export const getSkaterFullDetailsByIdForAdmin = async (skaterId) => {
-  const skater = await BaseAuth.findOne({ _id: skaterId, role: "Skater" })
+  const skater = await Skater.findOne({ _id: skaterId, role: "Skater" })
     .select("-refreshTokens -isNotificationsEnabled -isActive -firebaseTokens")
     .populate("district", "_id name")
     .populate("club", "_id name clubId district districtName")
+    .populate("category", "_id typeName")
     .lean();
 
   if (!skater) {
@@ -781,8 +785,25 @@ export const getSkaterFullDetailsByIdForAdmin = async (skaterId) => {
   };
 };
 
+const castOptionalObjectId = (value) => {
+  if (value == null || value === "") return null;
+  const raw = String(value).trim();
+  if (!mongoose.Types.ObjectId.isValid(raw)) {
+    return undefined;
+  }
+  return new mongoose.Types.ObjectId(raw);
+};
+
 export const updateSkaterByIdForAdmin = async (skaterId, payload) => {
   const normalizedPayload = { ...payload };
+  const removeDocumentUrls = normalizedPayload.removeDocumentUrls;
+  const newDocuments = normalizedPayload.documents;
+
+  delete normalizedPayload.removeDocumentUrls;
+  delete normalizedPayload.documents;
+  delete normalizedPayload.img;
+  delete normalizedPayload.imgKey;
+  delete normalizedPayload.photoKey;
 
   if (normalizedPayload.email) {
     normalizedPayload.email = normalizedPayload.email.toLowerCase().trim();
@@ -802,14 +823,76 @@ export const updateSkaterByIdForAdmin = async (skaterId, payload) => {
     normalizedPayload.aadharNumber = undefined;
   }
 
+  for (const field of ["district", "club", "category"]) {
+    if (!(field in normalizedPayload)) continue;
+
+    const casted = castOptionalObjectId(normalizedPayload[field]);
+    if (casted === undefined) {
+      throw new AppError(`Invalid ${field}`, 400);
+    }
+    if (casted === null) {
+      normalizedPayload[field] = null;
+    } else {
+      normalizedPayload[field] = casted;
+    }
+  }
+
+  if (normalizedPayload.district) {
+    const district = await District.findById(normalizedPayload.district).select("_id").lean();
+    if (!district) {
+      throw new AppError("District not found", 404);
+    }
+  }
+
+  if (normalizedPayload.club) {
+    const club = await Club.findById(normalizedPayload.club).select("_id district").lean();
+    if (!club) {
+      throw new AppError("Club not found", 404);
+    }
+    normalizedPayload.clubStatus = "join";
+    if (!normalizedPayload.district && club.district) {
+      normalizedPayload.district = club.district;
+    }
+  } else if (normalizedPayload.club === null) {
+    normalizedPayload.clubStatus = "apply";
+  }
+
+  if (normalizedPayload.category) {
+    const category = await SkatingEventCategory.findById(normalizedPayload.category)
+      .select("_id")
+      .lean();
+    if (!category) {
+      throw new AppError("Category not found", 404);
+    }
+  }
+
+  const updateOperation = { $set: normalizedPayload };
+
+  if (Array.isArray(newDocuments) && newDocuments.length > 0) {
+    updateOperation.$push = {
+      documents: { $each: newDocuments },
+    };
+  }
+
   const updated = await Skater.findOneAndUpdate(
     { _id: skaterId, role: "Skater" },
-    { $set: normalizedPayload },
+    updateOperation,
     { new: true, runValidators: true }
   ).lean();
 
   if (!updated) {
     return null;
+  }
+
+  const urlsToRemove = Array.isArray(removeDocumentUrls)
+    ? removeDocumentUrls.filter(Boolean)
+    : [];
+
+  if (urlsToRemove.length) {
+    await Skater.findOneAndUpdate(
+      { _id: skaterId, role: "Skater" },
+      { $pull: { documents: { url: { $in: urlsToRemove } } } }
+    );
   }
 
   return getSkaterFullDetailsByIdForAdmin(skaterId);

@@ -850,19 +850,56 @@ export const runDailyMissingClubCertificationJob = async () => {
   return { eventsChecked: eventIds.length, approved, notified };
 };
 
-export const applyCertificationBySkaterRepository = async (participantId, userId) => {
-  if (!mongoose.Types.ObjectId.isValid(String(participantId || ""))) {
-    return { participant: null, alreadyApplied: false };
+const PARTICIPANT_CERT_SELECT = "_id eventId userId skaterApply updatedAt paymentStatus";
+
+/** Resolve the logged-in skater's participant from participant id, event id, or a sibling participant id. */
+const resolveSkaterEventParticipant = async (idParam, userId) => {
+  if (
+    !mongoose.Types.ObjectId.isValid(String(idParam || "")) ||
+    !mongoose.Types.ObjectId.isValid(String(userId || ""))
+  ) {
+    return null;
   }
 
-  const filter = {
-    _id: participantId,
-    userId: new mongoose.Types.ObjectId(userId),
-  };
+  const userOid = new mongoose.Types.ObjectId(String(userId));
+  const idOid = new mongoose.Types.ObjectId(String(idParam));
 
-  const existing = await EventParticipant.findOne(filter)
-    .select("_id eventId userId skaterApply updatedAt")
+  let participant = await EventParticipant.findOne({
+    _id: idOid,
+    userId: userOid,
+  })
+    .select(PARTICIPANT_CERT_SELECT)
     .lean();
+
+  if (participant) return participant;
+
+  participant = await EventParticipant.findOne({
+    eventId: idOid,
+    userId: userOid,
+  })
+    .select(PARTICIPANT_CERT_SELECT)
+    .lean();
+
+  if (participant) return participant;
+
+  const foreignParticipant = await EventParticipant.findById(idOid)
+    .select("eventId")
+    .lean();
+
+  if (foreignParticipant?.eventId) {
+    participant = await EventParticipant.findOne({
+      eventId: foreignParticipant.eventId,
+      userId: userOid,
+    })
+      .select(PARTICIPANT_CERT_SELECT)
+      .lean();
+  }
+
+  return participant || null;
+};
+
+export const applyCertificationBySkaterRepository = async (participantId, userId) => {
+  const existing = await resolveSkaterEventParticipant(participantId, userId);
 
   if (!existing) {
     return { participant: null, alreadyApplied: false };
@@ -873,11 +910,11 @@ export const applyCertificationBySkaterRepository = async (participantId, userId
   }
 
   const updated = await EventParticipant.findOneAndUpdate(
-    filter,
+    { _id: existing._id, userId: new mongoose.Types.ObjectId(String(userId)) },
     { $set: { skaterApply: true } },
     { new: true }
   )
-    .select("_id eventId userId skaterApply updatedAt")
+    .select(PARTICIPANT_CERT_SELECT)
     .lean();
 
   return { participant: updated, alreadyApplied: false };
@@ -959,25 +996,47 @@ export const getAllPlayedEventsBySkaterRepository = async (
   if (paginatedData.length > 0) {
     const userOid = new mongoose.Types.ObjectId(String(userId));
     const eventOids = paginatedData.map((item) => item.eventId);
+    const participantOids = paginatedData.map((item) => item.participantId);
 
-    const certificates = await GeneratedCertificate.find({
-      userId: userOid,
-      eventId: { $in: eventOids },
-    })
-      .select("eventId pdfUrl")
+    const orConditions = [{ userId: userOid, eventId: { $in: eventOids } }];
+    if (participantOids.length > 0) {
+      orConditions.push({
+        participantId: { $in: participantOids },
+        eventId: { $in: eventOids },
+      });
+    }
+
+    const certificates = await GeneratedCertificate.find({ $or: orConditions })
+      .select("eventId participantId userId pdfUrl")
       .sort({ updatedAt: -1 })
       .lean();
 
-    const documentLinkByEventId = new Map();
+    const documentLinkByUserAndEvent = new Map();
+    const documentLinkByParticipantAndEvent = new Map();
     for (const cert of certificates) {
+      const pdfUrl = cert.pdfUrl?.trim() || "";
+      if (!pdfUrl) continue;
+
       const eventKey = String(cert.eventId);
-      if (!documentLinkByEventId.has(eventKey)) {
-        documentLinkByEventId.set(eventKey, cert.pdfUrl?.trim() || "");
+      const userKey = `${String(cert.userId)}:${eventKey}`;
+      if (cert.userId && !documentLinkByUserAndEvent.has(userKey)) {
+        documentLinkByUserAndEvent.set(userKey, pdfUrl);
+      }
+
+      const participantKey = `${String(cert.participantId)}:${eventKey}`;
+      if (cert.participantId && !documentLinkByParticipantAndEvent.has(participantKey)) {
+        documentLinkByParticipantAndEvent.set(participantKey, pdfUrl);
       }
     }
 
     for (const item of paginatedData) {
-      item.documentLink = documentLinkByEventId.get(String(item.eventId)) || "";
+      const eventKey = String(item.eventId);
+      const userKey = `${String(userOid)}:${eventKey}`;
+      const participantKey = `${String(item.participantId)}:${eventKey}`;
+      item.documentLink =
+        documentLinkByUserAndEvent.get(userKey) ||
+        documentLinkByParticipantAndEvent.get(participantKey) ||
+        "";
     }
   }
 

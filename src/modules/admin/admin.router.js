@@ -65,8 +65,14 @@ import {
   setDistrictMainMemberValidation,
   setClubMainMemberValidation,
 } from "./admin.validation.js";
-import { upload } from "../../middleware/multer.middleware.js";
+import {
+  restrictUploadedFileFields,
+  upload,
+  uploadAny,
+} from "../../middleware/multer.middleware.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
+
+const SKATER_UPDATE_FILE_FIELDS = ["img", "document"];
 
 const router = express.Router();
 
@@ -250,6 +256,9 @@ router.get(
 router.patch(
   "/v1/skater/:id",
   authenticate(["State", "admin"]),
+  uploadAny,
+  restrictUploadedFileFields(SKATER_UPDATE_FILE_FIELDS),
+  uploadToS3("skaters", { img: "photo", document: "documents" }),
   validate(updateSkaterByAdminValidation),
   updateSkaterByAdmin
 );

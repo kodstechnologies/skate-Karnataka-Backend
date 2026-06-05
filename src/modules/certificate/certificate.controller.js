@@ -135,13 +135,13 @@ const getTemplateById = asyncHandler(async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// getSkaterCertificateRows — paginated event rows for certificate UI (Skater)
+// getSkaterCertificateRows — all GeneratedCertificate docs for logged-in skater
 // Query: page, limit (via util/common/paginate.js)
 // ---------------------------------------------------------------------------
 const getSkaterCertificateRows = asyncHandler(async (req, res) => {
     const { page = 1, limit = 10 } = req.query;
     const result = await get_skater_certificate_list_service(req.user._id, page, limit);
-    return res.status(200).json(new ApiResponse(200, result, "Certificate rows retrieved successfully"));
+    return res.status(200).json(new ApiResponse(200, result, "Certificates retrieved successfully"));
 });
 
 // ---------------------------------------------------------------------------

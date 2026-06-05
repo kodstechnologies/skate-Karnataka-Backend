@@ -96,6 +96,39 @@ const getSkaterResultsEventRoundsValidation = {
     }),
 };
 
+const COMPETITION_ROUND_QUERY = Joi.string()
+    .trim()
+    .required()
+    .valid(
+        "1stRound",
+        "2ndRound",
+        "semiFinal",
+        "final",
+        "1st",
+        "2nd",
+        "3rd",
+        "1stround",
+        "2ndround",
+        "semifinal",
+        "quarterfinal"
+    )
+    .messages({
+        "any.only":
+            "round must be one of: 1stRound, 2ndRound, semiFinal, final, 1st, 2nd, 3rd",
+    });
+
+const getSkaterResultsEventAllSkatersValidation = {
+    ...eventIdParamValidation,
+    query: Joi.object({
+        categoryName: Joi.string().trim().required(),
+        category: Joi.string().trim().optional(),
+        name: Joi.string().trim().optional(),
+        round: COMPETITION_ROUND_QUERY,
+        page: Joi.number().integer().min(1).default(1),
+        limit: Joi.number().integer().min(1).max(100).default(50),
+    }),
+};
+
 const UpdateProfileValidation = {
     body: Joi.object({
         fullName: Joi.string().min(3).max(50).optional(),
@@ -123,6 +156,7 @@ export {
     eventIdParamValidation,
     getSkaterResultsByEventValidation,
     getSkaterResultsEventRoundsValidation,
+    getSkaterResultsEventAllSkatersValidation,
     UpdateProfileValidation,
     SkaterRsfiChangeValidation,
 }

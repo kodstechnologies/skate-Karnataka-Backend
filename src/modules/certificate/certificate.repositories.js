@@ -495,6 +495,78 @@ const save_generated_certificate_repository = async (payload) => {
     return await GeneratedCertificate.create(payload);
 };
 
+const formatGeneratedCertificateListRow = (cert) => {
+    const eventDoc = cert.eventId;
+    const pdfUrl = String(cert.pdfUrl || "").trim();
+
+    return {
+        _id: cert._id,
+        eventId: eventDoc?._id ?? cert.eventId ?? null,
+        eventName: eventDoc?.header || "",
+        participantId: cert.participantId ?? null,
+        userId: cert.userId ?? null,
+        templateId: cert.templateId ?? null,
+        certificateID: cert.certificateID || "",
+        winnerKRSAId: cert.winnerKRSAId || "",
+        name: cert.name || "",
+        ageGroup: cert.ageGroup || "",
+        clubName: cert.clubName || "",
+        issueDate: cert.issueDate || "",
+        pdfUrl,
+        documentLink: pdfUrl,
+        filename: cert.filename || "",
+        events: Array.isArray(cert.events) ? cert.events : [],
+        event: formatCertificateEvent(eventDoc),
+        certificateAvailable: Boolean(pdfUrl),
+        createdAt: cert.createdAt ?? null,
+        updatedAt: cert.updatedAt ?? null,
+    };
+};
+
+/**
+ * All GeneratedCertificate rows for a skater (userId + participantId fallback).
+ */
+const list_generated_certificates_by_user_repository = async (userId, page, limit) => {
+    const { skip, limit: perPage, page: currentPage } = paginate(page, limit);
+
+    const match = await buildSkaterCertificateUserMatch(userId);
+    if (!match) {
+        return {
+            data: [],
+            pagination: {
+                total: 0,
+                page: currentPage,
+                limit: perPage,
+                totalPages: 0,
+            },
+        };
+    }
+
+    const [total, certificates] = await Promise.all([
+        GeneratedCertificate.countDocuments(match),
+        GeneratedCertificate.find(match)
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(perPage)
+            .populate({
+                path: "eventId",
+                select:
+                    "header about registerStartDate registerEndDate eventStartDate eventEndDate eventStartTime eventEndTime address eventType status entryFee colorOne colorTwo textColor",
+            })
+            .lean(),
+    ]);
+
+    return {
+        data: certificates.map(formatGeneratedCertificateListRow),
+        pagination: {
+            total,
+            page: currentPage,
+            limit: perPage,
+            totalPages: calcTotalPages(total, perPage),
+        },
+    };
+};
+
 const buildSkaterCertificateUserMatch = async (userId) => {
     if (!userId || !mongoose.Types.ObjectId.isValid(String(userId))) {
         return null;
@@ -749,6 +821,7 @@ export {
     get_template_repository,
     get_template_by_id_repository,
     list_skater_participants_for_certificate_repository,
+    list_generated_certificates_by_user_repository,
     get_event_for_certificate_repository,
     get_active_template_for_event_type_repository,
     list_eligible_participants_for_event_repository,

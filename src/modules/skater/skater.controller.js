@@ -1,7 +1,7 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
 import { formatDate, formatDob } from "../../util/time/timeUtil.js";
-import { after_login_form_skater_service, deleteUser_skater_service, get_all_discipline_service, get_all_skating_event_categories_full_service, get_all_skating_event_categories_service, get_skater_digital_id_card_service, get_skater_profile_service, get_skater_results_event_names_service, get_skater_results_event_rounds_service, get_skater_results_event_service, get_skater_results_service, update_skater_profile_service } from "./skater.service.js";
+import { after_login_form_skater_service, deleteUser_skater_service, get_all_discipline_service, get_all_skating_event_categories_full_service, get_all_skating_event_categories_service, get_skater_digital_id_card_service, get_skater_profile_service, get_skater_results_event_all_skaters_service, get_skater_results_event_names_service, get_skater_results_event_rounds_service, get_skater_results_event_service, get_skater_results_service, update_skater_profile_service } from "./skater.service.js";
 import { requestSkaterRsfiChangeService } from "./skaterRsfiChange.service.js";
 
 const afterLoginSkaterForm = asyncHandler(async (req, res) => {
@@ -167,6 +167,25 @@ const GetSkaterResultsEventRounds = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, result, message));
 });
 
+const GetSkaterResultsEventAllSkaters = asyncHandler(async (req, res) => {
+    const categoryName =
+        req.query.categoryName || req.query.category || req.query.name || "";
+    const result = await get_skater_results_event_all_skaters_service(
+        req.user._id,
+        req.params.id,
+        categoryName,
+        req.query.round,
+        {
+            page: req.query.page,
+            limit: req.query.limit,
+        }
+    );
+    const message = result.resultsAvailable
+        ? "Round skaters fetched successfully"
+        : "Results are not available yet";
+    return res.status(200).json(new ApiResponse(200, result, message));
+});
+
 const GetSkaterResults = asyncHandler(async (req, res) => {
     const categoryName = req.query.categoryName || req.query.category;
     const results = await get_skater_results_service(
@@ -193,5 +212,6 @@ getAllDiscipline,
 GetSkaterResultsEvent,
 GetSkaterResultsEventNames,
 GetSkaterResultsEventRounds,
+GetSkaterResultsEventAllSkaters,
 GetSkaterResults,
 }

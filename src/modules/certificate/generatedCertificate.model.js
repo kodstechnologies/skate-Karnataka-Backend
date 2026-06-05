@@ -68,6 +68,7 @@ const generatedCertificateSchema = new mongoose.Schema(
 );
 
 generatedCertificateSchema.index({ eventId: 1, participantId: 1 }, { unique: true });
+generatedCertificateSchema.index({ userId: 1, createdAt: -1 });
 
 export const GeneratedCertificate = mongoose.model(
     "GeneratedCertificate",

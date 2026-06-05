@@ -1,4 +1,4 @@
-import { after_login_skater_form_repositories, delete_skater_repositories, get_all_discipline_repositories, get_all_skating_event_categories_full_repositories, get_all_skating_event_categories_repositories, get_skater_digital_id_card_repositories, get_skater_profile_repositories, get_skater_results_by_event_repositories, get_skater_results_event_names_repository, get_skater_results_event_repositories, get_skater_results_event_rounds_repository, update_skater_profile_repositories } from "./skater.repositories.js";
+import { after_login_skater_form_repositories, delete_skater_repositories, get_all_discipline_repositories, get_all_skating_event_categories_full_repositories, get_all_skating_event_categories_repositories, get_skater_digital_id_card_repositories, get_skater_profile_repositories, get_skater_results_by_event_repositories, get_skater_results_event_all_skaters_repository, get_skater_results_event_names_repository, get_skater_results_event_repositories, get_skater_results_event_rounds_repository, update_skater_profile_repositories } from "./skater.repositories.js";
 import { AppError } from "../../util/common/AppError.js";
 
 const after_login_form_skater_service = async (data, id) => {
@@ -66,6 +66,22 @@ const get_skater_results_event_rounds_service = async (
     );
 };
 
+const get_skater_results_event_all_skaters_service = async (
+    userId,
+    eventId,
+    categoryName,
+    round,
+    query = {}
+) => {
+    return await get_skater_results_event_all_skaters_repository(
+        userId,
+        eventId,
+        categoryName,
+        round,
+        query
+    );
+};
+
 export {
     after_login_form_skater_service,
     get_skater_profile_service,
@@ -79,4 +95,5 @@ export {
     get_skater_results_event_service,
     get_skater_results_event_names_service,
     get_skater_results_event_rounds_service,
+    get_skater_results_event_all_skaters_service,
 }

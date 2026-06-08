@@ -2720,6 +2720,10 @@ export const getLiveEventsRepository = async (role, userId, { page, limit }) => 
   };
 };
 
+/**
+ * Admin: optional stateId filter, else all state events.
+ * State: all state events (any state member can see events created by any state account).
+ */
 export const stateRelatedEventDisplayRepositories = async (stateId, { page, limit, search }) => {
   const query = { eventType: "State" };
   if (stateId) {

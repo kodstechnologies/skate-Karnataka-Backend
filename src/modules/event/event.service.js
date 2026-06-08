@@ -284,7 +284,7 @@ export const stateEventResultsService = async (eventId, { role, userId }, query)
 };
 
 /**
- * Admin: any event. Club: state/district/club scope (same as club event list). District: own district events only. State: own state events only.
+ * Admin: any event. Club: state/district/club scope. District: own district events only. State: all state events.
  */
 const assertEventForGivenPoint = async (eventId, reqUser) => {
     const role = String(reqUser.role || "").trim().toLowerCase();

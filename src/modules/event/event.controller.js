@@ -187,8 +187,8 @@ export const stateRelatedEventDisplay = asyncHandler(async (req, res) => {
     }
 
     const { page = 1, limit = 10, search = "", stateId: queryStateId } = req.query;
-    const filterStateId =
-        role === "admin" ? queryStateId : req.user._id.toString();
+    // State members see all state events; admin may optionally filter by stateId.
+    const filterStateId = role === "admin" ? queryStateId : undefined;
     const events = await stateRelatedEventDisplayService(filterStateId, {
         page,
         limit,

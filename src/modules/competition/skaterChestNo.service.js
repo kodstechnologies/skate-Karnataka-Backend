@@ -3,6 +3,9 @@ import { Event } from "../event/event.model.js";
 import { approvedPublicEventFilter } from "../event/eventApprovalPolicy.js";
 import { SkaterChestNo } from "./SkaterChestNo.model.js";
 import { EventCompetition } from "./eventCompetition.model.js";
+import { sendNotification } from "../../util/firebase/sendNotification.js";
+import { Club } from "../club/club.model.js";
+import { District } from "../district/district.model.js";
 
 /** Last moment registration is open (end of registerEndDate calendar day). */
 const getRegistrationCloseMoment = (registerEndDate) => {
@@ -81,6 +84,99 @@ const assessChestGenerationForEvent = async (eventId) => {
     pendingCount,
     chestCount,
   };
+};
+
+const uniqueReceiverIds = (ids = []) =>
+  [...new Set(ids.map((id) => String(id || "").trim()).filter(Boolean))];
+
+const resolveOrganizerReceiverIds = async (event) => {
+  if (!event?._id) {
+    return [];
+  }
+
+  const eventType = String(event.eventType || "").trim();
+  const eventFor = event.eventFor;
+
+  if (eventType === "State") {
+    return uniqueReceiverIds([eventFor]);
+  }
+
+  if (eventType === "Club") {
+    const club = await Club.findById(eventFor)
+      .select("mainMember members")
+      .lean();
+    if (!club) return [];
+    return uniqueReceiverIds([club.mainMember, ...(club.members || [])]);
+  }
+
+  if (eventType === "District") {
+    const district = await District.findById(eventFor)
+      .select("mainMember members")
+      .lean();
+    if (!district) return [];
+    return uniqueReceiverIds([district.mainMember, ...(district.members || [])]);
+  }
+
+  return [];
+};
+
+const notifyOrganizersChestGeneration = async ({
+  event,
+  participantCount,
+  paidCount,
+  pendingCount,
+  generatedCount,
+  lastChestNo,
+}) => {
+  const receiverIds = await resolveOrganizerReceiverIds(event);
+  if (!receiverIds.length) {
+    return { notifiedCount: 0 };
+  }
+
+  const eventLabel = String(event?.header || "your event").trim();
+  const generatedAt = new Date().toLocaleString("en-IN", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    hour12: true,
+  });
+
+  const title = "Chest numbers generated";
+  const body =
+    `Chest numbers are generated for "${eventLabel}". ` +
+    `Total registered: ${participantCount} (paid: ${paidCount}, pending: ${pendingCount}). ` +
+    `Generated: ${generatedCount}. Last chest no: ${lastChestNo || "N/A"}. ` +
+    `Generated at: ${generatedAt}.`;
+
+  await Promise.all(
+    receiverIds.map((receiverId) =>
+      sendNotification({
+        receiverId,
+        title,
+        body,
+        notificationType: "event",
+        sentBy: null,
+        data: {
+          type: "chest_numbers_generated",
+          eventId: String(event._id),
+          eventType: String(event.eventType || ""),
+          eventName: eventLabel,
+          totalRegistered: participantCount,
+          paidCount,
+          pendingCount,
+          generatedCount,
+          lastChestNo: String(lastChestNo || ""),
+          generatedAt,
+        },
+      }).catch((err) => {
+        console.error(
+          `Chest generation notification failed for ${receiverId}:`,
+          err?.message || err
+        );
+      })
+    )
+  );
+
+  return { notifiedCount: receiverIds.length };
 };
 
 const buildChestDoc = (participant, eventId, ageGroup, chestNo) => {
@@ -428,7 +524,7 @@ export const generateChestNumbersForEvent = async (eventId) => {
     console.log(
       `No eligible participants (paid/pending) for event: ${event.header} (${eventId})`
     );
-    return { success: true, count: 0 };
+    return { success: true, count: 0, notifiedCount: 0 };
   }
 
   const groups = {};
@@ -446,6 +542,7 @@ export const generateChestNumbersForEvent = async (eventId) => {
   await EventCompetition.deleteMany({ eventId: event._id });
 
   let totalGenerated = 0;
+  let maxChestNoInt = 0;
 
   for (const ageGroup in groups) {
     const groupParticipants = sortParticipantsByName(groups[ageGroup]);
@@ -462,6 +559,12 @@ export const generateChestNumbersForEvent = async (eventId) => {
 
     await SkaterChestNo.insertMany(skaterChestDocs);
     totalGenerated += skaterChestDocs.length;
+    for (const row of skaterChestDocs) {
+      const parsed = parseInt(String(row.chestNo || ""), 10);
+      if (Number.isFinite(parsed) && parsed > maxChestNoInt) {
+        maxChestNoInt = parsed;
+      }
+    }
 
     const categoriesArray = buildCompetitionCategoriesFromGroup(
       groupParticipants,
@@ -480,7 +583,30 @@ export const generateChestNumbersForEvent = async (eventId) => {
   console.log(
     `Generated ${totalGenerated} chest numbers and created EventCompetition records for event: ${event.header} (${eventId})`
   );
-  return { success: true, count: totalGenerated };
+
+  const paidCount = participants.filter(
+    (row) => String(row.paymentStatus || "").trim() === "paid"
+  ).length;
+  const pendingCount = participants.filter(
+    (row) => String(row.paymentStatus || "").trim() === "pending"
+  ).length;
+  const lastChestNo = maxChestNoInt > 0 ? String(maxChestNoInt).padStart(3, "0") : "";
+
+  const notificationResult = await notifyOrganizersChestGeneration({
+    event,
+    participantCount: participants.length,
+    paidCount,
+    pendingCount,
+    generatedCount: totalGenerated,
+    lastChestNo,
+  });
+
+  return {
+    success: true,
+    count: totalGenerated,
+    lastChestNo,
+    notifiedCount: notificationResult.notifiedCount,
+  };
 };
 
 /**

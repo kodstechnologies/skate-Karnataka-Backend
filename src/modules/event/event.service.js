@@ -1080,9 +1080,20 @@ const normalizeRegisterFormCategories = (categories = []) =>
         .filter(Boolean);
 
 export const createRegisterFormService = async (userId, payload) => {
-    const skater =
-        (await Skater.findById(userId).select("fullName").lean()) ||
-        (await BaseAuth.findById(userId).select("fullName").lean());
+    const skater = await Skater.findById(userId)
+        .select("fullName club clubStatus")
+        .lean();
+
+    if (!skater) {
+        throw new AppError("Skater not found", 404);
+    }
+
+    if (!skater.club || skater.clubStatus !== "join") {
+        throw new AppError(
+            "You must be a member of a club to register for an event",
+            400
+        );
+    }
 
     const name =
         (typeof payload.name === "string" ? payload.name.trim() : "") ||

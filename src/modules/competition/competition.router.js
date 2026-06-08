@@ -9,6 +9,7 @@ import {
 } from "./competition.validation.js";
 import {
     getChestNumbersByEvent,
+    getChestNumberSummary,
     generateChestNumbers,
     getCompetitionDetailsByEvent,
     displayRound,
@@ -17,6 +18,13 @@ import {
 } from "./competition.controller.js";
 
 const router = express.Router();
+
+// GET all chest numbers for an event
+router.get(
+    "/v1/chest-numbers/:eventId/summary",
+    authenticate(["Parent", "Skater", "Club", "District", "State", "Admin"]),
+    getChestNumberSummary
+);
 
 // GET all chest numbers for an event
 router.get(

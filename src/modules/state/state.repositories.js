@@ -595,7 +595,7 @@ export const stateProfileRepository = async (stateId) => {
 export const stateAccountProfileRepository = async (stateId) => {
   const profile = await State.findById(stateId)
     .select(
-      "fullName phone email img gender address countryCode krsaId role allowedModule"
+      "fullName phone email img gender address countryCode krsaId role allowedModule name about"
     )
     .lean();
 

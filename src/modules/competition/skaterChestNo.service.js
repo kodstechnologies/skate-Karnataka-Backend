@@ -1,11 +1,13 @@
 import { EventParticipant } from "../event/eventParticipant.model.js";
 import { Event } from "../event/event.model.js";
 import { approvedPublicEventFilter } from "../event/eventApprovalPolicy.js";
+import { getEventSkatingEventCategoriesFullRepository } from "../event/event.repositories.js";
 import { SkaterChestNo } from "./SkaterChestNo.model.js";
 import { EventCompetition } from "./eventCompetition.model.js";
 import { sendNotification } from "../../util/firebase/sendNotification.js";
 import { Club } from "../club/club.model.js";
 import { District } from "../district/district.model.js";
+import { AppError } from "../../util/common/AppError.js";
 
 /** Last moment registration is open (end of registerEndDate calendar day). */
 const getRegistrationCloseMoment = (registerEndDate) => {
@@ -672,4 +674,176 @@ export const generateChestNumbersForExpiredEvents = async () => {
 
   console.log(`Eligible events processed: ${eventsProcessed}`);
   return { success: true, processedEventsCount: eventsProcessed };
+};
+
+const buildAgeCategoryKey = (ageGroup, categoryName) =>
+  `${String(ageGroup || "").trim()}::${String(categoryName || "").trim()}`;
+
+const mapSkaterSummary = (row) => ({
+  chestNo: String(row?.chestNo || ""),
+  fullName: String(row?.fullName || ""),
+  krsaId: String(row?.krsaId || ""),
+  rsfiId: String(row?.rsfiId || ""),
+  gender: String(row?.gender || ""),
+  paymentStatus: String(row?.paymentStatus || ""),
+  attendanceStatus: String(row?.attendanceStatus || ""),
+});
+
+const resolveChestNoForParticipant = (chestDocs = [], participant) => {
+  const ageGroup = String(participant?.ageGroup || "").trim();
+  const krsaId = String(participant?.userId?.krsaId || "").trim();
+  const fullName = String(participant?.userId?.fullName || participant?.name || "")
+    .trim()
+    .toLowerCase();
+
+  const matched =
+    chestDocs.find(
+      (row) =>
+        String(row.ageGroup || "").trim() === ageGroup &&
+        ((krsaId && row.krsaId && String(row.krsaId).trim() === krsaId) ||
+          String(row.fullName || "").trim().toLowerCase() === fullName)
+    ) ||
+    chestDocs.find(
+      (row) =>
+        (krsaId && row.krsaId && String(row.krsaId).trim() === krsaId) ||
+        String(row.fullName || "").trim().toLowerCase() === fullName
+    );
+
+  return matched?.chestNo ? String(matched.chestNo) : "";
+};
+
+const buildRegisteredSkatersByKey = (participants = [], chestDocs = []) => {
+  const skatersByKey = new Map();
+
+  for (const participant of participants) {
+    const ageGroup = String(participant.ageGroup || "").trim();
+    const chestNo = resolveChestNoForParticipant(chestDocs, participant);
+    const fullName = String(participant.userId?.fullName || participant.name || "").trim();
+    const krsaId = String(participant.userId?.krsaId || "").trim();
+    const rsfiId = String(participant.userId?.rsfiId || "").trim();
+    const gender = String(participant.userId?.gender || "").trim();
+    const paymentStatus = String(participant.paymentStatus || "").trim();
+
+    for (const category of participant.categories || []) {
+      const name = String(category?.name || "").trim();
+      if (!name) continue;
+
+      const key = buildAgeCategoryKey(ageGroup, name);
+      if (!skatersByKey.has(key)) {
+        skatersByKey.set(key, []);
+      }
+
+      skatersByKey.get(key).push(
+        mapSkaterSummary({
+          chestNo,
+          fullName,
+          krsaId,
+          rsfiId,
+          gender,
+          paymentStatus,
+          attendanceStatus: category?.attendanceStatus || "pending",
+        })
+      );
+    }
+  }
+
+  return skatersByKey;
+};
+
+/**
+ * Registration + chest-number counts aligned with the event's age groups and laps.
+ */
+export const getChestNumberSummaryByEvent = async (eventId) => {
+  const eventMeta = await getEventSkatingEventCategoriesFullRepository(eventId);
+  if (!eventMeta) {
+    throw new AppError("Event not found", 404);
+  }
+
+  const participantFilter = chestParticipantFilter(eventId);
+  const [chestDocs, participants] = await Promise.all([
+    SkaterChestNo.find({ eventId }).sort({ ageGroup: 1, chestNo: 1 }).lean(),
+    EventParticipant.find(participantFilter)
+      .select("ageGroup categories name userId paymentStatus")
+      .populate("userId", "fullName krsaId rsfiId gender")
+      .lean(),
+  ]);
+
+  const registrationCountByKey = new Map();
+  for (const participant of participants) {
+    const ageGroup = String(participant.ageGroup || "").trim();
+    for (const category of participant.categories || []) {
+      const name = String(category?.name || "").trim();
+      if (!name) continue;
+      const key = buildAgeCategoryKey(ageGroup, name);
+      registrationCountByKey.set(key, (registrationCountByKey.get(key) || 0) + 1);
+    }
+  }
+
+  const registeredSkatersByKey = buildRegisteredSkatersByKey(participants, chestDocs);
+
+  const chestCountByKey = new Map();
+  for (const row of chestDocs) {
+    const ageGroup = String(row.ageGroup || "").trim();
+    for (const category of row.categories || []) {
+      const name = String(category?.name || "").trim();
+      if (!name) continue;
+      const key = buildAgeCategoryKey(ageGroup, name);
+      chestCountByKey.set(key, (chestCountByKey.get(key) || 0) + 1);
+    }
+  }
+
+  const resolvedCategories = eventMeta.skatingEventCategories || [];
+
+  const skatingCategories = resolvedCategories.map((skatingCategory) => {
+    const ageGroups = (skatingCategory.ageGroups || [])
+      .filter((ageGroupEntry) => (ageGroupEntry.categories || []).length > 0)
+      .map((ageGroupEntry) => {
+        const label = String(ageGroupEntry.label || "").trim();
+        const categories = (ageGroupEntry.categories || []).map((subCategory) => {
+          const name = String(subCategory.name || "").trim();
+          const key = buildAgeCategoryKey(label, name);
+          return {
+            name,
+            registeredCount: registrationCountByKey.get(key) || 0,
+            chestCount: chestCountByKey.get(key) || 0,
+            skaters: registeredSkatersByKey.get(key) || [],
+          };
+        });
+
+        const totalRegistered = participants.filter(
+          (row) => String(row.ageGroup || "").trim() === label
+        ).length;
+        const totalWithChestNo = chestDocs.filter(
+          (row) => String(row.ageGroup || "").trim() === label
+        ).length;
+
+        return {
+          label,
+          totalRegistered,
+          totalWithChestNo,
+          categories,
+        };
+      });
+
+    return {
+      id: skatingCategory._id,
+      typeName: skatingCategory.typeName || "",
+      ageGroups,
+    };
+  });
+
+  const uniqueChestSkaterKeys = new Set(
+    chestDocs
+      .map((row) => String(row.krsaId || row.fullName || "").trim())
+      .filter(Boolean)
+  );
+
+  return {
+    eventId,
+    eventName: eventMeta.eventName || "",
+    totalRegistered: participants.length,
+    totalWithChestNo: chestDocs.length,
+    uniqueSkatersWithChestNo: uniqueChestSkaterKeys.size,
+    skatingCategories,
+  };
 };

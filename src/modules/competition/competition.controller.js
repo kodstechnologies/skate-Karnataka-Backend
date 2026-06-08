@@ -1,6 +1,7 @@
 import { asyncHandler } from "../../util/common/asyncHandler.js";
 import {
     generateChestNumbersForEvent,
+    getChestNumberSummaryByEvent,
     syncEventCompetitionFromParticipants,
 } from "./skaterChestNo.service.js";
 import { SkaterChestNo } from "./SkaterChestNo.model.js";
@@ -196,6 +197,19 @@ const getChestNumbersByEvent = asyncHandler(async (req, res) => {
     res.status(200).json({
         success: true,
         data: chestNumbers,
+    });
+});
+
+/**
+ * Registration counts with chest numbers, grouped by event age group and lap.
+ */
+const getChestNumberSummary = asyncHandler(async (req, res) => {
+    const { eventId } = req.params;
+    const summary = await getChestNumberSummaryByEvent(eventId);
+
+    res.status(200).json({
+        success: true,
+        data: summary,
     });
 });
 
@@ -924,6 +938,7 @@ export {
     displayAllCompetition,
     displayCompetitionById,
     getChestNumbersByEvent,
+    getChestNumberSummary,
     generateChestNumbers,
     getCompetitionDetailsByEvent,
     displayRound,

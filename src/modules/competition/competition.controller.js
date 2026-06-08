@@ -205,7 +205,15 @@ const getChestNumbersByEvent = asyncHandler(async (req, res) => {
  */
 const getChestNumberSummary = asyncHandler(async (req, res) => {
     const { eventId } = req.params;
-    const summary = await getChestNumberSummaryByEvent(eventId);
+    const { page, limit, search, ageGroup, lap, discipline } = req.query;
+    const summary = await getChestNumberSummaryByEvent(eventId, {
+        page,
+        limit,
+        search,
+        ageGroup,
+        lap,
+        discipline,
+    });
 
     res.status(200).json({
         success: true,

@@ -6,6 +6,7 @@ import {
     promoteToNextRoundValidation,
     displayRoundQueryValidation,
     fullDetailsQueryValidation,
+    chestNumberSummaryQueryValidation,
 } from "./competition.validation.js";
 import {
     getChestNumbersByEvent,
@@ -23,6 +24,7 @@ const router = express.Router();
 router.get(
     "/v1/chest-numbers/:eventId/summary",
     authenticate(["Parent", "Skater", "Club", "District", "State", "Admin"]),
+    validate(chestNumberSummaryQueryValidation),
     getChestNumberSummary
 );
 

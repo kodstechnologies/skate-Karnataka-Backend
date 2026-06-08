@@ -130,6 +130,20 @@ export const displayRoundQueryValidation = {
     }),
 };
 
+export const chestNumberSummaryQueryValidation = {
+    params: Joi.object({
+        eventId: objectIdString.required(),
+    }),
+    query: Joi.object({
+        page: Joi.number().integer().min(1).optional(),
+        limit: Joi.number().integer().min(1).max(100).optional(),
+        search: Joi.string().trim().allow("").optional(),
+        ageGroup: Joi.string().trim().allow("").optional(),
+        lap: Joi.string().trim().allow("").optional(),
+        discipline: Joi.string().trim().allow("").optional(),
+    }),
+};
+
 export const fullDetailsQueryValidation = {
     params: Joi.object({
         eventId: objectIdString.required(),

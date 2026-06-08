@@ -8,6 +8,7 @@ import { sendNotification } from "../../util/firebase/sendNotification.js";
 import { Club } from "../club/club.model.js";
 import { District } from "../district/district.model.js";
 import { AppError } from "../../util/common/AppError.js";
+import { buildPaginationMeta, paginate } from "../../util/common/paginate.js";
 
 /** Last moment registration is open (end of registerEndDate calendar day). */
 const getRegistrationCloseMoment = (registerEndDate) => {
@@ -750,10 +751,70 @@ const buildRegisteredSkatersByKey = (participants = [], chestDocs = []) => {
   return skatersByKey;
 };
 
+const flattenSummaryAttendees = (skatingCategories = []) => {
+  const rows = [];
+
+  for (const skatingCategory of skatingCategories) {
+    const discipline = String(skatingCategory?.typeName || "").trim();
+    for (const ageGroupEntry of skatingCategory?.ageGroups || []) {
+      const ageGroup = String(ageGroupEntry?.label || "").trim();
+      for (const category of ageGroupEntry?.categories || []) {
+        const lap = String(category?.name || "").trim();
+        for (const skater of category?.skaters || []) {
+          rows.push({
+            id: `${skatingCategory.id}-${ageGroup}-${lap}-${skater.chestNo}-${skater.krsaId}-${skater.fullName}`,
+            discipline,
+            ageGroup,
+            lap,
+            fullName: String(skater.fullName || "").trim(),
+            chestNo: String(skater.chestNo || "").trim(),
+            krsaId: String(skater.krsaId || "").trim(),
+            rsfiId: String(skater.rsfiId || "").trim(),
+            gender: String(skater.gender || "").trim(),
+            paymentStatus: String(skater.paymentStatus || "").trim(),
+          });
+        }
+      }
+    }
+  }
+
+  return rows;
+};
+
+const filterSummaryAttendees = (rows, { search, ageGroup, lap, discipline }) => {
+  const term = String(search || "").trim().toLowerCase();
+  const ageFilter = String(ageGroup || "").trim();
+  const lapFilter = String(lap || "").trim();
+  const disciplineFilter = String(discipline || "").trim();
+
+  return rows.filter((row) => {
+    const matchesSearch =
+      !term ||
+      row.fullName.toLowerCase().includes(term) ||
+      row.chestNo.toLowerCase().includes(term) ||
+      row.krsaId.toLowerCase().includes(term) ||
+      row.rsfiId.toLowerCase().includes(term);
+    const matchesAgeGroup = !ageFilter || row.ageGroup === ageFilter;
+    const matchesLap = !lapFilter || row.lap === lapFilter;
+    const matchesDiscipline = !disciplineFilter || row.discipline === disciplineFilter;
+    return matchesSearch && matchesAgeGroup && matchesLap && matchesDiscipline;
+  });
+};
+
+const buildSummaryFilterOptions = (rows = []) => ({
+  ageGroups: [...new Set(rows.map((row) => row.ageGroup).filter(Boolean))].sort(),
+  laps: [...new Set(rows.map((row) => row.lap).filter(Boolean))].sort(),
+  disciplines: [...new Set(rows.map((row) => row.discipline).filter(Boolean))].sort(),
+});
+
 /**
  * Registration + chest-number counts aligned with the event's age groups and laps.
+ * Returns a flat paginated attendee list for admin/portal tables.
  */
-export const getChestNumberSummaryByEvent = async (eventId) => {
+export const getChestNumberSummaryByEvent = async (
+  eventId,
+  { page = 1, limit = 10, search = "", ageGroup = "", lap = "", discipline = "" } = {}
+) => {
   const eventMeta = await getEventSkatingEventCategoriesFullRepository(eventId);
   if (!eventMeta) {
     throw new AppError("Event not found", 404);
@@ -838,12 +899,28 @@ export const getChestNumberSummaryByEvent = async (eventId) => {
       .filter(Boolean)
   );
 
+  const allAttendees = flattenSummaryAttendees(skatingCategories);
+  const filteredAttendees = filterSummaryAttendees(allAttendees, {
+    search,
+    ageGroup,
+    lap,
+    discipline,
+  });
+  const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+  const attendees = filteredAttendees.slice(skip, skip + pageLimit);
+
   return {
     eventId,
     eventName: eventMeta.eventName || "",
     totalRegistered: participants.length,
     totalWithChestNo: chestDocs.length,
     uniqueSkatersWithChestNo: uniqueChestSkaterKeys.size,
-    skatingCategories,
+    filters: buildSummaryFilterOptions(allAttendees),
+    attendees,
+    pagination: buildPaginationMeta({
+      total: filteredAttendees.length,
+      page: currentPage,
+      limit: pageLimit,
+    }),
   };
 };

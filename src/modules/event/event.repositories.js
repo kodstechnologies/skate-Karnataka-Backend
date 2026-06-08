@@ -576,18 +576,20 @@ const resolveChestNoForRegistration = (chestDocs = [], item) => {
     .trim()
     .toLowerCase();
 
-  const matched = chestDocs.find((row) => {
-    if (String(row.eventId) !== eventId) {
-      return false;
-    }
-    if (String(row.ageGroup || "").trim() !== ageGroup) {
-      return false;
-    }
-    if (krsaId && row.krsaId && String(row.krsaId).trim() === krsaId) {
-      return true;
-    }
-    return String(row.fullName || "").trim().toLowerCase() === fullName;
-  });
+  const eventRows = chestDocs.filter((row) => String(row.eventId) === eventId);
+
+  const matched =
+    eventRows.find(
+      (row) =>
+        String(row.ageGroup || "").trim() === ageGroup &&
+        ((krsaId && row.krsaId && String(row.krsaId).trim() === krsaId) ||
+          String(row.fullName || "").trim().toLowerCase() === fullName)
+    ) ||
+    eventRows.find(
+      (row) =>
+        (krsaId && row.krsaId && String(row.krsaId).trim() === krsaId) ||
+        String(row.fullName || "").trim().toLowerCase() === fullName
+    );
 
   return matched?.chestNo ? String(matched.chestNo) : "";
 };

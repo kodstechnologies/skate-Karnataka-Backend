@@ -117,36 +117,122 @@ const sortParticipantsByName = (participants = []) =>
     return nameA.localeCompare(nameB);
   });
 
-const resolveChestNoForParticipant = (participant, index, existingChestDocs = []) => {
-  const fullName = (participant.userId?.fullName || participant.name || "").trim();
-  const krsaId = String(participant.userId?.krsaId || "").trim();
-  const normName = fullName.toLowerCase();
+const getParticipantSkaterKey = (participant) => {
+  const userId = String(participant?.userId?._id || participant?.userId || "").trim();
+  const krsaId = String(participant?.userId?.krsaId || "").trim();
+  const fullName = String(participant?.userId?.fullName || participant?.name || "")
+    .trim()
+    .toLowerCase();
 
-  const matched = existingChestDocs.find((row) => {
-    if (krsaId && row.krsaId && String(row.krsaId).trim() === krsaId) {
-      return true;
+  if (userId) {
+    return `u:${userId}`;
+  }
+  if (krsaId) {
+    return `k:${krsaId}`;
+  }
+  if (fullName) {
+    return `n:${fullName}`;
+  }
+  return null;
+};
+
+const isSameSkaterAsChestRow = (participant, row) => {
+  const krsaId = String(participant?.userId?.krsaId || "").trim();
+  const fullName = String(participant?.userId?.fullName || participant?.name || "")
+    .trim()
+    .toLowerCase();
+
+  if (krsaId && row?.krsaId && String(row.krsaId).trim() === krsaId) {
+    return true;
+  }
+  return String(row?.fullName || "").trim().toLowerCase() === fullName;
+};
+
+const chestRowSkaterKey = (row) => {
+  const krsaId = String(row?.krsaId || "").trim();
+  const fullName = String(row?.fullName || "").trim().toLowerCase();
+  if (krsaId) {
+    return `k:${krsaId}`;
+  }
+  if (fullName) {
+    return `n:${fullName}`;
+  }
+  return null;
+};
+
+/**
+ * One chest-number sequence per event: different skaters never share a number.
+ * Same skater in multiple age groups reuses their number.
+ */
+const buildGlobalChestNumberMap = (allParticipants = [], existingChestDocs = []) => {
+  const chestNoBySkaterKey = new Map();
+  const chestNoOwnerKey = new Map();
+
+  for (const row of existingChestDocs) {
+    const key = chestRowSkaterKey(row);
+    const chestNo = row?.chestNo ? String(row.chestNo) : "";
+    if (!key || !chestNo || chestNoBySkaterKey.has(key)) {
+      continue;
     }
-    return String(row.fullName || "").trim().toLowerCase() === normName;
-  });
-
-  if (matched?.chestNo) {
-    return matched.chestNo;
+    chestNoBySkaterKey.set(key, chestNo);
+    chestNoOwnerKey.set(chestNo, key);
   }
 
-  return String(index + 1).padStart(3, "0");
+  let nextNum =
+    existingChestDocs.reduce((max, row) => {
+      const parsed = parseInt(String(row?.chestNo || ""), 10);
+      return Number.isFinite(parsed) ? Math.max(max, parsed) : max;
+    }, 0) + 1;
+
+  const takeNextChestNo = () => {
+    let chestNo = String(nextNum).padStart(3, "0");
+    while (chestNoOwnerKey.has(chestNo)) {
+      nextNum += 1;
+      chestNo = String(nextNum).padStart(3, "0");
+    }
+    nextNum += 1;
+    return chestNo;
+  };
+
+  for (const participant of sortParticipantsByName(allParticipants)) {
+    const key = getParticipantSkaterKey(participant);
+    if (!key || chestNoBySkaterKey.has(key)) {
+      continue;
+    }
+
+    const existing = existingChestDocs.find((row) =>
+      isSameSkaterAsChestRow(participant, row)
+    );
+    const chestNo = existing?.chestNo
+      ? String(existing.chestNo)
+      : takeNextChestNo();
+
+    chestNoBySkaterKey.set(key, chestNo);
+    chestNoOwnerKey.set(chestNo, key);
+  }
+
+  return {
+    resolveChestNo: (participant) => {
+      const key = getParticipantSkaterKey(participant);
+      return key ? chestNoBySkaterKey.get(key) || "" : "";
+    },
+  };
 };
 
 /** Build EventCompetition.categories[] for one age group from registrations. */
 export const buildCompetitionCategoriesFromGroup = (
   groupParticipants = [],
-  existingChestDocs = []
+  resolveChestNo
 ) => {
   const sorted = sortParticipantsByName(groupParticipants);
   const categoriesMap = {};
 
   for (let i = 0; i < sorted.length; i++) {
     const participant = sorted[i];
-    const chestNo = resolveChestNoForParticipant(participant, i, existingChestDocs);
+    const chestNo =
+      typeof resolveChestNo === "function"
+        ? resolveChestNo(participant)
+        : String(i + 1).padStart(3, "0");
     const fullName = participant.userId?.fullName || participant.name || "";
     const krsaId = participant.userId?.krsaId || "";
     const rsfiId = participant.userId?.rsfiId || "";
@@ -246,17 +332,16 @@ export const syncEventCompetitionFromParticipants = async (
     groups[groupLabel].push(participant);
   }
 
+  const existingChest = await SkaterChestNo.find({ eventId }).lean();
+  const { resolveChestNo } = buildGlobalChestNumberMap(participants, existingChest);
+
   let syncedAgeGroups = 0;
 
   for (const groupLabel of Object.keys(groups)) {
     const groupParticipants = groups[groupLabel];
-    const existingChest = await SkaterChestNo.find({
-      eventId,
-      ageGroup: groupLabel,
-    }).lean();
     const freshCategories = buildCompetitionCategoriesFromGroup(
       groupParticipants,
-      existingChest
+      resolveChestNo
     );
 
     if (!freshCategories.length) {
@@ -355,32 +440,35 @@ export const generateChestNumbersForEvent = async (eventId) => {
     groups[ageGroup].push(participant);
   }
 
+  const { resolveChestNo } = buildGlobalChestNumberMap(participants);
+
+  await SkaterChestNo.deleteMany({ eventId: event._id });
+  await EventCompetition.deleteMany({ eventId: event._id });
+
   let totalGenerated = 0;
 
   for (const ageGroup in groups) {
     const groupParticipants = sortParticipantsByName(groups[ageGroup]);
 
-    const skaterChestDocs = groupParticipants.map((participant, index) =>
-      buildChestDoc(
-        participant,
-        event._id,
-        ageGroup,
-        String(index + 1).padStart(3, "0")
+    const skaterChestDocs = groupParticipants
+      .map((participant) =>
+        buildChestDoc(participant, event._id, ageGroup, resolveChestNo(participant))
       )
-    );
+      .filter((doc) => doc.chestNo);
 
     if (!skaterChestDocs.length) {
       continue;
     }
 
-    await SkaterChestNo.deleteMany({ eventId: event._id, ageGroup });
     await SkaterChestNo.insertMany(skaterChestDocs);
     totalGenerated += skaterChestDocs.length;
 
-    const categoriesArray = buildCompetitionCategoriesFromGroup(groupParticipants);
+    const categoriesArray = buildCompetitionCategoriesFromGroup(
+      groupParticipants,
+      resolveChestNo
+    );
 
     if (categoriesArray.length > 0) {
-      await EventCompetition.deleteMany({ eventId: event._id, ageGroup });
       await EventCompetition.create({
         eventId: event._id,
         ageGroup,

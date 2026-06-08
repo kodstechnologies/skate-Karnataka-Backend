@@ -54,9 +54,9 @@ const skaterChestNoSchema = new mongoose.Schema(
   }
 );
 
-// Unique constraints to prevent duplicate chest numbers for an event/ageGroup, or duplicate chest numbers for the same skater in an event.
+// One chest row per skater per age group; chest numbers are unique across the whole event (not per age group).
 skaterChestNoSchema.index({ eventId: 1, ageGroup: 1, chestNo: 1 }, { unique: true });
-/** Sparse: many skaters may have no krsaId yet — omit field instead of storing "". */
-skaterChestNoSchema.index({ eventId: 1, krsaId: 1 }, { unique: true, sparse: true });
+/** Same skater may register in multiple age groups — one row each, same chest number. */
+skaterChestNoSchema.index({ eventId: 1, krsaId: 1, ageGroup: 1 }, { unique: true, sparse: true });
 
 export const SkaterChestNo = mongoose.model("SkaterChestNo", skaterChestNoSchema);

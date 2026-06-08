@@ -44,6 +44,7 @@ import {
 } from "../../util/firebase/sendNotification.js";
 import { AppError } from "../../util/common/AppError.js";
 import { assignCompetitionRanks } from "../../util/competition/rankUtil.js";
+import { SkaterChestNo } from "../competition/SkaterChestNo.model.js";
 
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const normalizeAttendanceStatus = (status) =>
@@ -560,7 +561,55 @@ const REGISTER_DETAILS_POPULATE = [
       "header about registerStartDate registerEndDate eventStartDate eventEndDate eventStartTime eventEndTime address eventType status entryFee colorOne colorTwo textColor",
   },
   { path: "categoriesId", select: "_id typeName" },
+  { path: "userId", select: "fullName krsaId" },
 ];
+
+const resolveChestNoForRegistration = (chestDocs = [], item) => {
+  if (!item) {
+    return "";
+  }
+
+  const eventId = String(item.eventId?._id || item.eventId || "");
+  const ageGroup = String(item.ageGroup || "").trim();
+  const krsaId = String(item.userId?.krsaId || "").trim();
+  const fullName = String(item.userId?.fullName || item.name || "")
+    .trim()
+    .toLowerCase();
+
+  const matched = chestDocs.find((row) => {
+    if (String(row.eventId) !== eventId) {
+      return false;
+    }
+    if (String(row.ageGroup || "").trim() !== ageGroup) {
+      return false;
+    }
+    if (krsaId && row.krsaId && String(row.krsaId).trim() === krsaId) {
+      return true;
+    }
+    return String(row.fullName || "").trim().toLowerCase() === fullName;
+  });
+
+  return matched?.chestNo ? String(matched.chestNo) : "";
+};
+
+const loadChestDocsForRegistrations = async (items = []) => {
+  const eventIds = [
+    ...new Set(
+      items
+        .map((item) => item?.eventId?._id || item?.eventId)
+        .filter((id) => id && mongoose.Types.ObjectId.isValid(String(id)))
+        .map((id) => new mongoose.Types.ObjectId(String(id)))
+    ),
+  ];
+
+  if (!eventIds.length) {
+    return [];
+  }
+
+  return SkaterChestNo.find({ eventId: { $in: eventIds } })
+    .select("eventId ageGroup krsaId fullName chestNo")
+    .lean();
+};
 
 const formatRegisterFormDetails = (item) => {
   if (!item) return null;
@@ -599,7 +648,7 @@ const formatRegisterFormDetails = (item) => {
 };
 
 /** Slim payload for GET /v1/register-details/:eventId */
-const formatRegisterDetailsByEvent = (item) => {
+const formatRegisterDetailsByEvent = (item, chestNo = "") => {
   if (!item) return null;
 
   const skatingCategory = item.categoriesId;
@@ -641,6 +690,7 @@ const formatRegisterDetailsByEvent = (item) => {
     })),
     paymentStatus: item.paymentStatus,
     isRegister: item.paymentStatus === "paid",
+    chestNo: chestNo || "",
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
   };
@@ -671,8 +721,11 @@ export const getAllRegisterDetailsByUserIdRepository = async (
       .lean(),
   ]);
 
+  const chestDocs = await loadChestDocsForRegistrations(items);
   const registrations = items
-    .map((item) => formatRegisterDetailsByEvent(item))
+    .map((item) =>
+      formatRegisterDetailsByEvent(item, resolveChestNoForRegistration(chestDocs, item))
+    )
     .filter(Boolean);
 
   return {
@@ -698,7 +751,15 @@ export const getRegisterDetailsByEventIdRepository = async (eventId, userId) => 
     .populate(REGISTER_DETAILS_POPULATE)
     .lean();
 
-  return formatRegisterDetailsByEvent(item);
+  if (!item) {
+    return null;
+  }
+
+  const chestDocs = await loadChestDocsForRegistrations([item]);
+  return formatRegisterDetailsByEvent(
+    item,
+    resolveChestNoForRegistration(chestDocs, item)
+  );
 };
 
 const parseEventEndDateTime = (eventEndDate, eventEndTime) => {

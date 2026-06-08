@@ -51,12 +51,9 @@ export const startOfLocalDay = (date = new Date()) => {
   return d;
 };
 
-/**
- * Skater event lists: approved events only; registration still open (registerEndDate >= today).
- */
-export const skaterListableEventsFilter = (now = new Date()) => ({
-  deleteApprovalStatus: { $ne: EVENT_DELETE_APPROVAL.PENDING },
-  // Compare calendar dates (IST) so date-only registerEndDate values match correctly.
+/** Hide events whose registerEndDate calendar day has passed (IST). */
+export const registrationStillOpenFilter = (now = new Date()) => ({
+  registerEndDate: { $ne: null },
   $expr: {
     $gte: [
       {
@@ -75,6 +72,14 @@ export const skaterListableEventsFilter = (now = new Date()) => ({
       },
     ],
   },
+});
+
+/**
+ * Skater event lists: approved events only; registration still open (registerEndDate >= today).
+ */
+export const skaterListableEventsFilter = (now = new Date()) => ({
+  deleteApprovalStatus: { $ne: EVENT_DELETE_APPROVAL.PENDING },
+  ...registrationStillOpenFilter(now),
   $or: [
     {
       adminApprovalStatus: {

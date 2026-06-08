@@ -23,6 +23,7 @@ import {
   EVENT_DELETE_APPROVAL,
   initialAdminApprovalStatus,
   isEventPubliclyVisible,
+  registrationStillOpenFilter,
   skaterListableEventsFilter,
   requiresAdminApprovalOnCreate,
 } from "./eventApprovalPolicy.js";
@@ -2290,26 +2291,31 @@ export const clubRelatedEventDisplayRepositories = async (
   }
   const districtId = clubRow.district ?? null;
   const query = {
-    $or: [
+    $and: [
       {
-        $and: [
+        $or: [
           {
-            $or: buildSkaterVisibleEventsOrClause({
-              clubId: resolvedClubId,
-              districtId,
-            }),
+            $and: [
+              {
+                $or: buildSkaterVisibleEventsOrClause({
+                  clubId: resolvedClubId,
+                  districtId,
+                }),
+              },
+              approvedPublicEventFilter(),
+            ],
           },
-          approvedPublicEventFilter(),
+          {
+            eventType: "Club",
+            eventFor: resolvedClubId,
+            adminApprovalStatus: {
+              $in: [EVENT_ADMIN_APPROVAL.PENDING, EVENT_ADMIN_APPROVAL.REJECTED],
+            },
+            deleteApprovalStatus: { $ne: EVENT_DELETE_APPROVAL.PENDING },
+          },
         ],
       },
-      {
-        eventType: "Club",
-        eventFor: resolvedClubId,
-        adminApprovalStatus: {
-          $in: [EVENT_ADMIN_APPROVAL.PENDING, EVENT_ADMIN_APPROVAL.REJECTED],
-        },
-        deleteApprovalStatus: { $ne: EVENT_DELETE_APPROVAL.PENDING },
-      },
+      registrationStillOpenFilter(),
     ],
   };
 

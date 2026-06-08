@@ -2536,6 +2536,21 @@ export const enrichLeanEventsSkatingCategoryNames = async (events) => {
 const EVENT_CARD_LIST_PROJECTION =
   "_id header about registerStartDate registerEndDate eventStartDate eventEndDate eventStartTime eventEndTime entryFee colorOne colorTwo textColor skatingEventCategories status address eventType adminApprovalStatus deleteApprovalStatus";
 
+/** Extra fields for `GET .../v1/event-full-details/:id` (merged with skater-access base projection). */
+const SKATER_EVENT_FULL_DETAILS_EXTRA_SELECT =
+  "header about registerStartDate eventStartDate eventEndDate eventStartTime eventEndTime entryFee colorOne colorTwo textColor skatingEventCategories status address";
+
+const resolveSkaterEventOrganizerName = (event) => {
+  const populatedName =
+    event?.eventFor && typeof event.eventFor === "object" && event.eventFor.name
+      ? event.eventFor.name
+      : "";
+  if (event?.eventType === "State") {
+    return populatedName || "Karnataka";
+  }
+  return populatedName;
+};
+
 const toValidDate = (value) => {
   if (!value) return null;
   const parsed = new Date(value);
@@ -2795,7 +2810,12 @@ const displaySingleEventRepository = async (id) => {
  * Event lean doc if the skater may see it (State / own district / own club), else null.
  * @param {string|null|undefined} select - optional mongoose `.select()` projection
  */
-const fetchEventLeanIfSkaterAccessible = async (eventId, skaterUserId, select) => {
+const fetchEventLeanIfSkaterAccessible = async (
+  eventId,
+  skaterUserId,
+  select,
+  { populateEventFor = false } = {}
+) => {
   const scope = await resolveSkaterEventScope(skaterUserId);
   if (!scope) {
     return null;
@@ -2812,7 +2832,11 @@ const fetchEventLeanIfSkaterAccessible = async (eventId, skaterUserId, select) =
     "eventType eventFor adminApprovalStatus deleteApprovalStatus registerEndDate categoryFormat";
   const mergedSelect = select ? `${baseSelect} ${select}` : baseSelect;
 
-  const event = await Event.findById(rawId).select(mergedSelect).lean();
+  let query = Event.findById(rawId).select(mergedSelect);
+  if (populateEventFor) {
+    query = query.populate("eventFor", "name");
+  }
+  const event = await query.lean();
 
   if (!event) {
     return null;
@@ -2861,17 +2885,19 @@ const fetchEventLeanIfSkaterCanRegister = async (eventId, skaterUserId, select) 
  * `name` is the organizer: State/District/Club document `name` (State defaults to schema default e.g. Karnataka).
  */
 export const getSkaterEventFullDetailsDtoRepository = async (eventId, skaterUserId) => {
-  const event = await fetchEventLeanIfSkaterAccessible(eventId, skaterUserId, null);
+  const event = await fetchEventLeanIfSkaterAccessible(
+    eventId,
+    skaterUserId,
+    SKATER_EVENT_FULL_DETAILS_EXTRA_SELECT,
+    { populateEventFor: true }
+  );
   if (!event) {
     return null;
   }
 
   const [enriched] = await enrichLeanEventsSkatingCategoryNames([event]);
 
-  const name =
-    event.eventType === "State"
-      ? event.eventFor?.name || "Karnataka"
-      : event.eventFor?.name || "";
+  const name = resolveSkaterEventOrganizerName(event);
 
   const paidRegistration = await EventParticipant.findOne({
     userId: skaterUserId,

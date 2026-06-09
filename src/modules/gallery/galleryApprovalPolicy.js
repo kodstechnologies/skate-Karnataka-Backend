@@ -8,8 +8,9 @@ export const MEDIA_ADMIN_APPROVAL = {
 
 export const MEDIA_DELETE_APPROVAL = {
   PENDING: "pending",
-  APPROVED: "approved",
+  // APPROVED: "approved",
 };
+
 
 export const requiresMediaApproval = (ownerType) => {
   const type = String(ownerType || "").trim().toLowerCase();

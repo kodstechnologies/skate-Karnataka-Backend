@@ -35,10 +35,10 @@ router.get(
     getChestNumbersByEvent
 );
 
-// POST manually generate chest numbers for an event (restricted to State and Admin)
+// POST manually generate chest numbers for an event (after registration ends)
 router.post(
     "/v1/chest-numbers/generate",
-    authenticate(["State", "Admin"]),
+    authenticate(["Club", "District", "State", "Admin"]),
     generateChestNumbers
 );
 

@@ -677,6 +677,70 @@ export const generateChestNumbersForExpiredEvents = async () => {
   return { success: true, processedEventsCount: eventsProcessed };
 };
 
+/**
+ * Manual trigger for a single event — same eligibility rules as the scheduler,
+ * without regenerating when chest numbers are already complete.
+ */
+export const triggerManualChestNumberGenerationForEvent = async (eventId) => {
+  const event = await Event.findById(eventId)
+    .select("_id header registerEndDate status")
+    .lean();
+
+  if (!event) {
+    throw new AppError("Event not found", 404);
+  }
+
+  if (String(event.status || "").trim() === "cancelled") {
+    throw new AppError("Cannot generate chest numbers for a cancelled event", 400);
+  }
+
+  if (!event.registerEndDate) {
+    throw new AppError("Event registration end date is not set", 400);
+  }
+
+  if (!isRegistrationClosedForChestGeneration(event.registerEndDate)) {
+    throw new AppError(
+      "Registration is still open. Chest numbers can be generated after registration ends.",
+      400
+    );
+  }
+
+  const assessment = await assessChestGenerationForEvent(event._id);
+
+  if (assessment.reason === "chest_numbers_already_complete") {
+    return {
+      success: true,
+      alreadyGenerated: true,
+      message: "Chest numbers already generated",
+      participantCount: assessment.participantCount,
+      paidCount: assessment.paidCount,
+      pendingCount: assessment.pendingCount,
+      chestCount: assessment.chestCount,
+      count: assessment.chestCount,
+    };
+  }
+
+  if (assessment.reason === "no_eligible_participants") {
+    throw new AppError(
+      "No eligible participants found for chest number generation",
+      400
+    );
+  }
+
+  const result = await generateChestNumbersForEvent(event._id);
+
+  return {
+    success: true,
+    alreadyGenerated: false,
+    message: `Successfully generated ${result.count} skater chest numbers`,
+    participantCount: assessment.participantCount,
+    paidCount: assessment.paidCount,
+    pendingCount: assessment.pendingCount,
+    chestCount: result.count,
+    ...result,
+  };
+};
+
 const buildAgeCategoryKey = (ageGroup, categoryName) =>
   `${String(ageGroup || "").trim()}::${String(categoryName || "").trim()}`;
 

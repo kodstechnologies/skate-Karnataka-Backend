@@ -1,8 +1,8 @@
 import { asyncHandler } from "../../util/common/asyncHandler.js";
 import {
-    generateChestNumbersForEvent,
     getChestNumberSummaryByEvent,
     syncEventCompetitionFromParticipants,
+    triggerManualChestNumberGenerationForEvent,
 } from "./skaterChestNo.service.js";
 import { SkaterChestNo } from "./SkaterChestNo.model.js";
 import { EventCompetition } from "./eventCompetition.model.js";
@@ -230,11 +230,11 @@ const generateChestNumbers = asyncHandler(async (req, res) => {
         throw new AppError("eventId is required", 400);
     }
 
-    const result = await generateChestNumbersForEvent(eventId);
+    const result = await triggerManualChestNumberGenerationForEvent(eventId);
 
     res.status(200).json({
         success: true,
-        message: `Successfully generated ${result.count} skater chest numbers.`,
+        message: result.message,
         data: result,
     });
 });

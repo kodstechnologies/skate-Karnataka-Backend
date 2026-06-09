@@ -7,18 +7,18 @@ import { District } from "../district/district.model.js";
 import { Skater } from "../skater/skater.model.js";
 import { Gallery } from "./gallery.model.js";
 import {
-  approvedPublicMediaFilter,
   initialMediaApprovalStatus,
   MEDIA_ADMIN_APPROVAL,
   MEDIA_DELETE_APPROVAL,
   requiresMediaApproval,
+  skaterVisibleMediaFilter,
 } from "./galleryApprovalPolicy.js";
 
 const withMediaType = (item) => ({
   ...item,
   type: item?.videoUrl ? "video" : "img",
   adminApprovalStatus: item?.adminApprovalStatus || MEDIA_ADMIN_APPROVAL.APPROVED,
-  deleteApprovalStatus: item?.deleteApprovalStatus || null,
+  deleteApprovalStatus: item?.deleteApprovalStatus ?? null,
 });
 
 const normalizeSingleUrl = (value) => {
@@ -50,7 +50,7 @@ export const displayAllMediaBasedOnSkaterRepositories = async (skaterId, type, p
 
   const { skip, limit: perPage, page: currentPage } = paginate(page, limit);
   const query = {
-    $and: [{ $or: filters }, approvedPublicMediaFilter()],
+    $and: [{ $or: filters }, skaterVisibleMediaFilter()],
   };
 
   if (type === "video") {
@@ -312,8 +312,11 @@ export const approveMediaDeleteByAdminRepositories = async (id) => {
   if (item.deleteApprovalStatus !== MEDIA_DELETE_APPROVAL.PENDING) {
     throw new AppError("No pending delete request for this media", 400);
   }
-  await Gallery.findByIdAndDelete(id);
-  return { deleted: true, _id: id };
+  return Gallery.findByIdAndUpdate(
+    id,
+    { $set: { deleteApprovalStatus: MEDIA_DELETE_APPROVAL.APPROVED } },
+    { new: true }
+  ).lean();
 };
 
 export const rejectMediaDeleteByAdminRepositories = async (id) => {

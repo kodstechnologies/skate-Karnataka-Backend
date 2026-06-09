@@ -40,7 +40,7 @@ const gallerySchema = new mongoose.Schema(
 
     deleteApprovalStatus: {
       type: String,
-      enum: ["pending"],
+      enum: ["pending", "approved"],
       default: null,
     },
     // onlyStat:{

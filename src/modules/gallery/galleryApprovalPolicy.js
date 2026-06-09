@@ -8,7 +8,7 @@ export const MEDIA_ADMIN_APPROVAL = {
 
 export const MEDIA_DELETE_APPROVAL = {
   PENDING: "pending",
-  // APPROVED: "approved",
+  APPROVED: "approved",
 };
 
 
@@ -47,7 +47,7 @@ export const initialMediaApprovalStatus = (ownerType, uploaderRole) => {
   return MEDIA_ADMIN_APPROVAL.PENDING;
 };
 
-/** Mongo filter: approved media for skater/guest lists (deleteApprovalStatus does not affect display). */
+/** Mongo filter: admin-approved upload media. */
 export const approvedMediaAdminFilter = () => ({
   $or: [
     { adminApprovalStatus: { $in: [MEDIA_ADMIN_APPROVAL.APPROVED, "Approved"] } },
@@ -56,14 +56,25 @@ export const approvedMediaAdminFilter = () => ({
   ],
 });
 
-/** Skater gallery: admin-approved media only; deleteApprovalStatus (null/pending/approved) does not hide items. */
-export const skaterVisibleMediaFilter = () => approvedMediaAdminFilter();
+/** Hide media after admin approves delete (soft-deleted). */
+export const hideDeleteApprovedMediaFilter = () => ({
+  deleteApprovalStatus: { $ne: MEDIA_DELETE_APPROVAL.APPROVED },
+});
 
-/** Same as approvedMediaAdminFilter for guest/public lists. */
-export const approvedPublicMediaFilter = () => approvedMediaAdminFilter();
+/** Skater gallery: approved uploads; hide when deleteApprovalStatus is approved. */
+export const skaterVisibleMediaFilter = () => ({
+  ...hideDeleteApprovedMediaFilter(),
+  ...approvedMediaAdminFilter(),
+});
+
+/** Guest/public lists: same visibility rules as skater gallery. */
+export const approvedPublicMediaFilter = () => skaterVisibleMediaFilter();
 
 export const isMediaPubliclyVisible = (item) => {
   if (!item) return false;
+  if (item.deleteApprovalStatus === MEDIA_DELETE_APPROVAL.APPROVED) {
+    return false;
+  }
   if (!requiresMediaApproval(item.ownerType)) {
     return true;
   }

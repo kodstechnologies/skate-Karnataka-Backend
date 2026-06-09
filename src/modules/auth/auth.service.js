@@ -235,7 +235,12 @@ const assertUserNotBlocked = (user) => {
     }
 };
 
+const KRSA_ID_PATTERN = /^krsa\d{6}[a-z]+$/i;
+
+const normalizeKrsaId = (value) => String(value).trim().toUpperCase();
+
 const LoginUserService = async (identifier) => {
+    const normalizedIdentifier = String(identifier).trim();
     const otp = generateRandomNumber();
     const createLoginResult = async (user) => {
         assertUserNotBlocked(user);
@@ -249,7 +254,7 @@ const LoginUserService = async (identifier) => {
             id: userWithKrsaId._id,
             // verify: user.verify,
             type: userWithKrsaId.role,
-            identifier: identifier,
+            identifier: normalizedIdentifier,
             krsaId: userWithKrsaId.krsaId,
             // accessToken,
             // refreshToken,
@@ -259,38 +264,39 @@ const LoginUserService = async (identifier) => {
     // console.log(identifier, "identifier");
 
     // Email
-    if (identifier.includes("@")) {
-        const user = await isExistEmail(identifier);
+    if (normalizedIdentifier.includes("@")) {
+        const user = await isExistEmail(normalizedIdentifier);
         if (!user) {
             throw new AppError("Email not registered", 404);
         }
 
-        await removeOldEmailOtp(identifier);
-        await saveEmailOtp(identifier, otp, user._id);
+        await removeOldEmailOtp(normalizedIdentifier);
+        await saveEmailOtp(normalizedIdentifier, otp, user._id);
         return await createLoginResult(user);
     }
 
     // Phone
-    else if (/^[6-9]\d{9}$/.test(identifier)) {
-        console.log(identifier, "identifier")
-        const user = await isExistPhone(identifier);
+    else if (/^[6-9]\d{9}$/.test(normalizedIdentifier)) {
+        console.log(normalizedIdentifier, "identifier")
+        const user = await isExistPhone(normalizedIdentifier);
         if (!user) {
             throw new AppError("Phone number not registered", 404);
         }
 
-        await removeOldPhoneOtp(identifier);
-        await savePhoneOTP(identifier, otp, user._id);
+        await removeOldPhoneOtp(normalizedIdentifier);
+        await savePhoneOTP(normalizedIdentifier, otp, user._id);
         return await createLoginResult(user);
     }
 
     // KRSA ID  (NEW)
-    else if (/^KRSA\d{6}[A-Z]+$/.test(identifier)) {
-        const user = await isExistKSRAId(identifier);
+    else if (KRSA_ID_PATTERN.test(normalizedIdentifier)) {
+        const krsaId = normalizeKrsaId(normalizedIdentifier);
+        const user = await isExistKSRAId(krsaId);
         if (!user) {
             throw new AppError("KRSA ID not found", 404);
         }
-        await removeOldKRSAIdOtp(identifier);
-        await saveKRSAIdOTP(identifier, otp, user._id);
+        await removeOldKRSAIdOtp(krsaId);
+        await saveKRSAIdOTP(krsaId, otp, user._id);
         return await createLoginResult(user);
     }
 

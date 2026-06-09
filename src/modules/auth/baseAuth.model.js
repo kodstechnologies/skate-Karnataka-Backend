@@ -129,13 +129,14 @@ BaseAuthSchema.pre("save", async function () {
     district: "D",
   };
 
-  const prefix = rolePrefixMap[this.role] || "U";
-
+  // const prefix = rolePrefixMap[this.role] || "U";
+  const year = new Date().getFullYear().toString().slice(-2);
   let attempts = 0;
 
   while (attempts < 15) {
     const random = Math.floor(100000 + Math.random() * 900000);
-    const newId = `KRSA${random}${prefix}`;
+    // const newId = `KA${random}${prefix}`;
+    const newId = `KA${year}${random}`;
 
     const exists = await this.constructor.findOne({ krsaId: newId });
 

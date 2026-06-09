@@ -74,8 +74,9 @@ const isExistPhone = async (phone) => {
     return isPhone;
 }
 const isExistKSRAId = async (krsaId) => {
-    console.log(krsaId, "krsaId")
-    const iskrsaId = await BaseAuth.findOne({ krsaId })
+    const normalizedKrsaId = String(krsaId).trim().toUpperCase();
+    console.log(normalizedKrsaId, "krsaId")
+    const iskrsaId = await BaseAuth.findOne({ krsaId: normalizedKrsaId })
     return iskrsaId;
 }
 
@@ -83,7 +84,8 @@ const removeOldPhoneOtp = async (phone) => {
     await Otp.findOneAndDelete(phone);
 }
 const removeOldKRSAIdOtp = async (krsaId) => {
-    await Otp.findOneAndDelete(krsaId);
+    const normalizedKrsaId = String(krsaId?.krsaId ?? krsaId).trim().toUpperCase();
+    await Otp.findOneAndDelete({ krsaId: normalizedKrsaId });
 }
 
 const savePhoneOTP = async (phone, otp, id) => {
@@ -96,9 +98,10 @@ const savePhoneOTP = async (phone, otp, id) => {
 }
 
 const saveKRSAIdOTP = async (krsaId, otp, id) => {
+    const normalizedKrsaId = String(krsaId?.krsaId ?? krsaId).trim().toUpperCase();
     await Otp.create({
         userId: id,
-        krsaId: krsaId.krsaId,
+        krsaId: normalizedKrsaId,
         otp,
         expiresAt: new Date(Date.now() + 5 * 60 * 1000)
     })

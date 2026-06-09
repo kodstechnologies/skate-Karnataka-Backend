@@ -130,11 +130,13 @@ BaseAuthSchema.pre("save", async function () {
   };
 
   // const prefix = rolePrefixMap[this.role] || "U";
-  const year = new Date().getFullYear().toString().slice(-2);
+ const year = new Date().getFullYear().toString();
   let attempts = 0;
 
   while (attempts < 15) {
-    const random = Math.floor(100000 + Math.random() * 900000);
+   const random = Math.floor(Math.random() * 10000)
+  .toString()
+  .padStart(4, "0");
     // const newId = `KA${random}${prefix}`;
     const newId = `KA${year}${random}`;
 

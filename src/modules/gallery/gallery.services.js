@@ -19,6 +19,7 @@ import {
     isAdminRole,
     isStateOrAdminRole,
     MEDIA_ADMIN_APPROVAL,
+    MEDIA_DELETE_APPROVAL,
     requiresMediaApproval,
 } from "./galleryApprovalPolicy.js";
 import { Gallery } from "./gallery.model.js";
@@ -174,11 +175,11 @@ export const deleteMediaService = async (id, user) => {
         throw new AppError("Media not found or access denied", 404);
     }
 
-    const isApprovedRequiringDeleteApproval =
-        requiresMediaApproval(existing.ownerType) &&
-        existing.adminApprovalStatus === MEDIA_ADMIN_APPROVAL.APPROVED;
+    if (existing.deleteApprovalStatus === MEDIA_DELETE_APPROVAL.PENDING) {
+        throw new AppError("Delete request is already pending admin approval", 400);
+    }
 
-    if (isApprovedRequiringDeleteApproval && !isAdminRole(role)) {
+    if (!isAdminRole(role)) {
         const pending = await requestMediaDeleteRepositories(id, accessFilter);
         if (!pending) {
             throw new AppError("Media not found or access denied", 404);
@@ -200,7 +201,7 @@ export const deleteMediaService = async (id, user) => {
         return {
             deleted: false,
             pendingDelete: true,
-            message: "Delete request submitted for super admin approval",
+            message: "Delete request submitted for admin approval",
         };
     }
 

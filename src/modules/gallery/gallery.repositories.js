@@ -352,11 +352,7 @@ export const approveMediaDeleteByAdminRepositories = async (id) => {
   if (item.deleteApprovalStatus !== MEDIA_DELETE_APPROVAL.PENDING) {
     throw new AppError("No pending delete request for this media", 400);
   }
-  return Gallery.findByIdAndUpdate(
-    id,
-    { $set: { deleteApprovalStatus: MEDIA_DELETE_APPROVAL.APPROVED } },
-    { new: true }
-  ).lean();
+  return Gallery.findByIdAndDelete(id).lean();
 };
 
 export const rejectMediaDeleteByAdminRepositories = async (id) => {

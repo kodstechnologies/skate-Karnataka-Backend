@@ -13,8 +13,6 @@ const ROLES_UNVERIFIED_UNTIL_PROFILE_FORM = new Set([
   "school",
   "academy",
   "official",
-  "officials",
-  "Official",
   "guest",
 ]);
 

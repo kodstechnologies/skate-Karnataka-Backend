@@ -2,7 +2,9 @@ import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import { ContactSupport, DeleteUser, DisplayChildrenByParent, GetAchievements, GetAllSkatingEventCategoryNames, GetRankings, LoginUser, LogoutUser, RefreshToken, RegisterUser, SelectAccount, sendEmailOTP, sendPhoneOTP, ToggleNotifications, ToggleUserBlock, verifyEmailOTP, VerifyOTP, verifyPhoneOTP } from "./auth.controller.js";
 import { validate } from "../../middleware/validate.multiple.js";
-import { upload } from "../../middleware/multer.middleware.js";
+import { restrictUploadedFileFields, uploadAny } from "../../middleware/multer.middleware.js";
+import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
+import { normalizeSchoolFormPayload } from "../school/schoolFormPayload.js";
 import { displayChildrenByParentValidation, LoginValidation, LogoutValidation, RegisterValidation, selectAccountValidation, sendEmailOTPValidation, sendPhoneOTPValidation, toggleUserBlockValidation, verifyEmailOTPValidation, VerifyOTPValidation, verifyPhoneOTPValidation } from "./auth.validation.js";
 import { afterLoginSchoolForm } from "../school/school.controller.js";
 import { afterLoginSchoolFormValidation } from "../school/school.validation.js";
@@ -94,12 +96,21 @@ router.patch(
 
 router.get("/v1/all-skating-event-category", GetAllSkatingEventCategoryNames);
 
+const SCHOOL_FORM_FILE_FIELDS = ["img", "document", "documentFile"];
+
 router.post(
     "/v1/after-login-school-form/:id",
-    upload.fields([
-        { name: "img", maxCount: 1 },
-        { name: "document", maxCount: 1 },
-    ]),
+    uploadAny,
+    restrictUploadedFileFields(SCHOOL_FORM_FILE_FIELDS),
+    uploadToS3("schools", {
+        img: "img",
+        document: "documents",
+        documentFile: "documents",
+    }),
+    (req, _res, next) => {
+        req.body = normalizeSchoolFormPayload(req.body);
+        next();
+    },
     validate(afterLoginSchoolFormValidation),
     afterLoginSchoolForm
 );

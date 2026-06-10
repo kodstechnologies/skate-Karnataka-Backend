@@ -17,6 +17,18 @@ import { Skater } from "../skater/skater.model.js";
 import mongoose from "mongoose";
 import { Gallery } from "../gallery/gallery.model.js";
 import { approvedPublicMediaFilter } from "../gallery/galleryApprovalPolicy.js";
+import {
+    enrichLeanEventsSkatingCategoryNames,
+    resolveEventStatusByDates,
+} from "../event/event.repositories.js";
+
+const mapEventsWithResolvedStatus = async (events) => {
+    const enriched = await enrichLeanEventsSkatingCategoryNames(events);
+    return enriched.map((event) => ({
+        ...event,
+        status: resolveEventStatusByDates(event),
+    }));
+};
 
 const isGuestRole = (role) => {
     const normalized = String(role ?? "").trim().toLowerCase();
@@ -685,7 +697,7 @@ export const displayDistrictEventsRepositories = async (districtId, { page, limi
         filter.header = { $regex: escapeRegExp(term), $options: "i" };
     }
 
-    const [total, data] = await Promise.all([
+    const [total, rows] = await Promise.all([
         Event.countDocuments(filter),
         Event.find(filter)
             .sort({ createdAt: -1 })
@@ -693,6 +705,8 @@ export const displayDistrictEventsRepositories = async (districtId, { page, limi
             .limit(pageLimit)
             .lean(),
     ]);
+
+    const data = await mapEventsWithResolvedStatus(rows);
 
     return {
         district: {
@@ -727,7 +741,7 @@ export const displayClubEventsRepositories = async (clubId, { page, limit, searc
         filter.header = { $regex: escapeRegExp(term), $options: "i" };
     }
 
-    const [total, data] = await Promise.all([
+    const [total, rows] = await Promise.all([
         Event.countDocuments(filter),
         Event.find(filter)
             .sort({ createdAt: -1 })
@@ -735,6 +749,8 @@ export const displayClubEventsRepositories = async (clubId, { page, limit, searc
             .limit(pageLimit)
             .lean(),
     ]);
+
+    const data = await mapEventsWithResolvedStatus(rows);
 
     return {
         club: {

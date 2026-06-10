@@ -75,6 +75,9 @@ const schoolSchema = new mongoose.Schema({
   coachCertificates: {
     type: String
   },
+  coachJoiningDate: {
+    type: Date,
+  },
   certifiedBy: {
     type: String
   },

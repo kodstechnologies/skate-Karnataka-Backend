@@ -1,5 +1,4 @@
 import { AppError } from "../../util/common/AppError.js";
-import { BaseAuth } from "../auth/baseAuth.model.js";
 import { School } from "./school.model.js";
 import { paginate, calcTotalPages } from "../../util/common/paginate.js";
 import mongoose from "mongoose";
@@ -8,7 +7,11 @@ import { District } from "../district/district.model.js";
 const SCHOOL_ROLES = ["School", "school"];
 
 const afterLoginSchoolFormRepositories = async (data, id) => {
-    const existingUser = await BaseAuth.findOne({
+    if (!mongoose.Types.ObjectId.isValid(String(id))) {
+        throw new AppError("Invalid school id", 400);
+    }
+
+    const existingUser = await School.findOne({
         _id: id,
         role: { $in: SCHOOL_ROLES },
     })
@@ -19,24 +22,35 @@ const afterLoginSchoolFormRepositories = async (data, id) => {
         throw new AppError("School not found", 404);
     }
 
-    const updated = await BaseAuth.findByIdAndUpdate(
-        id,
-        {
-            $set: {
-                ...data,
-                role: "School",
-                verify: true,
-            },
-        },
-        { new: true, runValidators: true }
-    );
+    const { documents, ...restData } = data;
+    const setPayload = {
+        ...restData,
+        role: "School",
+        verify: true,
+    };
+
+    if (restData.district) {
+        setPayload.district = new mongoose.Types.ObjectId(String(restData.district));
+    }
+
+    const updateOperation = { $set: setPayload };
+
+    if (Array.isArray(documents) && documents.length > 0) {
+        updateOperation.$push = {
+            documents: { $each: documents },
+        };
+    }
+
+    const updated = await School.findByIdAndUpdate(id, updateOperation, {
+        new: true,
+        runValidators: true,
+    });
 
     if (!updated) {
         throw new AppError("School not found", 404);
     }
 
-    const populated = await School.findById(id).populate("district");
-    return populated || updated;
+    return updated;
 };
 
 const displayAllSchoolRepositories = async ({

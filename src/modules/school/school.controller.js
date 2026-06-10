@@ -1,10 +1,12 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
 import { afterLoginFormSchoolService, displayAllSchoolService, displaySchoolFullDetailsService } from "./school.services.js";
+import { normalizeSchoolFormPayload } from "./schoolFormPayload.js";
 
 const afterLoginSchoolForm = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    await afterLoginFormSchoolService(req.body, id);
+    const payload = normalizeSchoolFormPayload(req.body);
+    await afterLoginFormSchoolService(payload, id);
     return res
         .status(200)
         .json(

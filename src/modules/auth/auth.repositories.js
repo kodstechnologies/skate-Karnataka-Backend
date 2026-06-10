@@ -12,33 +12,46 @@ import { Otp } from "./otp.model.js";
 // import { Official } from "./official.model.js";
 
 const registerUser_repositories = async (userData) => {
-    const normalizedRole = String(userData.role || "").toLowerCase();
+    const normalizedRole = String(userData.role || "").trim().toLowerCase();
+    const verifyOnCreate = userData.verify === true;
 
     if (normalizedRole === "skater") {
         userData.role = "Skater";
+        userData.verify = false;
         return await new Skater(userData).save();
+    }
+
+    if (normalizedRole === "parent") {
+        userData.role = "Parent";
+        userData.verify = false;
+        return await new Parent(userData).save();
     }
 
     if (normalizedRole === "school") {
         userData.role = "School";
+        userData.verify = false;
         return await new School(userData).save();
     }
 
     if (normalizedRole === "academy" || normalizedRole === "club") {
         userData.role = "Academy";
+        userData.verify = false;
         return await new Academy(userData).save();
     }
 
     if (normalizedRole === "official" || normalizedRole === "officials") {
         userData.role = "Official";
+        userData.verify = false;
         return await new Official(userData).save();
     }
 
     if (normalizedRole === "guest") {
         userData.role = "Guest";
+        userData.verify = false;
         return await new Guest(userData).save();
     }
 
+    userData.verify = verifyOnCreate;
     const user = await new BaseAuth(userData).save();
     return user;
 };

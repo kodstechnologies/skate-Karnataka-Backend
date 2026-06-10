@@ -5,6 +5,31 @@ export const MEMBER_PENDING_STATE_APPROVAL_MESSAGE =
 
 const normalizeRole = (role) => String(role || "").trim().toLowerCase();
 
+const ROLES_VERIFIED_ON_REGISTER = new Set(["district", "club", "state", "admin"]);
+
+const ROLES_UNVERIFIED_UNTIL_PROFILE_FORM = new Set([
+  "skater",
+  "parent",
+  "school",
+  "academy",
+  "official",
+  "officials",
+  "Official",
+  "guest",
+]);
+
+/** Self-registration: org roles start verified; profile-form roles start unverified. */
+export const resolveVerifyOnRegister = (role) => {
+  const normalized = normalizeRole(role);
+  if (ROLES_VERIFIED_ON_REGISTER.has(normalized)) {
+    return true;
+  }
+  if (ROLES_UNVERIFIED_UNTIL_PROFILE_FORM.has(normalized)) {
+    return false;
+  }
+  return false;
+};
+
 export const isStateOrAdminRole = (role) => {
   const normalized = normalizeRole(role);
   return normalized === "state" || normalized === "admin" || normalized === "superadmin";

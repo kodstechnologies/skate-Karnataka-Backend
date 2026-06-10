@@ -10,7 +10,7 @@ import SkatingEventCategory from "../event/SkatingEventCategory.model.js";
 import { legacyStandardCategoryClause } from "../event/skatingEventCategory.policy.js";
 import mongoose from "mongoose";
 import { checkEmailOTP, checkOtp, checkPhoneOTP, deleteAccount, findParentByIdForChildren, findSkatersByParentPhone, isExist, isExistEmail, isExistKSRAId, isExistPhone, registerUser_repositories, removeFirebaseTokenAndRefressToken, removeOldEmailOtp, removeOldKRSAIdOtp, removeOldPhoneOtp, saveEmailOtp, saveFirebaseToken, saveKRSAIdOTP, savePhoneOTP, saveRefreshToken } from "./auth.repositories.js";
-import { assertMemberApprovedCanLogin } from "./authLoginPolicy.js";
+import { assertMemberApprovedCanLogin, resolveVerifyOnRegister } from "./authLoginPolicy.js";
 
 const ROLE_PREFIX_MAP = {
     Skater: "S",
@@ -71,23 +71,9 @@ const ensureKrsaIdIfMissing = async (user) => {
 
 const RegisterUserService = async (userData) => {
     const selectedClubId = userData.club;
-    const normalizedRole = String(userData.role || "").toLowerCase();
+    const normalizedRole = String(userData.role || "").trim().toLowerCase();
 
-    const rolesNeedVerificationFalse = [
-        "skater",
-        "parent",
-        "school",
-        "academy",
-        "official",
-        "guest",
-    ];
-
-    if (rolesNeedVerificationFalse.includes(normalizedRole)) {
-        userData.verify = false;
-    }
-    if (["district", "club", "state"].includes(normalizedRole)) {
-        userData.verify = true;
-    }
+    userData.verify = resolveVerifyOnRegister(normalizedRole);
 
     if (normalizedRole === "district") {
         const districtName = String(userData.districtName || "").trim();

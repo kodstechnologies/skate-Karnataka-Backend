@@ -95,7 +95,7 @@ const BaseAuthSchema = new mongoose.Schema(
 
     verify: {
       type: Boolean,
-      default: true,
+      default: false,
     },
 
   },

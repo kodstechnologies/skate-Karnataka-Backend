@@ -5,6 +5,7 @@ import {
     clubFormulaSourceValidation,
     createClubValidation,
     displayAllApplySkaterQueryValidation,
+    displayAllClubSkaterQueryValidation,
     editClubValidation,
 } from "./club.validation.js";
 import {
@@ -48,7 +49,12 @@ router.post("/v1/add-skater",
 );
 
 // ============ skater club ===================
-router.get("/v1/display-all-skater", authenticate(["Club"]), display_all_club_skater);
+router.get(
+    "/v1/display-all-skater",
+    authenticate(["Club"]),
+    validate(displayAllClubSkaterQueryValidation),
+    display_all_club_skater
+);
 router.get("/v1/club-skater-details/:id", authenticate(["Club"]), display_club_skater_details);
 router.get("/v1/remove-skater/:id", authenticate(["Club"]), remove_skater_from_club);
 

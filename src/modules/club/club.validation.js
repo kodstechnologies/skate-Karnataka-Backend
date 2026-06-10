@@ -99,10 +99,19 @@ const displayAllApplySkaterQueryValidation = {
     }),
 };
 
+const displayAllClubSkaterQueryValidation = {
+    query: Joi.object({
+        page: Joi.number().integer().min(1).default(1),
+        limit: Joi.number().integer().min(1).max(100).default(10),
+        search: Joi.string().trim().allow("").max(100).default(""),
+    }),
+};
+
 export {
     createClubValidation,
     editClubValidation,
     clubFormulaSourceValidation,
     addSkaterValidation,
     displayAllApplySkaterQueryValidation,
+    displayAllClubSkaterQueryValidation,
 }

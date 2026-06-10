@@ -1106,7 +1106,7 @@ const CLUB_SKATER_LIST_STATUSES = ["join", "apply-leave"];
 
 export const display_all_club_skater_repositories = async (
     clubMemberId,
-    { page, limit } = {}
+    { page, limit, search = "" } = {}
 ) => {
     const club = await resolveClubIdFromClubMember(clubMemberId);
     const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
@@ -1116,6 +1116,17 @@ export const display_all_club_skater_repositories = async (
         role: "Skater",
         clubStatus: { $in: CLUB_SKATER_LIST_STATUSES },
     };
+
+    const term = String(search || "").trim();
+    if (term) {
+        filter.$or = [
+            { fullName: { $regex: term, $options: "i" } },
+            { phone: { $regex: term, $options: "i" } },
+            { email: { $regex: term, $options: "i" } },
+            { krsaId: { $regex: term, $options: "i" } },
+            { rsfiId: { $regex: term, $options: "i" } },
+        ];
+    }
 
     const [total, skaters] = await Promise.all([
         Skater.countDocuments(filter),

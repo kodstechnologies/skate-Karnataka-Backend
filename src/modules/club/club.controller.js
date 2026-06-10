@@ -343,10 +343,11 @@ const addSkaterByClub = asyncHandler(async (req, res) => {
 
 const display_all_club_skater = asyncHandler(async (req, res) => {
     const clubMemberId = req.user._id;
-    const { page = 1, limit = 10 } = req.query;
+    const { page = 1, limit = 10, search = "" } = req.query;
     const result = await display_all_club_skater_service(clubMemberId, {
         page,
         limit,
+        search,
     });
 
     return res.status(200).json(

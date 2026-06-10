@@ -43,8 +43,11 @@ import {
   updateSponsorshipDonationRepositories,
   displayGuestStateMediaRepositories,
   displayGuestStateMediaDetailsRepositories,
+  displayAllGuestRepositories,
+  displayGuestFullDetailsRepositories,
 } from "./guest.repositories.js";
 import { AppError } from "../../util/common/AppError.js";
+import mongoose from "mongoose";
 export const afterLoginFormGuestService = async (data, id) => {
     await afterLoginGuestFormRepositories(data, id);
 }
@@ -313,4 +316,22 @@ export const deleteSponsorshipDonationService = async (id) => {
         throw new AppError("Sponsorship/Donation record not found", 404);
     }
     return { deleted: true };
+};
+
+export const displayAllGuestService = async (query) => {
+    const { page, limit, search, fullName, phone, gender, email } = query;
+    return displayAllGuestRepositories({ page, limit, search, fullName, phone, gender, email });
+};
+
+export const displayGuestFullDetailsService = async (id) => {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new AppError("Invalid guest id", 400);
+    }
+
+    const guest = await displayGuestFullDetailsRepositories(id);
+    if (!guest) {
+        throw new AppError("Guest not found", 404);
+    }
+
+    return guest;
 };

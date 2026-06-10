@@ -892,3 +892,76 @@ export const updateSponsorshipDonationRepositories = async (id, data) => {
 export const deleteSponsorshipDonationRepositories = async (id) => {
     return SponsorshipAndDonation.findByIdAndDelete(id).lean();
 };
+
+const GUEST_ROLE_QUERY = { role: { $regex: /^guest$/i } };
+
+export const displayAllGuestRepositories = async ({
+    page,
+    limit,
+    search,
+    fullName,
+    phone,
+    gender,
+    email,
+}) => {
+    const { skip, limit: perPage, page: currentPage } = paginate(page, limit);
+    const query = { ...GUEST_ROLE_QUERY };
+
+    if (fullName) {
+        query.fullName = new RegExp(fullName.trim(), "i");
+    }
+
+    if (phone) {
+        query.phone = new RegExp(String(phone).trim(), "i");
+    }
+
+    if (gender) {
+        query.gender = new RegExp(String(gender).trim(), "i");
+    }
+
+    if (email) {
+        query.email = new RegExp(String(email).trim(), "i");
+    }
+
+    if (search) {
+        const regex = new RegExp(String(search).trim(), "i");
+        query.$or = [
+            { fullName: regex },
+            { phone: regex },
+            { gender: regex },
+            { email: regex },
+        ];
+    }
+
+    const [total, data] = await Promise.all([
+        Guest.countDocuments(query),
+        Guest.find(query)
+            .select("fullName phone gender email interestedIn verify createdAt")
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(perPage)
+            .lean(),
+    ]);
+
+    return {
+        data,
+        pagination: {
+            total,
+            page: currentPage,
+            limit: perPage,
+            totalPages: calcTotalPages(total, perPage),
+        },
+    };
+};
+
+export const displayGuestFullDetailsRepositories = async (id) => {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        return null;
+    }
+
+    const guest = await Guest.findOne({ _id: id, ...GUEST_ROLE_QUERY })
+        .select("-refreshTokens -firebaseTokens")
+        .lean();
+
+    return guest;
+};

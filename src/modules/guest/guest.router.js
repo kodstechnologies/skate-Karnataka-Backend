@@ -46,6 +46,8 @@ import {
   displayDistrictSkaters,
   displayDistrictEvents,
   displayDisciplineEvents,
+  displayAllGuest,
+  displayGuestFullDetails,
 } from "./guest.controller.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import {
@@ -81,6 +83,9 @@ import {
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
 
 const router = express.Router()
+
+router.get("/v1/all", authenticate(["Admin", "State"]), displayAllGuest);
+router.get("/v1/full-details/:id", authenticate(["Admin", "State"]), displayGuestFullDetails);
 
 // contact - us =======================
 router.get("/v1/contact-us", displayContactUs)

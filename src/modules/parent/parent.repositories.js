@@ -3,6 +3,15 @@ import { BaseAuth } from "../auth/baseAuth.model.js";
 import { Skater } from "../skater/skater.model.js";
 import { paginate, calcTotalPages } from "../../util/common/paginate.js";
 
+const PARENT_SKATER_SELECT =
+    "_id fullName dob phone email verify rsfiId krsaId gender profile photo signature";
+
+const getSkatersForParent = async (parentId) =>
+    Skater.find({ SkaterParent: parentId, role: { $regex: /^skater$/i } })
+        .select(PARENT_SKATER_SELECT)
+        .sort({ createdAt: -1 })
+        .lean();
+
 const getParentWithSkaters = async (id) => {
     const parent = await BaseAuth.findOne({ _id: id, role: { $regex: /^parent$/i } })
         .select("_id fullName phone email role")
@@ -10,9 +19,7 @@ const getParentWithSkaters = async (id) => {
 
     if (!parent) return null;
 
-    const skaters = await Skater.find({ SkaterParent: id, role: { $regex: /^skater$/i } })
-        .select("_id fullName dob phone email verify rsfiId signature")
-        .lean();
+    const skaters = await getSkatersForParent(id);
 
     return { ...parent, skaters };
 };
@@ -116,9 +123,7 @@ const displayParentFullDetailsRepositories = async (id) => {
         .lean();
     if (!parent) return null;
 
-    const skaters = await Skater.find({ SkaterParent: id, role: { $regex: /^skater$/i } })
-        .select("_id fullName dob phone email verify rsfiId signature")
-        .lean();
+    const skaters = await getSkatersForParent(id);
 
     return { ...parent, skaters };
 };

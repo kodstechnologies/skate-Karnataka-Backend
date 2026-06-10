@@ -19,12 +19,16 @@ const afterLoginClubFormRepositories = async (data, id) => {
         throw new AppError("Club not found", 404);
     }
 
-    const { documents, rosDocuments, ...restData } = data;
+    const { documents, rosDocuments, verify: _ignoredVerify, ...restData } = data;
     const setPayload = {
         ...restData,
         role: "Academy",
         verify: true,
     };
+
+    if (restData.district && mongoose.Types.ObjectId.isValid(String(restData.district))) {
+        setPayload.district = new mongoose.Types.ObjectId(String(restData.district));
+    }
 
     const updateOperation = { $set: setPayload };
 
@@ -41,10 +45,11 @@ const afterLoginClubFormRepositories = async (data, id) => {
         };
     }
 
-    const updated = await BaseAuth.findByIdAndUpdate(id, updateOperation, {
-        new: true,
-        runValidators: true,
-    });
+    const updated = await Academy.findOneAndUpdate(
+        { _id: id, role: { $in: CLUB_ACADEMY_ROLES } },
+        updateOperation,
+        { new: true, runValidators: true }
+    );
 
     if (!updated) {
         throw new AppError("Club not found", 404);

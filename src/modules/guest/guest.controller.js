@@ -73,6 +73,8 @@ import {
   updateDisciplineService,
   updateNewsService,
   updateSponsorshipDonationService,
+  displayAllGuestService,
+  displayGuestFullDetailsService,
 } from "./guest.services.js";
 
 export const afterLoginGuestForm = asyncHandler(async (req, res) => {
@@ -418,5 +420,17 @@ export const deleteSponsorshipDonation = asyncHandler(async (req, res) => {
     const result = await deleteSponsorshipDonationService(req.params.id);
     return res.status(200).json(
         new ApiResponse(200, result, "Sponsorship/Donation record deleted successfully")
+    );
+});
+
+export const displayAllGuest = asyncHandler(async (req, res) => {
+    const guests = await displayAllGuestService(req.query);
+    return res.status(200).json(new ApiResponse(200, guests, "Guests fetched successfully"));
+});
+
+export const displayGuestFullDetails = asyncHandler(async (req, res) => {
+    const guest = await displayGuestFullDetailsService(req.params.id);
+    return res.status(200).json(
+        new ApiResponse(200, guest, "Guest full details fetched successfully")
     );
 });

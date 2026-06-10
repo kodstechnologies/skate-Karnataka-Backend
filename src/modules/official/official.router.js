@@ -5,6 +5,7 @@ import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
 import { validate } from "../../middleware/validate.multiple.js";
 import { afterLoginOfficialForm, displayAllOfficial, displayOfficialfullDetails } from "./official.controller.js";
 import { afterLoginOfficialFormValidation } from "./official.validation.js";
+import { normalizeOfficialFormPayload } from "./officialFormPayload.js";
 
 const router = express.Router();
 
@@ -17,6 +18,10 @@ router.post(
   "/v1/after-login-official-form/:id",
   uploadAny,
   restrictUploadedFileFields(OFFICIAL_FORM_FILE_FIELDS),
+  (req, _res, next) => {
+    req.body = normalizeOfficialFormPayload(req.body);
+    next();
+  },
   uploadToS3("officials", {
     img: "img",
     document: "documents",

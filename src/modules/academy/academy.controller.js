@@ -5,21 +5,32 @@ import {
     displayAllAcademyService,
     displayFullDetailsOfAcademyService,
 } from "./academy.service.js";
+import { afterLoginFormOfficialService } from "../official/official.services.js";
+import { isOfficialFormPayload } from "../official/officialFormPayload.js";
 
 const afterLoginClubForm = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    console.log(req.body, "body");
-    await afterLoginFormClubService(req.body, id);
-    return res
-        .status(200)
-        .json(
+
+    if (isOfficialFormPayload(req.body)) {
+        const updated = await afterLoginFormOfficialService(req.body, id);
+        return res.status(200).json(
             new ApiResponse(
                 200,
-                null,
-                "Club from submitted successfully"
+                { id: updated?._id, verify: updated?.verify === true },
+                "Official form submitted successfully"
             )
+        );
+    }
+
+    const updated = await afterLoginFormClubService(req.body, id);
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            { id: updated?._id, verify: updated?.verify === true },
+            "Club form submitted successfully"
         )
-})
+    );
+});
 
 const displayAllAcademy = asyncHandler(async (req, res) => {
     const result = await displayAllAcademyService(req.query);

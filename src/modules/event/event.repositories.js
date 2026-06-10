@@ -2348,38 +2348,14 @@ export const clubRelatedEventDisplayRepositories = async (
   { page, limit }
 ) => {
   const resolvedClubId = await resolveClubIdForClubAuthUser(authUserId);
-  const clubRow = await Club.findById(resolvedClubId).select("district").lean();
+  const clubRow = await Club.findById(resolvedClubId).select("_id").lean();
   if (!clubRow) {
     throw new AppError("Club not found", 404);
   }
-  const districtId = clubRow.district ?? null;
+
   const query = {
-    $and: [
-      {
-        $or: [
-          {
-            $and: [
-              {
-                $or: buildSkaterVisibleEventsOrClause({
-                  clubId: resolvedClubId,
-                  districtId,
-                }),
-              },
-              approvedPublicEventFilter(),
-            ],
-          },
-          {
-            eventType: "Club",
-            eventFor: resolvedClubId,
-            adminApprovalStatus: {
-              $in: [EVENT_ADMIN_APPROVAL.PENDING, EVENT_ADMIN_APPROVAL.REJECTED],
-            },
-            deleteApprovalStatus: { $ne: EVENT_DELETE_APPROVAL.PENDING },
-          },
-        ],
-      },
-      registrationStillOpenFilter(),
-    ],
+    eventType: "Club",
+    eventFor: new mongoose.Types.ObjectId(resolvedClubId),
   };
 
   const {

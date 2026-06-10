@@ -60,7 +60,7 @@ export const clubRelatedEventDisplayService = async (clubId, query) =>{
     return await clubRelatedEventDisplayRepositories(clubId, query);
 }
 
-/** State + District (club's district) + this club's events — same scope as `GET /event/v1/club` list. */
+/** Club-owned events only — same scope as `GET /event/v1/club` list. */
 const assertUserCanAccessClubScopedEvent = async (eventId, userId) => {
     const event = await getStateEventFullDetailsByIdRepository(eventId);
     if (!event) {
@@ -68,35 +68,20 @@ const assertUserCanAccessClubScopedEvent = async (eventId, userId) => {
     }
 
     const resolvedClubId = await resolveClubIdForClubAuthUser(userId);
-    const clubRow = await Club.findById(resolvedClubId).select("district").lean();
+    const clubRow = await Club.findById(resolvedClubId).select("_id").lean();
     if (!clubRow) {
         throw new AppError("Club not found", 404);
     }
 
-    const districtId =
-        clubRow.district != null ? String(clubRow.district) : null;
     const clubIdStr = String(resolvedClubId);
-
     const ownerRaw =
         event.eventFor && typeof event.eventFor === "object" && event.eventFor._id
             ? event.eventFor._id
             : event.eventFor;
     const ownerId = ownerRaw != null ? String(ownerRaw) : null;
 
-    if (event.eventType === "State") {
+    if (event.eventType === "Club" && ownerId === clubIdStr) {
         return event;
-    }
-    if (event.eventType === "District") {
-        if (districtId && ownerId === districtId) {
-            return event;
-        }
-        throw new AppError("Forbidden", 403);
-    }
-    if (event.eventType === "Club") {
-        if (ownerId === clubIdStr) {
-            return event;
-        }
-        throw new AppError("Forbidden", 403);
     }
 
     throw new AppError("Event not found", 404);

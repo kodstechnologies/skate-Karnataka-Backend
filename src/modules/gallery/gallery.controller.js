@@ -48,7 +48,18 @@ export const basedOnRoleDisplay = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, type } = req.query;
   const media = await basedOnRoleDisplayService(req.user, type, page, limit);
 
-  return res.status(200).json(new ApiResponse(200, media, "Display media"));
+  return res.status(200).json({
+    statusCode: 200,
+    data: media.data || [],
+    pagination: {
+      total: media.pagination?.total || 0,
+      page: media.pagination?.page || Number(page) || 1,
+      limit: media.pagination?.limit || Number(limit) || 10,
+      totalPages: media.pagination?.totalPages || 0,
+    },
+    message: "Display media",
+    success: true,
+  });
 });
 
 export const addMedia = asyncHandler(async (req, res) => {

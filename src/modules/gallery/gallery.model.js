@@ -31,6 +31,13 @@ const gallerySchema = new mongoose.Schema(
       required: true,
     },
 
+    /** Auth user who uploaded this media. */
+    uploadedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "BaseAuth",
+      default: null,
+    },
+
     /** Club/district: pending until Admin/State approves; state/admin uploads are approved. */
     adminApprovalStatus: {
       type: String,

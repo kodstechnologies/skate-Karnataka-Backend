@@ -21,107 +21,41 @@ const withMediaType = (item) => ({
   deleteApprovalStatus: item?.deleteApprovalStatus ?? null,
 });
 
-const resolveOwnerNamesForMedia = async (media) => {
-  const clubIds = media.filter((m) => m.ownerType === "club").map((m) => m.ownerId);
-  const districtIds = media.filter((m) => m.ownerType === "district").map((m) => m.ownerId);
-  const authIds = media
-    .filter((m) => m.ownerType === "admin" || m.ownerType === "state")
-    .map((m) => m.ownerId);
+/** Adds only `uploadedBy` (person name string). Leaves all other fields unchanged. */
+const attachUploadedByToMedia = async (media) => {
+  const authIds = new Set();
 
-  const [clubs, districts, auths] = await Promise.all([
-    clubIds.length
-      ? Club.find({ _id: { $in: clubIds } })
-          .select("_id name mainMember")
-          .populate({ path: "mainMember", select: "fullName name" })
-          .lean()
-      : [],
-    districtIds.length
-      ? District.find({ _id: { $in: districtIds } })
-          .select("_id name mainMember")
-          .populate({ path: "mainMember", select: "fullName name" })
-          .lean()
-      : [],
-    authIds.length
-      ? BaseAuth.find({ _id: { $in: authIds } })
-          .select("_id fullName name role")
-          .lean()
-      : [],
-  ]);
+  for (const item of media) {
+    if (item.uploadedBy) {
+      authIds.add(String(item.uploadedBy));
+      continue;
+    }
+    if (item.ownerType === "state" || item.ownerType === "admin") {
+      authIds.add(String(item.ownerId));
+    }
+  }
 
-  const clubById = new Map(clubs.map((c) => [String(c._id), c]));
-  const districtById = new Map(districts.map((d) => [String(d._id), d]));
-  const authById = new Map(
-    auths.map((a) => [
-      String(a._id),
-      {
-        fullName: a.fullName || a.name || "",
-        role: a.role || "",
-      },
-    ])
+  const auths = authIds.size
+    ? await BaseAuth.find({ _id: { $in: [...authIds] } })
+        .select("_id fullName name")
+        .lean()
+    : [];
+  const nameById = new Map(
+    auths.map((auth) => [String(auth._id), auth.fullName || auth.name || ""])
   );
 
-  const memberNameFromOrg = (org) => {
-    const member = org?.mainMember;
-    if (!member || typeof member !== "object") return "";
-    return member.fullName || member.name || "";
-  };
-
-  const clubDisplayName = (club) => memberNameFromOrg(club) || club?.name || "";
-  const districtDisplayName = (district) => memberNameFromOrg(district) || district?.name || "";
-
-  const resolveOwnerName = (item) => {
-    const key = String(item.ownerId);
-    if (item.ownerType === "club") return clubDisplayName(clubById.get(key));
-    if (item.ownerType === "district") return districtDisplayName(districtById.get(key));
-    return authById.get(key)?.fullName || "";
-  };
-
-  const resolveOwnerIdPayload = (item) => {
-    const key = String(item.ownerId);
-    if (item.ownerType === "club") {
-      const club = clubById.get(key);
-      const memberName = memberNameFromOrg(club);
-      const orgName = club?.name || "";
-      const name = clubDisplayName(club);
-      return {
-        _id: key,
-        fullName: name,
-        name,
-        orgName,
-        memberName,
-        role: "club",
-      };
-    }
-    if (item.ownerType === "district") {
-      const district = districtById.get(key);
-      const memberName = memberNameFromOrg(district);
-      const orgName = district?.name || "";
-      const name = districtDisplayName(district);
-      return {
-        _id: key,
-        fullName: name,
-        name,
-        orgName,
-        memberName,
-        role: "district",
-      };
-    }
-    const auth = authById.get(key);
-    return {
-      _id: key,
-      fullName: auth?.fullName || "",
-      name: auth?.fullName || "",
-      role: auth?.role || item.ownerType || "",
-    };
-  };
-
   return media.map((item) => {
-    const ownerName = resolveOwnerName(item);
+    const uploaderId = item.uploadedBy
+      ? String(item.uploadedBy)
+      : item.ownerType === "state" || item.ownerType === "admin"
+        ? String(item.ownerId)
+        : "";
+
+    const { uploadedBy: _uploadedByRef, ...rest } = item;
+
     return withMediaType({
-      ...item,
-      ownerId: resolveOwnerIdPayload(item),
-      ownerName,
-      uploadedBy: ownerName,
+      ...rest,
+      uploadedBy: uploaderId ? nameById.get(uploaderId) || "" : "",
     });
   });
 };
@@ -220,7 +154,7 @@ export const displayAllMediaRepositories = async (type = {}, page, limit) => {
       .lean(),
   ]);
 
-  const data = await resolveOwnerNamesForMedia(media);
+  const data = await attachUploadedByToMedia(media);
 
   return {
     data,
@@ -333,7 +267,7 @@ export const basedOnRoleDisplayRepositories = async ({ ownerType, ownerId, type 
       .lean(),
   ]);
 
-  const data = await resolveOwnerNamesForMedia(media);
+  const data = await attachUploadedByToMedia(media);
 
   return {
     data,
@@ -354,6 +288,7 @@ export const addMediaREpositories = async (data) => {
     about: data?.about || "",
     ownerType,
     ownerId: data.ownerId,
+    uploadedBy: data.uploadedBy || null,
     adminApprovalStatus: initialMediaApprovalStatus(ownerType, data.uploaderRole),
     deleteApprovalStatus: null,
   });

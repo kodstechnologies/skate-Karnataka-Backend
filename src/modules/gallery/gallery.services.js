@@ -104,6 +104,7 @@ export const addMediaService = async (data, user) => {
         ...data,
         ownerType,
         ownerId,
+        uploadedBy: user?._id || null,
         uploaderRole: user?.role,
     });
 

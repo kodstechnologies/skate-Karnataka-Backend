@@ -4,13 +4,13 @@ import { afterLoginFormOfficialService, displayAllOfficialService, displayOffici
 
 const afterLoginOfficialForm = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    await afterLoginFormOfficialService(req.body, id);
+    const updated = await afterLoginFormOfficialService(req.body, id);
     return res
         .status(200)
         .json(
             new ApiResponse(
                 200,
-                null,
+                { id: updated?._id, verify: updated?.verify === true },
                 "Official form submitted successfully"
             )
         )

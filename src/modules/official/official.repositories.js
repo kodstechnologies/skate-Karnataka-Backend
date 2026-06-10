@@ -1,5 +1,4 @@
 import { AppError } from "../../util/common/AppError.js";
-import { BaseAuth } from "../auth/baseAuth.model.js";
 import { Official } from "./official.model.js";
 import { paginate, calcTotalPages } from "../../util/common/paginate.js";
 import mongoose from "mongoose";
@@ -9,7 +8,11 @@ import { Club } from "../club/club.model.js";
 const OFFICIAL_ROLES = ["Official", "official", "officials"];
 
 const afterLoginOfficialFormRepositories = async (data, id) => {
-    const existingUser = await BaseAuth.findOne({
+    if (!mongoose.Types.ObjectId.isValid(String(id))) {
+        throw new AppError("Invalid official id", 400);
+    }
+
+    const existingUser = await Official.findOne({
         _id: id,
         role: { $in: OFFICIAL_ROLES },
     })
@@ -20,12 +23,19 @@ const afterLoginOfficialFormRepositories = async (data, id) => {
         throw new AppError("Official not found", 404);
     }
 
-    const { documents, ...restData } = data;
+    const { documents, verify: _ignoredVerify, ...restData } = data;
     const setPayload = {
         ...restData,
         role: "Official",
         verify: true,
     };
+
+    if (restData.district) {
+        setPayload.district = new mongoose.Types.ObjectId(String(restData.district));
+    }
+    if (restData.club) {
+        setPayload.club = new mongoose.Types.ObjectId(String(restData.club));
+    }
 
     const updateOperation = { $set: setPayload };
 
@@ -35,7 +45,7 @@ const afterLoginOfficialFormRepositories = async (data, id) => {
         };
     }
 
-    const updated = await BaseAuth.findByIdAndUpdate(id, updateOperation, {
+    const updated = await Official.findByIdAndUpdate(id, updateOperation, {
         new: true,
         runValidators: true,
     });
@@ -44,10 +54,7 @@ const afterLoginOfficialFormRepositories = async (data, id) => {
         throw new AppError("Official not found", 404);
     }
 
-    const populated = await Official.findById(id)
-        .populate("district")
-        .populate("club");
-    return populated || updated;
+    return updated;
 };
 
 const displayAllOfficialRepositories = async ({

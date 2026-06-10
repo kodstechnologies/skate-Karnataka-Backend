@@ -3,7 +3,7 @@ import { AppError } from "../../util/common/AppError.js";
 import { afterLoginOfficialFormRepositories, displayAllOfficialRepositories, displayOfficialfullDetailsRepositories } from "./official.repositories.js";
 
 const afterLoginFormOfficialService = async (data, id) => {
-     await afterLoginOfficialFormRepositories(data, id); 
+    return await afterLoginOfficialFormRepositories(data, id);
 }
 
 const displayAllOfficialService = async (query) => {

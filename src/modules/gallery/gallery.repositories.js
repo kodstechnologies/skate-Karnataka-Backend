@@ -31,12 +31,14 @@ const resolveOwnerNamesForMedia = async (media) => {
   const [clubs, districts, auths] = await Promise.all([
     clubIds.length
       ? Club.find({ _id: { $in: clubIds } })
-          .select("_id name")
+          .select("_id name mainMember")
+          .populate({ path: "mainMember", select: "fullName name" })
           .lean()
       : [],
     districtIds.length
       ? District.find({ _id: { $in: districtIds } })
-          .select("_id name")
+          .select("_id name mainMember")
+          .populate({ path: "mainMember", select: "fullName name" })
           .lean()
       : [],
     authIds.length
@@ -46,8 +48,8 @@ const resolveOwnerNamesForMedia = async (media) => {
       : [],
   ]);
 
-  const clubNameById = new Map(clubs.map((c) => [String(c._id), c.name || ""]));
-  const districtNameById = new Map(districts.map((d) => [String(d._id), d.name || ""]));
+  const clubById = new Map(clubs.map((c) => [String(c._id), c]));
+  const districtById = new Map(districts.map((d) => [String(d._id), d]));
   const authById = new Map(
     auths.map((a) => [
       String(a._id),
@@ -58,22 +60,51 @@ const resolveOwnerNamesForMedia = async (media) => {
     ])
   );
 
+  const memberNameFromOrg = (org) => {
+    const member = org?.mainMember;
+    if (!member || typeof member !== "object") return "";
+    return member.fullName || member.name || "";
+  };
+
+  const clubDisplayName = (club) => memberNameFromOrg(club) || club?.name || "";
+  const districtDisplayName = (district) => memberNameFromOrg(district) || district?.name || "";
+
   const resolveOwnerName = (item) => {
     const key = String(item.ownerId);
-    if (item.ownerType === "club") return clubNameById.get(key) || "";
-    if (item.ownerType === "district") return districtNameById.get(key) || "";
+    if (item.ownerType === "club") return clubDisplayName(clubById.get(key));
+    if (item.ownerType === "district") return districtDisplayName(districtById.get(key));
     return authById.get(key)?.fullName || "";
   };
 
   const resolveOwnerIdPayload = (item) => {
     const key = String(item.ownerId);
     if (item.ownerType === "club") {
-      const name = clubNameById.get(key) || "";
-      return { _id: key, fullName: name, name, role: "club" };
+      const club = clubById.get(key);
+      const memberName = memberNameFromOrg(club);
+      const orgName = club?.name || "";
+      const name = clubDisplayName(club);
+      return {
+        _id: key,
+        fullName: name,
+        name,
+        orgName,
+        memberName,
+        role: "club",
+      };
     }
     if (item.ownerType === "district") {
-      const name = districtNameById.get(key) || "";
-      return { _id: key, fullName: name, name, role: "district" };
+      const district = districtById.get(key);
+      const memberName = memberNameFromOrg(district);
+      const orgName = district?.name || "";
+      const name = districtDisplayName(district);
+      return {
+        _id: key,
+        fullName: name,
+        name,
+        orgName,
+        memberName,
+        role: "district",
+      };
     }
     const auth = authById.get(key);
     return {
@@ -302,8 +333,10 @@ export const basedOnRoleDisplayRepositories = async ({ ownerType, ownerId, type 
       .lean(),
   ]);
 
+  const data = await resolveOwnerNamesForMedia(media);
+
   return {
-    data: media.map(withMediaType),
+    data,
     pagination: {
       total,
       page: currentPage,

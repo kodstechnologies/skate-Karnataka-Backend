@@ -44,6 +44,11 @@ export const normalizeOfficialFormPayload = (body = {}) => {
     delete data.profileImageFile;
     delete data.profileImageName;
 
+    // Mongoose discriminator / immutable fields — never persist from client payloads.
+    delete data.role;
+    delete data.__t;
+    delete data.krsaId;
+
     return data;
 };
 

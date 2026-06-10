@@ -184,30 +184,10 @@ const afterLoginSkaterFormRepositories = async (data, id) => {
 };
 
 const afterLoginClubFormRepositories = async (data, id) => {
-    console.log(data, "====");
-    console.log(id, "ID");
-
-    // ✅ Update
-    const updated = await Academy.findByIdAndUpdate(
-        { _id: id, role: "academy" },
-        {
-            $set: {
-                ...data,
-                verify: true
-            }
-        },
-        {
-            new: true,
-            runValidators: true,
-        }
+    const { afterLoginClubFormRepositories: updateClubForm } = await import(
+        "../academy/academy.repositories.js"
     );
-
-
-    if (!updated) {
-        throw new Error("Academy not found");
-    }
-
-    return updated;
+    return updateClubForm(data, id);
 };
 
 const afterLoginGuestFormRepositories = async (data, id) => {

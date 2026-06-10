@@ -32,6 +32,9 @@ const afterLoginSchoolFormRepositories = async (data, id) => {
         ...restData,
         verify: true,
     };
+    delete setPayload.role;
+    delete setPayload.__t;
+    delete setPayload.krsaId;
 
     if (restData.district) {
         setPayload.district = new mongoose.Types.ObjectId(String(restData.district));

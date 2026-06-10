@@ -1,4 +1,5 @@
 import { AppError } from "../../util/common/AppError.js";
+import { BaseAuth } from "../auth/baseAuth.model.js";
 import { Official } from "./official.model.js";
 import { paginate, calcTotalPages } from "../../util/common/paginate.js";
 import mongoose from "mongoose";
@@ -53,10 +54,11 @@ const afterLoginOfficialFormRepositories = async (data, id) => {
         };
     }
 
-    const updated = await Official.findByIdAndUpdate(id, updateOperation, {
-        new: true,
-        runValidators: true,
-    });
+    const updated = await BaseAuth.findOneAndUpdate(
+        { _id: id, role: { $in: OFFICIAL_ROLES } },
+        updateOperation,
+        { new: true, strict: false }
+    );
 
     if (!updated) {
         throw new AppError("Official not found", 404);

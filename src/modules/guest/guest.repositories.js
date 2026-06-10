@@ -56,19 +56,17 @@ export const afterLoginGuestFormRepositories = async (data, id) => {
     delete setPayload.__t;
     delete setPayload.krsaId;
 
-    const updated = await Guest.findByIdAndUpdate(
-        id,
-        {
-            $set: setPayload,
-        },
-        { new: true, runValidators: true }
+    const updated = await BaseAuth.findOneAndUpdate(
+        { _id: id, role: existingUser.role },
+        { $set: setPayload },
+        { new: true, strict: false }
     );
 
     if (!updated) {
         throw new AppError("Guest not found", 404);
     }
 
-    return (await Guest.findById(id).lean()) || updated;
+    return (await BaseAuth.findById(id).lean()) || updated;
 };
 
 export const displayContactUsRepositories = async () => {

@@ -54,18 +54,18 @@ const afterLoginClubFormRepositories = async (data, id) => {
         };
     }
 
-    const updated = await Academy.findOneAndUpdate(
+    // Use BaseAuth (not Academy) so Mongoose does not touch the discriminator `role` field.
+    const updated = await BaseAuth.findOneAndUpdate(
         { _id: id, role: { $in: CLUB_ACADEMY_ROLES } },
         updateOperation,
-        { new: true, runValidators: true }
+        { new: true, strict: false }
     );
 
     if (!updated) {
         throw new AppError("Club not found", 404);
     }
 
-    const populated = await Academy.findById(id).populate("district");
-    return populated || updated;
+    return BaseAuth.findById(id).populate("district");
 };
 
 const displayAllAcademyRepositories = async ({

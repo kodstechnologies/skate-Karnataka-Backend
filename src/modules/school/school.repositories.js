@@ -1,4 +1,5 @@
 import { AppError } from "../../util/common/AppError.js";
+import { BaseAuth } from "../auth/baseAuth.model.js";
 import { School } from "./school.model.js";
 import { paginate, calcTotalPages } from "../../util/common/paginate.js";
 import mongoose from "mongoose";
@@ -48,10 +49,11 @@ const afterLoginSchoolFormRepositories = async (data, id) => {
         };
     }
 
-    const updated = await School.findByIdAndUpdate(id, updateOperation, {
-        new: true,
-        runValidators: true,
-    });
+    const updated = await BaseAuth.findOneAndUpdate(
+        { _id: id, role: { $in: SCHOOL_ROLES } },
+        updateOperation,
+        { new: true, strict: false }
+    );
 
     if (!updated) {
         throw new AppError("School not found", 404);

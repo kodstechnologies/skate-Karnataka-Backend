@@ -19,10 +19,16 @@ const afterLoginClubFormRepositories = async (data, id) => {
         throw new AppError("Club not found", 404);
     }
 
-    const { documents, rosDocuments, verify: _ignoredVerify, ...restData } = data;
+    const {
+        documents,
+        rosDocuments,
+        verify: _ignoredVerify,
+        role: _ignoredRole,
+        __t: _ignoredDiscriminator,
+        ...restData
+    } = data;
     const setPayload = {
         ...restData,
-        role: "Academy",
         verify: true,
     };
 

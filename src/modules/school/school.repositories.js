@@ -22,10 +22,14 @@ const afterLoginSchoolFormRepositories = async (data, id) => {
         throw new AppError("School not found", 404);
     }
 
-    const { documents, ...restData } = data;
+    const {
+        documents,
+        role: _ignoredRole,
+        __t: _ignoredDiscriminator,
+        ...restData
+    } = data;
     const setPayload = {
         ...restData,
-        role: "School",
         verify: true,
     };
 

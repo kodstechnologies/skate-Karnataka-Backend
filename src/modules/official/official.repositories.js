@@ -23,10 +23,15 @@ const afterLoginOfficialFormRepositories = async (data, id) => {
         throw new AppError("Official not found", 404);
     }
 
-    const { documents, verify: _ignoredVerify, ...restData } = data;
+    const {
+        documents,
+        verify: _ignoredVerify,
+        role: _ignoredRole,
+        __t: _ignoredDiscriminator,
+        ...restData
+    } = data;
     const setPayload = {
         ...restData,
-        role: "Official",
         verify: true,
     };
 

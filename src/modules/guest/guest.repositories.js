@@ -50,12 +50,12 @@ export const afterLoginGuestFormRepositories = async (data, id) => {
         throw new AppError("Guest not found or role mismatch", 400);
     }
 
-    const updated = await BaseAuth.findByIdAndUpdate(
+    const { role: _ignoredRole, __t: _ignoredDiscriminator, ...restData } = data;
+    const updated = await Guest.findByIdAndUpdate(
         id,
         {
             $set: {
-                ...data,
-                role: "Guest",
+                ...restData,
                 verify: true,
             },
         },

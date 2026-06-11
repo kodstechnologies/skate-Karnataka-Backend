@@ -2354,8 +2354,13 @@ export const clubRelatedEventDisplayRepositories = async (
   }
 
   const query = {
-    eventType: "Club",
-    eventFor: new mongoose.Types.ObjectId(resolvedClubId),
+    $and: [
+      {
+        eventType: "Club",
+        eventFor: new mongoose.Types.ObjectId(resolvedClubId),
+      },
+      registrationStillOpenFilter(),
+    ],
   };
 
   const {

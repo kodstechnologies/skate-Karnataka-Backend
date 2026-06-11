@@ -1,5 +1,6 @@
 import { asyncHandler } from "../../util/common/asyncHandler.js";
 import {
+    assertChestNumbersGeneratedForEvent,
     getChestNumberSummaryByEvent,
     syncEventCompetitionFromParticipants,
     triggerManualChestNumberGenerationForEvent,
@@ -263,6 +264,8 @@ const getCompetitionDetailsByEvent = asyncHandler(async (req, res) => {
     if (!eventMeta) {
         throw new AppError("Event not found", 404);
     }
+
+    await assertChestNumbersGeneratedForEvent(eventId);
 
     const skatingCategoryScopeId =
         categoryId || categoriesId || skatingEventCategoryId || null;

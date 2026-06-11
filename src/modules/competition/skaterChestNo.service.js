@@ -89,6 +89,31 @@ const assessChestGenerationForEvent = async (eventId) => {
   };
 };
 
+/** Block competition reads until chest numbers are formally generated for the event. */
+export const assertChestNumbersGeneratedForEvent = async (eventId) => {
+  const assessment = await assessChestGenerationForEvent(eventId);
+
+  if (assessment.reason === "no_eligible_participants") {
+    return assessment;
+  }
+
+  if (assessment.chestCount < 1) {
+    throw new AppError(
+      "Chest numbers have not been generated yet. Please generate chest numbers first.",
+      400
+    );
+  }
+
+  if (assessment.chestCount < assessment.participantCount) {
+    throw new AppError(
+      "Chest numbers are incomplete. Please generate chest numbers first.",
+      400
+    );
+  }
+
+  return assessment;
+};
+
 const uniqueReceiverIds = (ids = []) =>
   [...new Set(ids.map((id) => String(id || "").trim()).filter(Boolean))];
 
@@ -180,6 +205,65 @@ const notifyOrganizersChestGeneration = async ({
   );
 
   return { notifiedCount: receiverIds.length };
+};
+
+const notifySkatersChestNumbers = async ({ event, participants, resolveChestNo }) => {
+  const eventLabel = String(event?.header || "the event").trim();
+  const bySkater = new Map();
+
+  for (const participant of participants) {
+    const receiverId = participant?.userId?._id || participant?.userId;
+    if (!receiverId) {
+      continue;
+    }
+
+    const receiverKey = String(receiverId);
+    if (bySkater.has(receiverKey)) {
+      continue;
+    }
+
+    const chestNo =
+      typeof resolveChestNo === "function" ? resolveChestNo(participant) : "";
+    if (!chestNo) {
+      continue;
+    }
+
+    bySkater.set(receiverKey, {
+      receiverId,
+      chestNo: String(chestNo),
+      ageGroup: String(participant.ageGroup || "").trim(),
+    });
+  }
+
+  if (!bySkater.size) {
+    return { skaterNotifiedCount: 0 };
+  }
+
+  await Promise.all(
+    [...bySkater.values()].map(({ receiverId, chestNo, ageGroup }) =>
+      sendNotification({
+        receiverId,
+        title: "Chest number assigned",
+        body: `Your chest number for "${eventLabel}" is ${chestNo}.`,
+        notificationType: "event",
+        sentBy: null,
+        data: {
+          type: "skater_chest_number",
+          eventId: String(event._id),
+          eventName: eventLabel,
+          chestNo,
+          ageGroup,
+        },
+      }).catch((err) => {
+        console.error(
+          `Skater chest number notification failed for ${receiverId}:`,
+          err?.message || err
+        );
+      })
+    )
+  );
+
+  return { skaterNotifiedCount: bySkater.size };
 };
 
 const buildChestDoc = (participant, eventId, ageGroup, chestNo) => {
@@ -595,20 +679,28 @@ export const generateChestNumbersForEvent = async (eventId) => {
   ).length;
   const lastChestNo = maxChestNoInt > 0 ? String(maxChestNoInt).padStart(3, "0") : "";
 
-  const notificationResult = await notifyOrganizersChestGeneration({
-    event,
-    participantCount: participants.length,
-    paidCount,
-    pendingCount,
-    generatedCount: totalGenerated,
-    lastChestNo,
-  });
+  const [organizerNotificationResult, skaterNotificationResult] = await Promise.all([
+    notifyOrganizersChestGeneration({
+      event,
+      participantCount: participants.length,
+      paidCount,
+      pendingCount,
+      generatedCount: totalGenerated,
+      lastChestNo,
+    }),
+    notifySkatersChestNumbers({
+      event,
+      participants,
+      resolveChestNo,
+    }),
+  ]);
 
   return {
     success: true,
     count: totalGenerated,
     lastChestNo,
-    notifiedCount: notificationResult.notifiedCount,
+    notifiedCount: organizerNotificationResult.notifiedCount,
+    skaterNotifiedCount: skaterNotificationResult.skaterNotifiedCount,
   };
 };
 

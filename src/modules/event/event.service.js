@@ -39,6 +39,7 @@ import {
 } from "./eventApprovalPolicy.js";
 import { applyCertificationBySkaterRepository, approveCertificationByRoleRepository, rejectCertificationByRoleRepository, approveEventByAdminRepository, approveEventDeleteByAdminRepository, createEventCategoryRepository, createRegisterFormRepository, deleteEventCategoryRepository, displayCertificationApplicationsRepository, displaySingleEventRepository, displayAllEventRepository, create_event_repositories, edit_event_repositories, delete_event_repositories, display_latest_event_repositories, display_all_event_based_on_user_repositories, clubRelatedEventDisplayRepositories, createClubEventRepositories, districtRelatedEventDisplayRepositories, createDistrictEventRepositories, enrichLeanEventsSkatingCategoryNames, findEventParticipantForCompetitionUpdate, getAllPlayedEventsBySkaterRepository, getAllRegisterDetailsByUserIdRepository, getLiveEventsRepository, getRegisterDetailsByEventIdRepository, getRegisterFormByIdRepository, getRegisterFormByUserIdRepository, rejectEventByAdminRepository, rejectEventDeleteByAdminRepository, requestEventDeleteRepository, stateRelatedEventDisplayRepositories, createStateEventRepositories, getAllEventCategoriesRepository, getVisibleSkatingEventCategoriesRepository, listStandardSkatingEventCategoriesRepository, listMergedStandardCategoriesForOrgRepository, getEventCategoryByIdRepository, findOrgCustomCategoryRepository, findOrgOverrideSummaryRepository, orgHasEmbeddedOverridesRepository, upsertOrgCustomCategoryRepository, upsertClubOverrideOnCategoryRepository, upsertDistrictOverrideOnCategoryRepository, updateEventCategoryRepository, getStateEventFullDetailsByIdRepository, getStateEventResultsRepository, listCompetitionCategoryRankingsRepository, listEventSkatersBasicByEventIdRepository, listEventSkatersByEventIdRepository, recalculateAndPersistCategoryRanksRepository, updateEventParticipantTimingBySkaterRepository, getSkaterEventFullDetailsDtoRepository, getSkaterEventFormCategoryDetailsRepository, getEventSkatingEventCategoriesFullRepository, resolveClubIdForClubAuthUser } from "./event.repositories.js";
 import { Club } from "../club/club.model.js";
+import { initiateRazorpayPaymentServices } from "../payment/payment.services.js";
 
 const displayEventServer = async (data) => {
 
@@ -1080,6 +1081,20 @@ export const createRegisterFormService = async (userId, payload) => {
         );
     }
 
+    const event = await Event.findById(payload.eventId).select("entryFee header").lean();
+    if (!event) {
+        throw new AppError("Event not found", 404);
+    }
+
+    const existingPaid = await EventParticipant.findOne({
+        eventId: payload.eventId,
+        userId,
+        paymentStatus: "paid",
+    }).lean();
+    if (existingPaid) {
+        throw new AppError("Already registered for this event", 400);
+    }
+
     const name =
         (typeof payload.name === "string" ? payload.name.trim() : "") ||
         skater?.fullName?.trim() ||
@@ -1090,22 +1105,45 @@ export const createRegisterFormService = async (userId, payload) => {
         throw new AppError("At least one category is required", 400);
     }
 
-    const doc = {
+    const registrationPayload = {
         eventId: payload.eventId,
         userId,
         name,
         ageGroup: payload.ageGroup,
         categories,
-        paymentStatus: payload.paymentStatus,
     };
 
     const categoriesId =
         typeof payload.categoriesId === "string" ? payload.categoriesId.trim() : "";
     if (categoriesId && mongoose.Types.ObjectId.isValid(categoriesId)) {
-        doc.categoriesId = categoriesId;
+        registrationPayload.categoriesId = categoriesId;
     }
 
-    return await createRegisterFormRepository(doc);
+    const payment = await initiateRazorpayPaymentServices({
+        userId,
+        eventId: payload.eventId,
+        registrationPayload,
+    });
+
+    if (payment?.registration || payment?.participantId) {
+        const registration =
+            payment.registration ||
+            (await EventParticipant.findById(payment.participantId).lean());
+
+        return {
+            registration,
+            payment,
+            registrationComplete: true,
+            message: "Event registered successfully",
+        };
+    }
+
+    return {
+        registration: null,
+        payment,
+        registrationComplete: false,
+        message: "Complete payment to confirm event registration",
+    };
 };
 
 export const applyCertificationBySkaterService = async (participantId, userId) => {

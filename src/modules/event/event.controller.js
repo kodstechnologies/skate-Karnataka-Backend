@@ -55,7 +55,6 @@ import {
   updateEventCategoryService,
   updateStateEventSkaterTimeService,
 } from "./event.service.js";
-import { initiateRazorpayPaymentServices } from "../payment/payment.services.js";
 import {
     createAdminFormula,
     deleteAdminFormula,
@@ -566,15 +565,16 @@ export const getRegisterDetailsByEventId = asyncHandler(async (req, res) => {
 export const createRegisterForm = asyncHandler(async (req, res) => {
     const userId = req.user._id;
     const result = await createRegisterFormService(userId, req.body);
-    const payment = await initiateRazorpayPaymentServices({
-        userId,
-        participantId: result?._id,
-        eventId: result?.eventId,
-    });
 
     return res
         .status(201)
-        .json(new ApiResponse(201, { registration: result, payment }, "Register form submitted successfully"));
+        .json(
+            new ApiResponse(
+                201,
+                result,
+                result?.message || "Register form submitted successfully"
+            )
+        );
 });
 
 export const applyCertificationBySkater = asyncHandler(async (req, res) => {

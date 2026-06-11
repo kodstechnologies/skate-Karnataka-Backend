@@ -5,6 +5,7 @@ import { sendNotification } from "../../util/firebase/sendNotification.js";
 import { Payment } from "./payment.model.js";
 import { EventParticipant } from "../event/eventParticipant.model.js";
 import { Event } from "../event/event.model.js";
+import { createRegisterFormRepository } from "../event/event.repositories.js";
 
 const getRazorpayCredentials = () => {
     const keyId = process.env.RAZORPAY_KEY_ID;
@@ -51,6 +52,65 @@ const markParticipantPayment = async (participantId, paymentStatus) => {
     await EventParticipant.findByIdAndUpdate(participantId, { paymentStatus });
 };
 
+const clearStaleUnpaidRegistrations = async (eventId, userId) => {
+    if (!eventId || !userId) return;
+    await EventParticipant.deleteMany({
+        eventId,
+        userId,
+        paymentStatus: { $in: ["pending", "failed"] },
+    });
+};
+
+const finalizeRegistrationAfterPayment = async (payment) => {
+    if (payment.participantId) {
+        const participant = await EventParticipant.findById(payment.participantId)
+            .select("userId eventId")
+            .lean();
+        if (!participant) {
+            throw new AppError("Payment registration not found", 404);
+        }
+        await markParticipantPayment(payment.participantId, "paid");
+        return participant;
+    }
+
+    const payload = payment.registrationPayload;
+    if (!payload?.eventId || !payload?.userId) {
+        throw new AppError("Payment registration not found", 404);
+    }
+
+    const existingPaid = await EventParticipant.findOne({
+        eventId: payload.eventId,
+        userId: payload.userId,
+        paymentStatus: "paid",
+    })
+        .select("_id userId eventId")
+        .lean();
+
+    if (existingPaid) {
+        payment.participantId = existingPaid._id;
+        await payment.save();
+        return existingPaid;
+    }
+
+    await clearStaleUnpaidRegistrations(payload.eventId, payload.userId);
+
+    const registration = await createRegisterFormRepository({
+        eventId: payload.eventId,
+        userId: payload.userId,
+        name: payload.name,
+        ageGroup: payload.ageGroup,
+        categories: payload.categories,
+        ...(payload.categoriesId ? { categoriesId: payload.categoriesId } : {}),
+        paymentStatus: "paid",
+    });
+
+    payment.participantId = registration._id;
+    payment.registrationPayload = null;
+    await payment.save();
+
+    return registration;
+};
+
 const sendEventRegistrationSuccessNotification = async ({
     receiverId,
     eventId,
@@ -80,10 +140,8 @@ export const initiateRazorpayPaymentServices = async ({
     userId,
     participantId,
     eventId,
+    registrationPayload,
 }) => {
-    console.log(userId,
-        participantId,
-        eventId,"------------")
     const participant = participantId
         ? await EventParticipant.findOne({ _id: participantId, userId })
         : null;
@@ -92,9 +150,23 @@ export const initiateRazorpayPaymentServices = async ({
         throw new AppError("Registration not found for this user", 404);
     }
 
-    const resolvedEventId = eventId || participant?.eventId;
+    const resolvedEventId = eventId || participant?.eventId || registrationPayload?.eventId;
     if (!resolvedEventId) {
         throw new AppError("eventId is required", 400);
+    }
+
+    if (!participantId && !registrationPayload) {
+        throw new AppError("Registration data is required to initiate payment", 400);
+    }
+
+    const resolvedUserId = userId || participant?.userId || registrationPayload?.userId;
+    const existingPaid = await EventParticipant.findOne({
+        eventId: resolvedEventId,
+        userId: resolvedUserId,
+        paymentStatus: "paid",
+    }).lean();
+    if (existingPaid) {
+        throw new AppError("Already registered for this event", 400);
     }
 
     const event = await Event.findById(resolvedEventId).select("entryFee").lean();
@@ -106,7 +178,30 @@ export const initiateRazorpayPaymentServices = async ({
     if (amountInPaise === 0) {
         if (participant?._id) {
             await markParticipantPayment(participant._id, "paid");
+            return {
+                isFreeEvent: true,
+                amount: 0,
+                currency: "INR",
+                paymentStatus: "paid",
+                participantId: participant._id,
+            };
         }
+
+        if (registrationPayload) {
+            await clearStaleUnpaidRegistrations(resolvedEventId, resolvedUserId);
+            const registration = await createRegisterFormRepository({
+                ...registrationPayload,
+                paymentStatus: "paid",
+            });
+            return {
+                isFreeEvent: true,
+                amount: 0,
+                currency: "INR",
+                paymentStatus: "paid",
+                registration,
+            };
+        }
+
         return {
             isFreeEvent: true,
             amount: 0,
@@ -125,7 +220,7 @@ export const initiateRazorpayPaymentServices = async ({
                 currency: "INR",
                 receipt: buildReceipt(resolvedEventId),
                 notes: {
-                    userId: userId?.toString?.() || "",
+                    userId: resolvedUserId?.toString?.() || "",
                     eventId: resolvedEventId.toString(),
                     participantId: participant?._id?.toString?.() || "",
                 },
@@ -143,15 +238,13 @@ export const initiateRazorpayPaymentServices = async ({
     }
     const order = response.data;
 
-    if (!participant?._id) {
-        throw new AppError("participantId is required to create payment order", 400);
-    }
-
     await Payment.findOneAndUpdate(
         { razorpayOrderId: order.id },
         {
             eventId: resolvedEventId,
-            participantId: participant?._id,
+            userId: resolvedUserId,
+            participantId: participant?._id || null,
+            registrationPayload: registrationPayload || null,
             amount: amountInPaise / 100,
             razorpayOrderId: order.id,
             paymentStatus: "pending",
@@ -185,18 +278,6 @@ export const verifyRazorpayPaymentServices = async ({
 
     const wasAlreadySuccessful = payment.paymentStatus === "success";
 
-    let participant = null;
-    if (payment.participantId) {
-        participant = await EventParticipant.findById(payment.participantId)
-            .select("userId eventId")
-            .lean();
-        // Do not block payment verification on ownership mismatch.
-        // Signature validation is the primary trust check for this endpoint.
-        if (!participant) {
-            throw new AppError("Payment registration not found", 404);
-        }
-    }
-
     const isValidSignature = verifySignature(
         razorpay_order_id,
         razorpay_payment_id,
@@ -208,7 +289,9 @@ export const verifyRazorpayPaymentServices = async ({
         payment.razorpayPaymentId = razorpay_payment_id;
         payment.razorpaySignature = razorpay_signature;
         await payment.save();
-        await markParticipantPayment(payment.participantId, "failed");
+        if (payment.participantId) {
+            await markParticipantPayment(payment.participantId, "failed");
+        }
         throw new AppError("Invalid payment signature", 400);
     }
 
@@ -216,10 +299,11 @@ export const verifyRazorpayPaymentServices = async ({
     payment.razorpayPaymentId = razorpay_payment_id;
     payment.razorpaySignature = razorpay_signature;
     await payment.save();
-    await markParticipantPayment(payment.participantId, "paid");
+
+    const participant = await finalizeRegistrationAfterPayment(payment);
 
     if (!wasAlreadySuccessful) {
-        const receiverId = userId || participant?.userId;
+        const receiverId = userId || participant?.userId || payment.userId;
         const eventId = payment.eventId || participant?.eventId;
         if (receiverId && eventId) {
             await sendEventRegistrationSuccessNotification({
@@ -234,6 +318,8 @@ export const verifyRazorpayPaymentServices = async ({
         paymentStatus: payment.paymentStatus,
         razorpayOrderId: razorpay_order_id,
         razorpayPaymentId: razorpay_payment_id,
+        participantId: payment.participantId || null,
+        registrationComplete: Boolean(payment.participantId),
     };
 };
 
@@ -295,14 +381,16 @@ export const razorpayWebhookServices = async ({ body, signature }) => {
         payment.paymentStatus = "success";
         payment.razorpayPaymentId = paymentId || payment.razorpayPaymentId;
         await payment.save();
-        await markParticipantPayment(payment.participantId, "paid");
+        await finalizeRegistrationAfterPayment(payment);
     }
 
     if (eventType === "payment.failed") {
         payment.paymentStatus = "failed";
         payment.razorpayPaymentId = paymentId || payment.razorpayPaymentId;
         await payment.save();
-        await markParticipantPayment(payment.participantId, "failed");
+        if (payment.participantId) {
+            await markParticipantPayment(payment.participantId, "failed");
+        }
     }
 
     return { received: true };

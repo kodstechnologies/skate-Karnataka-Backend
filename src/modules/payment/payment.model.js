@@ -8,10 +8,20 @@ const paymentSchema = new mongoose.Schema(
             required: true
         },
 
+        userId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "BaseAuth",
+        },
+
         participantId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "EventParticipant",
-            required: true
+        },
+
+        /** Stored until payment succeeds; then EventParticipant is created. */
+        registrationPayload: {
+            type: mongoose.Schema.Types.Mixed,
+            default: null,
         },
 
         amount: {

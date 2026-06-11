@@ -757,7 +757,6 @@ const register_form_validation = {
                 return value;
             }),
         categories: Joi.array().items(registerCategoryItem).min(1).required(),
-        paymentStatus: Joi.string().valid("pending", "paid", "failed").optional(),
     }),
 };
 

@@ -8,8 +8,130 @@ import { Club } from "../club/club.model.js";
 import { ClubMember } from "../club/clubMember.model.js";
 import { Skater } from "../skater/skater.model.js";
 import SkatingEventCategory from "../event/SkatingEventCategory.model.js";
+import { Event } from "../event/event.model.js";
+import { Gallery } from "../gallery/gallery.model.js";
+import { EVENT_ADMIN_APPROVAL, EVENT_DELETE_APPROVAL } from "../event/eventApprovalPolicy.js";
+import {
+  MEDIA_ADMIN_APPROVAL,
+  MEDIA_DELETE_APPROVAL,
+} from "../gallery/galleryApprovalPolicy.js";
 import { AppError } from "../../util/common/AppError.js";
 import { calcTotalPages } from "../../util/common/paginate.js";
+
+const countPendingEventApprovalsByOwner = async (eventType, ownerIds) => {
+  const map = new Map();
+  if (!ownerIds.length) return map;
+
+  const oids = ownerIds.map((id) => new mongoose.Types.ObjectId(id));
+  const rows = await Event.aggregate([
+    {
+      $match: {
+        eventType,
+        eventFor: { $in: oids },
+        $or: [
+          { adminApprovalStatus: EVENT_ADMIN_APPROVAL.PENDING },
+          { deleteApprovalStatus: EVENT_DELETE_APPROVAL.PENDING },
+        ],
+      },
+    },
+    {
+      $group: {
+        _id: "$eventFor",
+        pendingEventApprovals: {
+          $sum: {
+            $cond: [{ $eq: ["$adminApprovalStatus", EVENT_ADMIN_APPROVAL.PENDING] }, 1, 0],
+          },
+        },
+        pendingEventDeleteApprovals: {
+          $sum: {
+            $cond: [{ $eq: ["$deleteApprovalStatus", EVENT_DELETE_APPROVAL.PENDING] }, 1, 0],
+          },
+        },
+      },
+    },
+  ]);
+
+  rows.forEach((row) => {
+    map.set(String(row._id), {
+      pendingEventApprovals: row.pendingEventApprovals || 0,
+      pendingEventDeleteApprovals: row.pendingEventDeleteApprovals || 0,
+    });
+  });
+
+  return map;
+};
+
+const countPendingMediaApprovalsByOwner = async (ownerType, ownerIds) => {
+  const map = new Map();
+  if (!ownerIds.length) return map;
+
+  const oids = ownerIds.map((id) => new mongoose.Types.ObjectId(id));
+  const rows = await Gallery.aggregate([
+    {
+      $match: {
+        ownerType,
+        ownerId: { $in: oids },
+        $or: [
+          { adminApprovalStatus: MEDIA_ADMIN_APPROVAL.PENDING },
+          { deleteApprovalStatus: MEDIA_DELETE_APPROVAL.PENDING },
+        ],
+      },
+    },
+    {
+      $group: {
+        _id: "$ownerId",
+        pendingMediaApprovals: {
+          $sum: {
+            $cond: [{ $eq: ["$adminApprovalStatus", MEDIA_ADMIN_APPROVAL.PENDING] }, 1, 0],
+          },
+        },
+        pendingMediaDeleteApprovals: {
+          $sum: {
+            $cond: [{ $eq: ["$deleteApprovalStatus", MEDIA_DELETE_APPROVAL.PENDING] }, 1, 0],
+          },
+        },
+      },
+    },
+  ]);
+
+  rows.forEach((row) => {
+    map.set(String(row._id), {
+      pendingMediaApprovals: row.pendingMediaApprovals || 0,
+      pendingMediaDeleteApprovals: row.pendingMediaDeleteApprovals || 0,
+    });
+  });
+
+  return map;
+};
+
+const mergeApprovalCounts = (eventMap, mediaMap, ownerId) => {
+  const key = String(ownerId);
+  const events = eventMap.get(key) || {};
+  const media = mediaMap.get(key) || {};
+
+  const pendingEventApprovals = events.pendingEventApprovals || 0;
+  const pendingEventDeleteApprovals = events.pendingEventDeleteApprovals || 0;
+  const pendingMediaApprovals = media.pendingMediaApprovals || 0;
+  const pendingMediaDeleteApprovals = media.pendingMediaDeleteApprovals || 0;
+
+  const eventApprovalPending =
+    pendingEventApprovals > 0 || pendingEventDeleteApprovals > 0;
+  const mediaApprovalPending =
+    pendingMediaApprovals > 0 || pendingMediaDeleteApprovals > 0;
+
+  return {
+    pendingEventApprovals,
+    pendingEventDeleteApprovals,
+    pendingMediaApprovals,
+    pendingMediaDeleteApprovals,
+    /** true = show dot on events icon (upload or delete needs approve/reject). */
+    event: eventApprovalPending,
+    /** true = show dot on media icon (upload or delete needs approve/reject). */
+    media: mediaApprovalPending,
+    hasPendingEventApproval: eventApprovalPending,
+    hasPendingMediaApproval: mediaApprovalPending,
+  };
+};
 
 export const findAdminByEmail = async (email) => {
   return Admin.findOne({ email: email.toLowerCase().trim(), role: "admin" });
@@ -120,9 +242,16 @@ export const getAllDistrictsForAdmin = async ({ page = 1, limit = 10, name = "" 
       .lean(),
   ]);
 
+  const districtIds = districts.map((district) => district._id);
+  const [eventApprovalMap, mediaApprovalMap] = await Promise.all([
+    countPendingEventApprovalsByOwner("District", districtIds),
+    countPendingMediaApprovalsByOwner("district", districtIds),
+  ]);
+
   const data = districts.map((district) => ({
     ...district,
     memberCount: Array.isArray(district.members) ? district.members.length : 0,
+    ...mergeApprovalCounts(eventApprovalMap, mediaApprovalMap, district._id),
   }));
 
   return {
@@ -371,9 +500,16 @@ export const getAllClubsForAdmin = async ({ page = 1, limit = 10, search = "" } 
       .lean(),
   ]);
 
+  const clubIds = clubs.map((club) => club._id);
+  const [eventApprovalMap, mediaApprovalMap] = await Promise.all([
+    countPendingEventApprovalsByOwner("Club", clubIds),
+    countPendingMediaApprovalsByOwner("club", clubIds),
+  ]);
+
   const data = clubs.map((club) => ({
     ...club,
     memberCount: Array.isArray(club.members) ? club.members.length : 0,
+    ...mergeApprovalCounts(eventApprovalMap, mediaApprovalMap, club._id),
   }));
 
   return {

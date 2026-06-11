@@ -61,7 +61,33 @@ const clearStaleUnpaidRegistrations = async (eventId, userId) => {
     });
 };
 
+const handleFailedPayment = async (payment, { paymentId, signature } = {}) => {
+    payment.paymentStatus = "failed";
+    if (paymentId) {
+        payment.razorpayPaymentId = paymentId;
+    }
+    if (signature) {
+        payment.razorpaySignature = signature;
+    }
+
+    if (payment.participantId) {
+        const participant = await EventParticipant.findById(payment.participantId)
+            .select("paymentStatus")
+            .lean();
+        if (participant && participant.paymentStatus !== "paid") {
+            await EventParticipant.findByIdAndDelete(payment.participantId);
+            payment.participantId = null;
+        }
+    }
+
+    await payment.save();
+};
+
 const finalizeRegistrationAfterPayment = async (payment) => {
+    if (payment.paymentStatus !== "success") {
+        return null;
+    }
+
     if (payment.participantId) {
         const participant = await EventParticipant.findById(payment.participantId)
             .select("userId eventId")
@@ -285,14 +311,11 @@ export const verifyRazorpayPaymentServices = async ({
     );
 
     if (!isValidSignature) {
-        payment.paymentStatus = "failed";
-        payment.razorpayPaymentId = razorpay_payment_id;
-        payment.razorpaySignature = razorpay_signature;
-        await payment.save();
-        if (payment.participantId) {
-            await markParticipantPayment(payment.participantId, "failed");
-        }
-        throw new AppError("Invalid payment signature", 400);
+        await handleFailedPayment(payment, {
+            paymentId: razorpay_payment_id,
+            signature: razorpay_signature,
+        });
+        throw new AppError("Invalid payment signature — registration not completed", 400);
     }
 
     payment.paymentStatus = "success";
@@ -347,6 +370,9 @@ export const checkPaymentStatusServices = async ({ razorpayOrderId, userId }) =>
         paymentId: payment.razorpayPaymentId || null,
         status: payment.paymentStatus,
         amount: payment.amount,
+        participantId: payment.participantId || null,
+        registrationComplete:
+            payment.paymentStatus === "success" && Boolean(payment.participantId),
     };
 };
 
@@ -385,12 +411,7 @@ export const razorpayWebhookServices = async ({ body, signature }) => {
     }
 
     if (eventType === "payment.failed") {
-        payment.paymentStatus = "failed";
-        payment.razorpayPaymentId = paymentId || payment.razorpayPaymentId;
-        await payment.save();
-        if (payment.participantId) {
-            await markParticipantPayment(payment.participantId, "failed");
-        }
+        await handleFailedPayment(payment, { paymentId });
     }
 
     return { received: true };

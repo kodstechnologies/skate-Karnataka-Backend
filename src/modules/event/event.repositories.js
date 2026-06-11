@@ -2422,9 +2422,14 @@ export const districtRelatedEventDisplayRepositories = async (districtUserId, { 
   const districtId = districtUser?.district || districtUserId;
 
   const query = {
-    eventType: "District",
-    eventFor: new mongoose.Types.ObjectId(districtId),
-    deleteApprovalStatus: { $ne: EVENT_DELETE_APPROVAL.PENDING },
+    $and: [
+      {
+        eventType: "District",
+        eventFor: new mongoose.Types.ObjectId(districtId),
+        deleteApprovalStatus: { $ne: EVENT_DELETE_APPROVAL.PENDING },
+      },
+      registrationStillOpenFilter(),
+    ],
   };
 
   const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);

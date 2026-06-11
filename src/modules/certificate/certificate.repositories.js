@@ -203,6 +203,8 @@ const formatCertificateEvent = (event) => {
     };
 };
 
+const hasCertificateDocument = (pdfUrl) => Boolean(String(pdfUrl || "").trim());
+
 /**
  * Paginated events a skater attended (one row per event), visible 2+ days after event end.
  * Multiple registrations for the same event (e.g. different category names) collapse to one row.
@@ -236,7 +238,7 @@ const list_skater_participants_for_certificate_repository = async (userId, page,
             },
         },
         { $unwind: "$event" },
-        { $match: { "event.eventEndDate": { $lte: twoDaysAgo } } },
+        // { $match: { "event.eventEndDate": { $lte: twoDaysAgo } } },
         {
             $lookup: {
                 from: BaseAuth.collection.name,
@@ -328,35 +330,40 @@ const list_skater_participants_for_certificate_repository = async (userId, page,
         return documentLinkByParticipantAndEvent.get(participantKey) || "";
     };
 
-    const data = rows.map((p) => {
-        const documentLink = resolveDocumentLink(p);
+    const data = rows
+        .map((p) => {
+            const documentLink = resolveDocumentLink(p);
+            if (!hasCertificateDocument(documentLink)) {
+                return null;
+            }
 
-        return {
-            _id: p._id,
-            winnerKRSAId: p.user?.krsaId || "",
-            name: p.name || "",
-            division: p.division || p.ageGroup || "",
-            ageGroup: p.ageGroup || "",
-            eventName: p.event?.header || "",
-            request: Boolean(p.skaterApply),
-            clubAllow: Boolean(p.clubAllow),
-            districtAllow: Boolean(p.districtAllow),
-            stateAllow: Boolean(p.stateAllow),
-            certificateID: p.certificateID || "",
-            paymentStatus: p.paymentStatus || "pending",
-            event: formatCertificateEvent(p.event) || {},
-            certificateAvailable: Boolean(documentLink),
-            documentLink: documentLink || "",
-        };
-    });
+            return {
+                _id: p._id,
+                winnerKRSAId: p.user?.krsaId || "",
+                name: p.name || "",
+                division: p.division || p.ageGroup || "",
+                ageGroup: p.ageGroup || "",
+                eventName: p.event?.header || "",
+                request: Boolean(p.skaterApply),
+                clubAllow: Boolean(p.clubAllow),
+                districtAllow: Boolean(p.districtAllow),
+                stateAllow: Boolean(p.stateAllow),
+                certificateID: p.certificateID || "",
+                paymentStatus: p.paymentStatus || "pending",
+                event: formatCertificateEvent(p.event) || {},
+                certificateAvailable: true,
+                documentLink,
+            };
+        })
+        .filter(Boolean);
 
     return {
         data,
         pagination: {
-            total,
+            total: data.length,
             page: currentPage,
             limit: perPage,
-            totalPages: calcTotalPages(total, perPage),
+            totalPages: calcTotalPages(data.length, perPage),
         },
     };
 };
@@ -582,6 +589,10 @@ const formatGeneratedCertificateListRow = (cert, participant = null) => {
     const eventDoc = cert.eventId;
     const pdfUrl = String(cert.pdfUrl || "").trim();
 
+    if (!hasCertificateDocument(pdfUrl)) {
+        return null;
+    }
+
     return {
         _id: cert._id,
         eventId: eventDoc?._id ?? cert.eventId ?? null,
@@ -611,14 +622,19 @@ const formatGeneratedCertificateListRow = (cert, participant = null) => {
     };
 };
 
+/** Skip rows where the generated PDF document was not saved. */
+const GENERATED_PDF_FILTER = {
+    pdfUrl: { $exists: true, $nin: [null, ""], $regex: /\S/ },
+};
+
 /**
- * All GeneratedCertificate rows for a skater (userId + participantId fallback).
+ * Generated certificates for a skater — only when PDF document exists.
  */
 const list_generated_certificates_by_user_repository = async (userId, page, limit) => {
     const { skip, limit: perPage, page: currentPage } = paginate(page, limit);
 
-    const match = await buildSkaterCertificateUserMatch(userId);
-    if (!match) {
+    const userMatch = await buildSkaterCertificateUserMatch(userId);
+    if (!userMatch) {
         return {
             data: [],
             pagination: {
@@ -629,6 +645,10 @@ const list_generated_certificates_by_user_repository = async (userId, page, limi
             },
         };
     }
+
+    const match = {
+        $and: [userMatch, GENERATED_PDF_FILTER],
+    };
 
     const [total, certificates] = await Promise.all([
         GeneratedCertificate.countDocuments(match),
@@ -663,13 +683,17 @@ const list_generated_certificates_by_user_repository = async (userId, page, limi
         participants.map((participant) => [String(participant._id), participant])
     );
 
-    return {
-        data: certificates.map((cert) =>
+    const data = certificates
+        .map((cert) =>
             formatGeneratedCertificateListRow(
                 cert,
                 participantById.get(String(cert.participantId)) || null
             )
-        ),
+        )
+        .filter(Boolean);
+
+    return {
+        data,
         pagination: {
             total,
             page: currentPage,

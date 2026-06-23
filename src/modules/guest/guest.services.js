@@ -20,6 +20,7 @@ import {
   displayDisciplinesRepositories,
   displaySingleDisciplineRepositories,
   displayFeedbackRepositories,
+  displaySingleFeedbackRepositories,
   displayNewsRepositories,
   displaySponsorshipDonationsRepositories,
   displayStateLatestEventsRepositories,
@@ -63,6 +64,14 @@ export const addContactUsService = async (data) => {
 
 export const displayFeedbackService = async ({ page, limit, search }) => {
     return displayFeedbackRepositories({ page, limit, search });
+};
+
+export const displaySingleFeedbackService = async (id) => {
+    const feedback = await displaySingleFeedbackRepositories(id);
+    if (!feedback) {
+        throw new AppError("Feedback not found", 404);
+    }
+    return feedback;
 };
 
 export const addFeedBackService = async (data) => {

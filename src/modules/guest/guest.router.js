@@ -10,6 +10,7 @@ import {
   deleteNews,
   displayContactUs,
   displayFeedback,
+  displaySingleFeedback,
   displayStateLatestEvents,
   displayStateLatestSingleEvents,
   displayStateEvents,
@@ -66,6 +67,7 @@ import {
   updateDisciplineValidation,
   updateNewsValidation,
   displayFeedbackQueryValidation,
+  feedbackByIdValidation,
   displayNewsQueryValidation,
   displayDisciplinesQueryValidation,
   displayCircularQueryValidation,
@@ -97,6 +99,11 @@ router.get(
   "/v1/feed-back",
   validate(displayFeedbackQueryValidation),
   displayFeedback
+);
+router.get(
+  "/v1/feed-back/:id",
+  validate(feedbackByIdValidation),
+  displaySingleFeedback
 );
 router.post(
   "/v1/feed-back",

@@ -117,6 +117,10 @@ export const displayFeedbackRepositories = async ({ page, limit, search }) => {
     };
 };
 
+export const displaySingleFeedbackRepositories = async (id) => {
+    return FeedBack.findById(id).lean();
+};
+
 export const addFeedBackRepositories = async (data) => {
     return FeedBack.create(data);
 };

@@ -111,6 +111,15 @@ export const displayFeedbackQueryValidation = {
   query: paginatedSearchQuerySchema,
 };
 
+export const feedbackByIdValidation = {
+  params: Joi.object({
+    id: Joi.string().trim().required().messages({
+      "any.required": "Feedback id is required",
+      "string.empty": "Feedback id is required",
+    }),
+  }),
+};
+
 export const displayDisciplinesQueryValidation = {
   query: paginatedSearchQuerySchema,
 };

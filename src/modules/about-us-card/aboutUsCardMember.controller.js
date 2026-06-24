@@ -31,6 +31,7 @@ const validatePhoneNo = (phoneNo) => {
 const toPublicMember = (row) => ({
   _id: row._id,
   name: row.displayName,
+  designation: row.designation,
   photo: row.photo
 });
 
@@ -84,7 +85,7 @@ export const getCardMembers = async (req, res) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .select("displayName photo")
+        .select("displayName designation photo")
         .lean(),
       AboutUsCardMember.countDocuments(filter)
     ]);

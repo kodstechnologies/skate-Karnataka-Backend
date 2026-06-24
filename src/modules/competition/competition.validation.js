@@ -28,10 +28,10 @@ const competitorUpdateItem = Joi.object({
     time: Joi.string().trim().allow("").optional(),
     position: Joi.string()
         .trim()
-        .valid("0", "1", "2")
+        .valid("0", "1", "2", "3")
         .optional()
         .messages({
-            "any.only": "position must be one of: 0, 1, 2",
+            "any.only": "position must be one of: 0, 1, 2, 3",
         }),
 }).custom(requireTimeOrPosition);
 
@@ -78,10 +78,10 @@ const singleUpdateBody = Joi.object({
     time: Joi.string().trim().allow("").optional(),
     position: Joi.string()
         .trim()
-        .valid("0", "1", "2")
+        .valid("0", "1", "2", "3")
         .optional()
         .messages({
-            "any.only": "position must be one of: 0, 1, 2",
+            "any.only": "position must be one of: 0, 1, 2, 3",
         }),
     categories: Joi.forbidden(),
 }).custom(requireTimeOrPosition);

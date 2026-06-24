@@ -56,7 +56,7 @@ const competitionRoundHasSkaters = (competitions, { ageGroup, categoryName, roun
 
 const normalizeCompetitionPosition = (value) => {
     const raw = String(value ?? "").trim();
-    return raw === "1" || raw === "2" ? raw : "0";
+    return raw === "1" || raw === "2" || raw === "3" ? raw : "0";
 };
 
 /** Fresh competitor row for the next round — never copy time/position from prior round. */

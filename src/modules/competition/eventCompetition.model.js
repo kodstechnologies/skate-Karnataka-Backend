@@ -29,7 +29,7 @@ const competitorSchema = new mongoose.Schema(
     },
     position: {
       type: String,
-      enum: ["1", "2", "0"],
+      enum: ["0", "1", "2", "3"],
       trim: true,
       default: "0"
     },

@@ -831,7 +831,7 @@ const formulaRoundItem = Joi.object({
     qualifyCountLessThan65: Joi.number().integer().optional(),
     qualifyCountMoreThan65: Joi.number().integer().optional(),
     groupSize: Joi.number().integer().optional(),
-    qualifyPerGroup: Joi.number().integer().optional(),
+    qualifyPerGroup: Joi.number().integer().min(0).max(3).optional(),
 });
 
 const create_formula_validation = {

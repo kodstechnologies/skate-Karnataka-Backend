@@ -22,6 +22,7 @@ import {
     resolvePromotionContext,
 } from "./competition.formulaResolve.js";
 import {
+    formatQualifyPositionLabel,
     selectFinalWinners,
     selectPromotedCompetitorsWithBreakdown,
 } from "./competition.promotion.js";
@@ -854,7 +855,7 @@ const promoteToNextRound = asyncHandler(async (req, res) => {
             const timedCount = countSkatersWithRecordedTime(currentRoundData);
             throw new AppError(
                 promotionCtx.qualificationType === "POSITION"
-                    ? `No skaters qualify (POSITION: marked position "${perGroup >= 2 ? '1" or "2' : '1'}" then fastest times to reach ${promoteLimit})`
+                    ? `No skaters qualify (POSITION: marked position ${formatQualifyPositionLabel(perGroup)} then fastest times to reach ${promoteLimit})`
                     : `No skaters with valid times to promote (${timedCount} of ${currentRoundData.length} have a recorded time; fastest ${promoteLimit} required)`,
                 400
             );

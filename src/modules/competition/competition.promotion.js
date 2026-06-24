@@ -35,12 +35,36 @@ const fillByFastestTime = (
     .slice(0, limit);
 };
 
-const positionQualifies = (position, qualifyPerGroup) => {
-  const value = String(position ?? "").trim();
-  if (qualifyPerGroup >= 2) {
-    return value === "1" || value === "2";
+const clampQualifyPerGroup = (value) => {
+  const raw = Number(value);
+  if (!Number.isFinite(raw)) {
+    return 1;
   }
-  return value === "1";
+  return Math.min(Math.max(Math.trunc(raw), 0), 3);
+};
+
+const positionQualifies = (position, qualifyPerGroup) => {
+  const limit = clampQualifyPerGroup(qualifyPerGroup);
+  if (limit <= 0) {
+    return false;
+  }
+  const value = String(position ?? "").trim();
+  const pos = Number(value);
+  return Number.isInteger(pos) && pos >= 1 && pos <= limit;
+};
+
+export const formatQualifyPositionLabel = (qualifyPerGroup) => {
+  const limit = clampQualifyPerGroup(qualifyPerGroup);
+  if (limit <= 0) {
+    return "none (time only)";
+  }
+  if (limit === 1) {
+    return '"1"';
+  }
+  if (limit === 2) {
+    return '"1" or "2"';
+  }
+  return `"1" through "${limit}"`;
 };
 
 /** All position qualifiers in the round, then fastest times to reach cap. */
@@ -85,7 +109,7 @@ const selectPositionPromoted = (
   getSecondsFromTime,
   cap
 ) => {
-  const qualifyPerGroup = Math.max(Number(formulaRound?.qualifyPerGroup) || 1, 1);
+  const qualifyPerGroup = clampQualifyPerGroup(formulaRound?.qualifyPerGroup);
   const groupSize = Math.max(Number(formulaRound?.groupSize) || 0, 0);
   const targetTotal = Math.max(Number(cap) || 0, 0);
 
@@ -102,7 +126,7 @@ const selectPositionPromoted = (
     );
   }
 
-  // Phase 1: all position-marked skaters in each group (position 1, or 1+2 if qualifyPerGroup >= 2).
+  // Phase 1: all position-marked skaters in each group (top N per qualifyPerGroup).
   let selectedByPosition = [];
   for (let i = 0; i < currentRoundData.length; i += groupSize) {
     const group = currentRoundData.slice(i, i + groupSize);

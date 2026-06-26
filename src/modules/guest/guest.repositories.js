@@ -523,7 +523,8 @@ export const displayDistrictsRepositories = async ({ page, limit, search }) => {
 
 export const displayDistrictDetailsRepositories = async (districtId) => {
     const district = await District.findById(districtId)
-        .select("_id name img about officeAddress presidentName rank championships")
+        .select("_id name img about officeAddress presidentName rank championships mainMember")
+        .populate("mainMember", "fullName")
         .lean();
 
     if (!district) {
@@ -546,7 +547,7 @@ export const displayDistrictDetailsRepositories = async (districtId) => {
         img: district.img || "",
         about: district.about || "",
         officeAddress: district.officeAddress || "",
-        presidentName: district.presidentName || "",
+        presidentName: district.mainMember?.fullName || district.presidentName || "",
         rank: district.rank || 0,
         championships: district.championships || 0,
         totalClubCount: totalClubs,

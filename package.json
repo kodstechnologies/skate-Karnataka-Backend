@@ -24,6 +24,7 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.1.6",
     "multer": "^2.0.2",
+    "nodemailer": "^9.0.1",
     "nodemon": "^3.1.11",
     "pdf-lib": "^1.17.1",
     "seed-js": "^0.0.11",

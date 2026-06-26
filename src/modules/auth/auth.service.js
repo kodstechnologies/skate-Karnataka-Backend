@@ -164,10 +164,9 @@ const sendEmailOTPService = async (email) => {
     await removeOldEmailOtp(email);
     // save in db 
     const otp = generateRandomNumber();
-    console.log(otp, "otpotp")
     await saveEmailOtp(email, otp);
     // send otp 
-    await sendOTPToEmail(email);
+    await sendOTPToEmail(email.email, otp);
 }
 
 const verifyEmailOTPService = async (data) => {
@@ -195,7 +194,7 @@ const sendPhoneOTPService = async (phone) => {
     const otp = generateRandomNumber();
     await savePhoneOTP(phone, otp);
     // send otp 
-    await sendOTPToPhone(phone);
+    await sendOTPToPhone(phone.phone, otp);
 }
 
 const verifyPhoneOTPService = async (data) => {
@@ -220,8 +219,6 @@ const assertUserNotBlocked = (user) => {
         throw new AppError(BLOCKED_ACCOUNT_MESSAGE, 401);
     }
 };
-
-const KRSA_ID_PATTERN = /^krsa\d{6}[a-z]+$/i;
 
 const normalizeKrsaId = (value) => String(value).trim().toUpperCase();
 
@@ -258,12 +255,12 @@ const LoginUserService = async (identifier) => {
 
         await removeOldEmailOtp(normalizedIdentifier);
         await saveEmailOtp(normalizedIdentifier, otp, user._id);
+        await sendOTPToEmail(normalizedIdentifier, otp);
         return await createLoginResult(user);
     }
 
     // Phone
     else if (/^[6-9]\d{9}$/.test(normalizedIdentifier)) {
-        console.log(normalizedIdentifier, "identifier")
         const user = await isExistPhone(normalizedIdentifier);
         if (!user) {
             throw new AppError("Phone number not registered", 404);
@@ -271,11 +268,20 @@ const LoginUserService = async (identifier) => {
 
         await removeOldPhoneOtp(normalizedIdentifier);
         await savePhoneOTP(normalizedIdentifier, otp, user._id);
+
+        // No SMS provider is configured yet, so deliver the OTP to the
+        // user's registered email when available, with an SMS fallback.
+        if (user.email) {
+            await sendOTPToEmail(user.email, otp);
+        } else {
+            await sendOTPToPhone(normalizedIdentifier, otp);
+        }
         return await createLoginResult(user);
     }
 
-    // KRSA ID  (NEW)
-    else if (KRSA_ID_PATTERN.test(normalizedIdentifier)) {
+    // KRSA ID — any non-email, non-phone identifier is treated as a KRSA ID
+    // and resolved against the DB, so the exact ID format does not matter.
+    else {
         const krsaId = normalizeKrsaId(normalizedIdentifier);
         const user = await isExistKSRAId(krsaId);
         if (!user) {
@@ -283,12 +289,17 @@ const LoginUserService = async (identifier) => {
         }
         await removeOldKRSAIdOtp(krsaId);
         await saveKRSAIdOTP(krsaId, otp, user._id);
-        return await createLoginResult(user);
-    }
 
-    // Invalid
-    else {
-        throw new AppError("Invalid identifier format", 400);
+        // KRSA ID has no channel of its own, so deliver to the user's
+        // registered email, falling back to their phone.
+        if (user.email) {
+            await sendOTPToEmail(user.email, otp);
+        } else if (user.phone) {
+            await sendOTPToPhone(user.phone, otp);
+        } else {
+            throw new AppError("No email or phone on file to send OTP", 400);
+        }
+        return await createLoginResult(user);
     }
 };
 const VerifyOTPService = async (userData) => {

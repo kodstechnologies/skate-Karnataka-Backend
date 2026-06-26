@@ -3,11 +3,14 @@ import { JWT_ACCESS_EXPIRES, JWT_ACCESS_SECRET, JWT_REFRESH_EXPIRES, JWT_REFRESH
 
 // Generate Random Number with Custom Length
 const generateRandomNumber = (length = 4) => {
-    let randomNumber = "1234";
+    let randomNumber = "";
 
-    // for (let i = 0; i < length; i++) {
-    //     randomNumber += Math.floor(Math.random() * 10);
-    // }
+    // First digit is 1-9 so the OTP never starts with a leading zero.
+    randomNumber += Math.floor(Math.random() * 9) + 1;
+
+    for (let i = 1; i < length; i++) {
+        randomNumber += Math.floor(Math.random() * 10);
+    }
 
     return randomNumber;
 };

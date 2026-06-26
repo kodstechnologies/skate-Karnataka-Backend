@@ -62,15 +62,15 @@ const isExistEmail = async (email) => {
 }
 
 const removeOldEmailOtp = async (email) => {
-    console.log(email, "uuuu")
-    await Otp.findOneAndDelete(email);
-    console.log(email, "uuuu")
+    const normalizedEmail = String(email?.email ?? email).trim().toLowerCase();
+    await Otp.deleteMany({ email: normalizedEmail });
 }
 
 const saveEmailOtp = async (email, otp, id) => {
+    const normalizedEmail = String(email?.email ?? email).trim().toLowerCase();
     await Otp.create({
         userId: id,
-        email: email.email,
+        email: normalizedEmail,
         otp,
         expiresAt: new Date(Date.now() + 5 * 60 * 1000)
     })
@@ -94,7 +94,8 @@ const isExistKSRAId = async (krsaId) => {
 }
 
 const removeOldPhoneOtp = async (phone) => {
-    await Otp.findOneAndDelete(phone);
+    const normalizedPhone = String(phone?.phone ?? phone).trim();
+    await Otp.deleteMany({ phone: normalizedPhone });
 }
 const removeOldKRSAIdOtp = async (krsaId) => {
     const normalizedKrsaId = String(krsaId?.krsaId ?? krsaId).trim().toUpperCase();
@@ -102,9 +103,10 @@ const removeOldKRSAIdOtp = async (krsaId) => {
 }
 
 const savePhoneOTP = async (phone, otp, id) => {
+    const normalizedPhone = String(phone?.phone ?? phone).trim();
     await Otp.create({
         userId: id,
-        phone: phone.phone,
+        phone: normalizedPhone,
         otp,
         expiresAt: new Date(Date.now() + 5 * 60 * 1000)
     })

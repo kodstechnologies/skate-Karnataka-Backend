@@ -34,6 +34,7 @@ import {
   canReviewerApproveEventType,
   isAdminRole,
   isEventPubliclyVisible,
+  isRegistrationOpen,
   isStateOrAdminRole,
   requiresAdminApprovalOnCreate,
 } from "./eventApprovalPolicy.js";
@@ -163,7 +164,7 @@ export const districtEventFullDetailsService = async (eventId, { userId }) => {
 
 export const stateRelatedEventDisplayService = async (stateId, query) => {
     return await stateRelatedEventDisplayRepositories(stateId, query);
-}
+};
 
 const assertUserCanAccessStateEvent = async (
     eventId,
@@ -214,6 +215,9 @@ export const stateEventFullDetailsService = async (eventId, { role, userId }) =>
             if (!ownerId || ownerId !== String(userId)) {
                 throw new AppError("Forbidden", 403);
             }
+        }
+        if (isStateMember && isRegistrationOpen(event.registerEndDate)) {
+            throw new AppError("Event not found", 404);
         }
     } else if (event.eventType === "Club" || event.eventType === "District") {
         if (!isAdmin) {

@@ -192,6 +192,7 @@ export const stateRelatedEventDisplay = asyncHandler(async (req, res) => {
         page,
         limit,
         search,
+        role,
     });
     return res.status(200).json(
         new ApiResponse(

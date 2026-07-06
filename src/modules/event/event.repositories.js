@@ -24,6 +24,7 @@ import {
   initialAdminApprovalStatus,
   isEventPubliclyVisible,
   registrationStillOpenFilter,
+  registrationClosedFilter,
   skaterListableEventsFilter,
   requiresAdminApprovalOnCreate,
 } from "./eventApprovalPolicy.js";
@@ -2708,12 +2709,18 @@ export const getLiveEventsRepository = async (role, userId, { page, limit }) => 
 
 /**
  * Admin: optional stateId filter, else all state events.
- * State: all state events (any state member can see events created by any state account).
+ * State: events where registration has ended (registerEndDate before today IST).
  */
-export const stateRelatedEventDisplayRepositories = async (stateId, { page, limit, search }) => {
+export const stateRelatedEventDisplayRepositories = async (
+  stateId,
+  { page, limit, search, role } = {}
+) => {
   const query = { eventType: "State" };
   if (stateId) {
     query.eventFor = new mongoose.Types.ObjectId(stateId);
+  }
+  if (String(role || "").trim().toLowerCase() === "state") {
+    Object.assign(query, registrationClosedFilter());
   }
   if (search?.trim()) {
     const searchRegex = new RegExp(search.trim(), "i");

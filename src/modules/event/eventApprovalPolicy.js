@@ -74,6 +74,29 @@ export const registrationStillOpenFilter = (now = new Date()) => ({
   },
 });
 
+/** Events whose registration period has ended (registerEndDate before today IST). */
+export const registrationClosedFilter = (now = new Date()) => ({
+  registerEndDate: { $ne: null },
+  $expr: {
+    $lt: [
+      {
+        $dateToString: {
+          format: "%Y-%m-%d",
+          date: "$registerEndDate",
+          timezone: "Asia/Kolkata",
+        },
+      },
+      {
+        $dateToString: {
+          format: "%Y-%m-%d",
+          date: now,
+          timezone: "Asia/Kolkata",
+        },
+      },
+    ],
+  },
+});
+
 /**
  * Skater event lists: approved events only; registration still open (registerEndDate >= today).
  */

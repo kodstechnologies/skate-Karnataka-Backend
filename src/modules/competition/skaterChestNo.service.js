@@ -928,6 +928,7 @@ const flattenSummaryAttendees = (skatingCategories = []) => {
             rsfiId: String(skater.rsfiId || "").trim(),
             gender: String(skater.gender || "").trim(),
             paymentStatus: String(skater.paymentStatus || "").trim(),
+            attendanceStatus: String(skater.attendanceStatus || "pending").trim(),
           });
         }
       }
@@ -1078,5 +1079,6 @@ export const getChestNumberSummaryByEvent = async (
       page: currentPage,
       limit: pageLimit,
     }),
+    skatingCategories,
   };
 };

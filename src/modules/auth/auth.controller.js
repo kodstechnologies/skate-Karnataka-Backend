@@ -6,6 +6,7 @@ import {ContactSupportService, DeleteAccountService, displayChildrenByParentServ
 
 const RegisterUser = asyncHandler(async (req, res) => {
     const result = await RegisterUserService(req.body);
+    console.log("🚀 ~ result:", result)
     return res
         .status(201)
         .json(

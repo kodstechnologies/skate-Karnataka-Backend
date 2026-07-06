@@ -38,7 +38,7 @@ import {
   isStateOrAdminRole,
   requiresAdminApprovalOnCreate,
 } from "./eventApprovalPolicy.js";
-import { applyCertificationBySkaterRepository, approveCertificationByRoleRepository, rejectCertificationByRoleRepository, approveEventByAdminRepository, approveEventDeleteByAdminRepository, createEventCategoryRepository, createRegisterFormRepository, deleteEventCategoryRepository, displayCertificationApplicationsRepository, displaySingleEventRepository, displayAllEventRepository, create_event_repositories, edit_event_repositories, delete_event_repositories, display_latest_event_repositories, display_all_event_based_on_user_repositories, clubRelatedEventDisplayRepositories, createClubEventRepositories, districtRelatedEventDisplayRepositories, createDistrictEventRepositories, enrichLeanEventsSkatingCategoryNames, findEventParticipantForCompetitionUpdate, getAllPlayedEventsBySkaterRepository, getAllRegisterDetailsByUserIdRepository, getLiveEventsRepository, getRegisterDetailsByEventIdRepository, getRegisterFormByIdRepository, getRegisterFormByUserIdRepository, rejectEventByAdminRepository, rejectEventDeleteByAdminRepository, requestEventDeleteRepository, stateRelatedEventDisplayRepositories, createStateEventRepositories, getAllEventCategoriesRepository, getVisibleSkatingEventCategoriesRepository, listStandardSkatingEventCategoriesRepository, listMergedStandardCategoriesForOrgRepository, getEventCategoryByIdRepository, findOrgCustomCategoryRepository, findOrgOverrideSummaryRepository, orgHasEmbeddedOverridesRepository, upsertOrgCustomCategoryRepository, upsertClubOverrideOnCategoryRepository, upsertDistrictOverrideOnCategoryRepository, updateEventCategoryRepository, getStateEventFullDetailsByIdRepository, getStateEventResultsRepository, listCompetitionCategoryRankingsRepository, listEventSkatersBasicByEventIdRepository, listEventSkatersByEventIdRepository, recalculateAndPersistCategoryRanksRepository, updateEventParticipantTimingBySkaterRepository, getSkaterEventFullDetailsDtoRepository, getSkaterEventFormCategoryDetailsRepository, getEventSkatingEventCategoriesFullRepository, resolveClubIdForClubAuthUser } from "./event.repositories.js";
+import { applyCertificationBySkaterRepository, approveCertificationByRoleRepository, rejectCertificationByRoleRepository, approveEventByAdminRepository, approveEventDeleteByAdminRepository, createEventCategoryRepository, createRegisterFormRepository, deleteEventCategoryRepository, displayCertificationApplicationsRepository, displaySingleEventRepository, displayAllEventRepository, create_event_repositories, edit_event_repositories, delete_event_repositories, display_latest_event_repositories, display_all_event_based_on_user_repositories, clubRelatedEventDisplayRepositories, createClubEventRepositories, districtRelatedEventDisplayRepositories, createDistrictEventRepositories, enrichLeanEventsSkatingCategoryNames, findEventParticipantForCompetitionUpdate, getAllPlayedEventsBySkaterRepository, getAllRegisterDetailsByUserIdRepository, getLiveEventsRepository, getRegisterDetailsByEventIdRepository, getRegisterFormByIdRepository, getRegisterFormByUserIdRepository, rejectEventByAdminRepository, rejectEventDeleteByAdminRepository, requestEventDeleteRepository, stateRelatedEventDisplayRepositories, createStateEventRepositories, getAllEventCategoriesRepository, getVisibleSkatingEventCategoriesRepository, listStandardSkatingEventCategoriesRepository, listMergedStandardCategoriesForOrgRepository, getEventCategoryByIdRepository, findOrgCustomCategoryRepository, findOrgOverrideSummaryRepository, orgHasEmbeddedOverridesRepository, upsertOrgCustomCategoryRepository, upsertClubOverrideOnCategoryRepository, upsertDistrictOverrideOnCategoryRepository, updateEventCategoryRepository, getStateEventFullDetailsByIdRepository, getStateEventResultsRepository, listCompetitionCategoryRankingsRepository, listEventSkatersBasicByEventIdRepository, listEventSkatersByEventIdRepository, recalculateAndPersistCategoryRanksRepository, updateEventParticipantTimingBySkaterRepository, getSkaterEventFullDetailsDtoRepository, getSkaterEventFormCategoryDetailsRepository, getEventSkatingEventCategoriesFullRepository, resolveClubIdForClubAuthUser, webStateEventsDisplayRepository, webClubEventsDisplayRepository, webDistrictEventsDisplayRepository, clubPortalEventsDisplayRepository, districtPortalEventsDisplayRepository } from "./event.repositories.js";
 import { Club } from "../club/club.model.js";
 import { initiateRazorpayPaymentServices } from "../payment/payment.services.js";
 
@@ -61,6 +61,10 @@ const displayEventServer = async (data) => {
 export const clubRelatedEventDisplayService = async (clubId, query) =>{
     return await clubRelatedEventDisplayRepositories(clubId, query);
 }
+
+export const clubPortalEventsDisplayService = async (authUserId, query) => {
+    return clubPortalEventsDisplayRepository(authUserId, query);
+};
 
 /** Club-owned events only — same scope as `GET /event/v1/club` list. */
 const assertUserCanAccessClubScopedEvent = async (eventId, userId) => {
@@ -119,6 +123,10 @@ export const districtRelatedEventDisplayService = async (districtUserId, query) 
     return await districtRelatedEventDisplayRepositories(districtUserId, query);
 };
 
+export const districtPortalEventsDisplayService = async (districtUserId, query) => {
+    return districtPortalEventsDisplayRepository(districtUserId, query);
+};
+
 export const createDistrictEventService = async (districtUserId, data) => {
     return await createDistrictEventRepositories(
         districtUserId,
@@ -164,6 +172,18 @@ export const districtEventFullDetailsService = async (eventId, { userId }) => {
 
 export const stateRelatedEventDisplayService = async (stateId, query) => {
     return await stateRelatedEventDisplayRepositories(stateId, query);
+};
+
+export const webStateEventsDisplayService = async (query) => {
+    return webStateEventsDisplayRepository(query);
+};
+
+export const webClubEventsDisplayService = async (query) => {
+    return webClubEventsDisplayRepository(query);
+};
+
+export const webDistrictEventsDisplayService = async (query) => {
+    return webDistrictEventsDisplayRepository(query);
 };
 
 const assertUserCanAccessStateEvent = async (

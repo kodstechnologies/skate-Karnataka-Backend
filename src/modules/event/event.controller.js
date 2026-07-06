@@ -16,6 +16,7 @@ import {
   rejectEventDeleteByAdminService,
   clubEventFullDetailsService,
   clubRelatedEventDisplayService,
+  clubPortalEventsDisplayService,
   competitionAllSkaterService,
   competitionDetailsService,
   createClubEventService,
@@ -35,6 +36,7 @@ import {
   displaySkaterEventFormCategoryDetailsService,
   districtEventFullDetailsService,
   districtRelatedEventDisplayService,
+  districtPortalEventsDisplayService,
   edit_event_schema,
   getAllPlayedEventsBySkaterService,
   getLiveEventsService,
@@ -54,6 +56,9 @@ import {
   stateRelatedEventDisplayService,
   updateEventCategoryService,
   updateStateEventSkaterTimeService,
+  webStateEventsDisplayService,
+  webClubEventsDisplayService,
+  webDistrictEventsDisplayService,
 } from "./event.service.js";
 import {
     createAdminFormula,
@@ -109,6 +114,31 @@ export const clubRelatedEventDisplay = asyncHandler(async (req, res) => {
     });
 })
 
+export const clubPortalEventsDisplay = asyncHandler(async (req, res) => {
+    const tokenUserId = req.user._id;
+    const { page = 1, limit = 10, search = "", status = "", adminApprovalStatus = "" } = req.query;
+    const result = await clubPortalEventsDisplayService(tokenUserId, {
+        page,
+        limit,
+        search,
+        status,
+        adminApprovalStatus,
+    });
+    return res.status(200).json({
+        statusCode: 200,
+        club: result.club || null,
+        data: result.data || [],
+        pagination: {
+            total: result.pagination?.total || 0,
+            page: result.pagination?.page || Number(page) || 1,
+            limit: result.pagination?.limit || Number(limit) || 10,
+            totalPages: result.pagination?.totalPages || 0,
+        },
+        message: "Club events fetched successfully",
+        success: true,
+    });
+});
+
 export const createClubEvent = asyncHandler(async (req, res) => {
     const clubId = req.user._id;
     const event = await createClubEventService(clubId, req.body);
@@ -156,6 +186,31 @@ export const districtRelatedEventDisplay = asyncHandler(async (req, res) => {
     );
 });
 
+export const districtPortalEventsDisplay = asyncHandler(async (req, res) => {
+    const districtUserId = req.user._id;
+    const { page = 1, limit = 10, search = "", status = "", adminApprovalStatus = "" } = req.query;
+    const result = await districtPortalEventsDisplayService(districtUserId, {
+        page,
+        limit,
+        search,
+        status,
+        adminApprovalStatus,
+    });
+    return res.status(200).json({
+        statusCode: 200,
+        district: result.district || null,
+        data: result.data || [],
+        pagination: {
+            total: result.pagination?.total || 0,
+            page: result.pagination?.page || Number(page) || 1,
+            limit: result.pagination?.limit || Number(limit) || 10,
+            totalPages: result.pagination?.totalPages || 0,
+        },
+        message: "District events fetched successfully",
+        success: true,
+    });
+});
+
 export const createDistrictEvent = asyncHandler(async (req, res) => {
     const districtUserId = req.user._id;
     const event = await createDistrictEventService(districtUserId, req.body);
@@ -170,6 +225,42 @@ export const createDistrictEvent = asyncHandler(async (req, res) => {
 });
 
 // ===================================== state 
+
+const webEventsListHandler = (serviceFn, message) =>
+    asyncHandler(async (req, res) => {
+        const { page = 1, limit = 10, search = "", stateId, clubId, districtId } = req.query;
+        const events = await serviceFn({ page, limit, search, stateId, clubId, districtId });
+        return res.status(200).json(
+            new ApiResponse(
+                200,
+                {
+                    data: events.data || [],
+                    pagination: {
+                        total: events.total || 0,
+                        page: events.page || Number(page) || 1,
+                        limit: events.limit || Number(limit) || 10,
+                        totalPages: events.totalPages || 0,
+                    },
+                },
+                message
+            )
+        );
+    });
+
+export const webStateEventsDisplay = webEventsListHandler(
+    webStateEventsDisplayService,
+    "State events fetched successfully"
+);
+
+export const webClubEventsDisplay = webEventsListHandler(
+    webClubEventsDisplayService,
+    "Club events fetched successfully"
+);
+
+export const webDistrictEventsDisplay = webEventsListHandler(
+    webDistrictEventsDisplayService,
+    "District events fetched successfully"
+);
 
 export const stateRelatedEventDisplay = asyncHandler(async (req, res) => {
     const role = (req.user.role || "").toLowerCase();

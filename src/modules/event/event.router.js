@@ -1,6 +1,6 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
-import { applyCertificationBySkater, approveCertification, rejectCertification, approveEventByAdmin, approveEventDeleteByAdmin, clubRelatedEventDisplay, competitionAllSkater, createClubEvent, create_event, delete_event, display_all_event_based_on_user, display_latest_event, displayAllPlayedEventBySkater, displayApplications, displayLiveEvents, displayAllEvents, displayEventById, displaySkaterEventFullDetails, displaySkaterEventFormCategoryDetails, displayCompetitionDetails, edit_event, createDistrictEvent, districtRelatedEventDisplay, givenPoint, rejectEventByAdmin, rejectEventDeleteByAdmin, stateEventResult, stateRelatedEventDisplay, stateEventSkatersSummary, updateStateSkaterTime, createStateEvent, createEventCategory, deleteEventCategory, getEventCategories, getOrgCustomEventCategory, getOrgCategoryContext, upsertOrgCustomEventCategory, getEventCategoryById, updateEventCategory, createRegisterForm, getAllRegisterDetailsByUserId, getRegisterDetailsByEventId, getRegisterFormById, getRegisterFormByUserId, getFormulas, getFormulaById, getAllFormulasLight, createFormula, updateFormula, deleteFormula, listEndedEventsForCertificates, getEventCertificateStatus, generateEventCertificatesAdmin } from "./event.controller.js";
+import { applyCertificationBySkater, approveCertification, rejectCertification, approveEventByAdmin, approveEventDeleteByAdmin, clubRelatedEventDisplay, clubPortalEventsDisplay, competitionAllSkater, createClubEvent, create_event, delete_event, display_all_event_based_on_user, display_latest_event, displayAllPlayedEventBySkater, displayApplications, displayLiveEvents, displayAllEvents, displayEventById, displaySkaterEventFullDetails, displaySkaterEventFormCategoryDetails, displayCompetitionDetails, edit_event, createDistrictEvent, districtRelatedEventDisplay, districtPortalEventsDisplay, givenPoint, rejectEventByAdmin, rejectEventDeleteByAdmin, stateEventResult, stateRelatedEventDisplay, stateEventSkatersSummary, updateStateSkaterTime, createStateEvent, createEventCategory, deleteEventCategory, getEventCategories, getOrgCustomEventCategory, getOrgCategoryContext, upsertOrgCustomEventCategory, getEventCategoryById, updateEventCategory, createRegisterForm, getAllRegisterDetailsByUserId, getRegisterDetailsByEventId, getRegisterFormById, getRegisterFormByUserId, getFormulas, getFormulaById, getAllFormulasLight, createFormula, updateFormula, deleteFormula, listEndedEventsForCertificates, getEventCertificateStatus, generateEventCertificatesAdmin, webStateEventsDisplay, webClubEventsDisplay, webDistrictEventsDisplay } from "./event.controller.js";
 import { validate } from "../../middleware/validate.multiple.js";
 import {
     create_event_category_validation,
@@ -16,6 +16,9 @@ import {
     state_skater_time_update_validation,
     stateEventResultQueryValidation,
     stateEventListQueryValidation,
+    webEventListQueryValidation,
+    clubPortalEventListQueryValidation,
+    districtPortalEventListQueryValidation,
     stateEventSkatersListQueryValidation,
     update_event_category_validation,
     upsert_org_custom_category_validation,
@@ -43,28 +46,54 @@ router.get(
 // Super-admin event approval (club & district create/delete)
 router.patch(
     "/v1/admin/event/:id/approve",
-    authenticate(["Admin", "State"]),
+    authenticate(["Admin"]),
     approveEventByAdmin
 );
 router.patch(
     "/v1/admin/event/:id/reject",
-    authenticate(["Admin", "State"]),
+    authenticate(["Admin"]),
     rejectEventByAdmin
 );
 router.patch(
     "/v1/admin/event/:id/approve-delete",
-    authenticate(["Admin", "State"]),
+    authenticate(["Admin"]),
     approveEventDeleteByAdmin
 );
 router.patch(
     "/v1/admin/event/:id/reject-delete",
-    authenticate(["Admin", "State"]),
+    authenticate(["Admin"]),
     rejectEventDeleteByAdmin
+);
+
+// Web dashboard — all events by type (Admin / State); does not replace /v1/state, /v1/club, /v1/district
+router.get(
+    "/v1/web/state",
+    authenticate(["Admin", "State"]),
+    validate(webEventListQueryValidation),
+    webStateEventsDisplay
+);
+router.get(
+    "/v1/web/club",
+    authenticate(["Admin", "State"]),
+    validate(webEventListQueryValidation),
+    webClubEventsDisplay
+);
+router.get(
+    "/v1/web/district",
+    authenticate(["Admin", "State"]),
+    validate(webEventListQueryValidation),
+    webDistrictEventsDisplay
 );
 
 // ======================
 
 router.get("/v1/club", authenticate(["Club"]), clubRelatedEventDisplay);
+router.get(
+    "/v1/club/web",
+    authenticate(["Club"]),
+    validate(clubPortalEventListQueryValidation),
+    clubPortalEventsDisplay
+);
 router.get("/v1/club/:id", authenticate(["Club"]), clubRelatedEventDisplay);
 router.post(
     "/v1/club",
@@ -87,6 +116,12 @@ router.delete(
 // district =====
 
 router.get("/v1/district", authenticate(["District"]), districtRelatedEventDisplay);
+router.get(
+    "/v1/district/web",
+    authenticate(["District"]),
+    validate(districtPortalEventListQueryValidation),
+    districtPortalEventsDisplay
+);
 router.get(
     "/v1/district/:id",
     authenticate(["District"]),

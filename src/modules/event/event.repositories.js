@@ -2392,6 +2392,98 @@ export const clubRelatedEventDisplayRepositories = async (
   };
 };
 
+const buildPortalEventScheduleStatusFilter = (status) => {
+  const normalized = String(status || "").trim().toLowerCase();
+  if (!normalized) return null;
+
+  const now = new Date();
+  const notCancelled = { status: { $ne: "cancelled" } };
+
+  if (normalized === "cancelled") {
+    return { status: "cancelled" };
+  }
+  if (normalized === "completed") {
+    return { ...notCancelled, eventEndDate: { $lt: now } };
+  }
+  if (normalized === "active") {
+    return {
+      ...notCancelled,
+      eventStartDate: { $lte: now },
+      $or: [{ eventEndDate: { $gte: now } }, { eventEndDate: null }],
+    };
+  }
+  if (normalized === "coming_soon") {
+    return {
+      ...notCancelled,
+      $or: [
+        { eventStartDate: { $gt: now } },
+        { eventStartDate: null, eventEndDate: { $gte: now } },
+      ],
+    };
+  }
+  return null;
+};
+
+const buildPortalEventListQuery = (baseQuery, { search, status, adminApprovalStatus } = {}) => {
+  const clauses = [baseQuery];
+  const searchFilter = buildWebEventListSearchFilter(search);
+  if (searchFilter) clauses.push(searchFilter);
+  const statusFilter = buildPortalEventScheduleStatusFilter(status);
+  if (statusFilter) clauses.push(statusFilter);
+  const approval = String(adminApprovalStatus || "").trim().toLowerCase();
+  if (approval) clauses.push({ adminApprovalStatus: approval });
+  if (clauses.length === 1) return clauses[0];
+  return { $and: clauses };
+};
+
+/** Club portal web — all events for the authenticated club (no registration-open filter). */
+export const clubPortalEventsDisplayRepository = async (
+  authUserId,
+  { page, limit, search, status, adminApprovalStatus } = {}
+) => {
+  const resolvedClubId = await resolveClubIdForClubAuthUser(authUserId);
+  const clubRow = await Club.findById(resolvedClubId).select("_id name").lean();
+  if (!clubRow) {
+    throw new AppError("Club not found", 404);
+  }
+
+  const query = buildPortalEventListQuery(
+    {
+      eventType: "Club",
+      eventFor: new mongoose.Types.ObjectId(resolvedClubId),
+    },
+    { search, status, adminApprovalStatus }
+  );
+
+  const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+
+  const events = await Event.find(query)
+    .select(EVENT_CARD_LIST_PROJECTION)
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(pageLimit)
+    .lean();
+
+  const total = await Event.countDocuments(query);
+
+  const enriched = await enrichLeanEventsSkatingCategoryNames(events);
+  const data = enriched.map(toEventCardListItem);
+
+  return {
+    club: {
+      _id: clubRow._id,
+      name: clubRow.name || "",
+    },
+    data,
+    pagination: {
+      total,
+      page: currentPage,
+      limit: pageLimit,
+      totalPages: calcTotalPages(total, pageLimit),
+    },
+  };
+};
+
 export const createClubEventRepositories = async (clubAuthUserId, data) => {
   const resolvedClubId = await resolveClubIdForClubAuthUser(clubAuthUserId);
 
@@ -2452,6 +2544,56 @@ export const districtRelatedEventDisplayRepositories = async (districtUserId, { 
     limit: pageLimit,
     totalPages: calcTotalPages(total, pageLimit),
     data,
+  };
+};
+
+/** District portal web — all events for the authenticated district (no registration-open filter). */
+export const districtPortalEventsDisplayRepository = async (
+  districtUserId,
+  { page, limit, search, status, adminApprovalStatus } = {}
+) => {
+  const districtUser = await BaseAuth.findById(districtUserId).select("district").lean();
+  const districtId = districtUser?.district || districtUserId;
+
+  const districtRow = await District.findById(districtId).select("_id name").lean();
+  if (!districtRow) {
+    throw new AppError("District not found", 404);
+  }
+
+  const query = buildPortalEventListQuery(
+    {
+      eventType: "District",
+      eventFor: new mongoose.Types.ObjectId(districtId),
+    },
+    { search, status, adminApprovalStatus }
+  );
+
+  const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+
+  const events = await Event.find(query)
+    .select(EVENT_CARD_LIST_PROJECTION)
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(pageLimit)
+    .lean();
+
+  const total = await Event.countDocuments(query);
+
+  const enriched = await enrichLeanEventsSkatingCategoryNames(events);
+  const data = enriched.map(toEventCardListItem);
+
+  return {
+    district: {
+      _id: districtRow._id,
+      name: districtRow.name || "",
+    },
+    data,
+    pagination: {
+      total,
+      page: currentPage,
+      limit: pageLimit,
+      totalPages: calcTotalPages(total, pageLimit),
+    },
   };
 };
 
@@ -2751,6 +2893,71 @@ export const stateRelatedEventDisplayRepositories = async (
     totalPages: calcTotalPages(total, pageLimit),
     data,
   };
+};
+
+const buildWebEventListSearchFilter = (search) => {
+  if (!search?.trim()) {
+    return null;
+  }
+  const searchRegex = new RegExp(search.trim(), "i");
+  return {
+    $or: [{ header: searchRegex }, { about: searchRegex }, { address: searchRegex }],
+  };
+};
+
+/**
+ * Web dashboard: all events of a given type (no registration-open filter).
+ * Optional orgId scopes to eventFor (stateId / clubId / districtId).
+ */
+const webEventsDisplayByTypeRepository = async (
+  eventType,
+  { page, limit, search, orgId } = {}
+) => {
+  const query = { eventType };
+  if (orgId) {
+    query.eventFor = new mongoose.Types.ObjectId(orgId);
+  }
+  const searchFilter = buildWebEventListSearchFilter(search);
+  if (searchFilter) {
+    Object.assign(query, searchFilter);
+  }
+
+  const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
+
+  const events = await Event.find(query)
+    .select(EVENT_CARD_LIST_PROJECTION)
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(pageLimit)
+    .lean();
+
+  const total = await Event.countDocuments(query);
+
+  const enriched = await enrichLeanEventsSkatingCategoryNames(events);
+  const data = enriched.map(toEventCardListItem);
+
+  return {
+    total,
+    page: currentPage,
+    limit: pageLimit,
+    totalPages: calcTotalPages(total, pageLimit),
+    data,
+  };
+};
+
+export const webStateEventsDisplayRepository = async (query = {}) => {
+  const { stateId, ...rest } = query;
+  return webEventsDisplayByTypeRepository("State", { ...rest, orgId: stateId });
+};
+
+export const webClubEventsDisplayRepository = async (query = {}) => {
+  const { clubId, ...rest } = query;
+  return webEventsDisplayByTypeRepository("Club", { ...rest, orgId: clubId });
+};
+
+export const webDistrictEventsDisplayRepository = async (query = {}) => {
+  const { districtId, ...rest } = query;
+  return webEventsDisplayByTypeRepository("District", { ...rest, orgId: districtId });
 };
 
 export const createStateEventRepositories = async (stateId, data, creatorUserId, creatorRole) => {

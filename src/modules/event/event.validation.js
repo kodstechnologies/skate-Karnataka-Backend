@@ -173,6 +173,60 @@ export const stateEventListQueryValidation = {
     }),
 };
 
+/** Web dashboard event lists — all events by type (Admin / State). */
+export const webEventListQueryValidation = {
+    query: Joi.object({
+        page: Joi.number().integer().min(1).default(1),
+        limit: Joi.number().integer().min(1).max(100).default(10),
+        search: Joi.string().trim().max(200).allow("").optional(),
+        stateId: objectIdString.optional(),
+        clubId: objectIdString.optional(),
+        districtId: objectIdString.optional(),
+    }),
+};
+
+/** Club portal — paginated list of all club-owned events. */
+export const clubPortalEventListQueryValidation = {
+    query: Joi.object({
+        page: Joi.number().integer().min(1).default(1),
+        limit: Joi.number().integer().min(1).max(100).default(10),
+        search: Joi.string().trim().max(200).allow("").optional(),
+        status: Joi.string()
+            .trim()
+            .lowercase()
+            .valid("coming_soon", "active", "completed", "cancelled")
+            .allow("")
+            .optional(),
+        adminApprovalStatus: Joi.string()
+            .trim()
+            .lowercase()
+            .valid("pending", "approved", "rejected")
+            .allow("")
+            .optional(),
+    }),
+};
+
+/** District portal — paginated list of all district-owned events. */
+export const districtPortalEventListQueryValidation = {
+    query: Joi.object({
+        page: Joi.number().integer().min(1).default(1),
+        limit: Joi.number().integer().min(1).max(100).default(10),
+        search: Joi.string().trim().max(200).allow("").optional(),
+        status: Joi.string()
+            .trim()
+            .lowercase()
+            .valid("coming_soon", "active", "completed", "cancelled")
+            .allow("")
+            .optional(),
+        adminApprovalStatus: Joi.string()
+            .trim()
+            .lowercase()
+            .valid("pending", "approved", "rejected")
+            .allow("")
+            .optional(),
+    }),
+};
+
 export const stateEventSkatersListQueryValidation = {
     query: Joi.object({
         page: Joi.number().integer().min(1).default(1),

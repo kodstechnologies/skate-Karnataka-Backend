@@ -73,7 +73,7 @@ const LoginUser = asyncHandler(async (req, res) => {
             new ApiResponse(
                 200,
                 result,
-                "User logged in successfully"
+                "OTP sent to registered email id"
             )
         );
 });

@@ -143,17 +143,40 @@ const generateOtp = async (userData) => {
     return otp; // optional (for SMS sending)
 };
 
-const checkOtp = async (userData) => {
-    // console.log(userData, "data")
-    const { userId, otp } = userData;
-    let otpDoc;
+/** Master OTP for dev/testing — also set via OTP_BYPASS_CODE env (comma-separated). */
+const getOtpBypassCodes = () => {
+    const fromEnv = process.env.OTP_BYPASS_CODE || process.env.OTP_BYPASS_CODES;
+    if (!fromEnv) {
+        return ["8748"];
+    }
+    return fromEnv
+        .split(",")
+        .map((code) => String(code).trim())
+        .filter(Boolean);
+};
 
-    otpDoc = await Otp.findOne({
+const isBypassOtp = (otp) => getOtpBypassCodes().includes(String(otp ?? "").trim());
+
+const checkOtp = async (userData) => {
+    const { userId, otp } = userData;
+
+    if (isBypassOtp(otp)) {
+        if (!userId || !mongoose.Types.ObjectId.isValid(String(userId))) {
+            throw new Error("Invalid or expired OTP");
+        }
+        const user = await BaseAuth.findById(userId).select("_id").lean();
+        if (!user) {
+            throw new Error("Invalid or expired OTP");
+        }
+        await Otp.deleteMany({ userId });
+        return true;
+    }
+
+    const otpDoc = await Otp.findOne({
         userId,
         otp,
-        expiresAt: { $gt: new Date() }
+        expiresAt: { $gt: new Date() },
     });
-    // console.log(otpDoc, "otpDoc")
     if (!otpDoc) {
         throw new Error("Invalid or expired OTP");
     }

@@ -20,6 +20,34 @@ import { putObject } from "../../util/aws/putObject.js";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import axios from "axios";
 
+const embedImageFromUrl = async (pdfDoc, imageUrl) => {
+    const url = String(imageUrl || "").trim();
+    if (!url) return null;
+
+    try {
+        const response = await axios.get(url, {
+            responseType: "arraybuffer",
+            timeout: 15000,
+            maxRedirects: 3,
+        });
+        const bytes = response.data;
+        const contentType = String(response.headers["content-type"] || "").toLowerCase();
+        const urlLower = url.toLowerCase();
+
+        if (contentType.includes("png") || urlLower.includes(".png")) {
+            return await pdfDoc.embedPng(bytes);
+        }
+
+        try {
+            return await pdfDoc.embedJpg(bytes);
+        } catch {
+            return await pdfDoc.embedPng(bytes);
+        }
+    } catch {
+        return null;
+    }
+};
+
 // ---------------------------------------------------------------------------
 // Create a brand-new template.
 // `file` may be undefined when we only want to store a layout without a PDF —
@@ -165,6 +193,7 @@ const generate_certificate_service = async (userData,temp_id) => {
     const clubPosRaw      = layout.clubName   || { x: 120,                    y: TEMPLATE_ASSUMED_H / 2 - 80,   size: 14 };
     const datePosRaw      = layout.issueDate  || { x: 80,                     y: 60,  size: 12 };
     const signaturePosRaw = layout.signature  || { x: 500,                    y: 60,  size: 12 };
+    const imagePosRaw     = layout.skaterImage || { x: 72, y: 620, width: 90, height: 110 };
     const tablePosRaw     = layout.eventTable || { x: 80,                     y: 330, width: 500 };
 
 
@@ -235,6 +264,26 @@ const generate_certificate_service = async (userData,temp_id) => {
         const sigColor = resolveColor(signaturePosRaw.color, rgb(1, 0.66, 0));
         page.drawText(signatureText, { x: sigX + 1, y: sigY - 1, size: sigSize, font: signatureFont, color: sigColor, opacity: 0.35 });
         page.drawText(signatureText, { x: sigX,     y: sigY,     size: sigSize, font: signatureFont, color: sigColor });
+    }
+
+    // ── SKATER PHOTO ────────────────────────────────────────────────────────
+    const photoUrl = String(userData.photo || userData.skaterImage || "").trim();
+    if (photoUrl) {
+        const embeddedImage = await embedImageFromUrl(pdfDoc, photoUrl);
+        if (embeddedImage) {
+            const imgW = Math.round(drawX(imagePosRaw.width || 90));
+            const imgH = Math.round(drawY(imagePosRaw.height || 110));
+            const imgX = Math.round(drawX(imagePosRaw.x || 72));
+            const topY = drawY(imagePosRaw.y || 620);
+            const imgY = Math.round(topY - imgH);
+
+            page.drawImage(embeddedImage, {
+                x: imgX,
+                y: imgY,
+                width: imgW,
+                height: imgH,
+            });
+        }
     }
 
     // ── EVENT TABLE ─────────────────────────────────────────────────────────
@@ -412,6 +461,7 @@ const generate_event_certificates_service = async (eventId) => {
                     ageGroup: payload.ageGroup,
                     clubName: payload.clubName,
                     winnerKRSAId: payload.winnerKRSAId,
+                    photo: payload.photo,
                     events: payload.events,
                 },
                 String(template._id)

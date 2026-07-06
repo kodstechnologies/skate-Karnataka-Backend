@@ -538,7 +538,7 @@ const list_eligible_participants_for_event_repository = async (eventId) => {
         eventId: eventOid,
         userId: { $in: skaterIds },
     })
-        .populate("userId", "fullName krsaId")
+        .populate("userId", "fullName krsaId photo profile")
         .populate("categoriesId", "typeName")
         .lean();
 
@@ -1045,7 +1045,7 @@ const list_event_certificate_skater_breakdown_repository = async (eventId) => {
     const eventOid = new mongoose.Types.ObjectId(String(eventId));
     const [allParticipants, placementsBySkater, eligibleParticipants] = await Promise.all([
         EventParticipant.find({ eventId: eventOid })
-            .populate("userId", "fullName krsaId")
+            .populate("userId", "fullName krsaId photo profile")
             .lean(),
         buildCertificatePlacementsBySkaterForEvent(eventId),
         list_eligible_participants_for_event_repository(eventId),
@@ -1120,6 +1120,7 @@ const build_participant_certificate_payload_repository = async (
         name: participant.name || participant.userId?.fullName || "",
         ageGroup: participant.ageGroup || "",
         clubName,
+        photo: participant.userId?.photo || participant.userId?.profile || "",
         winnerKRSAId: participant.userId?.krsaId || "",
         issueDate,
         events: buildCertificateTableRows(participant),

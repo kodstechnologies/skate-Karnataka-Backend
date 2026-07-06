@@ -58,7 +58,6 @@ const clubSchema = new mongoose.Schema(
     about: {
       type: String,
       trim: true,
-      maxlength: 500,
     },
 
     skaters: {

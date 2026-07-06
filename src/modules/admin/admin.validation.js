@@ -83,9 +83,7 @@ export const createDistrictByAdminValidation = {
     img: Joi.string().uri().allow("").optional().messages({
       "string.uri": "District image must be a valid URL",
     }),
-    about: Joi.string().trim().max(500).allow("").optional().messages({
-      "string.max": "About cannot exceed 500 characters",
-    }),
+    about: Joi.string().trim().allow("").optional(),
     officeAddress: Joi.string().allow(""),
   }),
 };
@@ -96,9 +94,7 @@ export const updateDistrictByAdminValidation = {
     img: Joi.string().uri().allow("").optional().messages({
       "string.uri": "District image must be a valid URL",
     }),
-    about: Joi.string().trim().max(500).allow("").optional().messages({
-      "string.max": "About cannot exceed 500 characters",
-    }),
+    about: Joi.string().trim().allow("").optional(),
     officeAddress: Joi.string().allow(""),
   }).min(1),
   params: Joi.object({
@@ -198,7 +194,7 @@ export const createClubByAdminValidation = {
       "string.uri": "Club image must be a valid URL",
     }),
     officeAddress: Joi.string().trim().max(200).allow("").optional(),
-    about: Joi.string().trim().max(500).allow("").optional(),
+    about: Joi.string().trim().allow("").optional(),
   }),
 };
 
@@ -216,7 +212,7 @@ export const updateClubByAdminValidation = {
       "string.uri": "Club image must be a valid URL",
     }),
     officeAddress: Joi.string().trim().max(200).allow("").optional(),
-    about: Joi.string().trim().max(500).allow("").optional(),
+    about: Joi.string().trim().allow("").optional(),
   }).min(1),
 };
 

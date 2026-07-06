@@ -22,12 +22,8 @@ const createDistrictValidation = {
       }),
     about: Joi.string()
       .trim()
-      .max(500)
       .optional()
-      .allow("")
-      .messages({
-        "string.max": "About cannot exceed 500 characters",
-      }),
+      .allow(""),
   }),
 };
 
@@ -47,12 +43,8 @@ const editDistrictValidation = {
       }),
     about: Joi.string()
       .trim()
-      .max(500)
       .optional()
-      .allow("")
-      .messages({
-        "string.max": "About cannot exceed 500 characters",
-      }),
+      .allow(""),
     formulaSource: Joi.string().valid("admin", "district", "both").optional(),
   }).min(1),
 };

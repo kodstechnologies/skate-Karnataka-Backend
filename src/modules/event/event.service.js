@@ -216,7 +216,7 @@ export const stateEventFullDetailsService = async (eventId, { role, userId }) =>
                 throw new AppError("Forbidden", 403);
             }
         }
-        if (isStateMember && isRegistrationOpen(event.registerEndDate)) {
+        if (isStateMember && !isRegistrationOpen(event.registerEndDate)) {
             throw new AppError("Event not found", 404);
         }
     } else if (event.eventType === "Club" || event.eventType === "District") {

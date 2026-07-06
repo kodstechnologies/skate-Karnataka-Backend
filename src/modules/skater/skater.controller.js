@@ -7,13 +7,13 @@ import { requestSkaterRsfiChangeService } from "./skaterRsfiChange.service.js";
 const afterLoginSkaterForm = asyncHandler(async (req, res) => {
     console.log("🚀 ~ req.body:===========", req.body)
     const { id } = req.params;
-    await after_login_form_skater_service(req.body, id);
+    const result = await after_login_form_skater_service(req.body, id);
     return res
         .status(200)
         .json(
             new ApiResponse(
                 200,
-                null,
+                result,
                 "Skater form submitted successfully"
             )
         )

@@ -9,6 +9,7 @@ import {
     findParentByIdRepositories,
     findUserByPhoneOrEmailRepositories
 } from "./parent.repositories.js";
+import { sendParentProfileSubmittedEmail } from "../../util/email/parentProfileEmail.js";
 
 const SKATER_KEY_REGEX = /^skaters\[(\d*)\]\[([^\]]+)\]$/;
 const PHONE_REGEX = /^[6-9]\d{9}$/;
@@ -399,9 +400,23 @@ const afterLoginFormParentService = async (data, id) => {
         throw new AppError("Parent not found", 404);
     }
 
+    const fullProfile = await displayParentFullDetailsRepositories(id);
+
+    let emailSent = false;
+    if (fullProfile?.email) {
+        try {
+            emailSent = await sendParentProfileSubmittedEmail(fullProfile);
+        } catch (err) {
+            console.error("Parent profile submitted email failed:", err?.message || err);
+        }
+    }
+
     return {
         parentId: String(parentWithSkaters._id),
         parentName: parentWithSkaters.fullName || "",
+        krsaId: fullProfile?.krsaId || "",
+        email: fullProfile?.email || "",
+        emailSent,
         parentAccount: {
             userId: String(parentWithSkaters._id),
             fullName: parentWithSkaters.fullName || "",

@@ -1,8 +1,25 @@
 import { after_login_skater_form_repositories, delete_skater_repositories, get_all_discipline_repositories, get_all_skating_event_categories_full_repositories, get_all_skating_event_categories_repositories, get_skater_digital_id_card_repositories, get_skater_profile_repositories, get_skater_results_by_event_repositories, get_skater_results_event_all_skaters_repository, get_skater_results_event_names_repository, get_skater_results_event_repositories, get_skater_results_event_rounds_repository, update_skater_profile_repositories } from "./skater.repositories.js";
 import { AppError } from "../../util/common/AppError.js";
+import { sendSkaterProfileSubmittedEmail } from "../../util/email/skaterProfileEmail.js";
 
 const after_login_form_skater_service = async (data, id) => {
-    await after_login_skater_form_repositories(data, id);
+    const profile = await after_login_skater_form_repositories(data, id);
+
+    let emailSent = false;
+    if (profile?.email) {
+        try {
+            emailSent = await sendSkaterProfileSubmittedEmail(profile);
+        } catch (err) {
+            console.error("Skater profile submitted email failed:", err?.message || err);
+        }
+    }
+
+    return {
+        krsaId: profile?.krsaId || "",
+        fullName: profile?.fullName || "",
+        email: profile?.email || "",
+        emailSent,
+    };
 }
 
 const get_skater_profile_service = async(id) =>{

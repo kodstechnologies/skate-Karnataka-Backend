@@ -7,154 +7,30 @@ const escapeHtml = (value) =>
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;");
 
-const formatLabel = (key) =>
-    String(key)
-        .replace(/([A-Z])/g, " $1")
-        .replace(/^./, (c) => c.toUpperCase())
-        .trim();
-
-const ROLE_UPLOAD_GUIDE = {
-    Skater: {
-        summary: "Complete your skater profile after logging in to the KRSA app.",
-        imageUploads: [
-            { formField: "img", storedAs: "photo", description: "Profile photo" },
-        ],
-        documentUploads: [
-            { formField: "document", storedAs: "documents", description: "Supporting documents (Aadhaar, certificates, etc.) — up to 10 files" },
-        ],
-        profileFields: [
-            "Date of birth",
-            "Aadhaar number",
-            "RSFI ID",
-            "Category & discipline",
-            "Blood group",
-            "School & grade",
-            "Parent details",
-            "Signature",
-        ],
-    },
-    Parent: {
-        summary: "Your parent account is ready. You can link and manage skater profiles from the app after login.",
-        imageUploads: [],
-        documentUploads: [],
-        profileFields: ["Link skater accounts", "Update contact details"],
-    },
-    School: {
-        summary: "Complete your school profile and upload required documents after logging in.",
-        imageUploads: [
-            { formField: "img", storedAs: "img", description: "School logo or representative image" },
-        ],
-        documentUploads: [
-            { formField: "document / documentFile", storedAs: "documents", description: "School registration & certification documents" },
-        ],
-        profileFields: [
-            "School name & board",
-            "Principal name",
-            "School email & contact",
-            "Skating infrastructure details",
-            "Coach information",
-        ],
-    },
-    Academy: {
-        summary: "Complete your academy/club profile and upload club documents after logging in.",
-        imageUploads: [
-            { formField: "img", storedAs: "img", description: "Club/academy logo or photo" },
-        ],
-        documentUploads: [
-            { formField: "document / documents", storedAs: "documents", description: "Club registration documents" },
-            { formField: "rosDocument / rosDocuments", storedAs: "rosDocuments", description: "ROS (Register of Society) documents" },
-        ],
-        profileFields: [
-            "Club name & ROS number",
-            "President & secretary details",
-            "Track address & measurements",
-            "Trainer count & certification",
-            "Skater counts by discipline",
-        ],
-    },
-    Official: {
-        summary: "Complete your official profile and upload credentials after logging in.",
-        imageUploads: [
-            { formField: "img", storedAs: "img", description: "Profile photo" },
-        ],
-        documentUploads: [
-            { formField: "document / documents", storedAs: "documents", description: "Coaching/officiating certificates & ID proofs" },
-        ],
-        profileFields: [
-            "Experience & training courses",
-            "Coaching & officiating details",
-            "Official contact & email",
-        ],
-    },
-    Guest: {
-        summary: "Your guest account is active. Explore KRSA events and services from the app.",
-        imageUploads: [],
-        documentUploads: [],
-        profileFields: ["Areas of interest", "Contact details"],
-    },
-    District: {
-        summary: "Your district account is registered. Manage district members and events from the admin portal.",
-        imageUploads: [],
-        documentUploads: [],
-        profileFields: ["District assignment", "Member management"],
-    },
-};
-
-const getUploadGuide = (role) =>
-    ROLE_UPLOAD_GUIDE[role] || {
-        summary: "Log in to the KRSA app to complete your profile.",
-        imageUploads: [],
-        documentUploads: [],
-        profileFields: [],
-    };
-
 const buildDetailRow = (label, value) => {
     if (value === undefined || value === null || value === "") return "";
     return `
       <tr>
-        <td style="padding:10px 0;color:#64748b;font-size:13px;width:38%;vertical-align:top;">${escapeHtml(label)}</td>
-        <td style="padding:10px 0;color:#0f172a;font-size:14px;font-weight:600;vertical-align:top;">${escapeHtml(value)}</td>
+        <td style="padding:11px 16px;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9;">${escapeHtml(label)}</td>
+        <td style="padding:11px 16px;color:#0f172a;font-size:14px;font-weight:600;border-bottom:1px solid #f1f5f9;text-align:right;">${escapeHtml(value)}</td>
       </tr>`;
 };
 
-const buildUploadList = (items, accentColor) =>
-    items.length
-        ? `<ul style="margin:8px 0 0 0;padding-left:18px;color:#334155;font-size:13px;line-height:22px;">
-        ${items
-            .map(
-                (item) =>
-                    `<li><strong style="color:${accentColor};">${escapeHtml(item.formField)}</strong> → ${escapeHtml(item.storedAs)} — ${escapeHtml(item.description)}</li>`
-            )
-            .join("")}
-      </ul>`
-        : `<p style="margin:8px 0 0 0;color:#64748b;font-size:13px;">No file uploads required for this account type.</p>`;
-
-const buildProfileList = (items) =>
-    items.length
-        ? `<ul style="margin:8px 0 0 0;padding-left:18px;color:#334155;font-size:13px;line-height:22px;">
-        ${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
-      </ul>`
-        : "";
-
 const buildRegistrationEmailHtml = (user) => {
-    const role = String(user.role || "Guest").trim();
-    const guide = getUploadGuide(role);
+    const role = String(user.role || "Member").trim();
     const districtName = user.district?.name || "";
-    const clubName = user.club?.name || user.clubName || "";
+    const clubName = user.club?.name || "";
     const krsaId = user.krsaId || "—";
     const year = new Date().getFullYear();
+    const firstName = escapeHtml((user.fullName || "Member").split(" ")[0]);
 
     const detailRows = [
         buildDetailRow("Full Name", user.fullName),
-        buildDetailRow("KRSA ID", krsaId),
         buildDetailRow("Role", role),
         buildDetailRow("Email", user.email),
         buildDetailRow("Phone", user.phone ? `+91 ${user.phone}` : ""),
-        buildDetailRow("Gender", user.gender ? formatLabel(user.gender) : ""),
-        buildDetailRow("Address", user.address),
         buildDetailRow("District", districtName),
         buildDetailRow("Club", clubName),
-        buildDetailRow("Account Status", user.verify ? "Verified" : "Pending verification"),
     ]
         .filter(Boolean)
         .join("");
@@ -167,91 +43,86 @@ const buildRegistrationEmailHtml = (user) => {
     <title>Welcome to KRSA</title>
   </head>
   <body style="margin:0;padding:0;background:#eef1f6;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef1f6;padding:32px 12px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef1f6;padding:36px 12px;">
       <tr>
         <td align="center">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 6px 24px rgba(20,40,90,0.08);font-family:'Segoe UI',Arial,sans-serif;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:500px;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 8px 32px rgba(20,40,90,0.10);font-family:'Segoe UI',Arial,sans-serif;">
+
+            <!-- Header -->
             <tr>
-              <td style="background:linear-gradient(135deg,#1a3fb0,#3b82f6);padding:28px 32px;">
-                <div style="color:#ffffff;font-size:22px;font-weight:700;letter-spacing:1px;">KRSA</div>
-                <div style="color:#dbe4ff;font-size:13px;margin-top:4px;">Karnataka Roller Skating Association</div>
+              <td style="background:linear-gradient(135deg,#1a3fb0 0%,#3b82f6 100%);padding:32px 32px 28px 32px;text-align:center;">
+                <div style="width:56px;height:56px;background:rgba(255,255,255,0.15);border-radius:50%;margin:0 auto 14px auto;line-height:56px;font-size:28px;">🛼</div>
+                <div style="color:#ffffff;font-size:24px;font-weight:800;letter-spacing:1px;">KRSA</div>
+                <div style="color:#bfdbfe;font-size:12px;margin-top:4px;letter-spacing:0.5px;">Karnataka Roller Skating Association</div>
               </td>
             </tr>
+
+            <!-- Success badge -->
             <tr>
-              <td style="padding:32px 32px 12px 32px;">
-                <h1 style="margin:0 0 8px 0;color:#0f172a;font-size:20px;font-weight:700;">Welcome, ${escapeHtml(user.fullName || "Member")}!</h1>
-                <p style="margin:0;color:#475569;font-size:14px;line-height:22px;">
-                  Your KRSA account has been created successfully. Save your KRSA ID below — you will need it to log in.
-                </p>
-              </td>
-            </tr>
-            <tr>
-              <td align="center" style="padding:16px 32px 8px 32px;">
-                <div style="display:inline-block;background:#f1f5ff;border:2px dashed #3b82f6;border-radius:12px;padding:16px 28px;">
-                  <div style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Your KRSA ID</div>
-                  <div style="color:#1a3fb0;font-size:28px;font-weight:800;letter-spacing:2px;">${escapeHtml(krsaId)}</div>
+              <td style="padding:32px 32px 0 32px;text-align:center;">
+                <div style="display:inline-block;background:#f0fdf4;border:1px solid #86efac;border-radius:50px;padding:8px 20px;">
+                  <span style="color:#16a34a;font-size:13px;font-weight:700;">✓ &nbsp;Registration Successful</span>
                 </div>
               </td>
             </tr>
+
+            <!-- Welcome message -->
             <tr>
-              <td style="padding:24px 32px 8px 32px;">
-                <h2 style="margin:0 0 12px 0;color:#0f172a;font-size:15px;font-weight:700;">Registration Details</h2>
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #e2e8f0;">
+              <td style="padding:20px 32px 8px 32px;text-align:center;">
+                <h1 style="margin:0 0 10px 0;color:#0f172a;font-size:22px;font-weight:700;">Welcome, ${firstName}!</h1>
+                <p style="margin:0;color:#64748b;font-size:14px;line-height:22px;">
+                  Your account has been registered with KRSA.<br />
+                  Your unique ID is ready — save it safely.
+                </p>
+              </td>
+            </tr>
+
+            <!-- KRSA ID card -->
+            <tr>
+              <td style="padding:20px 32px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:linear-gradient(135deg,#eff6ff,#f0f9ff);border:2px solid #93c5fd;border-radius:14px;">
+                  <tr>
+                    <td style="padding:22px 24px;text-align:center;">
+                      <div style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;font-weight:600;">Your KRSA ID</div>
+                      <div style="color:#1a3fb0;font-size:32px;font-weight:900;letter-spacing:3px;font-family:'Courier New',monospace;">${escapeHtml(krsaId)}</div>
+                      <div style="color:#94a3b8;font-size:12px;margin-top:8px;">Use this ID to log in to the KRSA app</div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- Details table -->
+            <tr>
+              <td style="padding:4px 32px 8px 32px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
                   ${detailRows}
                 </table>
               </td>
             </tr>
+
+            <!-- CTA hint -->
             <tr>
               <td style="padding:16px 32px 8px 32px;">
-                <h2 style="margin:0 0 8px 0;color:#0f172a;font-size:15px;font-weight:700;">Next Steps — Complete Your Profile</h2>
-                <p style="margin:0;color:#475569;font-size:13px;line-height:20px;">${escapeHtml(guide.summary)}</p>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:8px 32px;">
-                <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px 16px;">
-                  <div style="color:#166534;font-size:13px;font-weight:700;margin-bottom:4px;">Image Upload Fields</div>
-                  ${buildUploadList(guide.imageUploads, "#166534")}
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:12px 32px;">
-                <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px 16px;">
-                  <div style="color:#1e40af;font-size:13px;font-weight:700;margin-bottom:4px;">Document Upload Fields</div>
-                  ${buildUploadList(guide.documentUploads, "#1e40af")}
-                </div>
-              </td>
-            </tr>
-            ${
-                guide.profileFields.length
-                    ? `<tr>
-              <td style="padding:12px 32px 20px 32px;">
-                <div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px;padding:14px 16px;">
-                  <div style="color:#6b21a8;font-size:13px;font-weight:700;margin-bottom:4px;">Additional Profile Fields</div>
-                  ${buildProfileList(guide.profileFields)}
-                </div>
-              </td>
-            </tr>`
-                    : ""
-            }
-            <tr>
-              <td style="padding:8px 32px 24px 32px;">
-                <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:12px 16px;">
-                  <p style="margin:0;color:#9a3412;font-size:12px;line-height:18px;">
-                    Keep this email safe. Your KRSA ID, email, or phone can be used to log in. Never share your OTP with anyone.
+                <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:14px 18px;text-align:center;">
+                  <p style="margin:0;color:#9a3412;font-size:13px;line-height:20px;">
+                    🔐 Log in using your <strong>KRSA ID</strong>, <strong>email</strong>, or <strong>phone number</strong>.<br />
+                    Never share your OTP with anyone.
                   </p>
                 </div>
               </td>
             </tr>
+
+            <!-- Footer -->
             <tr>
-              <td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:18px 32px;">
-                <p style="margin:0;color:#94a3b8;font-size:12px;line-height:18px;">
-                  Need help? Contact KRSA support.<br />
-                  &copy; ${year} KRSA. All rights reserved.
+              <td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:20px 32px;text-align:center;">
+                <p style="margin:0;color:#94a3b8;font-size:12px;line-height:20px;">
+                  Thank you for joining KRSA!<br />
+                  &copy; ${year} Karnataka Roller Skating Association. All rights reserved.
                 </p>
               </td>
             </tr>
+
           </table>
         </td>
       </tr>
@@ -261,38 +132,27 @@ const buildRegistrationEmailHtml = (user) => {
 };
 
 const buildRegistrationEmailText = (user) => {
-    const role = String(user.role || "Guest").trim();
-    const guide = getUploadGuide(role);
+    const role = String(user.role || "Member").trim();
     const districtName = user.district?.name || "";
     const clubName = user.club?.name || "";
-
-    const imageLines = guide.imageUploads.map(
-        (item) => `  - ${item.formField} → ${item.storedAs}: ${item.description}`
-    );
-    const docLines = guide.documentUploads.map(
-        (item) => `  - ${item.formField} → ${item.storedAs}: ${item.description}`
-    );
 
     return [
         `Welcome to KRSA, ${user.fullName || "Member"}!`,
         "",
-        "Your account has been registered successfully.",
+        "✓ Your account has been registered successfully.",
         "",
-        `KRSA ID: ${user.krsaId || "—"}`,
-        `Role: ${role}`,
-        `Email: ${user.email || ""}`,
-        `Phone: +91 ${user.phone || ""}`,
-        user.address ? `Address: ${user.address}` : "",
+        `Your KRSA ID: ${user.krsaId || "—"}`,
+        "",
+        `Role    : ${role}`,
+        `Email   : ${user.email || ""}`,
+        `Phone   : +91 ${user.phone || ""}`,
         districtName ? `District: ${districtName}` : "",
-        clubName ? `Club: ${clubName}` : "",
+        clubName ? `Club    : ${clubName}` : "",
         "",
-        "NEXT STEPS",
-        guide.summary,
+        "Log in using your KRSA ID, email, or phone number.",
+        "Never share your OTP with anyone.",
         "",
-        imageLines.length ? "Image upload fields:\n" + imageLines.join("\n") : "",
-        docLines.length ? "Document upload fields:\n" + docLines.join("\n") : "",
-        "",
-        "Keep your KRSA ID safe. You can log in using your KRSA ID, email, or phone.",
+        "Thank you for joining KRSA!",
     ]
         .filter(Boolean)
         .join("\n");
@@ -301,14 +161,16 @@ const buildRegistrationEmailText = (user) => {
 export const sendRegistrationWelcomeEmail = async (user) => {
     const to = String(user?.email || "").trim().toLowerCase();
     if (!to) {
-        return;
+        return false;
     }
 
     await getTransporter().sendMail({
         from: `"KRSA" <${process.env.EMAIL_USER}>`,
         to,
-        subject: `Welcome to KRSA — Your ID is ${user.krsaId || "registered"}`,
+        subject: `Welcome to KRSA — Your ID ${user.krsaId || ""} is registered`,
         text: buildRegistrationEmailText(user),
         html: buildRegistrationEmailHtml(user),
     });
+
+    return true;
 };

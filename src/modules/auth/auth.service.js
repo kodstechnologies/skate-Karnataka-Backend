@@ -2,6 +2,7 @@
 import { generateAccessToken, generateRandomNumber, generateRefreshToken } from "../../util/token/token.js";
 import { AppError } from "../../util/common/AppError.js";
 import { sendOTPToEmail } from "../../util/otp/emailOtp.js";
+import { sendEmailVerificationOTP } from "../../util/otp/emailVerificationOtp.js";
 import { sendRegistrationWelcomeEmail } from "../../util/email/registrationEmail.js";
 import { sendOTPToPhone } from "../../util/otp/phoneOtp.js";
 import { District } from "../district/district.model.js";
@@ -155,10 +156,13 @@ const RegisterUserService = async (userData) => {
         .populate("club", "name")
         .lean();
 
+    let emailSent = false;
     if (registeredUser?.email) {
-        sendRegistrationWelcomeEmail(registeredUser).catch((err) => {
+        try {
+            emailSent = await sendRegistrationWelcomeEmail(registeredUser);
+        } catch (err) {
             console.error("Registration welcome email failed:", err?.message || err);
-        });
+        }
     }
 
     return {
@@ -169,6 +173,7 @@ const RegisterUserService = async (userData) => {
         role: registeredUser.role || "",
         phone: registeredUser.phone || "",
         verify: Boolean(registeredUser.verify),
+        emailSent,
     };
 };
 
@@ -186,7 +191,7 @@ const sendEmailOTPService = async (email) => {
     const otp = generateRandomNumber();
     await saveEmailOtp(email, otp);
     // send otp 
-    await sendOTPToEmail(email.email, otp);
+    await sendEmailVerificationOTP(email.email, otp);
 }
 
 const verifyEmailOTPService = async (data) => {

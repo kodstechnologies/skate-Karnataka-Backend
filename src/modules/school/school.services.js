@@ -1,9 +1,27 @@
 import mongoose from "mongoose";
 import { AppError } from "../../util/common/AppError.js";
 import { afterLoginSchoolFormRepositories, displayAllSchoolRepositories, displaySchoolFullDetailsRepositories } from "./school.repositories.js";
+import { sendSchoolProfileSubmittedEmail } from "../../util/email/schoolProfileEmail.js";
 
 const afterLoginFormSchoolService = async (data, id) => {
-    return await afterLoginSchoolFormRepositories(data, id);
+    const profile = await afterLoginSchoolFormRepositories(data, id);
+
+    let emailSent = false;
+    if (profile?.email || profile?.schoolEmail) {
+        try {
+            emailSent = await sendSchoolProfileSubmittedEmail(profile);
+        } catch (err) {
+            console.error("School profile submitted email failed:", err?.message || err);
+        }
+    }
+
+    return {
+        krsaId: profile?.krsaId || "",
+        schoolName: profile?.schoolName || "",
+        fullName: profile?.fullName || "",
+        email: profile?.email || profile?.schoolEmail || "",
+        emailSent,
+    };
 };
 
 const displayAllSchoolService = async (query) => {

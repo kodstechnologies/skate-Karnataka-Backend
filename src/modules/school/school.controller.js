@@ -6,13 +6,13 @@ import { normalizeSchoolFormPayload } from "./schoolFormPayload.js";
 const afterLoginSchoolForm = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const payload = normalizeSchoolFormPayload(req.body);
-    await afterLoginFormSchoolService(payload, id);
+    const result = await afterLoginFormSchoolService(payload, id);
     return res
         .status(200)
         .json(
             new ApiResponse(
                 200,
-                null,
+                result,
                 "School form submitted successfully"
             )
         )

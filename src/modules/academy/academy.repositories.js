@@ -65,7 +65,18 @@ const afterLoginClubFormRepositories = async (data, id) => {
         throw new AppError("Club not found", 404);
     }
 
-    return BaseAuth.findById(id).populate("district");
+    const profile = await Academy.findOne({ _id: id, role: { $in: CLUB_ACADEMY_ROLES } })
+        .populate("district", "name")
+        .lean();
+
+    if (!profile) {
+        throw new AppError("Club not found", 404);
+    }
+
+    return {
+        ...profile,
+        districtName: profile.district?.name || "",
+    };
 };
 
 const displayAllAcademyRepositories = async ({

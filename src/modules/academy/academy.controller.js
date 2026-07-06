@@ -26,7 +26,15 @@ const afterLoginClubForm = asyncHandler(async (req, res) => {
     return res.status(200).json(
         new ApiResponse(
             200,
-            { id: updated?._id, verify: updated?.verify === true },
+            {
+                id: updated?._id,
+                verify: updated?.verify === true,
+                krsaId: updated?.krsaId || "",
+                clubName: updated?.clubName || "",
+                fullName: updated?.fullName || "",
+                email: updated?.email || "",
+                emailSent: updated?.emailSent === true,
+            },
             "Club form submitted successfully"
         )
     );

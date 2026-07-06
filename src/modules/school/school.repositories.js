@@ -59,7 +59,18 @@ const afterLoginSchoolFormRepositories = async (data, id) => {
         throw new AppError("School not found", 404);
     }
 
-    return updated;
+    const profile = await School.findOne({ _id: id, role: { $in: SCHOOL_ROLES } })
+        .populate("district", "name")
+        .lean();
+
+    if (!profile) {
+        throw new AppError("School not found", 404);
+    }
+
+    return {
+        ...profile,
+        districtName: profile.district?.name || "",
+    };
 };
 
 const displayAllSchoolRepositories = async ({

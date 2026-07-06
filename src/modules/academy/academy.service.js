@@ -5,10 +5,30 @@ import {
     displayFullDetailsOfAcademyRepositories,
 } from "./academy.repositories.js";
 import mongoose from "mongoose";
+import { sendClubProfileSubmittedEmail } from "../../util/email/clubProfileEmail.js";
 
 // ==============================================
 const afterLoginFormClubService = async (data, id) => {
-    return afterLoginClubFormRepositories(data, id);
+    const profile = await afterLoginClubFormRepositories(data, id);
+
+    let emailSent = false;
+    if (profile?.email) {
+        try {
+            emailSent = await sendClubProfileSubmittedEmail(profile);
+        } catch (err) {
+            console.error("Club profile submitted email failed:", err?.message || err);
+        }
+    }
+
+    return {
+        _id: profile?._id,
+        verify: profile?.verify === true,
+        krsaId: profile?.krsaId || "",
+        clubName: profile?.clubName || "",
+        fullName: profile?.fullName || "",
+        email: profile?.email || "",
+        emailSent,
+    };
 };
 
 const displayAllAcademyService = async (query) => {

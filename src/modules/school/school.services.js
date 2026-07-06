@@ -9,7 +9,10 @@ const afterLoginFormSchoolService = async (data, id) => {
     let emailSent = false;
     if (profile?.email || profile?.schoolEmail) {
         try {
-            emailSent = await sendSchoolProfileSubmittedEmail(profile);
+            emailSent = await sendSchoolProfileSubmittedEmail(profile, {
+                submittedImg: data.img,
+                submittedDocuments: data.documents,
+            });
         } catch (err) {
             console.error("School profile submitted email failed:", err?.message || err);
         }

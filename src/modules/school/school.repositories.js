@@ -60,6 +60,7 @@ const afterLoginSchoolFormRepositories = async (data, id) => {
     }
 
     const profile = await School.findOne({ _id: id, role: { $in: SCHOOL_ROLES } })
+        .select("-refreshTokens -firebaseTokens")
         .populate("district", "name")
         .lean();
 

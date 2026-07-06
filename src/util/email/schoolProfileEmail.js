@@ -40,29 +40,114 @@ const formatDateValue = (value) => {
     }
 };
 
-const buildDocumentsSection = (documents = []) => {
-    if (!Array.isArray(documents) || documents.length === 0) return "";
+const isImageUrl = (url) =>
+    /\.(jpe?g|png|gif|webp|bmp|svg)(\?|#|$)/i.test(String(url || "")) ||
+    /\/image\//i.test(String(url || ""));
 
-    const items = documents
-        .map((doc, index) => {
-            const name = doc?.name || `Document ${index + 1}`;
-            const url = doc?.url || "";
-            if (!url) return "";
-            return `<li style="margin-bottom:6px;">
-              <a href="${escapeHtml(url)}" style="color:#6d28d9;text-decoration:none;font-size:13px;font-weight:600;">${escapeHtml(name)}</a>
-            </li>`;
-        })
-        .filter(Boolean)
-        .join("");
+const mergeSchoolUploads = (school, submission = {}) => {
+    const documents = [...(school?.documents || [])];
+    const seenUrls = new Set(
+        documents.map((doc) => String(doc?.url || "").trim()).filter(Boolean)
+    );
 
-    if (!items) return "";
+    const submittedDocs = Array.isArray(submission.submittedDocuments)
+        ? submission.submittedDocuments
+        : [];
+
+    for (const doc of submittedDocs) {
+        const url = typeof doc === "string" ? doc.trim() : String(doc?.url || "").trim();
+        if (!url || seenUrls.has(url)) continue;
+        seenUrls.add(url);
+        documents.push(
+            typeof doc === "object" && doc !== null
+                ? doc
+                : { url, name: "Uploaded Document", uploadedAt: new Date() }
+        );
+    }
+
+    const img = submission.submittedImg || school?.img || school?.profile || "";
+
+    return {
+        ...school,
+        img,
+        documents,
+    };
+};
+
+const collectSchoolUploads = (school) => {
+    const uploads = [];
+    const seen = new Set();
+
+    const addUpload = (name, url, uploadedAt) => {
+        const normalizedUrl = String(url || "").trim();
+        if (!normalizedUrl || seen.has(normalizedUrl)) return;
+        seen.add(normalizedUrl);
+        uploads.push({
+            name: name || "Uploaded File",
+            url: normalizedUrl,
+            uploadedAt,
+            isImage: isImageUrl(normalizedUrl),
+        });
+    };
+
+    addUpload("School Logo / Image", school.img || school.profile);
+
+    (school.documents || []).forEach((doc, index) => {
+        addUpload(
+            doc?.name || `Document ${index + 1}`,
+            doc?.url,
+            doc?.uploadedAt
+        );
+    });
+
+    return uploads;
+};
+
+const buildUploadCard = (upload, index) => {
+    const label = escapeHtml(upload.name || `File ${index + 1}`);
+    const url = escapeHtml(upload.url);
+    const uploadedAt = upload.uploadedAt
+        ? formatDateValue(upload.uploadedAt)
+        : "";
+
+    const preview = upload.isImage
+        ? `<a href="${url}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">
+            <img src="${url}" alt="${label}" width="100%" style="display:block;width:100%;max-width:220px;height:140px;object-fit:cover;border-radius:10px;border:1px solid #e2e8f0;margin:0 auto 10px auto;" />
+          </a>`
+        : `<a href="${url}" target="_blank" rel="noopener noreferrer" style="display:block;width:100%;max-width:220px;height:140px;margin:0 auto 10px auto;background:#f8fafc;border:1px dashed #c4b5fd;border-radius:10px;text-align:center;line-height:140px;text-decoration:none;font-size:42px;">📄</a>`;
+
+    return `
+      <td width="50%" style="padding:8px;vertical-align:top;">
+        <div style="background:#ffffff;border:1px solid #e9d5ff;border-radius:12px;padding:14px;text-align:center;height:100%;">
+          ${preview}
+          <div style="color:#0f172a;font-size:13px;font-weight:700;margin-bottom:4px;">${label}</div>
+          <a href="${url}" target="_blank" rel="noopener noreferrer" style="color:#6d28d9;font-size:12px;font-weight:600;text-decoration:none;word-break:break-all;">View / Download</a>
+          ${uploadedAt ? `<div style="color:#94a3b8;font-size:11px;margin-top:6px;">Uploaded: ${escapeHtml(uploadedAt)}</div>` : ""}
+        </div>
+      </td>`;
+};
+
+const buildDocumentsSection = (school) => {
+    const uploads = collectSchoolUploads(school);
+    if (!uploads.length) return "";
+
+    const rows = [];
+    for (let i = 0; i < uploads.length; i += 2) {
+        const left = buildUploadCard(uploads[i], i);
+        const right = uploads[i + 1] ? buildUploadCard(uploads[i + 1], i + 1) : '<td width="50%" style="padding:8px;"></td>';
+        rows.push(`<tr>${left}${right}</tr>`);
+    }
 
     return `
       <tr>
-        <td style="padding:8px 32px 16px 32px;">
-          <div style="background:#f5f3ff;border:1px solid #c4b5fd;border-radius:12px;padding:16px 18px;">
-            <div style="color:#5b21b6;font-size:13px;font-weight:700;margin-bottom:8px;">Uploaded Documents</div>
-            <ul style="margin:0;padding-left:18px;">${items}</ul>
+        <td style="padding:8px 24px 16px 24px;">
+          <div style="background:#f5f3ff;border:1px solid #c4b5fd;border-radius:12px;padding:16px 12px 8px 12px;">
+            <div style="color:#5b21b6;font-size:13px;font-weight:700;margin-bottom:12px;text-align:center;">
+              Uploaded Files (${uploads.length})
+            </div>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+              ${rows.join("")}
+            </table>
           </div>
         </td>
       </tr>`;
@@ -73,7 +158,6 @@ const buildSchoolProfileEmailHtml = (school) => {
     const krsaId = school.krsaId || "—";
     const schoolLabel = escapeHtml(school.schoolName || school.fullName || "School");
     const districtName = school.districtName || school.district?.name || "";
-    const img = school.img || school.profile || "";
 
     const schoolRows = [
         buildDetailRow("School Name", school.schoolName),
@@ -120,14 +204,6 @@ const buildSchoolProfileEmailHtml = (school) => {
         buildDetailRow("Coach Joining Date", formatDateValue(school.coachJoiningDate)),
     ];
 
-    const imgBlock = img
-        ? `<tr>
-        <td style="padding:8px 32px 4px 32px;text-align:center;">
-          <img src="${escapeHtml(img)}" alt="School image" width="96" height="96" style="width:96px;height:96px;border-radius:12px;object-fit:cover;border:3px solid #c4b5fd;" />
-        </td>
-      </tr>`
-        : "";
-
     return `<!DOCTYPE html>
 <html lang="en">
   <head>
@@ -167,8 +243,6 @@ const buildSchoolProfileEmailHtml = (school) => {
               </td>
             </tr>
 
-            ${imgBlock}
-
             <tr>
               <td style="padding:16px 32px 8px 32px;">
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);border:2px solid #c4b5fd;border-radius:14px;">
@@ -186,7 +260,7 @@ const buildSchoolProfileEmailHtml = (school) => {
             ${buildSection("Account Contact", accountRows)}
             ${buildSection("Skating Infrastructure", skatingRows)}
             ${buildSection("Coach Details", coachRows)}
-            ${buildDocumentsSection(school.documents)}
+            ${buildDocumentsSection(school)}
 
             <tr>
               <td style="padding:8px 32px 24px 32px;">
@@ -244,8 +318,8 @@ const buildSchoolProfileEmailText = (school) => {
         school.coachName ? `Coach Name      : ${school.coachName}` : "",
         `Verified        : ${school.verify ? "Yes" : "No"}`,
         "",
-        ...(school.documents || []).map(
-            (doc, i) => `Document ${i + 1}: ${doc?.name || "File"} — ${doc?.url || ""}`
+        ...collectSchoolUploads(school).map(
+            (upload, i) => `${upload.name || `File ${i + 1}`}: ${upload.url}`
         ),
         "",
         "Thank you for partnering with KRSA!",
@@ -254,18 +328,20 @@ const buildSchoolProfileEmailText = (school) => {
         .join("\n");
 };
 
-export const sendSchoolProfileSubmittedEmail = async (school) => {
+export const sendSchoolProfileSubmittedEmail = async (school, submission = {}) => {
     const to = String(school?.email || school?.schoolEmail || "").trim().toLowerCase();
     if (!to) {
         return false;
     }
 
+    const mergedSchool = mergeSchoolUploads(school, submission);
+
     await getTransporter().sendMail({
         from: `"KRSA" <${process.env.EMAIL_USER}>`,
         to,
-        subject: `KRSA School Profile Submitted — ${school.krsaId || school.schoolName || "School"}`,
-        text: buildSchoolProfileEmailText(school),
-        html: buildSchoolProfileEmailHtml(school),
+        subject: `KRSA School Profile Submitted — ${mergedSchool.krsaId || mergedSchool.schoolName || "School"}`,
+        text: buildSchoolProfileEmailText(mergedSchool),
+        html: buildSchoolProfileEmailHtml(mergedSchool),
     });
 
     return true;

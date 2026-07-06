@@ -29,6 +29,17 @@ export const normalizeSchoolFormPayload = (body = {}) => {
     }
   }
 
+  if (typeof data.documents === "string") {
+    try {
+      const parsed = JSON.parse(data.documents);
+      if (Array.isArray(parsed)) {
+        data.documents = parsed;
+      }
+    } catch {
+      // keep as-is; file upload middleware may populate documents separately
+    }
+  }
+
   delete data.schoolContact;
   delete data.documentFile;
   delete data.documentFileName;

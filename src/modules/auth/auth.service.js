@@ -153,13 +153,27 @@ const RegisterUserService = async (userData) => {
 
     const registeredUser = await BaseAuth.findById(user._id)
         .populate("district", "name")
-        .populate("club", "name")
         .lean();
+
+    if (!registeredUser) {
+        throw new AppError("User registration failed", 500);
+    }
+
+    let clubForEmail = null;
+    if (selectedClubId) {
+        const clubDoc = await Club.findById(selectedClubId).select("name").lean();
+        if (clubDoc?.name) {
+            clubForEmail = { name: clubDoc.name };
+        }
+    }
 
     let emailSent = false;
     if (registeredUser?.email) {
         try {
-            emailSent = await sendRegistrationWelcomeEmail(registeredUser);
+            emailSent = await sendRegistrationWelcomeEmail({
+                ...registeredUser,
+                club: clubForEmail,
+            });
         } catch (err) {
             console.error("Registration welcome email failed:", err?.message || err);
         }

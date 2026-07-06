@@ -2,7 +2,7 @@ import nodemailer from "nodemailer";
 
 let transporter;
 
-const getTransporter = () => {
+export const getTransporter = () => {
     if (transporter) {
         return transporter;
     }

@@ -2,6 +2,7 @@
 import { generateAccessToken, generateRandomNumber, generateRefreshToken } from "../../util/token/token.js";
 import { AppError } from "../../util/common/AppError.js";
 import { sendOTPToEmail } from "../../util/otp/emailOtp.js";
+import { sendRegistrationWelcomeEmail } from "../../util/email/registrationEmail.js";
 import { sendOTPToPhone } from "../../util/otp/phoneOtp.js";
 import { District } from "../district/district.model.js";
 import { Club } from "../club/club.model.js";
@@ -149,7 +150,26 @@ const RegisterUserService = async (userData) => {
         );
     }
 
-    return user._id;
+    const registeredUser = await BaseAuth.findById(user._id)
+        .populate("district", "name")
+        .populate("club", "name")
+        .lean();
+
+    if (registeredUser?.email) {
+        sendRegistrationWelcomeEmail(registeredUser).catch((err) => {
+            console.error("Registration welcome email failed:", err?.message || err);
+        });
+    }
+
+    return {
+        userId: registeredUser._id,
+        krsaId: registeredUser.krsaId || "",
+        email: registeredUser.email || "",
+        fullName: registeredUser.fullName || "",
+        role: registeredUser.role || "",
+        phone: registeredUser.phone || "",
+        verify: Boolean(registeredUser.verify),
+    };
 };
 
 const sendEmailOTPService = async (email) => {

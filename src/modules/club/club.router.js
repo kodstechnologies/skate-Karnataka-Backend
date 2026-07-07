@@ -174,7 +174,7 @@ router.get("/v1/reject-join/:id",
 router.get("/v1/approve-leave/:id", authenticate(["Club"]), approve_leave_club);
 router.get("/v1/reject-leave/:id", authenticate(["Club"]), reject_leave_club);
 
-// RSFI ID change (use skater id from pending list skaterID field)
+// RSFI / photo change (use id from pending list item)
 router.get("/v1/approve-rsfi/:id", authenticate(["Club"]), approve_rsfi_change);
 router.get("/v1/reject-rsfi/:id", authenticate(["Club"]), reject_rsfi_change);
 

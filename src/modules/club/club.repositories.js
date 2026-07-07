@@ -1090,8 +1090,6 @@ const display_all_apply_skater_repositories = async (
                 row.fullName,
                 row.sortAt,
                 {
-                    skaterID: skaterId,
-                    requestId: String(row._id || ""),
                     requestType,
                     krsaId: row.krsaId || "",
                     currentRsfiId: row.currentRsfiId || "",

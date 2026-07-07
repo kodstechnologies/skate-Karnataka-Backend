@@ -11,7 +11,7 @@ import {
     approveSkaterRsfiChangeService,
     rejectSkaterRsfiChangeService,
 } from "../skater/skaterRsfiChange.service.js";
-import { addSkaterByClubRepository, affiliatedDistrictRepository, allClubsInDbRepository, allClubsRepository, apply_club_repositories, apply_leave_repository, applyForDistrictRepository, approve_join_club_repositories, approve_leave_club_repositories, clubIdStoreinDestrict, clubsForSkaterUserRepository, createClubRepository, deleteClubDetails, display_all_apply_skater_repositories, display_all_club_skater_repositories, display_club_skater_details_repositories, display_existing_club_repositories, displayClubDashboardRepositories, displayClubProfileRepositories, displayDistrictFullDetailsRepository, displayFullDetailsOfClub, exceptOwnDistrictDisplayAllDistrictRepository, isAlreadyAppliedToClubRepository, isApplyRepository, isExistClub, isThisClubExist, reject_join_club_repositories, reject_leave_club_repositories, reject_leave_district_affiliation_repository, remove_skater_from_club_repositories, removeAffiliationRepository, resolveClubIdFromClubMember, updateClubDetails } from "./club.repositories.js";
+import { addSkaterByClubRepository, affiliatedDistrictRepository, allClubsInDbRepository, allClubsRepository, apply_club_repositories, apply_leave_repository, applyForDistrictRepository, approve_join_club_repositories, approve_leave_club_repositories, clubIdStoreinDestrict, clubsForSkaterUserRepository, createClubRepository, deleteClubDetails, display_all_apply_skater_repositories, display_all_club_skater_repositories, display_club_skater_details_repositories, display_existing_club_repositories, displayClubDashboardRepositories, displayClubProfileRepositories, displayDistrictFullDetailsRepository, displayFullDetailsOfClub, exceptOwnDistrictDisplayAllDistrictRepository, isAlreadyAppliedToClubRepository, isApplyRepository, isExistClub, isThisClubExist, reject_join_club_repositories, reject_leave_club_repositories, reject_leave_district_affiliation_repository, remove_skater_from_club_repositories, removeAffiliationRepository, resolveClubIdFromClubMember, updateClubDetails, updateClubProfileRepository } from "./club.repositories.js";
 
 
 const mapCreateClubError = (error) => {
@@ -56,6 +56,19 @@ export const displayClubDashboardService = async(clubId) => {
 export const displayClubProfileService = async (userId) => {
     const profile = await displayClubProfileRepositories(userId);
 
+    if (!profile) {
+        throw new AppError("Club profile not found", 404);
+    }
+
+    return profile;
+};
+
+export const updateClubProfileService = async (userId, data) => {
+    if (!userId) {
+        throw new AppError("User id is required", 400);
+    }
+
+    const profile = await updateClubProfileRepository(userId, data);
     if (!profile) {
         throw new AppError("Club profile not found", 404);
     }

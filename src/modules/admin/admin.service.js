@@ -11,6 +11,7 @@ import {
   createClubMember,
   createDistrictByAdmin,
   createDistrictMember,
+  createSkaterForAdmin,
   deleteClubByIdForAdmin,
   deleteClubMemberById,
   deleteDistrictMemberById,
@@ -681,6 +682,42 @@ export const setClubMainMemberByAdminService = async (clubId, memberId) => {
 
 export const getAllSkatersByAdminService = async ({ page, limit, search }) => {
   return getAllSkatersForAdmin({ page, limit, search });
+};
+
+const resolveDistrictIdForSkaterCreate = async (districtValue) => {
+  const trimmed = String(districtValue || "").trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  if (/^[0-9a-fA-F]{24}$/.test(trimmed)) {
+    const district = await findDistrictById(trimmed);
+    if (!district) {
+      throw new AppError("District not found", 404);
+    }
+    return district._id;
+  }
+
+  const district = await findDistrictByName(trimmed);
+  if (!district) {
+    throw new AppError(`District "${trimmed}" not found`, 404);
+  }
+  return district._id;
+};
+
+export const createSkaterByAdminService = async (payload) => {
+  const districtId = payload.district
+    ? await resolveDistrictIdForSkaterCreate(payload.district)
+    : null;
+
+  return createSkaterForAdmin({
+    fullName: payload.fullName,
+    phone: payload.phone,
+    address: payload.address,
+    gender: String(payload.gender || "").trim().toLowerCase(),
+    email: payload.email,
+    district: districtId,
+  });
 };
 
 export const getSkaterFullDetailsByAdminService = async (skaterId) => {

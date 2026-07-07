@@ -33,6 +33,7 @@ import {
   getAllDistrictsByAdmin,
   getAllSkatersByAdmin,
   getSkaterFullDetailsByAdmin,
+  createSkaterByAdmin,
   updateSkaterByAdmin,
   updateClubByAdmin,
   updateDistrictMemberByAdmin,
@@ -57,6 +58,7 @@ import {
   districtByAdminIdValidation,
   skaterByAdminIdValidation,
   skaterListByAdminValidation,
+  createSkaterByAdminValidation,
   updateSkaterByAdminValidation,
   updateClubMemberByAdminValidation,
   updateClubByAdminValidation,
@@ -246,6 +248,12 @@ router.get(
   authenticate(["State", "admin"]),
   validate(skaterListByAdminValidation),
   getAllSkatersByAdmin
+);
+router.post(
+  "/v1/skater",
+  authenticate(["State", "admin"]),
+  validate(createSkaterByAdminValidation),
+  createSkaterByAdmin
 );
 router.get(
   "/v1/skater/:id",

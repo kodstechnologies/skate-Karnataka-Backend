@@ -7,6 +7,7 @@ import {
     displayAllApplySkaterQueryValidation,
     displayAllClubSkaterQueryValidation,
     editClubValidation,
+    updateClubProfileValidation,
 } from "./club.validation.js";
 import {
     create_formula_validation,
@@ -22,7 +23,7 @@ import {
     patchClubFormulaSourceSetting,
     updateClubFormulaHandler,
 } from "./club.formula.controller.js";
-import { addSkaterByClub, affiliatedDistrict, apply_club, apply_leave, applyForDistrict, approve_join_club, approve_leave_club, approve_rsfi_change, createNewClub, deleteClub, display_all_Club_basedOn_user_district, display_all_apply_skater, display_all_club_skater, display_club_skater_details, displayDistrictFullDetails, display_existing_club, displayAllClubs, displayAllClubsInDb, displayClubDashboard, displayClubProfile, displaySingleClub, exceptOwnDistrictDisplayAllDistrict, reject_join_club, reject_leave_club, reject_rsfi_change, remove_skater_from_club, removeAffiliation, reports, updateClub } from "./club.controller.js";
+import { addSkaterByClub, affiliatedDistrict, apply_club, apply_leave, applyForDistrict, approve_join_club, approve_leave_club, approve_rsfi_change, createNewClub, deleteClub, display_all_Club_basedOn_user_district, display_all_apply_skater, display_all_club_skater, display_club_skater_details, displayDistrictFullDetails, display_existing_club, displayAllClubs, displayAllClubsInDb, displayClubDashboard, displayClubProfile, displaySingleClub, exceptOwnDistrictDisplayAllDistrict, reject_join_club, reject_leave_club, reject_rsfi_change, remove_skater_from_club, removeAffiliation, reports, updateClub, updateClubProfile } from "./club.controller.js";
 import { upload } from "../../middleware/multer.middleware.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
@@ -39,6 +40,21 @@ const USER_DISTRICT_CLUB_ROLES = [
 ];
 
 const router = express.Router();
+
+const normalizeFormBody = (req, _res, next) => {
+  if (!req.body || typeof req.body !== "object") {
+    return next();
+  }
+
+  req.body = Object.fromEntries(
+    Object.entries(req.body).map(([key, value]) => [
+      key.trim(),
+      typeof value === "string" ? value.trim() : value,
+    ])
+  );
+
+  next();
+};
 
 // ================= create skater 
 
@@ -70,6 +86,15 @@ router.get("/v1/dashboard",
 // =====================
 
 router.get("/v1/profile", authenticate(["Club"]), displayClubProfile);
+router.patch(
+    "/v1/profile",
+    authenticate(["Club"]),
+    upload.single("img"),
+    uploadToS3("img"),
+    normalizeFormBody,
+    validate(updateClubProfileValidation),
+    updateClubProfile
+);
 router.get("/v1/affiliated-district", authenticate(["Club"]), affiliatedDistrict);
 router.get(
     "/v1/pending-approvals",

@@ -107,6 +107,20 @@ const displayAllClubSkaterQueryValidation = {
     }),
 };
 
+const updateClubProfileValidation = {
+    body: Joi.object({
+        img: Joi.string()
+            .uri()
+            .optional()
+            .allow("")
+            .messages({
+                "string.uri": "Club image must be a valid URL",
+            }),
+        officeAddress: Joi.string().trim().max(200).allow("").optional(),
+        about: Joi.string().trim().allow("").optional(),
+    }).min(1),
+};
+
 export {
     createClubValidation,
     editClubValidation,
@@ -114,4 +128,5 @@ export {
     addSkaterValidation,
     displayAllApplySkaterQueryValidation,
     displayAllClubSkaterQueryValidation,
+    updateClubProfileValidation,
 }

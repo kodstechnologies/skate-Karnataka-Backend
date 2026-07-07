@@ -67,9 +67,24 @@ const districtPendingApprovalsQueryValidation = {
   }),
 };
 
+const updateDistrictProfileValidation = {
+  body: Joi.object({
+    img: Joi.string()
+      .uri()
+      .optional()
+      .allow("")
+      .messages({
+        "string.uri": "District image must be a valid URL",
+      }),
+    about: Joi.string().trim().optional().allow(""),
+    officeAddress: Joi.string().trim().optional().allow(""),
+  }).min(1),
+};
+
 export {
   createDistrictValidation,
   editDistrictValidation,
   districtFormulaSourceValidation,
   districtPendingApprovalsQueryValidation,
+  updateDistrictProfileValidation,
 };

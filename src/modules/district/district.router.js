@@ -5,6 +5,7 @@ import {
     districtFormulaSourceValidation,
     districtPendingApprovalsQueryValidation,
     editDistrictValidation,
+    updateDistrictProfileValidation,
 } from "./district.validation.js";
 import {
     create_formula_validation,
@@ -20,7 +21,7 @@ import {
     patchDistrictFormulaSourceSetting,
     updateDistrictFormulaHandler,
 } from "./district.formula.controller.js";
-import { acceptClub, createNewDistrict, deleteDistrict, displayAllApply, displayApplyAllClub, displayAllDistrict, displayDistrictClubSkaters, displayDistrictDashboard, displayDistrictProfile, displaySingleDistrictAllClubs, displaySingleDistrictMembers, displaySkaterDetails, displayTotalClubs, displayTotalSkater, districtClubDetails, districtUnLinkClub, leaveClub, rejectClub, rejectLeaveClub, updateDistrict } from "./district.controller.js";
+import { acceptClub, createNewDistrict, deleteDistrict, displayAllApply, displayApplyAllClub, displayAllDistrict, displayDistrictClubSkaters, displayDistrictDashboard, displayDistrictProfile, displaySingleDistrictAllClubs, displaySingleDistrictMembers, displaySkaterDetails, displayTotalClubs, displayTotalSkater, districtClubDetails, districtUnLinkClub, leaveClub, rejectClub, rejectLeaveClub, updateDistrict, updateDistrictProfile } from "./district.controller.js";
 import { upload } from "../../middleware/multer.middleware.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
@@ -50,6 +51,15 @@ router.get("/v1/club-skaters/:id", authenticate(["District"]), displayDistrictCl
 router.get("/v1/unlink-club/:id" , authenticate(["District"]) , districtUnLinkClub);
 
 router.get("/v1/profile", authenticate(["District"]) ,displayDistrictProfile);
+router.patch(
+  "/v1/profile",
+  authenticate(["District"]),
+  upload.single("img"),
+  uploadToS3("img"),
+  normalizeFormBody,
+  validate(updateDistrictProfileValidation),
+  updateDistrictProfile
+);
 router.get("/v1/dashboard",authenticate(["District"]) ,displayDistrictDashboard);
 
 router.get("/v1/formula", authenticate(["District"]), getDistrictFormulas);

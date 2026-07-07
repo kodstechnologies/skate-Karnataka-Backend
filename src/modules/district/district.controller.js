@@ -1,6 +1,6 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { acceptClubService, createNewDistrictService, displayAllApplyService, displayApplyAllClubService, displayDashboardData, displayDistrictProfileServices, displaySkaterDetailsService, displayTotalClubsService, displayTotalSkatersService, districtClubDetailsService, districtClubSkatersService, districtDeletedService, districtUnLinkClubService, getAllDistrictService, leaveClubService, rejectClubLeaveService, rejectClubService, singleDistrictAllClubNameService, singleDistrictSkatersService, updateDistrictService } from "./district.service.js";
+import { acceptClubService, createNewDistrictService, displayAllApplyService, displayApplyAllClubService, displayDashboardData, displayDistrictProfileServices, displaySkaterDetailsService, displayTotalClubsService, displayTotalSkatersService, districtClubDetailsService, districtClubSkatersService, districtDeletedService, districtUnLinkClubService, getAllDistrictService, leaveClubService, rejectClubLeaveService, rejectClubService, singleDistrictAllClubNameService, singleDistrictSkatersService, updateDistrictProfileService, updateDistrictService } from "./district.service.js";
 
 const displayAllDistrict = asyncHandler(async (req, res) => {
   const districts = await getAllDistrictService();
@@ -201,6 +201,14 @@ export const displayDistrictProfile = asyncHandler(async(req,res) =>{
     new ApiResponse(200, dashboardData, "Display profile details successfully")
   );
 })
+
+export const updateDistrictProfile = asyncHandler(async (req, res) => {
+  const result = await updateDistrictProfileService(req.user?._id, req.body);
+
+  return res.status(200).json(
+    new ApiResponse(200, result, "District profile updated successfully")
+  );
+});
 
 export const districtUnLinkClub = asyncHandler(async(req,res) =>{
   const districtMemberId = req.user?._id;

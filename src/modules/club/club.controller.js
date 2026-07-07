@@ -1,7 +1,7 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { AppError } from "../../util/common/AppError.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { addSkaterByClubService, affiliatedDistrictService, allClubService, allClubsInDbService, apply_club_service, apply_leave_service, applyForDistrictService, approve_join_club_service, approve_leave_club_service, approve_rsfi_change_service, clubsByUserDistrictService, createClubService, deleteClubSchema, display_all_apply_skater_service, display_all_club_skater_service, display_club_skater_details_service, displayDistrictFullDetailsService, display_existing_club_service, displayClubDashboardService, displayClubProfileService, displaySingleClubService, exceptOwnDistrictDisplayAllDistrictService, pendingApprovalsServices, reject_join_club_service, reject_leave_club_service, reject_rsfi_change_service, remove_skater_from_club_service, removeAffiliationService, reportServices, updateClubDetailsService } from "./club.service.js";
+import { addSkaterByClubService, affiliatedDistrictService, allClubService, allClubsInDbService, apply_club_service, apply_leave_service, applyForDistrictService, approve_join_club_service, approve_leave_club_service, approve_rsfi_change_service, clubsByUserDistrictService, createClubService, deleteClubSchema, display_all_apply_skater_service, display_all_club_skater_service, display_club_skater_details_service, displayDistrictFullDetailsService, display_existing_club_service, displayClubDashboardService, displayClubProfileService, displaySingleClubService, exceptOwnDistrictDisplayAllDistrictService, pendingApprovalsServices, reject_join_club_service, reject_leave_club_service, reject_rsfi_change_service, remove_skater_from_club_service, removeAffiliationService, reportServices, updateClubDetailsService, updateClubProfileService } from "./club.service.js";
 
 const displayClubDashboard = asyncHandler(async (req, res) => {
     const id = req.user._id;
@@ -24,6 +24,14 @@ const displayClubProfile = asyncHandler(async (req, res) => {
             profile,
             "Club profile displayed successfully"
         )
+    );
+});
+
+const updateClubProfile = asyncHandler(async (req, res) => {
+    const profile = await updateClubProfileService(req.user._id, req.body);
+
+    return res.status(200).json(
+        new ApiResponse(200, profile, "Club profile updated successfully")
     );
 });
 
@@ -378,6 +386,7 @@ const remove_skater_from_club = asyncHandler(async (req, res) => {
 export {
     displayClubDashboard,
     displayClubProfile,
+    updateClubProfile,
     affiliatedDistrict,
     exceptOwnDistrictDisplayAllDistrict,
     displayDistrictFullDetails,

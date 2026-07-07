@@ -310,6 +310,59 @@ export const skaterByAdminIdValidation = {
   }),
 };
 
+export const createSkaterByAdminValidation = {
+  body: Joi.object({
+    fullName: Joi.string()
+      .trim()
+      .min(3)
+      .max(50)
+      .required()
+      .messages({
+        "string.empty": "Full name is required",
+        "any.required": "Full name is required",
+      }),
+    phone: Joi.string()
+      .trim()
+      .pattern(/^[6-9]\d{9}$/)
+      .required()
+      .messages({
+        "string.pattern.base": "Phone must be a valid 10-digit Indian number",
+        "any.required": "Phone is required",
+      }),
+    address: Joi.string()
+      .trim()
+      .min(5)
+      .max(200)
+      .required()
+      .messages({
+        "string.empty": "Address is required",
+        "any.required": "Address is required",
+      }),
+    gender: Joi.string()
+      .trim()
+      .lowercase()
+      .valid("male", "female", "other")
+      .required()
+      .messages({
+        "any.only": "Gender must be male/Male/MALE, female/Female/FEMALE, or other/Other/OTHER",
+        "any.required": "Gender is required",
+      }),
+    email: Joi.string()
+      .trim()
+      .email()
+      .lowercase()
+      .required()
+      .messages({
+        "string.email": "Please enter a valid email address",
+        "any.required": "Email is required",
+      }),
+    district: Joi.string()
+      .trim()
+      .allow("")
+      .optional(),
+  }),
+};
+
 export const updateSkaterByAdminValidation = {
   params: skaterByAdminIdValidation.params,
   body: Joi.object({

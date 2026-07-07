@@ -99,6 +99,27 @@ export const displayClubProfileRepositories = async (userId) => {
         totalMembers: normalizedMembers.length,
     };
 };
+
+export const updateClubProfileRepository = async (userId, data) => {
+    const club = await Club.findOne({ members: userId }).select("_id").lean();
+
+    if (!club) {
+        throw new AppError("Club not found for user", 404);
+    }
+
+    const payload = {};
+    if (data.img !== undefined) payload.img = data.img;
+    if (data.about !== undefined) payload.about = data.about;
+    if (data.officeAddress !== undefined) payload.officeAddress = data.officeAddress;
+
+    if (!Object.keys(payload).length) {
+        throw new AppError("No valid fields to update", 400);
+    }
+
+    await updateClubDetails(payload, club._id);
+    return displayClubProfileRepositories(userId);
+};
+
 export const affiliatedDistrictRepository = async (clubMemberId) => {
     const club = await Club.findOne({
         $or: [{ _id: clubMemberId }, { members: clubMemberId }],

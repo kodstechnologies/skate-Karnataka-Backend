@@ -1,5 +1,5 @@
 import { AppError } from "../../util/common/AppError.js";
-import { acceptClubJoinRepository, acceptClubLeaveRepository, createDistrict, displayAllApplyRepository, displayApplyAllClubRepository, displayDashboardDataRepository, displayDistrictProfileRepository, displaySkaterDetailsRepository, districtClubDetailsRepository, districtClubSkatersRepository, districtDeletedRepository, districtTotalClubsRepository, districtTotalSkatersRepository, districtUnLinkClubRepository, districtUpdateRepository, getAllDistrict, isDistrictAvailable, isDistrictExist, rejectClubJoinRepository, rejectClubLeaveRepository, singleDistrictRepository, singleDistrictSkatersRepository } from "./district.repositories.js";
+import { acceptClubJoinRepository, acceptClubLeaveRepository, createDistrict, displayAllApplyRepository, displayApplyAllClubRepository, displayDashboardDataRepository, displayDistrictProfileRepository, displaySkaterDetailsRepository, districtClubDetailsRepository, districtClubSkatersRepository, districtDeletedRepository, districtTotalClubsRepository, districtTotalSkatersRepository, districtUnLinkClubRepository, districtUpdateRepository, getAllDistrict, isDistrictAvailable, isDistrictExist, rejectClubJoinRepository, rejectClubLeaveRepository, singleDistrictRepository, singleDistrictSkatersRepository, updateDistrictProfileRepository } from "./district.repositories.js";
 
 const getAllDistrictService = async () => {
     return await getAllDistrict();
@@ -158,6 +158,13 @@ export const displayDistrictProfileServices = async (districtId) => {
         throw new AppError("districtId is required", 400);
     }
     return await displayDistrictProfileRepository(districtId);
+}
+
+export const updateDistrictProfileService = async (userId, data) => {
+    if (!userId) {
+        throw new AppError("User id is required", 400);
+    }
+    return await updateDistrictProfileRepository(userId, data);
 }
 
 export {

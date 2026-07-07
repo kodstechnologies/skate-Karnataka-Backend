@@ -898,6 +898,57 @@ export const getAllSkatersForAdmin = async ({ page = 1, limit = 10, search = "" 
   };
 };
 
+export const createSkaterForAdmin = async (payload) => {
+  const { fullName, phone, address, gender, email, district } = payload;
+
+  const [existingPhone, existingEmail] = await Promise.all([
+    BaseAuth.findOne({ phone }).select("_id").lean(),
+    BaseAuth.findOne({ email: email.toLowerCase() }).select("_id").lean(),
+  ]);
+
+  if (existingPhone) {
+    throw new AppError("This phone number is already registered", 409);
+  }
+  if (existingEmail) {
+    throw new AppError("This email is already in use", 409);
+  }
+
+  const skaterPayload = {
+    fullName: fullName.trim(),
+    phone: phone.trim(),
+    address: address.trim(),
+    gender: gender.toLowerCase(),
+    email: email.toLowerCase().trim(),
+    role: "Skater",
+    verify: false,
+  };
+
+  if (district) {
+    skaterPayload.district = district;
+  }
+
+  const skater = await new Skater(skaterPayload).save();
+
+  const districtDoc = district
+    ? await District.findById(district).select("_id name").lean()
+    : null;
+
+  return {
+    _id: skater._id,
+    krsaId: skater.krsaId || "",
+    fullName: skater.fullName || "",
+    phone: skater.phone || "",
+    email: skater.email || "",
+    address: skater.address || "",
+    gender: skater.gender || "",
+    district: districtDoc
+      ? { _id: districtDoc._id, name: districtDoc.name }
+      : null,
+    districtName: districtDoc?.name || "",
+    isBlocked: Boolean(skater.isBlocked),
+  };
+};
+
 export const getSkaterFullDetailsByIdForAdmin = async (skaterId) => {
   const skater = await Skater.findOne({ _id: skaterId, role: "Skater" })
     .select("-refreshTokens -isNotificationsEnabled -isActive -firebaseTokens")

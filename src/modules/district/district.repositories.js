@@ -982,6 +982,26 @@ export const displayDistrictProfileRepository = async (id) => {
   };
 };
 
+export const updateDistrictProfileRepository = async (userId, data) => {
+  const districtUser = await BaseAuth.findById(userId).select("district").lean();
+
+  if (!districtUser?.district) {
+    throw new AppError("District not found for user", 404);
+  }
+
+  const payload = {};
+  if (data.img !== undefined) payload.img = data.img;
+  if (data.about !== undefined) payload.about = data.about;
+  if (data.officeAddress !== undefined) payload.officeAddress = data.officeAddress;
+
+  if (!Object.keys(payload).length) {
+    throw new AppError("No valid fields to update", 400);
+  }
+
+  await districtUpdateRepository(districtUser.district, payload);
+  return displayDistrictProfileRepository(userId);
+};
+
 export {
   getAllDistrict,
   isDistrictExist,

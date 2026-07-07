@@ -21,8 +21,25 @@ const skaterRsfiChangeRequestSchema = new mongoose.Schema(
     },
     requestedRsfiId: {
       type: String,
-      required: true,
+      default: "",
       trim: true,
+    },
+    currentPhoto: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    requestedPhoto: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    requestType: {
+      type: String,
+      enum: ["rsfi", "photo"],
+      required: true,
+      default: "rsfi",
+      index: true,
     },
     status: {
       type: String,
@@ -40,9 +57,9 @@ const skaterRsfiChangeRequestSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-/** One pending RSFI change per skater per club; re-apply updates the same row. */
+/** One pending request per skater+club+requestType; re-apply updates same typed row. */
 skaterRsfiChangeRequestSchema.index(
-  { skater: 1, club: 1 },
+  { skater: 1, club: 1, requestType: 1 },
   { unique: true, partialFilterExpression: { status: "pending" } }
 );
 

@@ -6,19 +6,28 @@ import {
 } from "../../util/firebase/sendNotification.js";
 import {
   approveRsfiChangeRepository,
+  applyDirectSkaterProfileChangeRepository,
   rejectRsfiChangeRepository,
   upsertPendingRsfiChangeRepository,
 } from "./skaterRsfiChange.repositories.js";
+import { Skater } from "./skater.model.js";
 
 const normalizeRsfiPayload = (body = {}) => {
-  const value = body.rsfiId ?? body.rfsiId;
+  const value = body.rsfiId ?? body.rfsiId ?? body.rsfid;
   return String(value ?? "").trim();
 };
 
+const normalizePhotoPayload = (body = {}) =>
+  String(body.photo ?? body.img ?? "").trim();
+
+const hasJoinedClub = (skater) =>
+  Boolean(skater?.club) && skater.clubStatus === "join";
+
 export const requestSkaterRsfiChangeService = async (skaterUser, body) => {
   const requestedRsfiId = normalizeRsfiPayload(body);
-  if (!requestedRsfiId) {
-    throw new AppError("RSFI ID is required", 400);
+  const requestedPhoto = normalizePhotoPayload(body);
+  if (!requestedRsfiId && !requestedPhoto) {
+    throw new AppError("At least one field is required: rsfiId or photo", 400);
   }
 
   const skaterId = skaterUser?._id || skaterUser?.id;
@@ -26,26 +35,70 @@ export const requestSkaterRsfiChangeService = async (skaterUser, body) => {
     throw new AppError("User not authenticated", 401);
   }
 
-  const { request, skater, clubId } = await upsertPendingRsfiChangeRepository(
+  const skater = await Skater.findById(skaterId)
+    .select("fullName rsfiId photo club clubStatus role")
+    .lean();
+
+  if (!skater || String(skater.role || "").toLowerCase() !== "skater") {
+    throw new AppError("Skater not found", 404);
+  }
+
+  if (!hasJoinedClub(skater)) {
+    const updated = await applyDirectSkaterProfileChangeRepository(skaterId, {
+      rsfiId: requestedRsfiId,
+      photo: requestedPhoto,
+    });
+
+    return {
+      requestIds: [],
+      requests: [],
+      status: "approved",
+      appliedDirectly: true,
+      rsfiId: updated.rsfiId || "",
+      photo: updated.photo || "",
+      message: "Profile updated successfully.",
+    };
+  }
+
+  const { requests, skater: joinedSkater, clubId } = await upsertPendingRsfiChangeRepository(
     skaterId,
-    requestedRsfiId
+    requestedRsfiId,
+    requestedPhoto
   );
 
   await notifyClubMembersOnSkaterRsfiChangeApply({
     clubDocId: clubId,
     skaterId,
-    skaterName: skater.fullName || "",
-    currentRsfiId: request.currentRsfiId || skater.rsfiId || "",
-    requestedRsfiId: request.requestedRsfiId,
+    skaterName: joinedSkater.fullName || "",
+    currentRsfiId: joinedSkater.rsfiId || "",
+    requestedRsfiId: requestedRsfiId || "",
   });
 
+  const formattedRequests = (requests || []).map((request) => ({
+    requestId: String(request._id),
+    requestType: request.requestType || (request.requestedPhoto ? "photo" : "rsfi"),
+    currentRsfiId:
+      request.requestType === "photo" ? "" : request.currentRsfiId || joinedSkater.rsfiId || "",
+    requestedRsfiId: request.requestType === "photo" ? "" : request.requestedRsfiId || "",
+    currentPhoto:
+      request.requestType === "rsfi" ? "" : request.currentPhoto || joinedSkater.photo || "",
+    requestedPhoto: request.requestType === "rsfi" ? "" : request.requestedPhoto || "",
+    status: "pending",
+  }));
+
+  const uniqueRequests = formattedRequests.filter(
+    (request, index, all) =>
+      all.findIndex((item) => item.requestId === request.requestId) === index
+  );
+
   return {
-    requestId: request._id,
-    currentRsfiId: request.currentRsfiId || skater.rsfiId || "",
-    requestedRsfiId: request.requestedRsfiId,
+    requestIds: uniqueRequests.map((r) => r.requestId),
+    requests: uniqueRequests,
     status: "pending",
     message:
-      "RSFI ID change submitted for club approval. Your profile will update after the club approves.",
+      uniqueRequests.length > 1
+        ? "Separate RSFI and photo change requests submitted for club approval."
+        : "Change request submitted for club approval.",
   };
 };
 
@@ -68,7 +121,9 @@ export const approveSkaterRsfiChangeService = async (skaterOrRequestId, clubMemb
   return {
     skaterId: skater._id,
     rsfiId: skater.rsfiId,
+    photo: skater.photo || "",
     requestedRsfiId: request.requestedRsfiId,
+    requestedPhoto: request.requestedPhoto || "",
   };
 };
 

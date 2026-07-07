@@ -11,12 +11,125 @@ const trimRsfi = (value) => String(value ?? "").trim();
 
 const sameObjectId = (a, b) => String(a?._id ?? a) === String(b?._id ?? b);
 
-export const upsertPendingRsfiChangeRepository = async (
+let rsfiRequestIndexesEnsured = false;
+const ensureRsfiRequestIndexes = async () => {
+  if (rsfiRequestIndexesEnsured) return;
+
+  const indexes = await SkaterRsfiChangeRequest.collection.indexes();
+  for (const idx of indexes) {
+    const key = idx.key || {};
+    const isLegacyUnique =
+      idx.name === "skater_1_club_1" ||
+      (idx.unique &&
+        key.skater === 1 &&
+        key.club === 1 &&
+        key.requestType == null);
+    if (isLegacyUnique) {
+      await SkaterRsfiChangeRequest.collection.dropIndex(idx.name);
+    }
+  }
+
+  await SkaterRsfiChangeRequest.syncIndexes();
+
+  const legacyPending = await SkaterRsfiChangeRequest.find({
+    status: "pending",
+    $or: [{ requestType: { $exists: false } }, { requestType: null }, { requestType: "" }],
+  })
+    .select("_id currentRsfiId requestedRsfiId currentPhoto requestedPhoto")
+    .lean();
+
+  for (const row of legacyPending) {
+    const hasPhotoChange =
+      String(row.requestedPhoto || "").trim() &&
+      String(row.requestedPhoto || "").trim() !== String(row.currentPhoto || "").trim();
+    const hasRsfiChange =
+      String(row.requestedRsfiId || "").trim() &&
+      String(row.requestedRsfiId || "").trim() !== String(row.currentRsfiId || "").trim();
+    const requestType = hasPhotoChange && !hasRsfiChange ? "photo" : "rsfi";
+    await SkaterRsfiChangeRequest.updateOne(
+      { _id: row._id },
+      { $set: { requestType } }
+    );
+  }
+
+  rsfiRequestIndexesEnsured = true;
+};
+
+const buildTypedRequestFields = ({
+  requestType,
+  requestedRsfi = "",
+  requestedPhotoUrl = "",
+  currentRsfiId = "",
+  currentPhoto = "",
+}) => {
+  if (requestType === "photo") {
+    return {
+      requestType,
+      currentRsfiId: "",
+      requestedRsfiId: "",
+      currentPhoto,
+      requestedPhoto: requestedPhotoUrl || "",
+    };
+  }
+
+  return {
+    requestType: "rsfi",
+    currentRsfiId: currentRsfiId || "",
+    requestedRsfiId: requestedRsfi || "",
+    currentPhoto: "",
+    requestedPhoto: "",
+  };
+};
+
+export const applyDirectSkaterProfileChangeRepository = async (
   skaterId,
-  requestedRsfiId
+  { rsfiId = "", photo = "" } = {}
 ) => {
   const skater = await Skater.findById(skaterId)
-    .select("fullName rsfiId club clubStatus role")
+    .select("fullName rsfiId photo club clubStatus role")
+    .lean();
+
+  if (!skater || String(skater.role || "").toLowerCase() !== "skater") {
+    throw new AppError("Skater not found", 404);
+  }
+
+  const nextRsfiId = trimRsfi(rsfiId);
+  const nextPhoto = String(photo || "").trim();
+  const currentRsfiId = trimRsfi(skater.rsfiId);
+  const currentPhoto = String(skater.photo || "").trim();
+
+  const updateSet = {};
+  if (nextRsfiId && nextRsfiId !== currentRsfiId) {
+    updateSet.rsfiId = nextRsfiId;
+  }
+  if (nextPhoto && nextPhoto !== currentPhoto) {
+    updateSet.photo = nextPhoto;
+  }
+
+  if (Object.keys(updateSet).length === 0) {
+    throw new AppError("No changes detected for RSFI ID or photo", 400);
+  }
+
+  const updated = await Skater.findByIdAndUpdate(
+    skaterId,
+    { $set: updateSet },
+    { new: true, runValidators: true }
+  )
+    .select("fullName rsfiId photo")
+    .lean();
+
+  return updated;
+};
+
+export const upsertPendingRsfiChangeRepository = async (
+  skaterId,
+  requestedRsfiId,
+  requestedPhoto = ""
+) => {
+  await ensureRsfiRequestIndexes();
+
+  const skater = await Skater.findById(skaterId)
+    .select("fullName rsfiId photo club clubStatus role")
     .lean();
 
   if (!skater || String(skater.role || "").toLowerCase() !== "skater") {
@@ -38,62 +151,77 @@ export const upsertPendingRsfiChangeRepository = async (
   const clubId = clubDoc._id;
   const currentRsfiId = trimRsfi(skater.rsfiId);
   const nextRsfiId = trimRsfi(requestedRsfiId);
+  const currentPhoto = String(skater.photo || "").trim();
+  const nextPhoto = String(requestedPhoto || "").trim();
 
-  if (!nextRsfiId) {
-    throw new AppError("RSFI ID is required", 400);
+  const hasRsfiInput = Boolean(nextRsfiId);
+  const hasPhotoInput = Boolean(nextPhoto);
+  const wantsBoth = hasRsfiInput && hasPhotoInput;
+
+  const wantsRsfi = wantsBoth
+    ? hasRsfiInput
+    : hasRsfiInput && nextRsfiId !== currentRsfiId;
+  const wantsPhoto = wantsBoth
+    ? hasPhotoInput
+    : hasPhotoInput && nextPhoto !== currentPhoto;
+
+  if (!wantsRsfi && !wantsPhoto) {
+    throw new AppError("No changes detected for RSFI ID or photo", 400);
   }
 
-  if (nextRsfiId === currentRsfiId) {
-    throw new AppError("New RSFI ID must be different from your current RSFI ID", 400);
-  }
+  const upsertTypedPendingRequest = async ({
+    requestType,
+    requestedRsfi = "",
+    requestedPhotoUrl = "",
+  }) => {
+    const typedFields = buildTypedRequestFields({
+      requestType,
+      requestedRsfi,
+      requestedPhotoUrl,
+      currentRsfiId,
+      currentPhoto,
+    });
 
-  let request = await SkaterRsfiChangeRequest.findOneAndUpdate(
-    { skater: skaterId, club: clubId, status: "pending" },
-    {
-      $set: {
-        currentRsfiId,
-        requestedRsfiId: nextRsfiId,
-      },
-    },
-    { new: true, runValidators: true }
-  ).lean();
+    let request = await SkaterRsfiChangeRequest.findOneAndUpdate(
+      { skater: skaterId, club: clubId, requestType, status: "pending" },
+      { $set: typedFields },
+      { new: true, runValidators: true }
+    ).lean();
 
-  if (!request) {
-    const existingNonPending = await SkaterRsfiChangeRequest.findOne({
-      skater: skaterId,
-      club: clubId,
-      status: { $ne: "pending" },
-    })
-      .sort({ updatedAt: -1 })
-      .lean();
-
-    if (existingNonPending) {
-      request = await SkaterRsfiChangeRequest.findOneAndUpdate(
-        { _id: existingNonPending._id },
-        {
-          $set: {
-            currentRsfiId,
-            requestedRsfiId: nextRsfiId,
-            status: "pending",
-            reviewedBy: null,
-            reviewedAt: null,
-          },
-        },
-        { new: true, runValidators: true }
-      ).lean();
-    } else {
+    if (!request) {
       request = await SkaterRsfiChangeRequest.create({
         skater: skaterId,
         club: clubId,
-        currentRsfiId,
-        requestedRsfiId: nextRsfiId,
+        ...typedFields,
         status: "pending",
       }).then((doc) => doc.toObject());
     }
+
+    return request;
+  };
+
+  const requests = [];
+  if (wantsRsfi) {
+    requests.push(
+      await upsertTypedPendingRequest({
+        requestType: "rsfi",
+        requestedRsfi: nextRsfiId,
+        requestedPhotoUrl: "",
+      })
+    );
+  }
+  if (wantsPhoto) {
+    requests.push(
+      await upsertTypedPendingRequest({
+        requestType: "photo",
+        requestedRsfi: "",
+        requestedPhotoUrl: nextPhoto,
+      })
+    );
   }
 
   return {
-    request,
+    requests,
     skater,
     clubId,
   };
@@ -126,30 +254,23 @@ export const listPendingRsfiChangesForClubRepository = async (clubDocId) => {
 
   const rows = await SkaterRsfiChangeRequest.find({
     status: "pending",
+    requestType: { $in: ["rsfi", "photo"] },
     $or: orClause,
   })
     .populate({ path: "skater", select: "fullName krsaId rsfiId" })
     .sort({ updatedAt: -1 })
     .lean();
 
-  const seenSkaters = new Set();
-
-  return rows
-    .filter((row) => {
-      const skaterKey = String(row.skater?._id ?? row.skater ?? "");
-      if (!skaterKey || seenSkaters.has(skaterKey)) {
-        return false;
-      }
-      seenSkaters.add(skaterKey);
-      return true;
-    })
-    .map((row) => ({
+  return rows.map((row) => ({
       _id: row._id,
       skaterId: row.skater?._id ?? row.skater,
       fullName: row.skater?.fullName || "",
       krsaId: row.skater?.krsaId || "",
       currentRsfiId: row.currentRsfiId || "",
       requestedRsfiId: row.requestedRsfiId || "",
+      currentPhoto: row.currentPhoto || "",
+      requestedPhoto: row.requestedPhoto || "",
+      requestType: row.requestType || "rsfi",
       sortAt: row.updatedAt || row.createdAt,
     }));
 };
@@ -172,9 +293,26 @@ const resolvePendingRequestForClub = async (skaterOrRequestId, clubMemberId) => 
       ...extra,
     }).lean();
 
-  let request =
-    (await findPendingForClub({ skater: objectId })) ||
-    (await findPendingForClub({ _id: objectId }));
+  let request = await findPendingForClub({ _id: objectId });
+
+  if (!request) {
+    const pendingForSkater = await SkaterRsfiChangeRequest.find({
+      status: "pending",
+      club: clubOid,
+      skater: objectId,
+    })
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    if (pendingForSkater.length > 1) {
+      throw new AppError(
+        "Multiple pending profile change requests found. Approve using requestId.",
+        400
+      );
+    }
+
+    request = pendingForSkater[0] || null;
+  }
 
   if (!request) {
     const loose =
@@ -217,12 +355,25 @@ export const approveRsfiChangeRepository = async (skaterOrRequestId, clubMemberI
 
   const skaterId = request.skater?._id ?? request.skater;
 
+  const updateSet = {};
+  if (request.requestType === "rsfi" && request.requestedRsfiId) {
+    updateSet.rsfiId = request.requestedRsfiId;
+  }
+  if (request.requestType === "photo" && request.requestedPhoto) {
+    updateSet.photo = request.requestedPhoto;
+  }
+  // Backward compatibility for old rows without requestType.
+  if (!request.requestType) {
+    if (request.requestedRsfiId) updateSet.rsfiId = request.requestedRsfiId;
+    if (request.requestedPhoto) updateSet.photo = request.requestedPhoto;
+  }
+
   const updatedSkater = await Skater.findOneAndUpdate(
     { _id: skaterId, club: club._id, clubStatus: "join" },
-    { $set: { rsfiId: request.requestedRsfiId } },
+    { $set: updateSet },
     { new: true }
   )
-    .select("fullName rsfiId krsaId club")
+    .select("fullName rsfiId krsaId club photo")
     .lean();
 
   if (!updatedSkater) {

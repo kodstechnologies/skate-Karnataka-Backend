@@ -142,12 +142,10 @@ const UpdateProfileValidation = {
 const SkaterRsfiChangeValidation = {
     body: Joi.object({
         rsfiId: Joi.string().trim().min(1).optional(),
-        // rfsiId: Joi.string().trim().min(1).optional(),
-    })
-        .or("rsfiId", "rfsiId")
-        .messages({
-            "object.missing": "RSFI ID (rsfiId) is required",
-        }),
+        rfsiId: Joi.string().trim().min(1).optional(),
+        rsfid: Joi.string().trim().min(1).optional(),
+        photo: Joi.string().uri().trim().optional(),
+    }).unknown(true),
 };
 
 

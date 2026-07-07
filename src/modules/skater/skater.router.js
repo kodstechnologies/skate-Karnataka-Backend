@@ -40,6 +40,11 @@ router.get("/v1/profile",
 router.patch(
     "/v1/update-rsfi-profile",
     authenticate(["Skater"]),
+    upload.fields([
+        { name: "img", maxCount: 1 },
+        { name: "photo", maxCount: 1 },
+    ]),
+    uploadToS3("skaters", { img: "photo", photo: "photo" }),
     validate(SkaterRsfiChangeValidation),
     RequestSkaterRsfiChange
 );

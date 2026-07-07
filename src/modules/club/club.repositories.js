@@ -1076,26 +1076,28 @@ const display_all_apply_skater_repositories = async (
     }
 
     const rsfiChangeRows = await listPendingRsfiChangesForClubRepository(clubOid);
-    const seenRsfiSkaters = new Set();
 
     for (const row of rsfiChangeRows) {
         const skaterId = String(row.skaterId || "");
-        if (!skaterId || seenRsfiSkaters.has(skaterId)) {
+        if (!skaterId) {
             continue;
         }
-        seenRsfiSkaters.add(skaterId);
+        const requestType = row.requestType || "rsfi";
         data.push(
             formatApplyListItem(
-                "rsfiChange",
-                skaterId,
+                requestType === "photo" ? "photoChange" : "rsfiChange",
+                String(row._id || skaterId),
                 row.fullName,
                 row.sortAt,
                 {
                     skaterID: skaterId,
                     requestId: String(row._id || ""),
+                    requestType,
                     krsaId: row.krsaId || "",
                     currentRsfiId: row.currentRsfiId || "",
                     requestedRsfiId: row.requestedRsfiId || "",
+                    currentPhoto: row.currentPhoto || "",
+                    requestedPhoto: row.requestedPhoto || "",
                 }
             )
         );
@@ -1118,6 +1120,7 @@ const display_all_apply_skater_repositories = async (
             leaveClub: countByType("leaveClub"),
             certificateRequest: countByType("certificateRequest"),
             rsfiChange: countByType("rsfiChange"),
+            photoChange: countByType("photoChange"),
         },
         data: paged,
     };

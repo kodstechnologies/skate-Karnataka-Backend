@@ -260,7 +260,7 @@ const approve_rsfi_change = asyncHandler(async (req, res) => {
     const result = await approve_rsfi_change_service(id, clubMemberId);
     return res
         .status(200)
-        .json(new ApiResponse(200, result, "RSFI ID change approved successfully"));
+        .json(new ApiResponse(200, result, "Profile change approved successfully"));
 });
 
 const reject_rsfi_change = asyncHandler(async (req, res) => {
@@ -269,7 +269,7 @@ const reject_rsfi_change = asyncHandler(async (req, res) => {
     const result = await reject_rsfi_change_service(id, clubMemberId);
     return res
         .status(200)
-        .json(new ApiResponse(200, result, "RSFI ID change rejected"));
+        .json(new ApiResponse(200, result, "Profile change rejected"));
 });
 
 const apply_leave = asyncHandler(async (req, res) => {

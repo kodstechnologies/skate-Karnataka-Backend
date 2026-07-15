@@ -842,6 +842,8 @@ const mapSkaterSummary = (row) => ({
   krsaId: String(row?.krsaId || ""),
   rsfiId: String(row?.rsfiId || ""),
   gender: String(row?.gender || ""),
+  email: String(row?.email || ""),
+  phone: String(row?.phone || ""),
   paymentStatus: String(row?.paymentStatus || ""),
   attendanceStatus: String(row?.attendanceStatus || ""),
 });
@@ -879,6 +881,8 @@ const buildRegisteredSkatersByKey = (participants = [], chestDocs = []) => {
     const krsaId = String(participant.userId?.krsaId || "").trim();
     const rsfiId = String(participant.userId?.rsfiId || "").trim();
     const gender = String(participant.userId?.gender || "").trim();
+    const email = String(participant.userId?.email || "").trim();
+    const phone = String(participant.userId?.phone || "").trim();
     const paymentStatus = String(participant.paymentStatus || "").trim();
 
     for (const category of participant.categories || []) {
@@ -897,6 +901,8 @@ const buildRegisteredSkatersByKey = (participants = [], chestDocs = []) => {
           krsaId,
           rsfiId,
           gender,
+          email,
+          phone,
           paymentStatus,
           attendanceStatus: category?.attendanceStatus || "pending",
         })
@@ -927,6 +933,8 @@ const flattenSummaryAttendees = (skatingCategories = []) => {
             krsaId: String(skater.krsaId || "").trim(),
             rsfiId: String(skater.rsfiId || "").trim(),
             gender: String(skater.gender || "").trim(),
+            email: String(skater.email || "").trim(),
+            phone: String(skater.phone || "").trim(),
             paymentStatus: String(skater.paymentStatus || "").trim(),
             attendanceStatus: String(skater.attendanceStatus || "pending").trim(),
           });
@@ -950,7 +958,13 @@ const filterSummaryAttendees = (rows, { search, ageGroup, lap, discipline }) => 
       row.fullName.toLowerCase().includes(term) ||
       row.chestNo.toLowerCase().includes(term) ||
       row.krsaId.toLowerCase().includes(term) ||
-      row.rsfiId.toLowerCase().includes(term);
+      row.rsfiId.toLowerCase().includes(term) ||
+      String(row.email || "")
+        .toLowerCase()
+        .includes(term) ||
+      String(row.phone || "")
+        .toLowerCase()
+        .includes(term);
     const matchesAgeGroup = !ageFilter || row.ageGroup === ageFilter;
     const matchesLap = !lapFilter || row.lap === lapFilter;
     const matchesDiscipline = !disciplineFilter || row.discipline === disciplineFilter;
@@ -982,7 +996,7 @@ export const getChestNumberSummaryByEvent = async (
     SkaterChestNo.find({ eventId }).sort({ ageGroup: 1, chestNo: 1 }).lean(),
     EventParticipant.find(participantFilter)
       .select("ageGroup categories name userId paymentStatus")
-      .populate("userId", "fullName krsaId rsfiId gender")
+      .populate("userId", "fullName krsaId rsfiId gender email phone")
       .lean(),
   ]);
 

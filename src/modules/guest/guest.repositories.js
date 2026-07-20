@@ -500,7 +500,7 @@ export const displayDistrictsRepositories = async ({ page, limit, search }) => {
         District.countDocuments(filter),
         District.find(filter)
             .select("_id name img")
-            .sort({ createdAt: -1 })
+            .sort({ name: 1 })
             .skip(skip)
             .limit(pageLimit)
             .lean(),
@@ -574,7 +574,7 @@ export const displayDistrictClubsRepositories = async (districtId, { page, limit
         Club.countDocuments(filter),
         Club.find(filter)
             .select("_id name img")
-            .sort({ createdAt: -1 })
+            .sort({ name: 1 })
             .skip(skip)
             .limit(pageLimit)
             .lean(),

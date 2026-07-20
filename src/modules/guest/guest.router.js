@@ -207,7 +207,7 @@ router.get(
 );
 router.post(
   "/v1/discipline",
-  authenticate(["Skater", "Admin"]),
+  authenticate(["Skater", "Admin", "State"]),
   upload.single("img"),
   uploadToS3("img"),
   validate(addDisciplineValidation),
@@ -215,7 +215,7 @@ router.post(
 );
 router.patch(
   "/v1/discipline/:id",
-  authenticate(["Skater", "Admin"]),
+  authenticate(["Skater", "Admin", "State"]),
   upload.single("img"),
   uploadToS3("img"),
   validate(updateDisciplineValidation),
@@ -223,7 +223,7 @@ router.patch(
 );
 router.delete(
   "/v1/discipline/:id",
-  authenticate(["Skater", "Admin"]),
+  authenticate(["Skater", "Admin", "State"]),
   validate(disciplineByIdValidation),
   deleteDiscipline
 );

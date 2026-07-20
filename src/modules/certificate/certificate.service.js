@@ -2,6 +2,7 @@ import {
     create_template_repository,
     update_template_repository,
     set_active_template_repository,
+    delete_template_repository,
     get_all_templates_repository,
     get_template_repository,
     get_template_by_id_repository,
@@ -98,6 +99,21 @@ const set_active_template_service = async (id) => {
         throw new Error("Template not found");
     }
     return updated;
+};
+
+const delete_template_service = async (id) => {
+    const template = await get_template_by_id_repository(id);
+    if (!template) {
+        throw new Error("Template not found");
+    }
+    if (template.isActive) {
+        throw new Error("Active template cannot be deleted. Set another template as active first.");
+    }
+    const deleted = await delete_template_repository(id);
+    if (!deleted) {
+        throw new Error("Template not found");
+    }
+    return deleted;
 };
 
 // ---------------------------------------------------------------------------
@@ -624,6 +640,7 @@ export {
     create_template_service,
     update_template_service,
     set_active_template_service,
+    delete_template_service,
     get_all_templates_service,
     get_template_service,
     get_template_by_id_service,

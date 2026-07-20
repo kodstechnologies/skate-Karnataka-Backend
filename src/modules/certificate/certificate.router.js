@@ -4,6 +4,7 @@ import {
     uploadTemplate,
     updateTemplate,
     setActiveTemplate,
+    deleteTemplate,
     getAllTemplates,
     getTemplate,
     getTemplateById,
@@ -22,6 +23,7 @@ router.get("/v1/all", authenticate(["Skater"]), getSkaterCertificateRows);
 router.post("/v1/template", authenticate(["Admin"]), upload.single("pdf"), uploadTemplate);
 router.put("/v1/template/:id", authenticate(["Admin"]), upload.single("pdf"), updateTemplate);
 router.patch("/v1/template/:id/activate", authenticate(["Admin"]), setActiveTemplate);
+router.delete("/v1/template/:id", authenticate(["Admin"]), deleteTemplate);
 router.get("/v1/templates", authenticate(["Admin"]), getAllTemplates);
 router.get("/v1/template/:id", authenticate(["Admin"]), getTemplateById);
 router.get("/v1/template", authenticate(["Admin"]), getTemplate);

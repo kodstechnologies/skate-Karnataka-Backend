@@ -35,6 +35,7 @@ import {
   getSkaterFullDetailsByAdmin,
   createSkaterByAdmin,
   updateSkaterByAdmin,
+  deleteSkaterByAdmin,
   updateClubByAdmin,
   updateDistrictMemberByAdmin,
   updateDistrictByAdmin,
@@ -269,6 +270,12 @@ router.patch(
   uploadToS3("skaters", { img: "photo", document: "documents" }),
   validate(updateSkaterByAdminValidation),
   updateSkaterByAdmin
+);
+router.delete(
+  "/v1/skater/:id",
+  authenticate(["State", "admin"]),
+  validate(skaterByAdminIdValidation),
+  deleteSkaterByAdmin
 );
 
 export default router;

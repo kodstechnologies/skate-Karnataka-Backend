@@ -34,6 +34,7 @@ import {
   getSkaterFullDetailsByAdminService,
   createSkaterByAdminService,
   updateSkaterByAdminService,
+  deleteSkaterByAdminService,
 } from "./admin.service.js";
 
 export const adminLogin = asyncHandler(async (req, res) => {
@@ -331,4 +332,12 @@ export const updateSkaterByAdmin = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, result, "Skater updated successfully"));
+});
+
+export const deleteSkaterByAdmin = asyncHandler(async (req, res) => {
+  const result = await deleteSkaterByAdminService(req.params.id);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, result, "Skater deleted successfully"));
 });

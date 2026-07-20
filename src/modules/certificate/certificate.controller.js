@@ -5,6 +5,7 @@ import {
     create_template_service,
     update_template_service,
     set_active_template_service,
+    delete_template_service,
     get_all_templates_service,
     get_template_service,
     get_template_by_id_service,
@@ -109,6 +110,18 @@ const setActiveTemplate = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, result, "Template set as active successfully"));
 });
 
+const deleteTemplate = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    try {
+        await delete_template_service(id);
+        return res.status(200).json(new ApiResponse(200, null, "Template deleted successfully"));
+    } catch (err) {
+        const message = err?.message || "Failed to delete template";
+        const status = message.includes("not found") ? 404 : 400;
+        throw new AppError(message, status);
+    }
+});
+
 // ---------------------------------------------------------------------------
 // getAllTemplates — return lightweight list for the dropdown
 // ---------------------------------------------------------------------------
@@ -174,6 +187,7 @@ export {
     uploadTemplate,
     updateTemplate,
     setActiveTemplate,
+    deleteTemplate,
     getAllTemplates,
     getTemplate,
     getTemplateById,

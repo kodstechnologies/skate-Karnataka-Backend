@@ -236,7 +236,7 @@ export const getAllDistrictsForAdmin = async ({ page = 1, limit = 10, name = "" 
     District.countDocuments(query),
     District.find(query)
       .select("_id name img about officeAddress presidentName members createdAt updatedAt")
-      .sort({ createdAt: -1 })
+      .sort({ name: 1 })
       .skip(skip)
       .limit(pageLimit)
       .lean(),
@@ -494,7 +494,7 @@ export const getAllClubsForAdmin = async ({ page = 1, limit = 10, search = "" } 
     Club.find(query)
       .select("_id clubId name img officeAddress about district districtName districtStatus members")
       .populate("district", "_id name")
-      .sort({ createdAt: -1 })
+      .sort({ name: 1 })
       .skip(skip)
       .limit(pageLimit)
       .lean(),
@@ -1083,4 +1083,24 @@ export const updateSkaterByIdForAdmin = async (skaterId, payload) => {
   }
 
   return getSkaterFullDetailsByIdForAdmin(skaterId);
+};
+
+export const findSkaterByIdForAdmin = async (skaterId) => {
+  return Skater.findOne({ _id: skaterId, role: "Skater" })
+    .select("_id fullName isBlocked club")
+    .lean();
+};
+
+export const deleteSkaterByIdForAdmin = async (skaterId) => {
+  const deleted = await Skater.findOneAndDelete({ _id: skaterId, role: "Skater" }).lean();
+  if (!deleted) return null;
+
+  if (deleted.club) {
+    await Club.updateOne(
+      { _id: deleted.club, skaters: { $gt: 0 } },
+      { $inc: { skaters: -1 } }
+    );
+  }
+
+  return deleted;
 };

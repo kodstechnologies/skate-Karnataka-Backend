@@ -4,7 +4,7 @@ import { Skater } from "../skater/skater.model.js";
 
 const get_all_discipline_repositories = async () => {
     return await DisciplineService.find({})
-        .sort({ createdAt: -1 })
+        .sort({ name: 1 })
         .lean();
 };
 

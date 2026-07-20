@@ -157,6 +157,13 @@ const set_active_template_repository = async (id) => {
 };
 
 /**
+ * Permanently delete a certificate template by _id.
+ */
+const delete_template_repository = async (id) => {
+    return await CertificateTemplate.findByIdAndDelete(id);
+};
+
+/**
  * Return all templates (lightweight projection for the dropdown list).
  */
 const get_all_templates_repository = async () => {
@@ -1143,6 +1150,7 @@ export {
     create_template_repository,
     update_template_repository,
     set_active_template_repository,
+    delete_template_repository,
     get_all_templates_repository,
     get_template_repository,
     get_template_by_id_repository,

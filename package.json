@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "seed:sidebar": "node src/seeders/sidebar.seeder.js"
   },
   "author": "sangram",
   "license": "ISC",

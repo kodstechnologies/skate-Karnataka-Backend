@@ -20,6 +20,12 @@ const stateSchema = new mongoose.Schema(
             type: String
         }
     ],
+    designation: {
+      type: String,
+      trim: true,
+      default: "",
+      maxlength: 100,
+    },
     img:{
       type:String ,
       default:""

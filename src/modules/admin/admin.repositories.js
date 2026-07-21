@@ -349,7 +349,7 @@ export const getDistrictMembersByDistrictId = async (
   const [total, data] = await Promise.all([
     BaseAuth.countDocuments(query),
     BaseAuth.find(query)
-      .select("_id fullName profile phone countryCode email gender address district role isActive isBlocked verify")
+      .select("_id fullName profile phone countryCode email gender address designation district role isActive isBlocked verify")
       .populate("district", "_id name")
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -359,6 +359,7 @@ export const getDistrictMembersByDistrictId = async (
 
   const formattedData = data.map((member) => ({
     ...member,
+    designation: member.designation || "",
     isMain: mainMemberId ? String(member._id) === mainMemberId : false,
     isBlocked: Boolean(member.isBlocked),
     verify: member.verify === true,
@@ -380,6 +381,7 @@ export const createDistrictMember = async (payload) => {
     ...payload,
     role: "District",
     verify: payload.verify === true,
+    designation: String(payload.designation || "").trim(),
   };
 
   if (normalizedPayload.email) {
@@ -400,13 +402,16 @@ export const updateDistrictMemberById = async (districtMemberId, payload) => {
   if (normalizedPayload.email) {
     normalizedPayload.email = normalizedPayload.email.toLowerCase().trim();
   }
+  if (normalizedPayload.designation !== undefined) {
+    normalizedPayload.designation = String(normalizedPayload.designation || "").trim();
+  }
 
   return BaseAuth.findOneAndUpdate(
     { _id: districtMemberId, role: "District" },
     { $set: normalizedPayload },
     { new: true, runValidators: true }
   )
-    .select("_id fullName profile phone countryCode email gender address district role isActive verify")
+    .select("_id fullName profile phone countryCode email gender address designation district role isActive verify")
     .populate("district", "_id name")
     .lean();
 };
@@ -581,7 +586,7 @@ export const getClubMembersByClubId = async (
     .select("_id name members mainMember")
     .populate(
       "members",
-      "_id fullName profile phone countryCode email gender address district role isActive isBlocked verify"
+      "_id fullName profile phone countryCode email gender address designation district role isActive isBlocked verify"
     )
     .lean();
 
@@ -589,6 +594,7 @@ export const getClubMembersByClubId = async (
 
   const allMembers = (Array.isArray(club?.members) ? club.members : []).map((member) => ({
     ...member,
+    designation: member.designation || "",
     isMain: mainMemberId ? String(member._id) === mainMemberId : false,
     isBlocked: Boolean(member.isBlocked),
     verify: member.verify === true,
@@ -601,13 +607,15 @@ export const getClubMembersByClubId = async (
       const email = String(member?.email || "").toLowerCase();
       const address = String(member?.address || "").toLowerCase();
       const gender = String(member?.gender || "").toLowerCase();
+      const designation = String(member?.designation || "").toLowerCase();
 
       return (
         fullName.includes(trimmedSearch) ||
         phone.includes(trimmedSearch) ||
         email.includes(trimmedSearch) ||
         address.includes(trimmedSearch) ||
-        gender.includes(trimmedSearch)
+        gender.includes(trimmedSearch) ||
+        designation.includes(trimmedSearch)
       );
     })
     : allMembers;
@@ -651,6 +659,7 @@ export const createClubMember = async (payload) => {
     ...payload,
     role: "Club",
     verify: payload.verify === true,
+    designation: String(payload.designation || "").trim(),
   };
 
   if (normalizedPayload.email) {
@@ -713,13 +722,16 @@ export const updateClubMemberById = async (clubMemberId, payload) => {
   if (normalizedPayload.email) {
     normalizedPayload.email = normalizedPayload.email.toLowerCase().trim();
   }
+  if (normalizedPayload.designation !== undefined) {
+    normalizedPayload.designation = String(normalizedPayload.designation || "").trim();
+  }
 
   return BaseAuth.findOneAndUpdate(
     { _id: clubMemberId, role: "Club" },
     { $set: normalizedPayload },
     { new: true, runValidators: true }
   )
-    .select("_id fullName profile phone countryCode email gender address district role isActive verify")
+    .select("_id fullName profile phone countryCode email gender address designation district role isActive verify")
     .lean();
 };
 

@@ -523,8 +523,13 @@ export const displayDistrictsRepositories = async ({ page, limit, search }) => {
 
 export const displayDistrictDetailsRepositories = async (districtId) => {
     const district = await District.findById(districtId)
-        .select("_id name img about officeAddress presidentName rank championships mainMember")
-        .populate("mainMember", "fullName phone email profile")
+        .select("_id name img about officeAddress presidentName rank championships mainMember members")
+        .populate("mainMember", "fullName phone email profile designation")
+        .populate({
+            path: "members",
+            select: "_id fullName phone email profile designation",
+            options: { sort: { fullName: 1 } },
+        })
         .lean();
 
     if (!district) {
@@ -534,12 +539,29 @@ export const displayDistrictDetailsRepositories = async (districtId) => {
     const clubsQuery = { district: district._id };
     const skatersQuery = { club: { $in: await Club.find(clubsQuery).distinct("_id") } };
     const eventsQuery = { eventType: "District", eventFor: district._id };
+    const mainMemberId = district.mainMember?._id
+        ? String(district.mainMember._id)
+        : district.mainMember
+          ? String(district.mainMember)
+          : null;
 
     const [totalClubs, totalSkaters, totalEvents] = await Promise.all([
         Club.countDocuments(clubsQuery),
         Skater.countDocuments(skatersQuery),
         Event.countDocuments(eventsQuery),
     ]);
+
+    const members = (Array.isArray(district.members) ? district.members : [])
+        .filter((member) => member && member._id)
+        .map((member) => ({
+            _id: member._id,
+            fullName: member.fullName || "",
+            email: member.email || "",
+            phone: member.phone || "",
+            img: member.profile || "",
+            designation: member.designation || "",
+            isMain: mainMemberId ? String(member._id) === mainMemberId : false,
+        }));
 
     return {
         districtId: district._id,
@@ -551,12 +573,13 @@ export const displayDistrictDetailsRepositories = async (districtId) => {
         presidentImg: district.mainMember?.profile || "",
         presidentEmail: district.mainMember?.email || "",
         presidentPhone: district.mainMember?.phone || "",
-        designation: "President",
+        designation: district.mainMember?.designation || "",
         rank: district.rank || 0,
         championships: district.championships || 0,
         totalClubCount: totalClubs,
         totalSkaterCount: totalSkaters,
         totalEventCount: totalEvents,
+        members,
     };
 };
 

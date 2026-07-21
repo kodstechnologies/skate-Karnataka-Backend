@@ -110,7 +110,7 @@ export const getAllStateRepository = async ({ page, limit }) => {
   const pagination = paginate(page, limit);
   const [states, total] = await Promise.all([
     State.find()
-      .select("_id fullName phone email img about krsaId status allowedModule")
+      .select("_id fullName phone email img about krsaId status allowedModule gender designation")
       .sort({ createdAt: -1 })
       .skip(pagination.skip)
       .limit(pagination.limit)
@@ -121,6 +121,7 @@ export const getAllStateRepository = async ({ page, limit }) => {
   return {
     states: states.map((state) => ({
       ...state,
+      designation: state.designation || "",
       allowedModule: normalizeAllowedModule(state.allowedModule),
     })),
     pagination: {
@@ -173,7 +174,7 @@ export const createStateRepository = async (payload) => {
 
 export const getSingleStateWithDistrictsRepository = async (stateId) => {
   const state = await State.findById(stateId)
-    .select("_id fullName phone email name img about krsaId status allowedModule")
+    .select("_id fullName phone email name img about krsaId status allowedModule gender designation")
     .lean();
 
   if (!state) {
@@ -182,6 +183,7 @@ export const getSingleStateWithDistrictsRepository = async (stateId) => {
 
   return {
     ...state,
+    designation: state.designation || "",
     allowedModule: normalizeAllowedModule(state.allowedModule),
   };
 };
@@ -192,7 +194,7 @@ export const updateStateRepository = async (stateId, payload) => {
     { $set: payload },
     { new: true, runValidators: true }
   )
-    .select("_id fullName phone email name img about krsaId status")
+    .select("_id fullName phone email name img about krsaId status designation")
     .lean();
 
   if (!updated) {

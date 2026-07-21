@@ -134,6 +134,7 @@ export const createDistrictMemberByAdminValidation = {
     email: Joi.string().trim().email().lowercase().allow("").optional(),
     gender: Joi.string().trim().lowercase().allow("").optional(),
     address: Joi.string().trim().max(200).allow("").optional(),
+    designation: Joi.string().trim().max(100).allow("").optional(),
     countryCode: Joi.string().trim().allow("").optional(),
     profile: Joi.string().uri().allow("").optional().messages({
       "string.uri": "Profile must be a valid URL",
@@ -157,6 +158,7 @@ export const updateDistrictMemberByAdminValidation = {
     email: Joi.string().trim().email().lowercase().allow("").optional(),
     gender: Joi.string().trim().lowercase().allow("").optional(),
     address: Joi.string().trim().max(200).allow("").optional(),
+    designation: Joi.string().trim().max(100).allow("").optional(),
     countryCode: Joi.string().trim().allow("").optional(),
     district: Joi.string().trim().pattern(/^[0-9a-fA-F]{24}$/).optional().messages({
       "string.pattern.base": "Invalid district id format",
@@ -244,6 +246,7 @@ export const createClubMemberByAdminValidation = {
     email: Joi.string().trim().email().lowercase().allow("").optional(),
     gender: Joi.string().trim().lowercase().allow("").optional(),
     address: Joi.string().trim().max(200).allow("").optional(),
+    designation: Joi.string().trim().max(100).allow("").optional(),
     countryCode: Joi.string().trim().allow("").optional(),
     profile: Joi.string().uri().allow("").optional().messages({
       "string.uri": "Profile must be a valid URL",
@@ -264,6 +267,7 @@ export const updateClubMemberByAdminValidation = {
     email: Joi.string().trim().email().lowercase().allow("").optional(),
     gender: Joi.string().trim().lowercase().allow("").optional(),
     address: Joi.string().trim().max(200).allow("").optional(),
+    designation: Joi.string().trim().max(100).allow("").optional(),
     countryCode: Joi.string().trim().allow("").optional(),
     profile: Joi.string().uri().allow("").optional().messages({
       "string.uri": "Profile must be a valid URL",

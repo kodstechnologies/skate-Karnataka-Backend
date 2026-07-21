@@ -2,7 +2,14 @@ import mongoose from "mongoose";
 import { BaseAuth } from "../auth/baseAuth.model.js";
 
 const clubMemberSchema = new mongoose.Schema(
-  {},
+  {
+    designation: {
+      type: String,
+      trim: true,
+      default: "",
+      maxlength: 100,
+    },
+  },
   {
     timestamps: true,
   }

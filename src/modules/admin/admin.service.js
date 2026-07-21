@@ -40,9 +40,7 @@ import {
   removeClubMemberFromAllClubs,
   removeRefreshTokenFromAdmin,
   setClubMainMember,
-  findClubByMainMemberId,
   setDistrictMainMember,
-  findDistrictByMainMemberId,
   getAllSkatersForAdmin,
   getSkaterFullDetailsByIdForAdmin,
   updateSkaterByIdForAdmin,
@@ -395,14 +393,6 @@ export const deleteDistrictMemberByAdminService = async (districtMemberId) => {
     throw new AppError("District member not found", 404);
   }
 
-  const districtWithMain = await findDistrictByMainMemberId(districtMemberId);
-  if (districtWithMain) {
-    throw new AppError(
-      "Cannot delete the main district member. Set another member as main first.",
-      400
-    );
-  }
-
   await deleteDistrictMemberById(districtMemberId);
 
   if (existingMember.district) {
@@ -643,14 +633,6 @@ export const deleteClubMemberByAdminService = async (clubMemberId) => {
   const existingMember = await findClubMemberById(clubMemberId);
   if (!existingMember) {
     throw new AppError("Club member not found", 404);
-  }
-
-  const clubWithMain = await findClubByMainMemberId(clubMemberId);
-  if (clubWithMain) {
-    throw new AppError(
-      "Cannot delete the main club member. Set another member as main first.",
-      400
-    );
   }
 
   await deleteClubMemberById(clubMemberId);

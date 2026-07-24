@@ -128,6 +128,18 @@ const displayParentFullDetailsRepositories = async (id) => {
     return { ...parent, skaters };
 };
 
+const deleteParentByIdRepositories = async (id) => {
+    const deleted = await Parent.findOneAndDelete({ _id: id, role: "Parent" }).lean();
+    if (!deleted) return null;
+
+    await Skater.updateMany(
+        { SkaterParent: id },
+        { $unset: { SkaterParent: 1 }, $set: { parent: "" } }
+    );
+
+    return deleted;
+};
+
 export {
     afterLoginParentFormRepositories,
     appendSkatersToParentRepositories,
@@ -135,4 +147,5 @@ export {
     findUserByPhoneOrEmailRepositories,
     displayAllParentRepositories,
     displayParentFullDetailsRepositories,
+    deleteParentByIdRepositories,
 }

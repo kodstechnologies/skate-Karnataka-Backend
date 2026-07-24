@@ -1,6 +1,11 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { afterLoginFormOfficialService, displayAllOfficialService, displayOfficialfullDetailsService } from "./official.services.js";
+import {
+    afterLoginFormOfficialService,
+    deleteOfficialService,
+    displayAllOfficialService,
+    displayOfficialfullDetailsService,
+} from "./official.services.js";
 
 const afterLoginOfficialForm = asyncHandler(async (req, res) => {
     const { id } = req.params;
@@ -13,8 +18,8 @@ const afterLoginOfficialForm = asyncHandler(async (req, res) => {
                 { id: updated?._id, verify: updated?.verify === true },
                 "Official form submitted successfully"
             )
-        )
-})
+        );
+});
 
 const displayAllOfficial = asyncHandler(async (req, res) => {
     const result = await displayAllOfficialService(req.query);
@@ -26,7 +31,7 @@ const displayAllOfficial = asyncHandler(async (req, res) => {
                 result,
                 "Officials fetched successfully"
             )
-        )
+        );
 });
 
 const displayOfficialfullDetails = asyncHandler(async (req, res) => {
@@ -43,8 +48,17 @@ const displayOfficialfullDetails = asyncHandler(async (req, res) => {
         );
 });
 
+const deleteOfficial = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const result = await deleteOfficialService(id);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, result, "Official deleted successfully"));
+});
+
 export {
     afterLoginOfficialForm,
     displayAllOfficial,
     displayOfficialfullDetails,
-}
+    deleteOfficial,
+};

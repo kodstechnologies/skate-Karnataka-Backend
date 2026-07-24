@@ -192,8 +192,13 @@ const displayOfficialfullDetailsRepositories = async (id) => {
     };
 };
 
+const deleteOfficialByIdRepositories = async (id) => {
+    return Official.findOneAndDelete({ _id: id, role: "Official" }).lean();
+};
+
 export {
     afterLoginOfficialFormRepositories,
     displayAllOfficialRepositories,
     displayOfficialfullDetailsRepositories,
-}
+    deleteOfficialByIdRepositories,
+};

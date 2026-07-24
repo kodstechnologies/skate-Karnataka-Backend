@@ -3,7 +3,7 @@ import { authenticate } from "../../middleware/auth.middleware.js";
 import { restrictUploadedFileFields, uploadAny } from "../../middleware/multer.middleware.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
 import { validate } from "../../middleware/validate.multiple.js";
-import { afterLoginOfficialForm, displayAllOfficial, displayOfficialfullDetails } from "./official.controller.js";
+import { afterLoginOfficialForm, displayAllOfficial, displayOfficialfullDetails, deleteOfficial } from "./official.controller.js";
 import { afterLoginOfficialFormValidation } from "./official.validation.js";
 import { normalizeOfficialFormPayload } from "./officialFormPayload.js";
 
@@ -13,6 +13,7 @@ const OFFICIAL_FORM_FILE_FIELDS = ["img", "document", "documents"];
 
 router.get("/v1/all", authenticate(["Admin", "State"]), displayAllOfficial);
 router.get("/v1/full-details/:id", authenticate(["Admin", "State"]), displayOfficialfullDetails);
+router.delete("/v1/:id", authenticate(["Admin", "State"]), deleteOfficial);
 
 router.post(
   "/v1/after-login-official-form/:id",

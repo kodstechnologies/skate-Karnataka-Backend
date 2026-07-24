@@ -210,8 +210,13 @@ const displayFullDetailsOfAcademyRepositories = async (id) => {
 };
 
 
-export{
+const deleteAcademyByIdRepositories = async (id) => {
+    return Academy.findOneAndDelete({ _id: id, role: "Academy" }).lean();
+};
+
+export {
     afterLoginClubFormRepositories,
     displayAllAcademyRepositories,
     displayFullDetailsOfAcademyRepositories,
-}
+    deleteAcademyByIdRepositories,
+};

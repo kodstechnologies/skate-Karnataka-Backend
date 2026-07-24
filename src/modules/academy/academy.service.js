@@ -1,6 +1,7 @@
 import { AppError } from "../../util/common/AppError.js";
 import {
     afterLoginClubFormRepositories,
+    deleteAcademyByIdRepositories,
     displayAllAcademyRepositories,
     displayFullDetailsOfAcademyRepositories,
 } from "./academy.repositories.js";
@@ -54,7 +55,7 @@ const displayAllAcademyService = async (query) => {
         email,
         district,
     });
-}
+};
 
 const displayFullDetailsOfAcademyService = async (id) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -66,10 +67,24 @@ const displayFullDetailsOfAcademyService = async (id) => {
         throw new AppError("Academy not found", 404);
     }
     return academy;
-}
+};
+
+const deleteAcademyService = async (id) => {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new AppError("Invalid academy id", 400);
+    }
+
+    const deleted = await deleteAcademyByIdRepositories(id);
+    if (!deleted) {
+        throw new AppError("Academy not found", 404);
+    }
+
+    return { deleted: true };
+};
 
 export {
-afterLoginFormClubService,
-displayAllAcademyService,
-displayFullDetailsOfAcademyService,
-}
+    afterLoginFormClubService,
+    displayAllAcademyService,
+    displayFullDetailsOfAcademyService,
+    deleteAcademyService,
+};

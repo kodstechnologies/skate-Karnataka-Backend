@@ -1,7 +1,7 @@
 import { asyncHandler } from "../../util/common/asyncHandler.js";
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { putObject } from "../../util/aws/putObject.js";
-import { afterLoginFormParentService, displayAllParentService, displayParentFullDetailsService } from "./parent.services.js";
+import { afterLoginFormParentService, displayAllParentService, displayParentFullDetailsService, deleteParentService } from "./parent.services.js";
 import { AppError } from "../../util/common/AppError.js";
 
 const SKATER_FILE_FIELD_REGEX = /^skaters\[(\d+)\]\[(photo|documents)\]$/;
@@ -83,8 +83,17 @@ const displayParentFullDetails = asyncHandler(async (req, res) => {
         );
 });
 
+const deleteParent = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const result = await deleteParentService(id);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, result, "Parent deleted successfully"));
+});
+
 export {
     afterLoginParentForm,
     displayAllParent,
     displayParentFullDetails,
+    deleteParent,
 }

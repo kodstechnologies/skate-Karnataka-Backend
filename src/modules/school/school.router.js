@@ -4,7 +4,7 @@ import { restrictUploadedFileFields, uploadAny } from "../../middleware/multer.m
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
 import { validate } from "../../middleware/validate.multiple.js";
 import { afterLoginSchoolFormValidation } from "./school.validation.js";
-import { afterLoginSchoolForm, displayAllSchool, displaySchoolFullDetails } from "./school.controller.js";
+import { afterLoginSchoolForm, displayAllSchool, displaySchoolFullDetails, deleteSchool } from "./school.controller.js";
 import { normalizeSchoolFormPayload } from "./schoolFormPayload.js";
 
 const router = express.Router();
@@ -13,6 +13,7 @@ const SCHOOL_FORM_FILE_FIELDS = ["img", "document", "documentFile"];
 
 router.get("/v1/all", authenticate(["Admin", "State"]), displayAllSchool);
 router.get("/v1/full-details/:id", authenticate(["Admin", "State"]), displaySchoolFullDetails);
+router.delete("/v1/:id", authenticate(["Admin", "State"]), deleteSchool);
 
 router.post(
   "/v1/after-login-school-form/:id",

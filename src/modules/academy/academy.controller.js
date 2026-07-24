@@ -2,6 +2,7 @@ import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
 import {
     afterLoginFormClubService,
+    deleteAcademyService,
     displayAllAcademyService,
     displayFullDetailsOfAcademyService,
 } from "./academy.service.js";
@@ -53,7 +54,7 @@ const displayAllAcademy = asyncHandler(async (req, res) => {
         );
 });
 
-export const displayFullDetailsOfAcademy = asyncHandler(async(req,res)=> {
+export const displayFullDetailsOfAcademy = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const result = await displayFullDetailsOfAcademyService(id);
     return res
@@ -67,7 +68,16 @@ export const displayFullDetailsOfAcademy = asyncHandler(async(req,res)=> {
         );
 });
 
+const deleteAcademy = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const result = await deleteAcademyService(id);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, result, "Academy deleted successfully"));
+});
+
 export {
     afterLoginClubForm,
     displayAllAcademy,
-}
+    deleteAcademy,
+};

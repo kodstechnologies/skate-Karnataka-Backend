@@ -1,6 +1,11 @@
 import mongoose from "mongoose";
 import { AppError } from "../../util/common/AppError.js";
-import { afterLoginSchoolFormRepositories, displayAllSchoolRepositories, displaySchoolFullDetailsRepositories } from "./school.repositories.js";
+import {
+    afterLoginSchoolFormRepositories,
+    deleteSchoolByIdRepositories,
+    displayAllSchoolRepositories,
+    displaySchoolFullDetailsRepositories,
+} from "./school.repositories.js";
 import { sendSchoolProfileSubmittedEmail } from "../../util/email/schoolProfileEmail.js";
 
 const afterLoginFormSchoolService = async (data, id) => {
@@ -48,7 +53,7 @@ const displayAllSchoolService = async (query) => {
         phone,
         fullName,
     });
-}
+};
 
 const displaySchoolFullDetailsService = async (id) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -60,10 +65,24 @@ const displaySchoolFullDetailsService = async (id) => {
         throw new AppError("School not found", 404);
     }
     return school;
-}
+};
+
+const deleteSchoolService = async (id) => {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new AppError("Invalid school id", 400);
+    }
+
+    const deleted = await deleteSchoolByIdRepositories(id);
+    if (!deleted) {
+        throw new AppError("School not found", 404);
+    }
+
+    return { deleted: true };
+};
 
 export {
     afterLoginFormSchoolService,
     displayAllSchoolService,
     displaySchoolFullDetailsService,
-}
+    deleteSchoolService,
+};

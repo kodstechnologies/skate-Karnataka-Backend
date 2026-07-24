@@ -722,27 +722,45 @@ export const updateStateEventSkaterTimeService = async (
     };
 };
 
+/**
+ * Resolve the Karnataka / State org doc used as eventFor for state events.
+ * Accepts an explicit stateId, then falls back to any State account (discriminator
+ * or BaseAuth role), so Admin create works even when the client omits stateId.
+ */
+const resolveStateIdForEvent = async (stateId) => {
+    const candidate = stateId != null ? String(stateId).trim() : "";
+
+    if (candidate && mongoose.Types.ObjectId.isValid(candidate)) {
+        const byId =
+            (await State.findById(candidate).select("_id").lean()) ||
+            (await BaseAuth.findOne({
+                _id: candidate,
+                role: { $in: ["State", "state"] },
+            })
+                .select("_id")
+                .lean());
+        if (byId?._id) return byId._id;
+    }
+
+    const fallback =
+        (await State.findOne().sort({ createdAt: 1 }).select("_id").lean()) ||
+        (await BaseAuth.findOne({ role: { $in: ["State", "state"] } })
+            .sort({ createdAt: 1 })
+            .select("_id")
+            .lean());
+
+    return fallback?._id || null;
+};
+
 export const createStateEventService = async (stateId, data, creatorUserId, creatorRole) => {
-    let resolvedStateId = stateId;
-
-    if (resolvedStateId) {
-        const state = await State.findById(resolvedStateId).select("_id").lean();
-        if (state) {
-            return await createStateEventRepositories(
-                resolvedStateId,
-                data,
-                creatorUserId,
-                creatorRole
-            );
-        }
+    const resolvedStateId = await resolveStateIdForEvent(stateId);
+    if (!resolvedStateId) {
+        throw new AppError(
+            "No state found to create state event. Create a State account (Karnataka) first.",
+            404
+        );
     }
 
-    const fallbackState = await State.findOne().sort({ createdAt: 1 }).select("_id").lean();
-    if (!fallbackState) {
-        throw new AppError("No state found to create state event", 404);
-    }
-
-    resolvedStateId = fallbackState._id;
     return await createStateEventRepositories(
         resolvedStateId,
         data,

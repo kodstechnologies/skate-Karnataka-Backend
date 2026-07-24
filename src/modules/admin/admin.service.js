@@ -759,10 +759,6 @@ export const deleteSkaterByAdminService = async (skaterId) => {
     throw new AppError("Skater not found", 404);
   }
 
-  if (!existing.isBlocked) {
-    throw new AppError("Active skater cannot be deleted. Block the skater first.", 400);
-  }
-
   const deleted = await deleteSkaterByIdForAdmin(skaterId);
   if (!deleted) {
     throw new AppError("Skater not found", 404);

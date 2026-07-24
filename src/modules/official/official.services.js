@@ -1,10 +1,15 @@
 import mongoose from "mongoose";
 import { AppError } from "../../util/common/AppError.js";
-import { afterLoginOfficialFormRepositories, displayAllOfficialRepositories, displayOfficialfullDetailsRepositories } from "./official.repositories.js";
+import {
+    afterLoginOfficialFormRepositories,
+    deleteOfficialByIdRepositories,
+    displayAllOfficialRepositories,
+    displayOfficialfullDetailsRepositories,
+} from "./official.repositories.js";
 
 const afterLoginFormOfficialService = async (data, id) => {
     return await afterLoginOfficialFormRepositories(data, id);
-}
+};
 
 const displayAllOfficialService = async (query) => {
     const {
@@ -29,7 +34,7 @@ const displayAllOfficialService = async (query) => {
         gender,
         email,
     });
-}
+};
 
 const displayOfficialfullDetailsService = async (id) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -41,10 +46,24 @@ const displayOfficialfullDetailsService = async (id) => {
         throw new AppError("Official not found", 404);
     }
     return official;
-}
+};
+
+const deleteOfficialService = async (id) => {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new AppError("Invalid official id", 400);
+    }
+
+    const deleted = await deleteOfficialByIdRepositories(id);
+    if (!deleted) {
+        throw new AppError("Official not found", 404);
+    }
+
+    return { deleted: true };
+};
 
 export {
     afterLoginFormOfficialService,
     displayAllOfficialService,
     displayOfficialfullDetailsService,
-}
+    deleteOfficialService,
+};

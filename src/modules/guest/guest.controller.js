@@ -76,6 +76,7 @@ import {
   updateSponsorshipDonationService,
   displayAllGuestService,
   displayGuestFullDetailsService,
+  deleteGuestService,
 } from "./guest.services.js";
 
 export const afterLoginGuestForm = asyncHandler(async (req, res) => {
@@ -441,4 +442,11 @@ export const displayGuestFullDetails = asyncHandler(async (req, res) => {
     return res.status(200).json(
         new ApiResponse(200, guest, "Guest full details fetched successfully")
     );
+});
+
+export const deleteGuest = asyncHandler(async (req, res) => {
+    const result = await deleteGuestService(req.params.id);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, result, "Guest deleted successfully"));
 });

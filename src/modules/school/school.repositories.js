@@ -186,8 +186,13 @@ const displaySchoolFullDetailsRepositories = async (id) => {
     };
 };
 
+const deleteSchoolByIdRepositories = async (id) => {
+    return School.findOneAndDelete({ _id: id, role: "School" }).lean();
+};
+
 export {
     afterLoginSchoolFormRepositories,
     displayAllSchoolRepositories,
     displaySchoolFullDetailsRepositories,
-}
+    deleteSchoolByIdRepositories,
+};

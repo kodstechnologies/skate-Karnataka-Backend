@@ -4,6 +4,7 @@ import { Skater } from "../skater/skater.model.js";
 import {
     afterLoginParentFormRepositories,
     appendSkatersToParentRepositories,
+    deleteParentByIdRepositories,
     displayAllParentRepositories,
     displayParentFullDetailsRepositories,
     findParentByIdRepositories,
@@ -461,10 +462,22 @@ const displayParentFullDetailsService = async (id) => {
     return parent;
 }
 
+const deleteParentService = async (id) => {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new AppError("Invalid parent id", 400);
+    }
 
+    const deleted = await deleteParentByIdRepositories(id);
+    if (!deleted) {
+        throw new AppError("Parent not found", 404);
+    }
+
+    return { deleted: true };
+}
 
 export {
     afterLoginFormParentService,
     displayAllParentService,
     displayParentFullDetailsService,
+    deleteParentService,
 }

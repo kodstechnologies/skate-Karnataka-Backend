@@ -1,7 +1,7 @@
 import express from "express";
 import { restrictUploadedFileFields, uploadAny } from "../../middleware/multer.middleware.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
-import { afterLoginClubForm, displayAllAcademy, displayFullDetailsOfAcademy } from "./academy.controller.js";
+import { afterLoginClubForm, displayAllAcademy, displayFullDetailsOfAcademy, deleteAcademy } from "./academy.controller.js";
 import { validateAcademyOrOfficialForm } from "./academyFormValidation.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import {
@@ -13,6 +13,7 @@ const router = express.Router();
 
 router.get("/v1/all" , authenticate(["Admin", "State"]), displayAllAcademy);
 router.get("/v1/full-details/:id", authenticate(["Admin", "State"]), displayFullDetailsOfAcademy);
+router.delete("/v1/:id", authenticate(["Admin", "State"]), deleteAcademy);
 
 const FORM_FILE_FIELDS = [
   "img",

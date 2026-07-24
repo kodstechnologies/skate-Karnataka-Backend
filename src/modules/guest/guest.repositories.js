@@ -997,3 +997,11 @@ export const displayGuestFullDetailsRepositories = async (id) => {
 
     return guest;
 };
+
+export const deleteGuestByIdRepositories = async (id) => {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        return null;
+    }
+
+    return Guest.findOneAndDelete({ _id: id, ...GUEST_ROLE_QUERY }).lean();
+};

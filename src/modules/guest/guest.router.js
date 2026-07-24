@@ -49,6 +49,7 @@ import {
   displayDisciplineEvents,
   displayAllGuest,
   displayGuestFullDetails,
+  deleteGuest,
 } from "./guest.controller.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import {
@@ -88,6 +89,7 @@ const router = express.Router()
 
 router.get("/v1/all", authenticate(["Admin", "State"]), displayAllGuest);
 router.get("/v1/full-details/:id", authenticate(["Admin", "State"]), displayGuestFullDetails);
+router.delete("/v1/:id", authenticate(["Admin", "State"]), deleteGuest);
 
 // contact - us =======================
 router.get("/v1/contact-us", displayContactUs)

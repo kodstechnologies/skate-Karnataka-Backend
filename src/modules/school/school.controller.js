@@ -1,6 +1,11 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
-import { afterLoginFormSchoolService, displayAllSchoolService, displaySchoolFullDetailsService } from "./school.services.js";
+import {
+    afterLoginFormSchoolService,
+    deleteSchoolService,
+    displayAllSchoolService,
+    displaySchoolFullDetailsService,
+} from "./school.services.js";
 import { normalizeSchoolFormPayload } from "./schoolFormPayload.js";
 
 const afterLoginSchoolForm = asyncHandler(async (req, res) => {
@@ -45,8 +50,17 @@ const displaySchoolFullDetails = asyncHandler(async (req, res) => {
         );
 });
 
+const deleteSchool = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const result = await deleteSchoolService(id);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, result, "School deleted successfully"));
+});
+
 export {
     afterLoginSchoolForm,
     displayAllSchool,
     displaySchoolFullDetails,
+    deleteSchool,
 }

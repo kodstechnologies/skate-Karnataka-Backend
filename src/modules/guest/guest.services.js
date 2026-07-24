@@ -46,6 +46,7 @@ import {
   displayGuestStateMediaDetailsRepositories,
   displayAllGuestRepositories,
   displayGuestFullDetailsRepositories,
+  deleteGuestByIdRepositories,
 } from "./guest.repositories.js";
 import { AppError } from "../../util/common/AppError.js";
 import mongoose from "mongoose";
@@ -343,4 +344,17 @@ export const displayGuestFullDetailsService = async (id) => {
     }
 
     return guest;
+};
+
+export const deleteGuestService = async (id) => {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new AppError("Invalid guest id", 400);
+    }
+
+    const deleted = await deleteGuestByIdRepositories(id);
+    if (!deleted) {
+        throw new AppError("Guest not found", 404);
+    }
+
+    return { deleted: true };
 };

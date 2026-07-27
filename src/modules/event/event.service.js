@@ -1354,6 +1354,40 @@ const edit_event_schema = async (id, data, user) => {
     };
 };
 
+/**
+ * Club/District: set chest-number mode.
+ * isAutomated true = daily scheduler; false = manual generate only.
+ */
+export const updateEventChestNumberModeService = async (id, isAutomated, user) => {
+    const existing = await Event.findById(id)
+        .select("_id eventType eventFor isAutomated")
+        .lean();
+    if (!existing) {
+        throw new AppError("Event not found", 404);
+    }
+
+    const role = String(user?.role || "").trim().toLowerCase();
+    await assertOrgOwnsEventForEdit(existing, user, role);
+
+    const updated = await Event.findByIdAndUpdate(
+        id,
+        { $set: { isAutomated: Boolean(isAutomated) } },
+        { new: true }
+    )
+        .select("_id header isAutomated eventType")
+        .lean();
+
+    return {
+        _id: updated._id,
+        header: updated.header,
+        eventType: updated.eventType,
+        isAutomated: updated.isAutomated !== false,
+        message: updated.isAutomated
+            ? "Switched to automatic chest numbers"
+            : "Switched to manual chest numbers",
+    };
+};
+
 const delete_event_schema = async (id, user) => {
     const event = await Event.findById(id)
         .select("_id eventType deleteApprovalStatus")

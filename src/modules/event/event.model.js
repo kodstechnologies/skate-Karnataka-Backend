@@ -135,9 +135,15 @@ const eventSchema = new mongoose.Schema(
     textColor: {
       type: String,
       default: "#FFFFFF" // white text (best for dark backgrounds)
-    }
+    },
 
-    
+    /**
+     * Chest number generation: true = daily scheduler; false = only via generate action.
+     */
+    isAutomated: {
+      type: Boolean,
+      default: true,
+    },
   },
   {
     timestamps: true,

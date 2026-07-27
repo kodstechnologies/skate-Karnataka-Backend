@@ -2662,7 +2662,7 @@ export const enrichLeanEventsSkatingCategoryNames = async (events) => {
 
 /** Public fields for event list cards (`GET .../v1/state`, `GET .../v1/district`, `GET .../v1/club`, `GET .../v1/user-all-events`, `GET .../v1/latest-event`). */
 const EVENT_CARD_LIST_PROJECTION =
-  "_id header about registerStartDate registerEndDate eventStartDate eventEndDate eventStartTime eventEndTime entryFee colorOne colorTwo textColor skatingEventCategories status address eventType adminApprovalStatus deleteApprovalStatus";
+  "_id header about registerStartDate registerEndDate eventStartDate eventEndDate eventStartTime eventEndTime entryFee colorOne colorTwo textColor skatingEventCategories status address eventType adminApprovalStatus deleteApprovalStatus isAutomated";
 
 /** Extra fields for `GET .../v1/event-full-details/:id` (merged with skater-access base projection). */
 const SKATER_EVENT_FULL_DETAILS_EXTRA_SELECT =
@@ -2741,6 +2741,8 @@ const toEventCardListItem = (ev) => ({
   eventType: ev.eventType ?? "",
   adminApprovalStatus: ev.adminApprovalStatus || EVENT_ADMIN_APPROVAL.APPROVED,
   deleteApprovalStatus: ev.deleteApprovalStatus || null,
+  /** true = scheduler; false = manual generate only (default automatic). */
+  isAutomated: ev.isAutomated !== false,
 });
 
 const LIVE_EVENT_LIST_PROJECTION =

@@ -278,6 +278,7 @@ const LoginUserService = async (identifier) => {
             type: userWithKrsaId.role,
             identifier: normalizedIdentifier,
             krsaId: userWithKrsaId.krsaId,
+            email: userWithKrsaId.email || "",
             // accessToken,
             // refreshToken,
         };

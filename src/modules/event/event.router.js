@@ -1,6 +1,6 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
-import { applyCertificationBySkater, approveCertification, rejectCertification, approveEventByAdmin, approveEventDeleteByAdmin, clubRelatedEventDisplay, clubPortalEventsDisplay, competitionAllSkater, createClubEvent, create_event, delete_event, display_all_event_based_on_user, display_latest_event, displayAllPlayedEventBySkater, displayApplications, displayLiveEvents, displayAllEvents, displayEventById, displaySkaterEventFullDetails, displaySkaterEventFormCategoryDetails, displayCompetitionDetails, edit_event, createDistrictEvent, districtRelatedEventDisplay, districtPortalEventsDisplay, givenPoint, rejectEventByAdmin, rejectEventDeleteByAdmin, stateEventResult, stateRelatedEventDisplay, stateEventSkatersSummary, updateStateSkaterTime, createStateEvent, createEventCategory, deleteEventCategory, getEventCategories, getOrgCustomEventCategory, getOrgCategoryContext, upsertOrgCustomEventCategory, getEventCategoryById, updateEventCategory, createRegisterForm, getAllRegisterDetailsByUserId, getRegisterDetailsByEventId, getRegisterFormById, getRegisterFormByUserId, getFormulas, getFormulaById, getAllFormulasLight, createFormula, updateFormula, deleteFormula, listEndedEventsForCertificates, getEventCertificateStatus, generateEventCertificatesAdmin, webStateEventsDisplay, webClubEventsDisplay, webDistrictEventsDisplay } from "./event.controller.js";
+import { applyCertificationBySkater, approveCertification, rejectCertification, approveEventByAdmin, approveEventDeleteByAdmin, clubRelatedEventDisplay, clubPortalEventsDisplay, competitionAllSkater, createClubEvent, create_event, delete_event, display_all_event_based_on_user, display_latest_event, displayAllPlayedEventBySkater, displayApplications, displayLiveEvents, displayAllEvents, displayEventById, displaySkaterEventFullDetails, displaySkaterEventFormCategoryDetails, displayCompetitionDetails, edit_event, createDistrictEvent, districtRelatedEventDisplay, districtPortalEventsDisplay, givenPoint, rejectEventByAdmin, rejectEventDeleteByAdmin, stateEventResult, stateRelatedEventDisplay, stateEventSkatersSummary, updateStateSkaterTime, createStateEvent, createEventCategory, deleteEventCategory, getEventCategories, getOrgCustomEventCategory, getOrgCategoryContext, upsertOrgCustomEventCategory, getEventCategoryById, updateEventCategory, createRegisterForm, getAllRegisterDetailsByUserId, getRegisterDetailsByEventId, getRegisterFormById, getRegisterFormByUserId, getFormulas, getFormulaById, getAllFormulasLight, createFormula, updateFormula, deleteFormula, listEndedEventsForCertificates, getEventCertificateStatus, generateEventCertificatesAdmin, webStateEventsDisplay, webClubEventsDisplay, webDistrictEventsDisplay, updateEventChestNumberMode } from "./event.controller.js";
 import { validate } from "../../middleware/validate.multiple.js";
 import {
     create_event_category_validation,
@@ -23,6 +23,7 @@ import {
     update_event_category_validation,
     upsert_org_custom_category_validation,
     update_event_validation,
+    update_chest_number_mode_validation,
     displayApplicationsQueryValidation,
     approveCertificationParamsValidation,
     create_formula_validation,
@@ -103,6 +104,12 @@ router.post(
     createClubEvent
 );
 router.patch(
+    "/v1/club/:id/chest-number-mode",
+    authenticate(["Club"]),
+    validate(update_chest_number_mode_validation),
+    updateEventChestNumberMode
+);
+router.patch(
     "/v1/club/:id",
     authenticate(["Club"]),
     validate(update_event_validation),
@@ -135,6 +142,12 @@ router.post(
     createDistrictEvent
 );
 
+router.patch(
+    "/v1/district/:id/chest-number-mode",
+    authenticate(["District"]),
+    validate(update_chest_number_mode_validation),
+    updateEventChestNumberMode
+);
 router.patch(
     "/v1/district/:id",
     authenticate(["District"]),

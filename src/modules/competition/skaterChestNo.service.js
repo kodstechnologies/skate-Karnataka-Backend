@@ -716,6 +716,8 @@ export const generateChestNumbersForExpiredEvents = async () => {
   const candidateEvents = await Event.find({
     status: { $ne: "cancelled" },
     registerEndDate: { $ne: null },
+    /** Skip manual-mode events (isAutomated === false). Missing field = automatic. */
+    isAutomated: { $ne: false },
     ...approvedPublicEventFilter(),
   })
     .select("_id header registerEndDate")

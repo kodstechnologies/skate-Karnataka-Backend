@@ -55,6 +55,7 @@ import {
   stateEventSkatersSummaryService,
   stateRelatedEventDisplayService,
   updateEventCategoryService,
+  updateEventChestNumberModeService,
   updateStateEventSkaterTimeService,
   webStateEventsDisplayService,
   webClubEventsDisplayService,
@@ -448,6 +449,19 @@ const edit_event = asyncHandler(async (req, res) => {
             result,
             result?.message || "Event updated successfully"
         )
+    );
+});
+
+/** Club/District: toggle automatic vs manual chest-number generation. */
+export const updateEventChestNumberMode = asyncHandler(async (req, res) => {
+    const result = await updateEventChestNumberModeService(
+        req.params.id,
+        req.body.isAutomated,
+        req.user
+    );
+
+    return res.status(200).json(
+        new ApiResponse(200, result, result?.message || "Chest number mode updated")
     );
 });
 

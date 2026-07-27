@@ -712,6 +712,13 @@ const update_event_validation = {
 
 };
 
+/** Club/District: toggle chest-number mode (true = automatic scheduler, false = manual). */
+const update_chest_number_mode_validation = {
+    body: Joi.object({
+        isAutomated: Joi.boolean().required(),
+    }),
+};
+
 const formulaIdField = Joi.string()
     .trim()
     .pattern(/^[0-9a-fA-F]{24}$/)
@@ -916,6 +923,7 @@ export {
     create_district_event_validation,
     create_state_event_validation,
     update_event_validation,
+    update_chest_number_mode_validation,
     create_event_category_validation,
     update_event_category_validation,
     upsert_org_custom_category_validation,

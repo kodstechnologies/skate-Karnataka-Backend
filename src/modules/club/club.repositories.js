@@ -625,70 +625,62 @@ const clubsByDistrictPaginatedRepository = async (
     };
 };
 
-const SKATER_IN_CLUB_STATUSES = ["join", "apply-leave"];
-
-const allClubsPaginatedForSkaterRepository = async ({ page, limit }) => {
-    const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
-
-    const [clubs, total] = await Promise.all([
-        Club.find({})
-            .select("_id name img address districtStatus districtName")
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(pageLimit)
-            .lean(),
-        Club.countDocuments({}),
-    ]);
-
-    return {
-        total,
-        page: currentPage,
-        limit: pageLimit,
-        totalPages: calcTotalPages(total, pageLimit),
-        data: clubs,
-        scope: "all",
-    };
-};
-
 /**
- * Joined skater: other clubs in the same district (current club excluded).
- * No club / left club: all clubs paginated.
+ * All clubs in the skater's district (from skater profile; fallback to joined club district).
  */
 const clubsForSkaterUserRepository = async (userId, { page, limit }) => {
-    const skater = await Skater.findById(userId).select("club clubStatus").lean();
+    const skater = await Skater.findById(userId)
+        .select("club clubStatus district")
+        .populate("district", "name")
+        .lean();
 
     if (!skater) {
         throw new AppError("Skater not found", 404);
     }
 
-    const status = String(skater.clubStatus || "").trim().toLowerCase();
-    const inClub =
-        skater.club &&
-        SKATER_IN_CLUB_STATUSES.includes(status);
+    let districtId =
+        skater.district && typeof skater.district === "object" && skater.district._id
+            ? skater.district._id
+            : skater.district || null;
+    let districtName =
+        skater.district && typeof skater.district === "object"
+            ? skater.district.name || ""
+            : "";
 
-    if (inClub) {
-        const clubDoc = await Club.findById(skater.club).select("district districtName").lean();
-        if (!clubDoc?.district) {
-            throw new AppError("Joined club has no district assigned", 400);
+    if (!districtId && skater.club) {
+        const clubDoc = await Club.findById(skater.club)
+            .select("district districtName")
+            .lean();
+        if (clubDoc?.district) {
+            districtId = clubDoc.district;
+            districtName = clubDoc.districtName || "";
         }
-
-        const result = await clubsByDistrictPaginatedRepository(clubDoc.district, {
-            page,
-            limit,
-            excludeClubId: skater.club,
-        });
-
-        return {
-            ...result,
-            scope: "district",
-            districtId: clubDoc.district,
-            districtName: clubDoc.districtName || "",
-            joinedClubId: skater.club,
-            excludedClubId: skater.club,
-        };
     }
 
-    return await allClubsPaginatedForSkaterRepository({ page, limit });
+    if (!districtId) {
+        throw new AppError(
+            "Skater district is not set. Update your profile district to view clubs.",
+            400
+        );
+    }
+
+    if (!districtName) {
+        const districtDoc = await District.findById(districtId).select("name").lean();
+        districtName = districtDoc?.name || "";
+    }
+
+    const result = await clubsByDistrictPaginatedRepository(districtId, {
+        page,
+        limit,
+    });
+
+    return {
+        ...result,
+        scope: "district",
+        districtId,
+        districtName,
+        joinedClubId: skater.club || null,
+    };
 };
 
 const isExistClubRepository = async (id) => {

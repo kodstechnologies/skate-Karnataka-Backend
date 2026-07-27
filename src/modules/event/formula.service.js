@@ -28,18 +28,27 @@ export const resolveClubIdForFormula = async (authUser) =>
 export const resolveDistrictIdForFormula = async (authUser) =>
   resolveDistrictOwnerIdRepositories(authUser);
 
-export const listAdminFormulasPaginated = async ({ page = 1, limit = 10 } = {}) => {
+export const listAdminFormulasPaginated = async ({
+  page = 1,
+  limit = 10,
+  categoryId = null,
+} = {}) => {
   const currentPage = Math.max(1, Number(page) || 1);
   const perPage = Math.min(100, Math.max(1, Number(limit) || 10));
   const skip = (currentPage - 1) * perPage;
 
+  const filter = { ...ADMIN_FORMULA_FILTER };
+  if (categoryId) {
+    filter.categoryId = new mongoose.Types.ObjectId(String(categoryId));
+  }
+
   const [data, total] = await Promise.all([
-    Formula.find(ADMIN_FORMULA_FILTER)
+    Formula.find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(perPage)
       .lean(),
-    Formula.countDocuments(ADMIN_FORMULA_FILTER),
+    Formula.countDocuments(filter),
   ]);
 
   return {
@@ -79,12 +88,18 @@ const mapLightFormula = (row, source) => ({
   _id: row._id,
   formulaName: row.formulaName,
   categoryName: row.categoryName,
+  categoryId: row.categoryId || null,
   source,
 });
 
-export const listAdminFormulasLight = async () => {
-  const rows = await Formula.find(ADMIN_FORMULA_FILTER)
-    .select("_id formulaName categoryName")
+export const listAdminFormulasLight = async ({ categoryId = null } = {}) => {
+  const filter = { ...ADMIN_FORMULA_FILTER };
+  if (categoryId) {
+    filter.categoryId = new mongoose.Types.ObjectId(String(categoryId));
+  }
+
+  const rows = await Formula.find(filter)
+    .select("_id formulaName categoryName categoryId")
     .sort({ createdAt: -1 })
     .lean();
   return rows.map((row) => mapLightFormula(row, "admin"));
@@ -136,7 +151,11 @@ export const assertClubOwnsFormula = (formula, clubId) => {
 };
 
 export const createAdminFormula = async (body) => {
-  return Formula.create({ ...body, club: null, district: null });
+  const payload = { ...body, club: null, district: null };
+  if (payload.categoryId === "" || payload.categoryId === undefined) {
+    payload.categoryId = null;
+  }
+  return Formula.create(payload);
 };
 
 export const createClubFormula = async (clubId, body) => {

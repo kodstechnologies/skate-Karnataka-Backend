@@ -899,6 +899,7 @@ const create_formula_validation = {
     body: Joi.object({
         formulaName: Joi.string().trim().min(1).max(200).required(),
         categoryName: Joi.string().trim().max(200).allow("").optional(),
+        categoryId: objectIdString.allow(null, "").optional(),
         ageGroup: Joi.string().trim().allow("").optional(),
         rounds: Joi.array().items(formulaRoundItem).default([]),
         finalSelectionCount: Joi.number().integer().min(1).default(3),
@@ -909,10 +910,19 @@ const update_formula_validation = {
     body: Joi.object({
         formulaName: Joi.string().trim().min(1).max(200),
         categoryName: Joi.string().trim().max(200).allow(""),
+        categoryId: objectIdString.allow(null, "").optional(),
         ageGroup: Joi.string().trim().allow(""),
         rounds: Joi.array().items(formulaRoundItem),
         finalSelectionCount: Joi.number().integer().min(1),
     }).min(1),
+};
+
+export const formulaListQueryValidation = {
+    query: Joi.object({
+        page: Joi.number().integer().min(1).optional(),
+        limit: Joi.number().integer().min(1).max(100).optional(),
+        categoryId: objectIdString.optional(),
+    }),
 };
 
 /** Manual competition: boys | girls | both (also boy/girl/male/female). */
@@ -1105,5 +1115,6 @@ export {
     register_form_validation,
     create_formula_validation,
     update_formula_validation,
+    formulaListQueryValidation,
     // stateEventResultQueryValidation
 };

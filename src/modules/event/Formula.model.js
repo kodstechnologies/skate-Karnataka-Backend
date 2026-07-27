@@ -51,6 +51,14 @@ const FormulaSchema = new mongoose.Schema(
       default: "",
     },
 
+    /** SkatingEventCategory document _id (or lap category id) this formula belongs to */
+    categoryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "SkatingEventCategory",
+      default: null,
+      index: true,
+    },
+
     ageGroup: {
       type: String,
       default: "",

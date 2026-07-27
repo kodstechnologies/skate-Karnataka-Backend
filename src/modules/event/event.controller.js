@@ -749,7 +749,8 @@ export const rejectCertification = asyncHandler(async (req, res) => {
 export const getFormulas = asyncHandler(async (req, res) => {
     const page = Math.max(1, Number(req.query.page) || 1);
     const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 10));
-    const result = await listAdminFormulasPaginated({ page, limit });
+    const categoryId = req.query.categoryId || null;
+    const result = await listAdminFormulasPaginated({ page, limit, categoryId });
 
     return res.status(200).json(
         new ApiResponse(200, result, "Formulas fetched successfully")
@@ -767,7 +768,8 @@ export const getFormulaById = asyncHandler(async (req, res) => {
 });
 
 export const getAllFormulasLight = asyncHandler(async (req, res) => {
-    const formulas = await listAdminFormulasLight();
+    const categoryId = req.query.categoryId || null;
+    const formulas = await listAdminFormulasLight({ categoryId });
     return res
         .status(200)
         .json(new ApiResponse(200, formulas, "Formulas fetched successfully"));

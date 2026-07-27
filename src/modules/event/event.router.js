@@ -29,6 +29,7 @@ import {
     create_formula_validation,
     update_formula_validation,
     eventCertificateParamsValidation,
+    formulaListQueryValidation,
     manualRoundsQueryValidation,
     manualRoundsAllSkaterQueryValidation,
     manualDisplaySortByQueryValidation,
@@ -426,8 +427,18 @@ router.post(
 
 // formula 
 
-router.get("/v1/formula", authenticate(["Admin"]), getFormulas);
-router.get("/v1/formula/all", authenticate(["Admin"]), getAllFormulasLight);
+router.get(
+    "/v1/formula",
+    authenticate(["Admin"]),
+    validate(formulaListQueryValidation),
+    getFormulas
+);
+router.get(
+    "/v1/formula/all",
+    authenticate(["Admin"]),
+    validate(formulaListQueryValidation),
+    getAllFormulasLight
+);
 router.get("/v1/formula/:id", authenticate(["Admin"]), getFormulaById);
 router.post("/v1/formula", authenticate(["Admin"]), validate(create_formula_validation), createFormula);
 router.patch("/v1/formula/:id", authenticate(["Admin"]), validate(update_formula_validation), updateFormula);

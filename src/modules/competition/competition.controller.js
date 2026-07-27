@@ -33,6 +33,7 @@ import {
     collectCompetitionSkaterIds,
     competitionCategoryNamesEqual,
     filterCompetitionCategoryByGender,
+    filterCompetitorsByGender,
     findEventCategoryByQuery,
     findEventCategoryMeta,
     formatCategoryRoundDisplay,
@@ -150,6 +151,67 @@ const clearSubsequentRoundsInCategory = (category, updatedRound) => {
     }
 };
 
+/** Keep other-gender skaters; replace this gender's rows (or full replace when no gender filter). */
+const mergeRoundRowsByGender = (
+    existingRows,
+    incomingRows,
+    genderBySkaterId,
+    genderFilter
+) => {
+    if (!genderFilter) {
+        return incomingRows;
+    }
+    const kept = (existingRows || []).filter(
+        (row) => genderBySkaterId.get(String(row?.skaterId || "")) !== genderFilter
+    );
+    return [...kept, ...(incomingRows || [])];
+};
+
+/** Clear later rounds/medals for this gender only; leave the other gender intact. */
+const clearSubsequentRoundsInCategoryByGender = (
+    category,
+    updatedRound,
+    genderBySkaterId,
+    genderFilter
+) => {
+    if (!genderFilter) {
+        clearSubsequentRoundsInCategory(category, updatedRound);
+        return;
+    }
+
+    const roundIndex = COMPETITION_ROUND_ORDER.indexOf(updatedRound);
+    if (roundIndex < 0) {
+        return;
+    }
+
+    const subsequentRounds = COMPETITION_ROUND_ORDER.slice(roundIndex + 1);
+    for (const nextRound of subsequentRounds) {
+        setCategoryRound(
+            category,
+            nextRound,
+            mergeRoundRowsByGender(
+                category[nextRound],
+                [],
+                genderBySkaterId,
+                genderFilter
+            )
+        );
+    }
+
+    for (const medalRound of MEDAL_ROUNDS) {
+        setCategoryRound(
+            category,
+            medalRound,
+            mergeRoundRowsByGender(
+                category[medalRound],
+                [],
+                genderBySkaterId,
+                genderFilter
+            )
+        );
+    }
+};
+
 /** Partial update: only fields sent in the request are changed for this round. */
 const applyCompetitorPointsUpdate = (competitor, { time, position }, qualificationType) => {
     if (hasNonEmptyTime(time)) {
@@ -228,7 +290,7 @@ const getChestNumbersByEvent = asyncHandler(async (req, res) => {
  */
 const getChestNumberSummary = asyncHandler(async (req, res) => {
     const { eventId } = req.params;
-    const { page, limit, search, ageGroup, lap, discipline } = req.query;
+    const { page, limit, search, ageGroup, lap, discipline, gender } = req.query;
     const summary = await getChestNumberSummaryByEvent(eventId, {
         page,
         limit,
@@ -236,6 +298,7 @@ const getChestNumberSummary = asyncHandler(async (req, res) => {
         ageGroup,
         lap,
         discipline,
+        gender,
     });
 
     res.status(200).json({
@@ -653,6 +716,8 @@ const updatePoints = asyncHandler(async (req, res) => {
         req.body.skatingEventCategories ||
         req.body.categoriesId ||
         null;
+    const genderFilter = normalizeCompetitionGenderFilter(req.body.gender);
+    const genderLabel = toCompetitionGenderLabel(req.body.gender);
 
     let competition = await EventCompetition.findOne({ eventId, ageGroup });
     if (!competition) {
@@ -662,6 +727,26 @@ const updatePoints = asyncHandler(async (req, res) => {
     if (!competition) {
         throw new AppError("No competition found for the given event and age group", 404);
     }
+
+    const genderBySkaterId = genderFilter
+        ? await loadCompetitionGenderBySkaterId([competition])
+        : new Map();
+
+    const assertSkaterMatchesGender = (id) => {
+        if (!genderFilter) return;
+        const skaterGender = genderBySkaterId.get(String(id));
+        if (skaterGender !== genderFilter) {
+            throw new AppError(
+                `Skater does not match gender filter "${genderLabel}"`,
+                400
+            );
+        }
+    };
+
+    const mapRoundCompetitors = (rows) =>
+        filterCompetitorsByGender(rows || [], genderBySkaterId, genderFilter).map((row) =>
+            mapCompetitor(row)
+        );
 
     const qualificationTypeCache = new Map();
     const resolveQualificationType = async (categoryName) => {
@@ -709,6 +794,8 @@ const updatePoints = asyncHandler(async (req, res) => {
             throw new AppError("Skater not found in any category for the given round", 404);
         }
 
+        assertSkaterMatchesGender(skaterId);
+
         const qualificationType = await resolveQualificationType(foundCategory.name);
         validateCompetitorPayload({ time, position }, foundCategory.name);
         applyCompetitorPointsUpdate(
@@ -716,13 +803,18 @@ const updatePoints = asyncHandler(async (req, res) => {
             { time, position },
             qualificationType
         );
-        clearSubsequentRoundsInCategory(foundCategory, round);
+        clearSubsequentRoundsInCategoryByGender(
+            foundCategory,
+            round,
+            genderBySkaterId,
+            genderFilter
+        );
 
         responseCategories.push({
-                name: foundCategory.name,
-                qualificationType,
-                competitors: (foundCategory[round] || []).map((row) => mapCompetitor(row)),
-            });
+            name: foundCategory.name,
+            qualificationType,
+            competitors: mapRoundCompetitors(foundCategory[round]),
+        });
     } else {
         for (const catUpdate of categories) {
             const { name, competitors } = catUpdate;
@@ -730,10 +822,8 @@ const updatePoints = asyncHandler(async (req, res) => {
                 continue;
             }
 
-            const category = competition.categories.find(
-                (row) =>
-                    row.name &&
-                    row.name.trim().toLowerCase() === name.trim().toLowerCase()
+            const category = competition.categories.find((row) =>
+                competitionCategoryNamesEqual(row.name, name)
             );
 
             if (!category) {
@@ -748,6 +838,7 @@ const updatePoints = asyncHandler(async (req, res) => {
 
             for (const comp of competitors) {
                 validateCompetitorPayload(comp, category.name);
+                assertSkaterMatchesGender(comp.skaterId);
 
                 const competitor = roundData.find(
                     (row) => String(row.skaterId) === String(comp.skaterId)
@@ -763,12 +854,17 @@ const updatePoints = asyncHandler(async (req, res) => {
                 applyCompetitorPointsUpdate(competitor, comp, qualificationType);
             }
 
-            clearSubsequentRoundsInCategory(category, round);
+            clearSubsequentRoundsInCategoryByGender(
+                category,
+                round,
+                genderBySkaterId,
+                genderFilter
+            );
 
             responseCategories.push({
                 name: category.name,
                 qualificationType,
-                competitors: (category[round] || []).map((row) => mapCompetitor(row)),
+                competitors: mapRoundCompetitors(category[round]),
             });
         }
     }
@@ -783,7 +879,8 @@ const updatePoints = asyncHandler(async (req, res) => {
             eventId: competition.eventId,
             ageGroup: competition.ageGroup,
             round: round,
-            categories: responseCategories
+            gender: genderLabel,
+            categories: responseCategories,
         },
     });
 });
@@ -791,7 +888,7 @@ const updatePoints = asyncHandler(async (req, res) => {
 /**
  * Promote qualified skaters from the current round to the next (formula qualifyCount).
  *
- * Body: { eventId, ageGroup, round, name, skatingEventCategoryId? }
+ * Body: { eventId, ageGroup, round, name, skatingEventCategoryId?, gender? }
  */
 const promoteToNextRound = asyncHandler(async (req, res) => {
     const { eventId, ageGroup, round, name } = req.body;
@@ -801,6 +898,8 @@ const promoteToNextRound = asyncHandler(async (req, res) => {
         req.body.categoriesId ||
         req.body.categoryId ||
         null;
+    const genderFilter = normalizeCompetitionGenderFilter(req.body.gender);
+    const genderLabel = toCompetitionGenderLabel(req.body.gender);
 
     let competition = await EventCompetition.findOne({ eventId, ageGroup });
     if (!competition) {
@@ -811,19 +910,32 @@ const promoteToNextRound = asyncHandler(async (req, res) => {
         throw new AppError("No competition found for the given event and age group", 404);
     }
 
-    const category = competition.categories.find(
-        (row) =>
-            row.name &&
-            row.name.trim().toLowerCase() === String(name || "").trim().toLowerCase()
+    const category = competition.categories.find((row) =>
+        competitionCategoryNamesEqual(row.name, name)
     );
 
     if (!category) {
         throw new AppError(`Category "${name}" not found for age group ${ageGroup}`, 404);
     }
 
-    const currentRoundData = (category[round] || []).map(toPlainCompetitorRow);
+    const genderBySkaterId = genderFilter
+        ? await loadCompetitionGenderBySkaterId([competition])
+        : new Map();
+
+    const allCurrentRoundData = (category[round] || []).map(toPlainCompetitorRow);
+    const currentRoundData = filterCompetitorsByGender(
+        allCurrentRoundData,
+        genderBySkaterId,
+        genderFilter
+    );
+
     if (!currentRoundData.length) {
-        throw new AppError(`No skaters in ${round} for "${name}"`, 400);
+        throw new AppError(
+            genderFilter
+                ? `No ${genderLabel} skaters in ${round} for "${name}"`
+                : `No skaters in ${round} for "${name}"`,
+            400
+        );
     }
 
     const promotionCtx = await resolvePromotionContext(eventId, {
@@ -885,17 +997,32 @@ const promoteToNextRound = asyncHandler(async (req, res) => {
         setCategoryRound(
             category,
             "1st",
-            firstPlace ? [mapCompetitorForMedal(firstPlace, "1")] : []
+            mergeRoundRowsByGender(
+                category["1st"],
+                firstPlace ? [mapCompetitorForMedal(firstPlace, "1")] : [],
+                genderBySkaterId,
+                genderFilter
+            )
         );
         setCategoryRound(
             category,
             "2nd",
-            secondPlace ? [mapCompetitorForMedal(secondPlace, "2")] : []
+            mergeRoundRowsByGender(
+                category["2nd"],
+                secondPlace ? [mapCompetitorForMedal(secondPlace, "2")] : [],
+                genderBySkaterId,
+                genderFilter
+            )
         );
         setCategoryRound(
             category,
             "3rd",
-            thirdPlace ? [mapCompetitorForMedal(thirdPlace, "0")] : []
+            mergeRoundRowsByGender(
+                category["3rd"],
+                thirdPlace ? [mapCompetitorForMedal(thirdPlace, "0")] : [],
+                genderBySkaterId,
+                genderFilter
+            )
         );
         totalPromoted =
             (firstPlace ? 1 : 0) + (secondPlace ? 1 : 0) + (thirdPlace ? 1 : 0);
@@ -922,22 +1049,30 @@ const promoteToNextRound = asyncHandler(async (req, res) => {
         setCategoryRound(
             category,
             targetRound,
-            promotionBreakdown.promoted.map(cloneCompetitorForNextRound)
+            mergeRoundRowsByGender(
+                category[targetRound],
+                promotionBreakdown.promoted.map(cloneCompetitorForNextRound),
+                genderBySkaterId,
+                genderFilter
+            )
         );
         totalPromoted = promotionBreakdown.promoted.length;
 
-        // Only the next round is populated; later rounds + medals must not keep stale data.
-        clearSubsequentRoundsInCategory(category, targetRound);
+        // Only this gender's later rounds + medals are cleared; other gender kept.
+        clearSubsequentRoundsInCategoryByGender(
+            category,
+            targetRound,
+            genderBySkaterId,
+            genderFilter
+        );
     }
 
     if (totalPromoted === 0) {
         throw new AppError(`No skaters qualified to progress from "${round}"`, 400);
     }
 
-    const categoryIndex = competition.categories.findIndex(
-        (row) =>
-            row.name &&
-            row.name.trim().toLowerCase() === String(name || "").trim().toLowerCase()
+    const categoryIndex = competition.categories.findIndex((row) =>
+        competitionCategoryNamesEqual(row.name, name)
     );
     competition.markModified("categories");
     if (categoryIndex >= 0) {
@@ -949,20 +1084,23 @@ const promoteToNextRound = asyncHandler(async (req, res) => {
     await competition.save();
 
     const saved = await EventCompetition.findOne({ eventId, ageGroup });
-    const savedCategory = saved?.categories?.find(
-        (row) =>
-            row.name &&
-            row.name.trim().toLowerCase() === String(name || "").trim().toLowerCase()
+    const savedCategory = saved?.categories?.find((row) =>
+        competitionCategoryNamesEqual(row.name, name)
     );
+
+    const mapFiltered = (rows) =>
+        filterCompetitorsByGender(rows || [], genderBySkaterId, genderFilter).map((row) =>
+            mapCompetitor(row)
+        );
 
     const nextRoundParticipants =
         targetRound === "winners"
             ? {
-                  "1st": (savedCategory?.["1st"] || []).map((row) => mapCompetitor(row)),
-                  "2nd": (savedCategory?.["2nd"] || []).map((row) => mapCompetitor(row)),
-                  "3rd": (savedCategory?.["3rd"] || []).map((row) => mapCompetitor(row)),
+                  "1st": mapFiltered(savedCategory?.["1st"]),
+                  "2nd": mapFiltered(savedCategory?.["2nd"]),
+                  "3rd": mapFiltered(savedCategory?.["3rd"]),
               }
-            : (savedCategory?.[targetRound] || []).map((row) => mapCompetitor(row));
+            : mapFiltered(savedCategory?.[targetRound]);
 
     const promotedIds = new Set(
         (promotionBreakdown?.promoted || []).map((row) => String(row.skaterId))
@@ -989,6 +1127,7 @@ const promoteToNextRound = asyncHandler(async (req, res) => {
             eventId: saved?.eventId ?? competition.eventId,
             ageGroup: saved?.ageGroup ?? competition.ageGroup,
             name: savedCategory?.name ?? category.name,
+            gender: genderLabel,
             fromRound: round,
             toRound: targetRound,
             qualificationType: promotionCtx.qualificationType,

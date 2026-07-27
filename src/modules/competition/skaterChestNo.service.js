@@ -948,11 +948,12 @@ const flattenSummaryAttendees = (skatingCategories = []) => {
   return rows;
 };
 
-const filterSummaryAttendees = (rows, { search, ageGroup, lap, discipline }) => {
+const filterSummaryAttendees = (rows, { search, ageGroup, lap, discipline, gender }) => {
   const term = String(search || "").trim().toLowerCase();
   const ageFilter = String(ageGroup || "").trim();
   const lapFilter = String(lap || "").trim();
   const disciplineFilter = String(discipline || "").trim();
+  const genderFilter = String(gender || "").trim().toLowerCase();
 
   return rows.filter((row) => {
     const matchesSearch =
@@ -970,7 +971,9 @@ const filterSummaryAttendees = (rows, { search, ageGroup, lap, discipline }) => 
     const matchesAgeGroup = !ageFilter || row.ageGroup === ageFilter;
     const matchesLap = !lapFilter || row.lap === lapFilter;
     const matchesDiscipline = !disciplineFilter || row.discipline === disciplineFilter;
-    return matchesSearch && matchesAgeGroup && matchesLap && matchesDiscipline;
+    const matchesGender =
+      !genderFilter || String(row.gender || "").trim().toLowerCase() === genderFilter;
+    return matchesSearch && matchesAgeGroup && matchesLap && matchesDiscipline && matchesGender;
   });
 };
 
@@ -978,6 +981,9 @@ const buildSummaryFilterOptions = (rows = []) => ({
   ageGroups: [...new Set(rows.map((row) => row.ageGroup).filter(Boolean))].sort(),
   laps: [...new Set(rows.map((row) => row.lap).filter(Boolean))].sort(),
   disciplines: [...new Set(rows.map((row) => row.discipline).filter(Boolean))].sort(),
+  genders: [...new Set(rows.map((row) => String(row.gender || "").trim()).filter(Boolean))].sort(
+    (a, b) => a.localeCompare(b, undefined, { sensitivity: "base" })
+  ),
 });
 
 /**
@@ -986,7 +992,15 @@ const buildSummaryFilterOptions = (rows = []) => ({
  */
 export const getChestNumberSummaryByEvent = async (
   eventId,
-  { page = 1, limit = 10, search = "", ageGroup = "", lap = "", discipline = "" } = {}
+  {
+    page = 1,
+    limit = 10,
+    search = "",
+    ageGroup = "",
+    lap = "",
+    discipline = "",
+    gender = "",
+  } = {}
 ) => {
   const eventMeta = await getEventSkatingEventCategoriesFullRepository(eventId);
   if (!eventMeta) {
@@ -1078,6 +1092,7 @@ export const getChestNumberSummaryByEvent = async (
     ageGroup,
     lap,
     discipline,
+    gender,
   });
   const { skip, limit: pageLimit, page: currentPage } = paginate(page, limit);
   const attendees = filteredAttendees.slice(skip, skip + pageLimit);

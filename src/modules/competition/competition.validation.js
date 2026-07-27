@@ -8,6 +8,22 @@ const objectIdString = Joi.string()
         "string.pattern.base": "{{#label}} must be a valid 24-character hex id",
     });
 
+/** boys | girls | both (also accepts boy/girl/male/female) */
+const competitionGenderField = Joi.string()
+    .trim()
+    .lowercase()
+    .valid(
+        "boys",
+        "boy",
+        "male",
+        "girls",
+        "girl",
+        "female",
+        "both",
+        "all"
+    )
+    .optional();
+
 const hasNonEmptyTime = (value) =>
     value !== undefined && value !== null && String(value).trim() !== "";
 
@@ -54,6 +70,7 @@ const bulkUpdateBody = Joi.object({
     skatingEventCategoryId: objectIdString.optional(),
     skatingEventCategories: objectIdString.optional(),
     categoriesId: objectIdString.optional(),
+    gender: competitionGenderField,
     categories: Joi.array().items(categoryUpdateItem).min(1).required(),
     skaterId: Joi.forbidden(),
     time: Joi.forbidden(),
@@ -74,6 +91,7 @@ const singleUpdateBody = Joi.object({
     skatingEventCategoryId: objectIdString.optional(),
     skatingEventCategories: objectIdString.optional(),
     categoriesId: objectIdString.optional(),
+    gender: competitionGenderField,
     skaterId: objectIdString.required(),
     time: Joi.string().trim().allow("").optional(),
     position: Joi.string()
@@ -106,6 +124,7 @@ export const promoteToNextRoundValidation = {
         skatingEventCategories: objectIdString.optional(),
         categoriesId: objectIdString.optional(),
         categoryId: objectIdString.optional(),
+        gender: competitionGenderField,
     }),
 };
 
@@ -128,20 +147,7 @@ export const displayRoundQueryValidation = {
         categoriesId: objectIdString.optional(),
         categoryId: objectIdString.optional(),
         /** boys | girls | both (also accepts boy/girl/male/female) */
-        gender: Joi.string()
-            .trim()
-            .lowercase()
-            .valid(
-                "boys",
-                "boy",
-                "male",
-                "girls",
-                "girl",
-                "female",
-                "both",
-                "all"
-            )
-            .optional(),
+        gender: competitionGenderField,
     }),
 };
 
@@ -156,6 +162,7 @@ export const chestNumberSummaryQueryValidation = {
         ageGroup: Joi.string().trim().allow("").optional(),
         lap: Joi.string().trim().allow("").optional(),
         discipline: Joi.string().trim().allow("").optional(),
+        gender: Joi.string().trim().allow("").optional(),
     }),
 };
 
@@ -176,19 +183,6 @@ export const fullDetailsQueryValidation = {
         page: Joi.number().integer().min(1).optional(),
         limit: Joi.number().integer().min(1).max(100).optional(),
         /** boys | girls | both (also accepts boy/girl/male/female) */
-        gender: Joi.string()
-            .trim()
-            .lowercase()
-            .valid(
-                "boys",
-                "boy",
-                "male",
-                "girls",
-                "girl",
-                "female",
-                "both",
-                "all"
-            )
-            .optional(),
+        gender: competitionGenderField,
     }),
 };

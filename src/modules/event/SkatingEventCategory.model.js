@@ -3,6 +3,7 @@ import { CATEGORY_STATUS } from "./skatingEventCategory.policy.js";
 
 // Fixed age groups for skating events
 export const AGE_GROUPS = Object.freeze([
+  { label: "Below 6", min: null, max: 6 },
   { label: "6-8", min: 6, max: 8 },
   { label: "8-10", min: 8, max: 10 },
   { label: "10-12", min: 10, max: 12 },

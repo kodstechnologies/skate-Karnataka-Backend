@@ -69,6 +69,13 @@ import {
     listAdminFormulasPaginated,
     updateAdminFormula,
 } from "./formula.service.js";
+import {
+    getManualDisplaySortByService,
+    getManualRoundsAllSkaterService,
+    getManualRoundsService,
+    updateManualSkaterResultService,
+    updateManualToNextRoundService,
+} from "./event.manualRound.service.js";
 
 
 const display_latest_event = asyncHandler(async (req, res) => {
@@ -804,6 +811,47 @@ export const getEventCertificateStatus = asyncHandler(async (req, res) => {
     return res.status(200).json(
         new ApiResponse(200, status, "Event certificate status")
     );
+});
+
+/** Manual event rounds (formula-free). */
+export const getManualRounds = asyncHandler(async (req, res) => {
+    const data = await getManualRoundsService(req.query);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, data, "Manual rounds fetched successfully"));
+});
+
+export const getManualRoundsAllSkater = asyncHandler(async (req, res) => {
+    const data = await getManualRoundsAllSkaterService(req.query);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, data, "Manual round skaters fetched successfully"));
+});
+
+export const updateManualSkaterResult = asyncHandler(async (req, res) => {
+    const data = await updateManualSkaterResultService(req.body);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, data, "Skater results updated successfully"));
+});
+
+export const getManualDisplaySortBy = asyncHandler(async (req, res) => {
+    const data = await getManualDisplaySortByService(req.query);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, data, "Sorted skaters fetched successfully"));
+});
+
+export const updateManualToNextRound = asyncHandler(async (req, res) => {
+    const data = await updateManualToNextRoundService(req.body);
+    const message =
+        data?.message ||
+        (data?.toRound === "winners"
+            ? "Final medals (1st, 2nd, 3rd) updated successfully"
+            : data?.goToNextRound === false
+              ? "Next round skipped"
+              : "Promoted to next round successfully");
+    return res.status(200).json(new ApiResponse(200, data, message));
 });
 
 /** Admin: generate GeneratedCertificate rows for every eligible skater in the event. */

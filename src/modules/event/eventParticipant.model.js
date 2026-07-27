@@ -19,7 +19,7 @@ const participantSchema = new mongoose.Schema(
     },
 
     ageGroup: {
-      type: String, // "6-8", "8-10"
+      type: String, // "Below 6", "6-8", "8-10"
       required: true,
     },
 

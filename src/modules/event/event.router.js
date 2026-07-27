@@ -1,6 +1,6 @@
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
-import { applyCertificationBySkater, approveCertification, rejectCertification, approveEventByAdmin, approveEventDeleteByAdmin, clubRelatedEventDisplay, clubPortalEventsDisplay, competitionAllSkater, createClubEvent, create_event, delete_event, display_all_event_based_on_user, display_latest_event, displayAllPlayedEventBySkater, displayApplications, displayLiveEvents, displayAllEvents, displayEventById, displaySkaterEventFullDetails, displaySkaterEventFormCategoryDetails, displayCompetitionDetails, edit_event, createDistrictEvent, districtRelatedEventDisplay, districtPortalEventsDisplay, givenPoint, rejectEventByAdmin, rejectEventDeleteByAdmin, stateEventResult, stateRelatedEventDisplay, stateEventSkatersSummary, updateStateSkaterTime, createStateEvent, createEventCategory, deleteEventCategory, getEventCategories, getOrgCustomEventCategory, getOrgCategoryContext, upsertOrgCustomEventCategory, getEventCategoryById, updateEventCategory, createRegisterForm, getAllRegisterDetailsByUserId, getRegisterDetailsByEventId, getRegisterFormById, getRegisterFormByUserId, getFormulas, getFormulaById, getAllFormulasLight, createFormula, updateFormula, deleteFormula, listEndedEventsForCertificates, getEventCertificateStatus, generateEventCertificatesAdmin, webStateEventsDisplay, webClubEventsDisplay, webDistrictEventsDisplay, updateEventChestNumberMode } from "./event.controller.js";
+import { applyCertificationBySkater, approveCertification, rejectCertification, approveEventByAdmin, approveEventDeleteByAdmin, clubRelatedEventDisplay, clubPortalEventsDisplay, competitionAllSkater, createClubEvent, create_event, delete_event, display_all_event_based_on_user, display_latest_event, displayAllPlayedEventBySkater, displayApplications, displayLiveEvents, displayAllEvents, displayEventById, displaySkaterEventFullDetails, displaySkaterEventFormCategoryDetails, displayCompetitionDetails, edit_event, createDistrictEvent, districtRelatedEventDisplay, districtPortalEventsDisplay, givenPoint, rejectEventByAdmin, rejectEventDeleteByAdmin, stateEventResult, stateRelatedEventDisplay, stateEventSkatersSummary, updateStateSkaterTime, createStateEvent, createEventCategory, deleteEventCategory, getEventCategories, getOrgCustomEventCategory, getOrgCategoryContext, upsertOrgCustomEventCategory, getEventCategoryById, updateEventCategory, createRegisterForm, getAllRegisterDetailsByUserId, getRegisterDetailsByEventId, getRegisterFormById, getRegisterFormByUserId, getFormulas, getFormulaById, getAllFormulasLight, createFormula, updateFormula, deleteFormula, listEndedEventsForCertificates, getEventCertificateStatus, generateEventCertificatesAdmin, webStateEventsDisplay, webClubEventsDisplay, webDistrictEventsDisplay, updateEventChestNumberMode, getManualRounds, getManualRoundsAllSkater, updateManualSkaterResult, getManualDisplaySortBy, updateManualToNextRound } from "./event.controller.js";
 import { validate } from "../../middleware/validate.multiple.js";
 import {
     create_event_category_validation,
@@ -29,6 +29,11 @@ import {
     create_formula_validation,
     update_formula_validation,
     eventCertificateParamsValidation,
+    manualRoundsQueryValidation,
+    manualRoundsAllSkaterQueryValidation,
+    manualDisplaySortByQueryValidation,
+    manualUpdateSkaterResultValidation,
+    manualUpdateToNextRoundValidation,
 } from "./event.validation.js";
 import { upload } from "../../middleware/multer.middleware.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
@@ -219,6 +224,37 @@ router.get("/v1/full-display/:id",
     authenticate(["Skater"]),
     displayEventById);
 
+// manual event (must be before /v1/:id so paths are not treated as event ids)
+router.get(
+    "/v1/manual-rounds",
+    authenticate(["Club", "District", "State", "Admin"]),
+    validate(manualRoundsQueryValidation),
+    getManualRounds
+);
+router.get(
+    "/v1/manual-rounds-all-skater",
+    authenticate(["Club", "District", "State", "Admin"]),
+    validate(manualRoundsAllSkaterQueryValidation),
+    getManualRoundsAllSkater
+);
+router.patch(
+    "/v1/manual-update-skater-result",
+    authenticate(["Club", "District", "State", "Admin"]),
+    validate(manualUpdateSkaterResultValidation),
+    updateManualSkaterResult
+);
+router.get(
+    "/v1/manual-display-sortby",
+    authenticate(["Club", "District", "State", "Admin"]),
+    validate(manualDisplaySortByQueryValidation),
+    getManualDisplaySortBy
+);
+router.patch(
+    "/v1/manual-update-to-next-round",
+    authenticate(["Club", "District", "State", "Admin"]),
+    validate(manualUpdateToNextRoundValidation),
+    updateManualToNextRound
+);
 
 //   create event 
 router.post("/v1/",
@@ -396,7 +432,5 @@ router.get("/v1/formula/:id", authenticate(["Admin"]), getFormulaById);
 router.post("/v1/formula", authenticate(["Admin"]), validate(create_formula_validation), createFormula);
 router.patch("/v1/formula/:id", authenticate(["Admin"]), validate(update_formula_validation), updateFormula);
 router.delete("/v1/formula/:id", authenticate(["Admin"]), deleteFormula);
-
-
 
 export default router;

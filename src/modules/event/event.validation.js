@@ -915,6 +915,180 @@ const update_formula_validation = {
     }).min(1),
 };
 
+/** Manual competition: boys | girls | both (also boy/girl/male/female). */
+const manualGenderField = Joi.string()
+    .trim()
+    .lowercase()
+    .valid(
+        "boys",
+        "boy",
+        "male",
+        "girls",
+        "girl",
+        "female",
+        "both",
+        "all"
+    )
+    .optional();
+
+/** Accept 1 / 1stRound, 2 / 2ndRound, semiFinal, final. */
+const manualRoundField = Joi.alternatives()
+    .try(
+        Joi.number().integer().min(1).max(4),
+        Joi.string()
+            .trim()
+            .valid(
+                "1",
+                "2",
+                "3",
+                "4",
+                "1st",
+                "2nd",
+                "1stRound",
+                "2ndRound",
+                "semiFinal",
+                "final",
+                "semi",
+                "semifinal",
+                "first",
+                "second"
+            )
+    )
+    .optional();
+
+const manualHasTime = (value) =>
+    value !== undefined && value !== null && String(value).trim() !== "";
+
+const manualHasPosition = (value) =>
+    value !== undefined && value !== null && String(value).trim() !== "";
+
+const manualRequireTimeOrPosition = (value, helpers) => {
+    if (!manualHasTime(value?.time) && !manualHasPosition(value?.position)) {
+        return helpers.message({
+            custom: "At least one of time or position is required",
+        });
+    }
+    return value;
+};
+
+const manualCompetitorUpdateItem = Joi.object({
+    skaterId: objectIdString.required(),
+    time: Joi.string().trim().allow("").optional(),
+    position: Joi.string()
+        .trim()
+        .valid("0", "1", "2", "3")
+        .optional()
+        .messages({
+            "any.only": "position must be one of: 0, 1, 2, 3",
+        }),
+}).custom(manualRequireTimeOrPosition);
+
+export const manualRoundsQueryValidation = {
+    query: Joi.object({
+        eventId: objectIdString.required(),
+        ageGroup: competitionAgeGroupLabel.optional(),
+        name: Joi.string().trim().min(1).optional(),
+        gender: manualGenderField,
+    }),
+};
+
+export const manualRoundsAllSkaterQueryValidation = {
+    query: Joi.object({
+        eventId: objectIdString.required(),
+        ageGroup: competitionAgeGroupLabel.required(),
+        name: Joi.string().trim().min(1).required(),
+        /** Default round is 1 / 1stRound when omitted. */
+        round: manualRoundField,
+        gender: manualGenderField,
+    }),
+};
+
+export const manualDisplaySortByQueryValidation = {
+    query: Joi.object({
+        eventId: objectIdString.required(),
+        ageGroup: competitionAgeGroupLabel.required(),
+        name: Joi.string().trim().min(1).required(),
+        round: manualRoundField,
+        gender: manualGenderField,
+    }),
+};
+
+const manualUpdateSkaterBulkBody = Joi.object({
+    eventId: objectIdString.required(),
+    ageGroup: competitionAgeGroupLabel.required(),
+    round: manualRoundField,
+    name: Joi.string().trim().min(1).optional(),
+    gender: manualGenderField,
+    competitors: Joi.array().items(manualCompetitorUpdateItem).min(1).required(),
+    skaterId: Joi.forbidden(),
+    time: Joi.forbidden(),
+    position: Joi.forbidden(),
+});
+
+const manualUpdateSkaterSingleBody = Joi.object({
+    eventId: objectIdString.required(),
+    ageGroup: competitionAgeGroupLabel.required(),
+    round: manualRoundField,
+    name: Joi.string().trim().min(1).optional(),
+    gender: manualGenderField,
+    skaterId: objectIdString.required(),
+    time: Joi.string().trim().allow("").optional(),
+    position: Joi.string()
+        .trim()
+        .valid("0", "1", "2", "3")
+        .optional()
+        .messages({
+            "any.only": "position must be one of: 0, 1, 2, 3",
+        }),
+    competitors: Joi.forbidden(),
+}).custom(manualRequireTimeOrPosition);
+
+export const manualUpdateSkaterResultValidation = {
+    body: Joi.alternatives().try(
+        manualUpdateSkaterBulkBody,
+        manualUpdateSkaterSingleBody
+    ),
+};
+
+export const manualUpdateToNextRoundValidation = {
+    body: Joi.object({
+        eventId: objectIdString.required(),
+        ageGroup: competitionAgeGroupLabel.required(),
+        name: Joi.string().trim().min(1).required(),
+        /** Existing / current round (default 1stRound). */
+        round: manualRoundField,
+        /**
+         * Whether to advance. false keeps the existing round unchanged.
+         * When current round is final, medals 1st/2nd/3rd are set and nextRound is optional.
+         */
+        goToNextRound: Joi.boolean().default(true),
+        /** Optional target round (2ndRound | semiFinal | final). Ignored when from final. */
+        nextRound: Joi.alternatives()
+            .try(
+                Joi.number().integer().min(2).max(4),
+                Joi.string()
+                    .trim()
+                    .valid(
+                        "2",
+                        "3",
+                        "4",
+                        "2nd",
+                        "2ndRound",
+                        "semiFinal",
+                        "final",
+                        "semi",
+                        "semifinal",
+                        "second"
+                    )
+            )
+            .optional()
+            .allow(null, ""),
+        gender: manualGenderField,
+        promoteCount: Joi.number().integer().min(1).optional(),
+        skaterIds: Joi.array().items(objectIdString).optional(),
+    }),
+};
+
 export {
     state_skater_time_update_validation,
     given_point_validation,

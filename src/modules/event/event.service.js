@@ -340,7 +340,27 @@ export const competitionDetailsService = async (eventId, reqUser) => {
     if (!result) {
         throw new AppError("Event not found", 404);
     }
-    return result;
+
+    /** Lean payload for competition UI — no formula / description / ObjectId buffers. */
+    const skatingEventCategories = (result.skatingEventCategories || []).map((category) => ({
+        _id: category?._id != null ? String(category._id) : "",
+        typeName: category?.typeName ?? "",
+        ageGroups: (category?.ageGroups || []).map((ageGroup) => ({
+            label: ageGroup?.label ?? "",
+            categories: (ageGroup?.categories || []).map((row) => ({
+                name: row?.name ?? "",
+            })),
+        })),
+    }));
+
+    return {
+        eventId: result.eventId != null ? String(result.eventId) : "",
+        eventName: result.eventName ?? "",
+        eventType: result.eventType ?? "",
+        isAutomated: result.isAutomated !== false,
+        gender: result.gender || ["boys", "girls", "both"],
+        skatingEventCategories,
+    };
 };
 
 const assertCompetitionCategoryOnEvent = async (

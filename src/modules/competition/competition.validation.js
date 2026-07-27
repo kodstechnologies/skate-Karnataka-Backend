@@ -127,6 +127,21 @@ export const displayRoundQueryValidation = {
         skatingEventCategoryId: objectIdString.optional(),
         categoriesId: objectIdString.optional(),
         categoryId: objectIdString.optional(),
+        /** boys | girls | both (also accepts boy/girl/male/female) */
+        gender: Joi.string()
+            .trim()
+            .lowercase()
+            .valid(
+                "boys",
+                "boy",
+                "male",
+                "girls",
+                "girl",
+                "female",
+                "both",
+                "all"
+            )
+            .optional(),
     }),
 };
 
@@ -160,5 +175,20 @@ export const fullDetailsQueryValidation = {
             .optional(),
         page: Joi.number().integer().min(1).optional(),
         limit: Joi.number().integer().min(1).max(100).optional(),
+        /** boys | girls | both (also accepts boy/girl/male/female) */
+        gender: Joi.string()
+            .trim()
+            .lowercase()
+            .valid(
+                "boys",
+                "boy",
+                "male",
+                "girls",
+                "girl",
+                "female",
+                "both",
+                "all"
+            )
+            .optional(),
     }),
 };

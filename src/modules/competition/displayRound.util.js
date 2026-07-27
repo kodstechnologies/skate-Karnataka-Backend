@@ -202,6 +202,98 @@ export const toDisplayRoundCategoryOnly = (formatted) => ({
   "3rd": formatted["3rd"],
 });
 
+/** Static gender filter options for competition UI. */
+export const COMPETITION_GENDER_OPTIONS = Object.freeze(["boys", "girls", "both"]);
+
+const COMPETITION_ROUND_ARRAY_KEYS = Object.freeze([
+  "1stRound",
+  "2ndRound",
+  "semiFinal",
+  "final",
+  "1st",
+  "2nd",
+  "3rd",
+]);
+
+/**
+ * Normalize query gender → DB gender value, or null for no filter (both).
+ * Accepts: boy/boys/male, girl/girls/female, both/all.
+ */
+export const normalizeCompetitionGenderFilter = (raw) => {
+  const value = String(raw || "").trim().toLowerCase();
+  if (!value || value === "both" || value === "all") {
+    return null;
+  }
+  if (["boy", "boys", "male", "m"].includes(value)) {
+    return "male";
+  }
+  if (["girl", "girls", "female", "f"].includes(value)) {
+    return "female";
+  }
+  return null;
+};
+
+/** Label returned in API responses (boys | girls | both). */
+export const toCompetitionGenderLabel = (raw) => {
+  const target = normalizeCompetitionGenderFilter(raw);
+  if (target === "male") return "boys";
+  if (target === "female") return "girls";
+  return "both";
+};
+
+export const filterCompetitorsByGender = (rows, genderBySkaterId, targetGender) => {
+  if (!targetGender) {
+    return Array.isArray(rows) ? rows : [];
+  }
+  return (Array.isArray(rows) ? rows : []).filter((row) => {
+    const gender = genderBySkaterId.get(String(row?.skaterId || ""));
+    return gender === targetGender;
+  });
+};
+
+/** Clone a competition category with round arrays filtered by skater gender. */
+export const filterCompetitionCategoryByGender = (
+  category,
+  genderBySkaterId,
+  targetGender
+) => {
+  if (!category || !targetGender) {
+    return category;
+  }
+
+  const filtered = {
+    ...(typeof category.toObject === "function" ? category.toObject() : category),
+    name: category.name,
+  };
+
+  for (const key of COMPETITION_ROUND_ARRAY_KEYS) {
+    filtered[key] = filterCompetitorsByGender(
+      category[key],
+      genderBySkaterId,
+      targetGender
+    );
+  }
+
+  return filtered;
+};
+
+/** Collect all skaterIds from competition docs (all age groups / rounds). */
+export const collectCompetitionSkaterIds = (competitions = []) => {
+  const ids = new Set();
+  for (const competition of competitions) {
+    for (const category of competition?.categories || []) {
+      for (const key of COMPETITION_ROUND_ARRAY_KEYS) {
+        for (const row of category?.[key] || []) {
+          if (row?.skaterId) {
+            ids.add(String(row.skaterId));
+          }
+        }
+      }
+    }
+  }
+  return [...ids];
+};
+
 export const listCategoryNamesForAgeGroup = (resolvedCategories, ageGroup) => {
   const normAge = String(ageGroup || "").trim().toLowerCase();
   const names = new Set();

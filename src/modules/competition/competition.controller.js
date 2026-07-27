@@ -15,6 +15,7 @@ import {
     parseCompetitionTimeTakenToSeconds,
 } from "../../util/time/timeUtil.js";
 import { getEventSkatingEventCategoriesFullRepository } from "../event/event.repositories.js";
+import { BaseAuth } from "../auth/baseAuth.model.js";
 import {
     getFormulaQualificationTypeForRound,
     getPromotionLimit,
@@ -29,13 +30,33 @@ import {
 import {
     buildCategoriesForAgeGroup,
     collectAgeGroupLabels,
+    collectCompetitionSkaterIds,
+    COMPETITION_GENDER_OPTIONS,
+    filterCompetitionCategoryByGender,
     findEventCategoryByQuery,
     findEventCategoryMeta,
     formatCategoryRoundDisplay,
+    normalizeCompetitionGenderFilter,
     scopeResolvedSkatingCategories,
     toCategoryMetaFields,
+    toCompetitionGenderLabel,
     toDisplayRoundCategoryOnly,
 } from "./displayRound.util.js";
+
+const loadCompetitionGenderBySkaterId = async (competitions = []) => {
+    const skaterIds = collectCompetitionSkaterIds(competitions);
+    if (!skaterIds.length) {
+        return new Map();
+    }
+
+    const users = await BaseAuth.find({ _id: { $in: skaterIds } })
+        .select("_id gender")
+        .lean();
+
+    return new Map(
+        users.map((user) => [String(user._id), String(user.gender || "").trim().toLowerCase()])
+    );
+};
 
 const competitionRoundHasSkaters = (competitions, { ageGroup, categoryName, round }) => {
     const normName = String(categoryName || "").trim().toLowerCase();
@@ -255,11 +276,14 @@ const getCompetitionDetailsByEvent = asyncHandler(async (req, res) => {
         categoryId,
         categoriesId,
         skatingEventCategoryId,
+        gender: genderQuery,
     } = req.query;
 
     const pageNum = Math.max(Number(page) || 1, 1);
     const limitNum = Math.max(Number(limit) || 10, 1);
     const skipNum = (pageNum - 1) * limitNum;
+    const genderFilter = normalizeCompetitionGenderFilter(genderQuery);
+    const genderLabel = toCompetitionGenderLabel(genderQuery);
 
     const eventMeta = await getEventSkatingEventCategoriesFullRepository(eventId);
     if (!eventMeta) {
@@ -331,6 +355,10 @@ const getCompetitionDetailsByEvent = asyncHandler(async (req, res) => {
         competitions = await EventCompetition.find(query).lean();
     }
 
+    const genderBySkaterId = genderFilter
+        ? await loadCompetitionGenderBySkaterId(competitions)
+        : new Map();
+
     let totalSkatersCount = 0;
 
     const formattedCompetitions = competitions.map((comp) => {
@@ -345,12 +373,17 @@ const getCompetitionDetailsByEvent = asyncHandler(async (req, res) => {
         }
 
         const formattedCategories = filteredCategories.map((cat) => {
+            const scopedCat = filterCompetitionCategoryByGender(
+                cat,
+                genderBySkaterId,
+                genderFilter
+            );
             const meta =
                 resolvedCategoryMeta &&
-                cat.name &&
-                cat.name.trim().toLowerCase() === categoryFilterName.trim().toLowerCase()
+                scopedCat.name &&
+                scopedCat.name.trim().toLowerCase() === categoryFilterName.trim().toLowerCase()
                     ? resolvedCategoryMeta
-                    : findEventCategoryMeta(resolvedCategories, comp.ageGroup, cat.name);
+                    : findEventCategoryMeta(resolvedCategories, comp.ageGroup, scopedCat.name);
 
             const metaFields = toCategoryMetaFields(meta);
 
@@ -360,7 +393,8 @@ const getCompetitionDetailsByEvent = asyncHandler(async (req, res) => {
                     : [];
 
             if (round) {
-                const roundData = cat[round] && cat[round].length > 0 ? cat[round] : [];
+                const roundData =
+                    scopedCat[round] && scopedCat[round].length > 0 ? scopedCat[round] : [];
                 totalSkatersCount += roundData.length;
                 const paginatedData = roundData
                     .slice(skipNum, skipNum + limitNum)
@@ -370,7 +404,7 @@ const getCompetitionDetailsByEvent = asyncHandler(async (req, res) => {
                     round
                 );
                 return {
-                    name: cat.name,
+                    name: scopedCat.name,
                     ...metaFields,
                     round,
                     qualificationType,
@@ -379,15 +413,15 @@ const getCompetitionDetailsByEvent = asyncHandler(async (req, res) => {
             }
 
             return {
-                name: cat.name,
+                name: scopedCat.name,
                 ...metaFields,
-                "1stRound": formatRoundList(cat["1stRound"]),
-                "2ndRound": formatRoundList(cat["2ndRound"]),
-                "semiFinal": formatRoundList(cat["semiFinal"]),
-                "final": formatRoundList(cat["final"]),
-                "1st": formatRoundList(cat["1st"]),
-                "2nd": formatRoundList(cat["2nd"]),
-                "3rd": formatRoundList(cat["3rd"]),
+                "1stRound": formatRoundList(scopedCat["1stRound"]),
+                "2ndRound": formatRoundList(scopedCat["2ndRound"]),
+                "semiFinal": formatRoundList(scopedCat["semiFinal"]),
+                "final": formatRoundList(scopedCat["final"]),
+                "1st": formatRoundList(scopedCat["1st"]),
+                "2nd": formatRoundList(scopedCat["2nd"]),
+                "3rd": formatRoundList(scopedCat["3rd"]),
             };
         });
 
@@ -405,6 +439,8 @@ const getCompetitionDetailsByEvent = asyncHandler(async (req, res) => {
                   (comp.categories || []).flatMap((cat) => cat.participants || [])
               )
             : formattedCompetitions,
+        gender: genderLabel,
+        genderOptions: [...COMPETITION_GENDER_OPTIONS],
     };
 
     if (resolvedCategoryMeta) {
@@ -449,6 +485,8 @@ const displayRound = asyncHandler(async (req, res) => {
         req.query.categoriesId ||
         "";
     const categoryId = req.query.categoryId ? String(req.query.categoryId).trim() : "";
+    const genderFilter = normalizeCompetitionGenderFilter(req.query.gender);
+    const genderLabel = toCompetitionGenderLabel(req.query.gender);
 
     const eventMeta = await getEventSkatingEventCategoriesFullRepository(eventId);
     if (!eventMeta) {
@@ -466,14 +504,25 @@ const displayRound = asyncHandler(async (req, res) => {
     }
 
     const competitions = await EventCompetition.find({ eventId }).lean();
+    const genderBySkaterId = genderFilter
+        ? await loadCompetitionGenderBySkaterId(competitions)
+        : new Map();
     const competitionByAge = new Map(
         competitions.map((row) => [String(row.ageGroup || "").trim(), row])
     );
 
+    const applyGenderToCategory = (categoryDoc) =>
+        filterCompetitionCategoryByGender(categoryDoc, genderBySkaterId, genderFilter);
+
     const mapToRoundsOnly = (categoryDoc, formula, meta = {}) =>
         toDisplayRoundCategoryOnly(
-            formatCategoryRoundDisplay(categoryDoc, formula, meta)
+            formatCategoryRoundDisplay(applyGenderToCategory(categoryDoc), formula, meta)
         );
+
+    const genderPayload = {
+        gender: genderLabel,
+        genderOptions: [...COMPETITION_GENDER_OPTIONS],
+    };
 
     if (ageGroup && name) {
         const competition = competitionByAge.get(ageGroup) || null;
@@ -524,6 +573,7 @@ const displayRound = asyncHandler(async (req, res) => {
             data: {
                 eventId,
                 ageGroup,
+                ...genderPayload,
                 category,
             },
         });
@@ -534,7 +584,12 @@ const displayRound = asyncHandler(async (req, res) => {
         const categories = buildCategoriesForAgeGroup({
             ageGroup,
             resolvedCategories: scopedCategories,
-            competition,
+            competition: competition
+                ? {
+                      ...competition,
+                      categories: (competition.categories || []).map(applyGenderToCategory),
+                  }
+                : null,
         }).map((row) => toDisplayRoundCategoryOnly(row));
 
         if (!categories.length) {
@@ -546,25 +601,35 @@ const displayRound = asyncHandler(async (req, res) => {
             data: {
                 eventId,
                 ageGroup,
+                ...genderPayload,
                 categories,
             },
         });
     }
 
     const ageGroupLabels = collectAgeGroupLabels(scopedCategories, competitions);
-    const ageGroups = ageGroupLabels.map((label) => ({
-        ageGroup: label,
-        categories: buildCategoriesForAgeGroup({
+    const ageGroups = ageGroupLabels.map((label) => {
+        const competition = competitionByAge.get(label) || null;
+        return {
             ageGroup: label,
-            resolvedCategories: scopedCategories,
-            competition: competitionByAge.get(label) || null,
-        }).map((row) => toDisplayRoundCategoryOnly(row)),
-    }));
+            categories: buildCategoriesForAgeGroup({
+                ageGroup: label,
+                resolvedCategories: scopedCategories,
+                competition: competition
+                    ? {
+                          ...competition,
+                          categories: (competition.categories || []).map(applyGenderToCategory),
+                      }
+                    : null,
+            }).map((row) => toDisplayRoundCategoryOnly(row)),
+        };
+    });
 
     return res.status(200).json({
         success: true,
         data: {
             eventId,
+            ...genderPayload,
             ageGroups,
         },
     });

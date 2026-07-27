@@ -3230,7 +3230,7 @@ export const getSkaterEventFormCategoryDetailsRepository = async (eventId, skate
  */
 export const getEventSkatingEventCategoriesFullRepository = async (eventId) => {
   const event = await Event.findById(eventId)
-    .select("header skatingEventCategories categoryFormat eventType eventFor")
+    .select("header skatingEventCategories categoryFormat eventType eventFor isAutomated")
     .lean();
   if (!event) {
     return null;
@@ -3258,6 +3258,10 @@ export const getEventSkatingEventCategoriesFullRepository = async (eventId) => {
     eventName: event.header ?? "",
     eventType: event.eventType ?? "",
     categoryFormat: event.categoryFormat ?? "standard",
+    /** true = daily scheduler; false = manual generate only. */
+    isAutomated: event.isAutomated !== false,
+    /** Static gender filter options for competition UI. */
+    gender: ["boys", "girls", "both"],
     skatingEventCategories,
   };
 };

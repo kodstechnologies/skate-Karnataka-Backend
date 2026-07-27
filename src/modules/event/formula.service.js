@@ -159,11 +159,19 @@ export const createAdminFormula = async (body) => {
 };
 
 export const createClubFormula = async (clubId, body) => {
-  return Formula.create({ ...body, club: clubId, district: null });
+  const payload = { ...body, club: clubId, district: null };
+  if (payload.categoryId === "" || payload.categoryId === undefined) {
+    payload.categoryId = null;
+  }
+  return Formula.create(payload);
 };
 
 export const createDistrictFormula = async (districtId, body) => {
-  return Formula.create({ ...body, district: districtId, club: null });
+  const payload = { ...body, district: districtId, club: null };
+  if (payload.categoryId === "" || payload.categoryId === undefined) {
+    payload.categoryId = null;
+  }
+  return Formula.create(payload);
 };
 
 export const updateAdminFormula = async (id, body) => {
@@ -171,9 +179,13 @@ export const updateAdminFormula = async (id, body) => {
   if (existing.club || existing.district) {
     throw new AppError("Formula not found", 404);
   }
+  const payload = { ...body };
+  if (payload.categoryId === "") {
+    payload.categoryId = null;
+  }
   const formula = await Formula.findOneAndUpdate(
     { _id: id, ...ADMIN_FORMULA_FILTER },
-    body,
+    payload,
     { new: true, runValidators: true }
   );
   if (!formula) {

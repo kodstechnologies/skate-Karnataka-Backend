@@ -42,21 +42,32 @@ export const idsEqual = (left, right) => {
   return String(left) === String(right);
 };
 
+/**
+ * Category names like "1 Lap + D" often arrive as "1 Lap   D" because
+ * query-string "+" is decoded as a space. Normalize so both match.
+ */
+export const normalizeCompetitionCategoryName = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\+/g, " ")
+    .replace(/\s+/g, " ");
+
+export const competitionCategoryNamesEqual = (left, right) =>
+  normalizeCompetitionCategoryName(left) === normalizeCompetitionCategoryName(right);
+
 const pickFormulaForCategory = (skatingCategory, subCategory) => {
   if (subCategory?.formula) {
     return subCategory.formula;
   }
 
-  const normName = String(subCategory?.name || "").trim().toLowerCase();
+  const normName = normalizeCompetitionCategoryName(subCategory?.name);
   if (!normName) {
     return null;
   }
 
   for (const row of skatingCategory?.customCategoryNames || []) {
-    if (
-      String(row?.name || "").trim().toLowerCase() === normName &&
-      row.formula
-    ) {
+    if (competitionCategoryNamesEqual(row?.name, normName) && row.formula) {
       return row.formula;
     }
   }
@@ -74,7 +85,7 @@ const formatCategoryMeta = (skatingCategory, subCategory) => ({
 
 export const findEventCategoryMeta = (resolvedCategories, ageGroup, categoryName) => {
   const normAge = String(ageGroup || "").trim().toLowerCase();
-  const normName = String(categoryName || "").trim().toLowerCase();
+  const normName = normalizeCompetitionCategoryName(categoryName);
 
   for (const skatingCategory of resolvedCategories) {
     const ageGroupEntry = (skatingCategory.ageGroups || []).find(
@@ -84,8 +95,8 @@ export const findEventCategoryMeta = (resolvedCategories, ageGroup, categoryName
       continue;
     }
 
-    const subCategory = (ageGroupEntry.categories || []).find(
-      (category) => String(category.name || "").trim().toLowerCase() === normName
+    const subCategory = (ageGroupEntry.categories || []).find((category) =>
+      competitionCategoryNamesEqual(category.name, normName)
     );
     if (!subCategory) {
       continue;
@@ -107,7 +118,7 @@ export const findEventCategoryByQuery = (
   { ageGroup, categoryId, categoriesId, skatingEventCategoryId, name } = {}
 ) => {
   const normAge = ageGroup ? String(ageGroup).trim().toLowerCase() : null;
-  const normName = name ? String(name).trim().toLowerCase() : null;
+  const normName = name ? normalizeCompetitionCategoryName(name) : null;
   const idCandidates = [...new Set(
     [categoryId, categoriesId, skatingEventCategoryId]
       .filter(Boolean)
@@ -122,8 +133,7 @@ export const findEventCategoryByQuery = (
     !normAge || String(label || "").trim().toLowerCase() === normAge;
 
   const nameMatches = (subCategory) =>
-    !normName ||
-    String(subCategory?.name || "").trim().toLowerCase() === normName;
+    !normName || competitionCategoryNamesEqual(subCategory?.name, normName);
 
   // 1) Lap sub-category _id (within optional age group)
   for (const skatingCategory of resolvedCategories) {
@@ -429,10 +439,8 @@ export const buildCategoriesForAgeGroup = ({
   }
 
   return [...names].map((categoryName) => {
-    const competitionCategory = (competition?.categories || []).find(
-      (row) =>
-        row.name &&
-        row.name.trim().toLowerCase() === categoryName.trim().toLowerCase()
+    const competitionCategory = (competition?.categories || []).find((row) =>
+      competitionCategoryNamesEqual(row.name, categoryName)
     );
     const meta = findEventCategoryMeta(resolvedCategories, ageGroup, categoryName);
 

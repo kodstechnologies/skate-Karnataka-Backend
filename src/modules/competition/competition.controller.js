@@ -31,7 +31,7 @@ import {
     buildCategoriesForAgeGroup,
     collectAgeGroupLabels,
     collectCompetitionSkaterIds,
-    COMPETITION_GENDER_OPTIONS,
+    competitionCategoryNamesEqual,
     filterCompetitionCategoryByGender,
     findEventCategoryByQuery,
     findEventCategoryMeta,
@@ -365,10 +365,8 @@ const getCompetitionDetailsByEvent = asyncHandler(async (req, res) => {
         let filteredCategories = comp.categories || [];
 
         if (categoryFilterName) {
-            filteredCategories = filteredCategories.filter(
-                (cat) =>
-                    cat.name &&
-                    cat.name.trim().toLowerCase() === categoryFilterName.trim().toLowerCase()
+            filteredCategories = filteredCategories.filter((cat) =>
+                competitionCategoryNamesEqual(cat.name, categoryFilterName)
             );
         }
 
@@ -380,8 +378,7 @@ const getCompetitionDetailsByEvent = asyncHandler(async (req, res) => {
             );
             const meta =
                 resolvedCategoryMeta &&
-                scopedCat.name &&
-                scopedCat.name.trim().toLowerCase() === categoryFilterName.trim().toLowerCase()
+                competitionCategoryNamesEqual(scopedCat.name, categoryFilterName)
                     ? resolvedCategoryMeta
                     : findEventCategoryMeta(resolvedCategories, comp.ageGroup, scopedCat.name);
 
@@ -440,7 +437,6 @@ const getCompetitionDetailsByEvent = asyncHandler(async (req, res) => {
               )
             : formattedCompetitions,
         gender: genderLabel,
-        genderOptions: [...COMPETITION_GENDER_OPTIONS],
     };
 
     if (resolvedCategoryMeta) {
@@ -521,16 +517,13 @@ const displayRound = asyncHandler(async (req, res) => {
 
     const genderPayload = {
         gender: genderLabel,
-        genderOptions: [...COMPETITION_GENDER_OPTIONS],
     };
 
     if (ageGroup && name) {
         const competition = competitionByAge.get(ageGroup) || null;
         const competitionCategory = competition
-            ? (competition.categories || []).find(
-                  (row) =>
-                      row.name &&
-                      row.name.trim().toLowerCase() === name.trim().toLowerCase()
+            ? (competition.categories || []).find((row) =>
+                  competitionCategoryNamesEqual(row.name, name)
               )
             : null;
 

@@ -417,14 +417,11 @@ const toManualRoundDisplayRow = (row) => ({
 });
 
 /**
- * Progressive manual rounds:
- * - Default display = 1 round (1stRound) only
- * - Unlock the next round only after the current one has skaters / promote
- * - Never list empty future rounds (semiFinal/final) ahead of time
- * - Pool is always DEFAULT_ROUND_KEYS only (not formula extras)
- * - After final result: show only rounds that have skaters + 1st/2nd/3rd flags
+ * Manual rounds display — no formula / unlock rules.
+ * Always expose the fixed default rounds (1st → 2nd → semi → final).
+ * Client may work any round freely; empty rounds stay listed with status:false.
  */
-const toProgressiveManualCategory = (formatted) => {
+const toManualCategoryDisplay = (formatted) => {
   const hasPodium = Boolean(
     formatted?.["1st"] || formatted?.["2nd"] || formatted?.["3rd"]
   );
@@ -461,16 +458,11 @@ const toProgressiveManualCategory = (formatted) => {
     activeRound = lastWithData;
   }
 
-  const unlockedRounds =
-    activeRound == null
-      ? allRounds.filter((row) => row.status)
-      : allRounds.slice(0, DEFAULT_ROUND_KEYS.indexOf(activeRound) + 1);
-
   return {
     name: formatted.name,
     categoryId: formatted.categoryId ? String(formatted.categoryId) : null,
     activeRound,
-    rounds: unlockedRounds.map(toManualRoundDisplayRow),
+    rounds: allRounds.map(toManualRoundDisplayRow),
     "1st": Boolean(formatted?.["1st"]),
     "2nd": Boolean(formatted?.["2nd"]),
     "3rd": Boolean(formatted?.["3rd"]),
@@ -478,9 +470,8 @@ const toProgressiveManualCategory = (formatted) => {
 };
 
 /**
- * GET manual-rounds — progressive display:
- * default 1stRound → after that round is done / next has skaters → show 2nd, etc.
- * Future rounds are not listed until unlocked.
+ * GET manual-rounds — formula-free, no unlock rules.
+ * Always returns fixed default rounds; promote any chestNos to any later round freely.
  * Supports categoryId (lap or SkatingEventCategory id) to resolve the category.
  */
 export const getManualRoundsService = async ({
@@ -607,7 +598,7 @@ export const getManualRoundsService = async ({
         ? { categoryId: resolvedCategoryId }
         : {};
 
-    const category = toProgressiveManualCategory(
+    const category = toManualCategoryDisplay(
       formatCategoryRoundDisplay(
         applyGender(competitionCategory || { name: resolvedName }),
         null, // manual: fixed default rounds only — not formula extras
@@ -641,7 +632,7 @@ export const getManualRoundsService = async ({
             categories: (competition.categories || []).map(applyGender),
           }
         : null,
-    }).map(toProgressiveManualCategory);
+    }).map(toManualCategoryDisplay);
 
     // Optional parent SkatingEventCategory filter already applied via scopedCategories.
     // If categoryId is parent id only (no name), categories list is already scoped.
@@ -672,7 +663,7 @@ export const getManualRoundsService = async ({
               categories: (competition.categories || []).map(applyGender),
             }
           : null,
-      }).map(toProgressiveManualCategory),
+      }).map(toManualCategoryDisplay),
     };
   });
 
@@ -1118,7 +1109,7 @@ export const updateManualToNextRoundService = async (body) => {
     sourceRound = lastRound;
     currentRoundData = getGenderRoundRows(sourceRound);
 
-    // Rename last populated round → final (keep time/position).
+    // Rename last populated round → final (keep time/position). Keep earlier rounds as-is (no formula clear rules).
     if (sourceRound !== "final") {
       setCategoryRound(
         category,
@@ -1140,20 +1131,6 @@ export const updateManualToNextRoundService = async (body) => {
           genderFilter
         )
       );
-      // Clear empty intermediate rounds between source and final for this gender.
-      const sourceIdx = DEFAULT_ROUND_KEYS.indexOf(sourceRound);
-      for (const mid of DEFAULT_ROUND_KEYS.slice(sourceIdx + 1, -1)) {
-        setCategoryRound(
-          category,
-          mid,
-          mergeRoundRowsByGender(
-            category[mid],
-            [],
-            genderBySkaterId,
-            genderFilter
-          )
-        );
-      }
       currentRoundData = getGenderRoundRows("final");
     }
   } else {

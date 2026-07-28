@@ -418,8 +418,7 @@ const toManualRoundDisplayRow = (row) => ({
 
 /**
  * Manual rounds display — no formula / unlock rules.
- * Always expose the fixed default rounds (1st → 2nd → semi → final).
- * Client may work any round freely; empty rounds stay listed with status:false.
+ * Only rounds with skaters (count > 0) are returned.
  */
 const toManualCategoryDisplay = (formatted) => {
   const hasPodium = Boolean(
@@ -433,20 +432,18 @@ const toManualCategoryDisplay = (formatted) => {
     ])
   );
 
-  const allRounds = DEFAULT_ROUND_KEYS.map((key) => {
+  const populatedRounds = DEFAULT_ROUND_KEYS.map((key) => {
     const existing = roundsByKey.get(key);
     return {
       round: key,
       status: Boolean(existing?.status),
       count: Number(existing?.count) || 0,
     };
-  });
+  }).filter((row) => row.count > 0);
 
   let lastWithData = null;
-  for (const row of allRounds) {
-    if (row.status) {
-      lastWithData = row.round;
-    }
+  for (const row of populatedRounds) {
+    lastWithData = row.round;
   }
 
   let activeRound;
@@ -462,7 +459,7 @@ const toManualCategoryDisplay = (formatted) => {
     name: formatted.name,
     categoryId: formatted.categoryId ? String(formatted.categoryId) : null,
     activeRound,
-    rounds: allRounds.map(toManualRoundDisplayRow),
+    rounds: populatedRounds.map(toManualRoundDisplayRow),
     "1st": Boolean(formatted?.["1st"]),
     "2nd": Boolean(formatted?.["2nd"]),
     "3rd": Boolean(formatted?.["3rd"]),
@@ -471,7 +468,7 @@ const toManualCategoryDisplay = (formatted) => {
 
 /**
  * GET manual-rounds — formula-free, no unlock rules.
- * Always returns fixed default rounds; promote any chestNos to any later round freely.
+ * Only rounds with count > 0 are listed; promote any chestNos freely.
  * Supports categoryId (lap or SkatingEventCategory id) to resolve the category.
  */
 export const getManualRoundsService = async ({

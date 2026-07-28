@@ -1004,7 +1004,7 @@ export const getManualDisplaySortByService = async (query) => {
 
 /**
  * PATCH manual-update-to-next-round
- * - round final + empty nextRound → rename last populated round to Final Round, then set 1st/2nd/3rd by time (else position)
+ * - round final → nextRound ignored; rename last populated round to Final Round, then set 1st/2nd/3rd by time (else position)
  * - else promote skaters whose chestNos are passed
  * - categoryId required
  */
@@ -1019,7 +1019,11 @@ export const updateManualToNextRoundService = async (body) => {
     chestNos,
   } = body;
   const round = normalizeManualRound(body.round, { defaultRound: "1stRound" });
-  const optionalNextRound = normalizeOptionalNextRound(body.nextRound);
+  // When current round is final, nextRound is ignored — always submit 1st/2nd/3rd.
+  const optionalNextRound =
+    round === "final"
+      ? null
+      : normalizeOptionalNextRound(body.nextRound);
   const genderFilter = normalizeCompetitionGenderFilter(body.gender);
   const genderLabel = toCompetitionGenderLabel(body.gender);
 
@@ -1400,13 +1404,8 @@ export const updateManualToNextRoundService = async (body) => {
     chestNos: selectedChestNos,
     totalInFromRound: currentRoundData.length,
     promotedCount: totalPromoted,
-    result: targetRound === "winners" ? nextRoundParticipants : undefined,
-    "1st":
-      targetRound === "winners" ? nextRoundParticipants?.["1st"] : undefined,
-    "2nd":
-      targetRound === "winners" ? nextRoundParticipants?.["2nd"] : undefined,
-    "3rd":
-      targetRound === "winners" ? nextRoundParticipants?.["3rd"] : undefined,
-    [targetRound]: nextRoundParticipants,
+    ...(targetRound === "winners"
+      ? { result: nextRoundParticipants }
+      : { [targetRound]: nextRoundParticipants }),
   };
 };

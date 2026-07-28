@@ -856,6 +856,28 @@ export const updateManualToNextRound = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, data, message));
 });
 
+/** Static manual round name list for UI dropdowns. */
+const MANUAL_ROUND_NAMES = Object.freeze([
+    { round: "1stRound", roundName: "1st Round" },
+    { round: "2ndRound", roundName: "2nd Round" },
+    { round: "3rdRound", roundName: "3rd Round" },
+    { round: "quarterFinal", roundName: "Quarter Final" },
+    { round: "semiFinal", roundName: "Semi Final" },
+    { round: "final", roundName: "Final" },
+]);
+
+export const getManualRoundNames = asyncHandler(async (_req, res) => {
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                { rounds: MANUAL_ROUND_NAMES },
+                "Manual round names fetched successfully"
+            )
+        );
+});
+
 /** Admin: generate GeneratedCertificate rows for every eligible skater in the event. */
 export const generateEventCertificatesAdmin = asyncHandler(async (req, res) => {
     const status = await get_event_certificate_status_repository(req.params.id);

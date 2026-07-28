@@ -8,9 +8,11 @@ import {
   competitionCategoryNamesEqual,
   filterCompetitorsByGender,
   filterCompetitionCategoryByGender,
+  findEventCategoryByQuery,
   findEventCategoryMeta,
   formatCategoryRoundDisplay,
   normalizeCompetitionGenderFilter,
+  scopeResolvedSkatingCategories,
   toCompetitionGenderLabel,
 } from "../competition/displayRound.util.js";
 import { selectFinalWinners } from "../competition/competition.promotion.js";
@@ -315,14 +317,8 @@ const toProgressiveManualCategory = (formatted) => {
   return {
     name: formatted.name,
     categoryId: formatted.categoryId ? String(formatted.categoryId) : null,
-    skatingEventCategoryId: formatted.skatingEventCategoryId
-      ? String(formatted.skatingEventCategoryId)
-      : null,
     activeRound: activeRound || "1stRound",
     rounds: unlockedRounds,
-    "1st": Boolean(formatted["1st"]),
-    "2nd": Boolean(formatted["2nd"]),
-    "3rd": Boolean(formatted["3rd"]),
   };
 };
 
@@ -330,11 +326,15 @@ const toProgressiveManualCategory = (formatted) => {
  * GET manual-rounds — progressive display:
  * default 1stRound → after that round is done / next has skaters → show 2nd, etc.
  * Future rounds are not listed until unlocked.
+ * Supports categoryId (lap or SkatingEventCategory id) to resolve the category.
  */
 export const getManualRoundsService = async ({
   eventId,
   ageGroup,
   name,
+  categoryId,
+  skatingEventCategoryId,
+  categoriesId,
   gender: genderQuery,
 }) => {
   const eventMeta = await getEventSkatingEventCategoriesFullRepository(eventId);
@@ -345,6 +345,18 @@ export const getManualRoundsService = async ({
   const genderFilter = normalizeCompetitionGenderFilter(genderQuery);
   const genderLabel = toCompetitionGenderLabel(genderQuery);
   const resolvedCategories = eventMeta.skatingEventCategories || [];
+
+  const skatingCategoryScopeId =
+    skatingEventCategoryId || categoriesId || null;
+  const scopedCategories = scopeResolvedSkatingCategories(
+    resolvedCategories,
+    skatingCategoryScopeId
+  );
+
+  if (skatingCategoryScopeId && !scopedCategories.length) {
+    throw new AppError("Skating event category not linked to this event", 404);
+  }
+
   const competitions = await EventCompetition.find({ eventId }).lean();
   const genderBySkaterId = genderFilter
     ? await loadGenderBySkaterId(competitions)
@@ -360,46 +372,114 @@ export const getManualRoundsService = async ({
       genderFilter
     );
 
-  if (ageGroup && name) {
-    const competition = competitionByAge.get(String(ageGroup).trim()) || null;
-    const competitionCategory = competition
-      ? (competition.categories || []).find((row) =>
-          competitionCategoryNamesEqual(row.name, name)
-        )
+  const resolvedCategoryId = categoryId ? String(categoryId).trim() : "";
+  const categoryNameQuery = name ? String(name).trim() : "";
+  const ageGroupQuery = ageGroup ? String(ageGroup).trim() : "";
+
+  const wantsSingleCategory = Boolean(
+    resolvedCategoryId || (ageGroupQuery && categoryNameQuery)
+  );
+
+  if (wantsSingleCategory) {
+    let meta = findEventCategoryByQuery(scopedCategories, {
+      ageGroup: ageGroupQuery || undefined,
+      categoryId: resolvedCategoryId || undefined,
+      categoriesId: skatingCategoryScopeId || undefined,
+      skatingEventCategoryId: skatingCategoryScopeId || undefined,
+      name: categoryNameQuery || undefined,
+    });
+
+    if (!meta && categoryNameQuery && ageGroupQuery) {
+      meta = findEventCategoryMeta(
+        scopedCategories,
+        ageGroupQuery,
+        categoryNameQuery
+      );
+    }
+
+    const resolvedAgeGroup = ageGroupQuery || null;
+    const competition = resolvedAgeGroup
+      ? competitionByAge.get(resolvedAgeGroup) || null
       : null;
-    const meta = findEventCategoryMeta(resolvedCategories, ageGroup, name);
+
+    const resolvedName = meta?.name || categoryNameQuery;
+    if (!resolvedName) {
+      throw new AppError("Category not found for this event", 404);
+    }
+
+    // If categoryId resolved a lap but ageGroup was omitted, find competition by scanning.
+    let competitionCategory = null;
+    let matchedAgeGroup = resolvedAgeGroup;
+
+    if (competition) {
+      competitionCategory = (competition.categories || []).find((row) =>
+        competitionCategoryNamesEqual(row.name, resolvedName)
+      );
+    } else {
+      for (const [label, comp] of competitionByAge.entries()) {
+        const found = (comp.categories || []).find((row) =>
+          competitionCategoryNamesEqual(row.name, resolvedName)
+        );
+        if (found) {
+          competitionCategory = found;
+          matchedAgeGroup = label;
+          break;
+        }
+      }
+    }
+
     if (!competitionCategory && !meta) {
       throw new AppError("Category not found for this event and age group", 404);
     }
 
+    // If categoryId was a SkatingEventCategory parent id + ageGroup, prefer matching id on meta
+    if (
+      resolvedCategoryId &&
+      meta?.categoryId &&
+      String(meta.categoryId) !== resolvedCategoryId &&
+      String(meta.skatingEventCategoryId) !== resolvedCategoryId
+    ) {
+      throw new AppError("Category id does not match this event category", 404);
+    }
+
+    const metaFields = meta
+      ? {
+          skatingEventCategoryId: String(meta.skatingEventCategoryId),
+          skatingEventCategoryName: meta.skatingEventCategoryName,
+          categoryId: String(meta.categoryId),
+        }
+      : resolvedCategoryId
+        ? { categoryId: resolvedCategoryId }
+        : {};
+
     const category = toProgressiveManualCategory(
       formatCategoryRoundDisplay(
-        applyGender(competitionCategory || { name: meta?.name || name }),
+        applyGender(competitionCategory || { name: resolvedName }),
         meta?.formula,
-        meta
-          ? {
-              skatingEventCategoryId: String(meta.skatingEventCategoryId),
-              skatingEventCategoryName: meta.skatingEventCategoryName,
-              categoryId: String(meta.categoryId),
-            }
-          : {}
+        metaFields
       )
     );
+    category.name = resolvedName;
+    if (!category.categoryId) {
+      category.categoryId = meta?.categoryId
+        ? String(meta.categoryId)
+        : resolvedCategoryId || null;
+    }
 
     return {
       eventId,
-      ageGroup,
+      ageGroup: matchedAgeGroup || ageGroupQuery || null,
       gender: genderLabel,
       round: category.activeRound,
       category,
     };
   }
 
-  if (ageGroup) {
-    const competition = competitionByAge.get(String(ageGroup).trim()) || null;
-    const categories = buildCategoriesForAgeGroup({
-      ageGroup,
-      resolvedCategories,
+  if (ageGroupQuery) {
+    const competition = competitionByAge.get(ageGroupQuery) || null;
+    let categories = buildCategoriesForAgeGroup({
+      ageGroup: ageGroupQuery,
+      resolvedCategories: scopedCategories,
       competition: competition
         ? {
             ...competition,
@@ -408,26 +488,29 @@ export const getManualRoundsService = async ({
         : null,
     }).map(toProgressiveManualCategory);
 
+    // Optional parent SkatingEventCategory filter already applied via scopedCategories.
+    // If categoryId is parent id only (no name), categories list is already scoped.
+
     if (!categories.length) {
       throw new AppError("No categories configured for this age group", 404);
     }
 
     return {
       eventId,
-      ageGroup,
+      ageGroup: ageGroupQuery,
       gender: genderLabel,
       categories,
     };
   }
 
-  const ageGroupLabels = collectAgeGroupLabels(resolvedCategories, competitions);
+  const ageGroupLabels = collectAgeGroupLabels(scopedCategories, competitions);
   const ageGroups = ageGroupLabels.map((label) => {
     const competition = competitionByAge.get(label) || null;
     return {
       ageGroup: label,
       categories: buildCategoriesForAgeGroup({
         ageGroup: label,
-        resolvedCategories,
+        resolvedCategories: scopedCategories,
         competition: competition
           ? {
               ...competition,

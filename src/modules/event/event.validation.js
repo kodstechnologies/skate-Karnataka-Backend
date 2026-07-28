@@ -998,6 +998,11 @@ export const manualRoundsQueryValidation = {
         eventId: objectIdString.required(),
         ageGroup: competitionAgeGroupLabel.optional(),
         name: Joi.string().trim().min(1).optional(),
+        /** Lap sub-doc _id or SkatingEventCategory document _id */
+        categoryId: objectIdString.optional(),
+        skatingEventCategoryId: objectIdString.optional(),
+        skatingEventCategories: objectIdString.optional(),
+        categoriesId: objectIdString.optional(),
         gender: manualGenderField,
     }),
 };

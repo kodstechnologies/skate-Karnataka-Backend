@@ -1016,7 +1016,6 @@ export const getManualDisplaySortByService = async (query) => {
 
 /**
  * PATCH manual-update-to-next-round
- * - goToNextRound false → no promotion
  * - round final + empty nextRound → rename last populated round to Final Round, then set 1st/2nd/3rd by time (else position)
  * - else promote skaters whose chestNos are passed
  * - categoryId required
@@ -1029,7 +1028,6 @@ export const updateManualToNextRoundService = async (body) => {
     categoryId,
     skatingEventCategoryId,
     categoriesId,
-    goToNextRound = true,
     chestNos,
   } = body;
   const round = normalizeManualRound(body.round, { defaultRound: "1stRound" });
@@ -1039,21 +1037,6 @@ export const updateManualToNextRoundService = async (body) => {
 
   if (!categoryId) {
     throw new AppError("categoryId is required", 400);
-  }
-
-  if (!goToNextRound) {
-    return {
-      eventId,
-      ageGroup,
-      name: name || null,
-      categoryId: String(categoryId),
-      gender: genderLabel,
-      fromRound: round,
-      goToNextRound: false,
-      toRound: null,
-      promotedCount: 0,
-      message: "Skipped — goToNextRound is false; existing round unchanged",
-    };
   }
 
   const eventMeta = await getEventSkatingEventCategoriesFullRepository(eventId);
@@ -1431,7 +1414,6 @@ export const updateManualToNextRoundService = async (body) => {
     name: category.name,
     categoryId: resolvedCategoryId,
     gender: genderLabel,
-    goToNextRound: true,
     fromRound: isFinalResultSubmit ? "final" : round,
     fromRoundName: isFinalResultSubmit
       ? "Final Round"

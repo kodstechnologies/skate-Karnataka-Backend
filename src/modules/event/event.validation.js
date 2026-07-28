@@ -1128,11 +1128,6 @@ export const manualUpdateToNextRoundValidation = {
         categoriesId: objectIdString.optional(),
         /** Existing / current round (default 1stRound). */
         round: manualRoundField,
-        /**
-         * Whether to advance. false keeps the existing round unchanged.
-         * When current round is final, medals 1st/2nd/3rd are set and nextRound is optional.
-         */
-        goToNextRound: Joi.boolean().default(true),
         /** Optional target round (2ndRound | semiFinal | final). Ignored when from final. */
         nextRound: Joi.alternatives()
             .try(
@@ -1157,7 +1152,7 @@ export const manualUpdateToNextRoundValidation = {
         gender: manualGenderField,
         /**
          * Chest numbers to promote — count of items = how many advance.
-         * Required when goToNextRound is true and current round is not final.
+         * Required for promotion and for final result (at most 3 on final).
          */
         chestNos: Joi.array()
             .items(
@@ -1172,10 +1167,6 @@ export const manualUpdateToNextRoundValidation = {
         promoteCount: Joi.forbidden(),
         skaterIds: Joi.forbidden(),
     }).custom((value, helpers) => {
-        const go = value.goToNextRound !== false;
-        if (!go) {
-            return value;
-        }
         const round = String(value.round || "1stRound").trim().toLowerCase();
         const isFinal = round === "final" || round === "4";
         if (!Array.isArray(value.chestNos) || !value.chestNos.length) {

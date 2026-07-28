@@ -1375,8 +1375,9 @@ const edit_event_schema = async (id, data, user) => {
 };
 
 /**
- * Club/District: set chest-number mode.
+ * Club/District/State: set chest-number mode.
  * isAutomated true = daily scheduler; false = manual generate only.
+ * Club/District owners and State/Admin may toggle.
  */
 export const updateEventChestNumberModeService = async (id, isAutomated, user) => {
     const existing = await Event.findById(id)
@@ -1387,7 +1388,15 @@ export const updateEventChestNumberModeService = async (id, isAutomated, user) =
     }
 
     const role = String(user?.role || "").trim().toLowerCase();
-    await assertOrgOwnsEventForEdit(existing, user, role);
+    const eventType = String(existing.eventType || "").trim();
+
+    if (isStateOrAdminRole(role)) {
+        if (eventType !== "Club" && eventType !== "District" && eventType !== "State") {
+            throw new AppError("Forbidden", 403);
+        }
+    } else {
+        await assertOrgOwnsEventForEdit(existing, user, role);
+    }
 
     const updated = await Event.findByIdAndUpdate(
         id,

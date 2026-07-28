@@ -138,23 +138,28 @@ const toReceiverObjectId = (id) => {
 };
 
 export const countUnreadNotificationRepositories = async (id) => {
+    const rawId = String(id || "").trim();
     const receiverObjectId = toReceiverObjectId(id);
-    if (!receiverObjectId) return 0;
+    if (!receiverObjectId && !rawId) return 0;
 
     return Notification.countDocuments({
-        receiverId: receiverObjectId,
+        receiverId: { $in: [receiverObjectId, rawId].filter(Boolean) },
         isRead: false,
     });
 };
 
 export const markAllNotificationsReadRepositories = async (id) => {
+    const rawId = String(id || "").trim();
     const receiverObjectId = toReceiverObjectId(id);
-    if (!receiverObjectId) {
+    if (!receiverObjectId && !rawId) {
         return { modifiedCount: 0 };
     }
 
     const result = await Notification.updateMany(
-        { receiverId: receiverObjectId, isRead: false },
+        {
+            receiverId: { $in: [receiverObjectId, rawId].filter(Boolean) },
+            isRead: false,
+        },
         { $set: { isRead: true } }
     );
 

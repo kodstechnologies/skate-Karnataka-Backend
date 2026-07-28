@@ -111,7 +111,7 @@ router.post(
 );
 router.patch(
     "/v1/club/:id/chest-number-mode",
-    authenticate(["Club"]),
+    authenticate(["Club", "Admin", "State"]),
     validate(update_chest_number_mode_validation),
     updateEventChestNumberMode
 );
@@ -150,7 +150,7 @@ router.post(
 
 router.patch(
     "/v1/district/:id/chest-number-mode",
-    authenticate(["District"]),
+    authenticate(["District", "Admin", "State"]),
     validate(update_chest_number_mode_validation),
     updateEventChestNumberMode
 );
@@ -202,6 +202,12 @@ router.post(
     upload.single("image"),
     validate(create_state_event_validation),
     createStateEvent
+);
+router.patch(
+    "/v1/state/:id/chest-number-mode",
+    authenticate(["State", "Admin"]),
+    validate(update_chest_number_mode_validation),
+    updateEventChestNumberMode
 );
 router.patch(
     "/v1/state/:id",

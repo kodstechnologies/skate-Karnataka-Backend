@@ -941,28 +941,11 @@ const manualGenderField = Joi.string()
     )
     .optional();
 
-/** Accept 1 / 1stRound, 2 / 2ndRound, semiFinal, final. */
+/** Accept any manual round label (1stRound … final, quarterFinal, 3rdRound, aliases). */
 const manualRoundField = Joi.alternatives()
     .try(
-        Joi.number().integer().min(1).max(4),
-        Joi.string()
-            .trim()
-            .valid(
-                "1",
-                "2",
-                "3",
-                "4",
-                "1st",
-                "2nd",
-                "1stRound",
-                "2ndRound",
-                "semiFinal",
-                "final",
-                "semi",
-                "semifinal",
-                "first",
-                "second"
-            )
+        Joi.number().integer().min(1).max(6),
+        Joi.string().trim().min(1)
     )
     .optional();
 
@@ -1128,25 +1111,9 @@ export const manualUpdateToNextRoundValidation = {
         categoriesId: objectIdString.optional(),
         /** Existing / current round (default 1stRound). */
         round: manualRoundField,
-        /** Optional target round (2ndRound | semiFinal | final). Ignored when from final. */
+        /** Optional target round — any round name; ignored when from final. */
         nextRound: Joi.alternatives()
-            .try(
-                Joi.number().integer().min(2).max(4),
-                Joi.string()
-                    .trim()
-                    .valid(
-                        "2",
-                        "3",
-                        "4",
-                        "2nd",
-                        "2ndRound",
-                        "semiFinal",
-                        "final",
-                        "semi",
-                        "semifinal",
-                        "second"
-                    )
-            )
+            .try(Joi.number().integer().min(1).max(6), Joi.string().trim().min(1))
             .optional()
             .allow(null, ""),
         gender: manualGenderField,

@@ -445,6 +445,8 @@ export const buildCompetitionCategoriesFromGroup = (
     name: catName,
     "1stRound": categoriesMap[catName],
     "2ndRound": [],
+    "3rdRound": [],
+    quarterFinal: [],
     semiFinal: [],
     final: [],
     "1st": [],

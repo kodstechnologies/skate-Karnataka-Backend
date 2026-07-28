@@ -37,6 +37,62 @@ const competitorSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const categorySchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    "1stRound": {
+      type: [competitorSchema],
+      default: [],
+    },
+    "2ndRound": {
+      type: [competitorSchema],
+      default: [],
+    },
+    "3rdRound": {
+      type: [competitorSchema],
+      default: [],
+    },
+    "quarterFinal": {
+      type: [competitorSchema],
+      default: [],
+    },
+    "semiFinal": {
+      type: [competitorSchema],
+      default: [],
+    },
+    "final": {
+      type: [competitorSchema],
+      default: [],
+    },
+    "1st": {
+      type: [competitorSchema],
+      default: [],
+    },
+    "2nd": {
+      type: [competitorSchema],
+      default: [],
+    },
+    "3rd": {
+      type: [competitorSchema],
+      default: [],
+    },
+    /**
+     * Manual result mode per gender + round: "position" | "time".
+     * Example: { boys: { "1stRound": "position" }, girls: { "1stRound": "time" } }
+     */
+    resultType: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
+  },
+  // Allow any extra round keys (custom rounds) to be stored.
+  { _id: false, strict: false }
+);
+
 const eventCompetitionSchema = new mongoose.Schema(
   {
     eventId: {
@@ -49,51 +105,7 @@ const eventCompetitionSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    categories: [
-      {
-        name: {
-          type: String,
-          required: true,
-          trim: true,
-        },
-        "1stRound": {
-          type: [competitorSchema],
-          default: [],
-        },
-        "2ndRound": {
-          type: [competitorSchema],
-          default: [],
-        },
-        "semiFinal": {
-          type: [competitorSchema],
-          default: [],
-        },
-        "final": {
-          type: [competitorSchema],
-          default: [],
-        },
-        "1st": {
-          type: [competitorSchema],
-          default: [],
-        },
-        "2nd": {
-          type: [competitorSchema],
-          default: [],
-        },
-        "3rd": {
-          type: [competitorSchema],
-          default: [],
-        },
-        /**
-         * Manual result mode per gender + round: "position" | "time".
-         * Example: { boys: { "1stRound": "position" }, girls: { "1stRound": "time" } }
-         */
-        resultType: {
-          type: mongoose.Schema.Types.Mixed,
-          default: {},
-        },
-      },
-    ],
+    categories: [categorySchema],
   },
   {
     timestamps: true,

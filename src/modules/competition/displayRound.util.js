@@ -9,7 +9,8 @@ export const DEFAULT_ROUND_KEYS = Object.freeze([
 const FORMULA_ROUND_TO_COMPETITION_KEY = {
   "1stround": "1stRound",
   "2ndround": "2ndRound",
-  "quarterfinal": "2ndRound",
+  "3rdround": "3rdRound",
+  "quarterfinal": "quarterFinal",
   "semifinal": "semiFinal",
   "final": "final",
 };
@@ -218,6 +219,8 @@ export const COMPETITION_GENDER_OPTIONS = Object.freeze(["boys", "girls", "both"
 const COMPETITION_ROUND_ARRAY_KEYS = Object.freeze([
   "1stRound",
   "2ndRound",
+  "3rdRound",
+  "quarterFinal",
   "semiFinal",
   "final",
   "1st",
@@ -289,7 +292,14 @@ export const filterCompetitionCategoryByGender = (
     name: category.name,
   };
 
-  for (const key of COMPETITION_ROUND_ARRAY_KEYS) {
+  const keys = new Set(COMPETITION_ROUND_ARRAY_KEYS);
+  for (const key of Object.keys(filtered)) {
+    if (Array.isArray(filtered[key])) {
+      keys.add(key);
+    }
+  }
+
+  for (const key of keys) {
     filtered[key] = filterCompetitorsByGender(
       category[key],
       genderBySkaterId,
@@ -305,7 +315,17 @@ export const collectCompetitionSkaterIds = (competitions = []) => {
   const ids = new Set();
   for (const competition of competitions) {
     for (const category of competition?.categories || []) {
-      for (const key of COMPETITION_ROUND_ARRAY_KEYS) {
+      const plain =
+        typeof category?.toObject === "function"
+          ? category.toObject()
+          : category || {};
+      const keys = new Set(COMPETITION_ROUND_ARRAY_KEYS);
+      for (const key of Object.keys(plain)) {
+        if (Array.isArray(plain[key])) {
+          keys.add(key);
+        }
+      }
+      for (const key of keys) {
         for (const row of category?.[key] || []) {
           if (row?.skaterId) {
             ids.add(String(row.skaterId));
@@ -396,8 +416,17 @@ export const computeActiveRound = (category, roundKeys) => {
 export const formatCategoryRoundDisplay = (categoryDoc, formula, meta = {}) => {
   const category = categoryDoc || { name: "" };
   const roundKeys = getRoundKeysFromFormula(formula);
+  const plain =
+    typeof category.toObject === "function" ? category.toObject() : category;
+  const extraKeys = Object.keys(plain || {}).filter(
+    (key) =>
+      Array.isArray(plain[key]) &&
+      !["1st", "2nd", "3rd", "name", "resultType", "_id", "id"].includes(key) &&
+      !roundKeys.includes(key)
+  );
+  const allRoundKeys = [...roundKeys, ...extraKeys];
 
-  const rounds = roundKeys.map((roundKey) => {
+  const rounds = allRoundKeys.map((roundKey) => {
     const participants = category[roundKey] || [];
     return {
       round: roundKey,
@@ -432,7 +461,7 @@ export const formatCategoryRoundDisplay = (categoryDoc, formula, meta = {}) => {
     "2nd": podium["2nd"].status,
     "3rd": podium["3rd"].status,
     totalSkaters: (category["1stRound"] || []).length,
-    activeRound: computeActiveRound(category, roundKeys),
+    activeRound: computeActiveRound(category, allRoundKeys),
     formulaId,
   };
 };

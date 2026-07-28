@@ -840,6 +840,10 @@ export const triggerManualChestNumberGenerationForEvent = async (eventId) => {
 const buildAgeCategoryKey = (ageGroup, categoryName) =>
   `${String(ageGroup || "").trim()}::${String(categoryName || "").trim()}`;
 
+/** Scope by skating discipline so the same lap name under ABC vs another type does not bleed. */
+const buildDisciplineAgeCategoryKey = (disciplineId, ageGroup, categoryName) =>
+  `${String(disciplineId || "").trim()}::${String(ageGroup || "").trim()}::${String(categoryName || "").trim()}`;
+
 const mapSkaterSummary = (row) => ({
   chestNo: String(row?.chestNo || ""),
   fullName: String(row?.fullName || ""),
@@ -848,6 +852,8 @@ const mapSkaterSummary = (row) => ({
   gender: String(row?.gender || ""),
   email: String(row?.email || ""),
   phone: String(row?.phone || ""),
+  dob: row?.dob || null,
+  clubName: String(row?.clubName || ""),
   paymentStatus: String(row?.paymentStatus || ""),
   attendanceStatus: String(row?.attendanceStatus || ""),
 });
@@ -880,6 +886,7 @@ const buildRegisteredSkatersByKey = (participants = [], chestDocs = []) => {
 
   for (const participant of participants) {
     const ageGroup = String(participant.ageGroup || "").trim();
+    const disciplineId = String(participant.categoriesId || "").trim();
     const chestNo = resolveChestNoForParticipant(chestDocs, participant);
     const fullName = String(participant.userId?.fullName || participant.name || "").trim();
     const krsaId = String(participant.userId?.krsaId || "").trim();
@@ -887,13 +894,19 @@ const buildRegisteredSkatersByKey = (participants = [], chestDocs = []) => {
     const gender = String(participant.userId?.gender || "").trim();
     const email = String(participant.userId?.email || "").trim();
     const phone = String(participant.userId?.phone || "").trim();
+    const dob = participant.userId?.dob || null;
+    const clubName = String(
+      participant.userId?.club?.name || participant.userId?.clubName || ""
+    ).trim();
     const paymentStatus = String(participant.paymentStatus || "").trim();
 
     for (const category of participant.categories || []) {
       const name = String(category?.name || "").trim();
       if (!name) continue;
 
-      const key = buildAgeCategoryKey(ageGroup, name);
+      const key = disciplineId
+        ? buildDisciplineAgeCategoryKey(disciplineId, ageGroup, name)
+        : buildAgeCategoryKey(ageGroup, name);
       if (!skatersByKey.has(key)) {
         skatersByKey.set(key, []);
       }
@@ -907,6 +920,8 @@ const buildRegisteredSkatersByKey = (participants = [], chestDocs = []) => {
           gender,
           email,
           phone,
+          dob,
+          clubName,
           paymentStatus,
           attendanceStatus: category?.attendanceStatus || "pending",
         })
@@ -939,6 +954,8 @@ const flattenSummaryAttendees = (skatingCategories = []) => {
             gender: String(skater.gender || "").trim(),
             email: String(skater.email || "").trim(),
             phone: String(skater.phone || "").trim(),
+            dob: skater.dob || null,
+            clubName: String(skater.clubName || "").trim(),
             paymentStatus: String(skater.paymentStatus || "").trim(),
             attendanceStatus: String(skater.attendanceStatus || "pending").trim(),
           });
@@ -1010,21 +1027,32 @@ export const getChestNumberSummaryByEvent = async (
   }
 
   const participantFilter = chestParticipantFilter(eventId);
-  const [chestDocs, participants] = await Promise.all([
+  const [chestDocs, participants, eventHeader] = await Promise.all([
     SkaterChestNo.find({ eventId }).sort({ ageGroup: 1, chestNo: 1 }).lean(),
     EventParticipant.find(participantFilter)
-      .select("ageGroup categories name userId paymentStatus")
-      .populate("userId", "fullName krsaId rsfiId gender email phone")
+      .select("ageGroup categories categoriesId name userId paymentStatus")
+      .populate({
+        path: "userId",
+        select: "fullName krsaId rsfiId gender email phone dob club",
+        populate: { path: "club", select: "name" },
+      })
+      .lean(),
+    Event.findById(eventId)
+      .select("header address eventStartDate eventEndDate eventType eventFor")
+      .populate("eventFor", "name")
       .lean(),
   ]);
 
   const registrationCountByKey = new Map();
   for (const participant of participants) {
     const ageGroup = String(participant.ageGroup || "").trim();
+    const disciplineId = String(participant.categoriesId || "").trim();
     for (const category of participant.categories || []) {
       const name = String(category?.name || "").trim();
       if (!name) continue;
-      const key = buildAgeCategoryKey(ageGroup, name);
+      const key = disciplineId
+        ? buildDisciplineAgeCategoryKey(disciplineId, ageGroup, name)
+        : buildAgeCategoryKey(ageGroup, name);
       registrationCountByKey.set(key, (registrationCountByKey.get(key) || 0) + 1);
     }
   }
@@ -1045,18 +1073,26 @@ export const getChestNumberSummaryByEvent = async (
   const resolvedCategories = eventMeta.skatingEventCategories || [];
 
   const skatingCategories = resolvedCategories.map((skatingCategory) => {
+    const disciplineId = String(skatingCategory._id || "").trim();
     const ageGroups = (skatingCategory.ageGroups || [])
       .filter((ageGroupEntry) => (ageGroupEntry.categories || []).length > 0)
       .map((ageGroupEntry) => {
         const label = String(ageGroupEntry.label || "").trim();
         const categories = (ageGroupEntry.categories || []).map((subCategory) => {
           const name = String(subCategory.name || "").trim();
-          const key = buildAgeCategoryKey(label, name);
+          const scopedKey = buildDisciplineAgeCategoryKey(disciplineId, label, name);
+          const legacyKey = buildAgeCategoryKey(label, name);
           return {
             name,
-            registeredCount: registrationCountByKey.get(key) || 0,
-            chestCount: chestCountByKey.get(key) || 0,
-            skaters: registeredSkatersByKey.get(key) || [],
+            registeredCount:
+              registrationCountByKey.get(scopedKey) ||
+              registrationCountByKey.get(legacyKey) ||
+              0,
+            chestCount: chestCountByKey.get(legacyKey) || 0,
+            skaters:
+              registeredSkatersByKey.get(scopedKey) ||
+              registeredSkatersByKey.get(legacyKey) ||
+              [],
           };
         });
 
@@ -1101,7 +1137,12 @@ export const getChestNumberSummaryByEvent = async (
 
   return {
     eventId,
-    eventName: eventMeta.eventName || "",
+    eventName: eventMeta.eventName || eventHeader?.header || "",
+    eventAddress: String(eventHeader?.address || "").trim(),
+    eventStartDate: eventHeader?.eventStartDate || null,
+    eventEndDate: eventHeader?.eventEndDate || null,
+    eventType: String(eventHeader?.eventType || eventMeta.eventType || "").trim(),
+    hostedBy: String(eventHeader?.eventFor?.name || "").trim(),
     totalRegistered: participants.length,
     totalWithChestNo: chestDocs.length,
     uniqueSkatersWithChestNo: uniqueChestSkaterKeys.size,

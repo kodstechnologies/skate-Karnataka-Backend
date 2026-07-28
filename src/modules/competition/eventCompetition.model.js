@@ -84,6 +84,14 @@ const eventCompetitionSchema = new mongoose.Schema(
           type: [competitorSchema],
           default: [],
         },
+        /**
+         * Manual result mode per gender + round: "position" | "time".
+         * Example: { boys: { "1stRound": "position" }, girls: { "1stRound": "time" } }
+         */
+        resultType: {
+          type: mongoose.Schema.Types.Mixed,
+          default: {},
+        },
       },
     ],
   },

@@ -260,12 +260,47 @@ const findCategoryOrThrow = (competition, name) => {
 };
 
 /**
- * Sort: ranked positions (1→3) first, then lowest time → highest.
- * Missing position/time sink to the bottom.
+ * Sort competitors for manual display.
+ * - position: rank by position (1→n), missing last
+ * - time: fastest → slowest, missing last
+ * - position_then_time (legacy): position first, then time
  */
-export const sortManualCompetitors = (rows = []) => {
+export const sortManualCompetitors = (rows = [], type = "position_then_time") => {
   const list = Array.isArray(rows) ? [...rows] : [];
+  const mode = String(type || "position_then_time").trim().toLowerCase();
 
+  if (mode === "time") {
+    return list.sort((a, b) => {
+      const timeA = getSecondsFromTime(String(a?.time || ""));
+      const timeB = getSecondsFromTime(String(b?.time || ""));
+      if (timeA !== timeB) {
+        return timeA - timeB;
+      }
+      return String(a?.fullName || "").localeCompare(String(b?.fullName || ""));
+    });
+  }
+
+  if (mode === "position") {
+    return list.sort((a, b) => {
+      const posA = Number(String(a?.position ?? "").trim());
+      const posB = Number(String(b?.position ?? "").trim());
+      const hasPosA = Number.isInteger(posA) && posA >= 1;
+      const hasPosB = Number.isInteger(posB) && posB >= 1;
+
+      if (hasPosA && hasPosB && posA !== posB) {
+        return posA - posB;
+      }
+      if (hasPosA && !hasPosB) {
+        return -1;
+      }
+      if (!hasPosA && hasPosB) {
+        return 1;
+      }
+      return String(a?.fullName || "").localeCompare(String(b?.fullName || ""));
+    });
+  }
+
+  // position_then_time
   return list.sort((a, b) => {
     const posA = Number(String(a?.position ?? "").trim());
     const posB = Number(String(b?.position ?? "").trim());
@@ -292,12 +327,63 @@ export const sortManualCompetitors = (rows = []) => {
   });
 };
 
+const normalizeManualResultType = (raw) => {
+  const value = String(raw ?? "").trim().toLowerCase();
+  return value === "position" || value === "time" ? value : null;
+};
+
+const getCategoryResultType = (category, genderKey, roundKey) => {
+  const store =
+    category?.resultType && typeof category.resultType === "object"
+      ? category.resultType
+      : {};
+  const plain =
+    store && typeof store.toObject === "function" ? store.toObject() : store;
+  const genderBucket = plain?.[genderKey] || plain?.all || {};
+  return normalizeManualResultType(genderBucket?.[roundKey]);
+};
+
+const setCategoryResultType = (category, genderKey, roundKey, type) => {
+  const existing =
+    category?.resultType && typeof category.resultType === "object"
+      ? category.resultType
+      : {};
+  const plain =
+    existing && typeof existing.toObject === "function"
+      ? existing.toObject()
+      : { ...existing };
+  const next = {
+    ...plain,
+    [genderKey]: {
+      ...(plain[genderKey] || {}),
+      [roundKey]: type,
+    },
+  };
+  if (typeof category.set === "function") {
+    category.set("resultType", next);
+  } else {
+    category.resultType = next;
+  }
+};
+
 /**
  * Update competitor time/position.
  * If both are omitted → reset to empty defaults (time "", position "0").
  * If a field is sent (including ""), that field is written; the other is left as-is.
+ * When resultType is set, only that field is applied.
  */
-const applyCompetitorResultUpdate = (competitor, { time, position }) => {
+const applyCompetitorResultUpdate = (competitor, { time, position }, resultType = null) => {
+  if (resultType === "position") {
+    competitor.position = normalizeCompetitionPosition(position);
+    return;
+  }
+  if (resultType === "time") {
+    competitor.time = hasNonEmptyTime(time)
+      ? normalizeCompetitionTimeForStorage(time)
+      : "";
+    return;
+  }
+
   const timeOmitted = time === undefined;
   const positionOmitted = position === undefined;
 
@@ -318,25 +404,76 @@ const applyCompetitorResultUpdate = (competitor, { time, position }) => {
   }
 };
 
+const MANUAL_ROUND_DISPLAY_NAME = {
+  "1stRound": "1st Round",
+  "2ndRound": "2nd Round",
+  semiFinal: "Semi Final",
+  final: "Final Round",
+};
+
+const toManualRoundDisplayRow = (row) => ({
+  ...row,
+  roundName: MANUAL_ROUND_DISPLAY_NAME[row?.round] || row?.round || null,
+});
+
 /**
- * Progressive manual rounds: start at 1stRound only; unlock the next after
- * the current round has participants (e.g. after promote). Do not list future rounds.
+ * Progressive manual rounds:
+ * - Default display = 1 round (1stRound) only
+ * - Unlock the next round only after the current one has skaters / promote
+ * - Never list empty future rounds (semiFinal/final) ahead of time
+ * - Pool is always DEFAULT_ROUND_KEYS only (not formula extras)
+ * - After final result: show only rounds that have skaters + 1st/2nd/3rd flags
  */
 const toProgressiveManualCategory = (formatted) => {
-  const allRounds = Array.isArray(formatted?.rounds) ? formatted.rounds : [];
-  const activeRound = formatted?.activeRound || "1stRound";
-  const activeIdx = allRounds.findIndex((row) => row.round === activeRound);
-  const unlockedThrough = activeIdx >= 0 ? activeIdx : 0;
+  const hasPodium = Boolean(
+    formatted?.["1st"] || formatted?.["2nd"] || formatted?.["3rd"]
+  );
+
+  const roundsByKey = new Map(
+    (Array.isArray(formatted?.rounds) ? formatted.rounds : []).map((row) => [
+      row.round,
+      row,
+    ])
+  );
+
+  const allRounds = DEFAULT_ROUND_KEYS.map((key) => {
+    const existing = roundsByKey.get(key);
+    return {
+      round: key,
+      status: Boolean(existing?.status),
+      count: Number(existing?.count) || 0,
+    };
+  });
+
+  let lastWithData = null;
+  for (const row of allRounds) {
+    if (row.status) {
+      lastWithData = row.round;
+    }
+  }
+
+  let activeRound;
+  if (!lastWithData) {
+    activeRound = "1stRound";
+  } else if (lastWithData === "final" && hasPodium) {
+    activeRound = null;
+  } else {
+    activeRound = lastWithData;
+  }
+
   const unlockedRounds =
     activeRound == null
-      ? allRounds
-      : allRounds.slice(0, unlockedThrough + 1);
+      ? allRounds.filter((row) => row.status)
+      : allRounds.slice(0, DEFAULT_ROUND_KEYS.indexOf(activeRound) + 1);
 
   return {
     name: formatted.name,
     categoryId: formatted.categoryId ? String(formatted.categoryId) : null,
-    activeRound: activeRound || "1stRound",
-    rounds: unlockedRounds,
+    activeRound,
+    rounds: unlockedRounds.map(toManualRoundDisplayRow),
+    "1st": Boolean(formatted?.["1st"]),
+    "2nd": Boolean(formatted?.["2nd"]),
+    "3rd": Boolean(formatted?.["3rd"]),
   };
 };
 
@@ -473,7 +610,7 @@ export const getManualRoundsService = async ({
     const category = toProgressiveManualCategory(
       formatCategoryRoundDisplay(
         applyGender(competitionCategory || { name: resolvedName }),
-        meta?.formula,
+        null, // manual: fixed default rounds only — not formula extras
         metaFields
       )
     );
@@ -638,8 +775,8 @@ export const getManualRoundsAllSkaterService = async ({
     });
   }
 
-  if (sortBy === "position_then_time") {
-    skaters = sortManualCompetitors(skaters);
+  if (sortBy === "position" || sortBy === "time" || sortBy === "position_then_time") {
+    skaters = sortManualCompetitors(skaters, sortBy);
   }
 
   const total = skaters.length;
@@ -654,7 +791,15 @@ export const getManualRoundsAllSkaterService = async ({
     round,
     gender: genderLabel,
     search: searchTerm || "",
-    ...(sortBy === "position_then_time" ? { sortBy: "position_then_time" } : {}),
+    ...(sortBy
+      ? {
+          type:
+            sortBy === "position" || sortBy === "time"
+              ? sortBy
+              : undefined,
+          sortBy,
+        }
+      : {}),
     skaters: pagedSkaters,
     pagination: buildPaginationMeta({
       total,
@@ -684,6 +829,11 @@ export const updateManualSkaterResultService = async (body) => {
   const round = normalizeManualRound(body.round, { defaultRound: "1stRound" });
   const genderFilter = normalizeCompetitionGenderFilter(body.gender);
   const genderLabel = toCompetitionGenderLabel(body.gender);
+  const resultType = normalizeManualResultType(body.type);
+
+  if (!resultType) {
+    throw new AppError('type is required ("position" or "time")', 400);
+  }
 
   if (!categoryId) {
     throw new AppError("categoryId is required", 400);
@@ -766,6 +916,7 @@ export const updateManualSkaterResultService = async (body) => {
 
   const targetCategory = findCategoryOrThrow(competition, resolvedName);
   const touchedCategories = new Map();
+  const resultTypeGenderKey = genderFilter || "all";
 
   for (const update of updates) {
     assertSkaterMatchesGender(update.skaterId);
@@ -781,7 +932,7 @@ export const updateManualSkaterResultService = async (body) => {
       );
     }
 
-    applyCompetitorResultUpdate(competitor, update);
+    applyCompetitorResultUpdate(competitor, update, resultType);
     clearSubsequentRoundsInCategoryByGender(
       targetCategory,
       round,
@@ -791,6 +942,7 @@ export const updateManualSkaterResultService = async (body) => {
     touchedCategories.set(String(targetCategory.name), targetCategory);
   }
 
+  setCategoryResultType(targetCategory, resultTypeGenderKey, round, resultType);
   competition.markModified("categories");
   await competition.save();
 
@@ -811,24 +963,61 @@ export const updateManualSkaterResultService = async (body) => {
     categoryId: resolvedCategoryId,
     round,
     gender: genderLabel,
+    type: resultType,
     categories: responseCategories,
   };
 };
 
 /**
- * GET manual-display-sortby — position first, then lowest→highest time.
- * Pagination + search applied after sorting.
+ * GET manual-display-sortby — sort by the type saved on manual-update-skater-result
+ * ("position" or "time"). Falls back to position_then_time when none saved.
  */
-export const getManualDisplaySortByService = async (query) =>
-  getManualRoundsAllSkaterService({
-    ...query,
-    sortBy: "position_then_time",
+export const getManualDisplaySortByService = async (query) => {
+  const round = normalizeManualRound(query.round, { defaultRound: "1stRound" });
+  const genderFilter = normalizeCompetitionGenderFilter(query.gender);
+
+  const competition = await loadCompetitionOrSync(query.eventId, query.ageGroup);
+  const eventMeta = await getEventSkatingEventCategoriesFullRepository(
+    query.eventId
+  );
+  if (!eventMeta) {
+    throw new AppError("Event not found", 404);
+  }
+
+  const skatingCategoryScopeId =
+    query.skatingEventCategoryId || query.categoriesId || null;
+  const scopedCategories = scopeResolvedSkatingCategories(
+    eventMeta.skatingEventCategories || [],
+    skatingCategoryScopeId
+  );
+
+  let meta = findEventCategoryByQuery(scopedCategories, {
+    ageGroup: query.ageGroup,
+    categoryId: query.categoryId,
+    categoriesId: skatingCategoryScopeId || undefined,
+    skatingEventCategoryId: skatingCategoryScopeId || undefined,
+    name: query.name,
   });
+  if (!meta && query.name && query.ageGroup) {
+    meta = findEventCategoryMeta(scopedCategories, query.ageGroup, query.name);
+  }
+
+  const resolvedName = meta?.name || query.name;
+  const category = findCategoryOrThrow(competition, resolvedName);
+  const storedType =
+    getCategoryResultType(category, genderFilter || "all", round) ||
+    "position_then_time";
+
+  return getManualRoundsAllSkaterService({
+    ...query,
+    sortBy: storedType,
+  });
+};
 
 /**
  * PATCH manual-update-to-next-round
  * - goToNextRound false → no promotion
- * - round final + empty nextRound → submit final result (medals from chestNos order)
+ * - round final + empty nextRound → rename last populated round to Final Round, then set 1st/2nd/3rd by time (else position)
  * - else promote skaters whose chestNos are passed
  * - categoryId required
  */
@@ -911,23 +1100,92 @@ export const updateManualToNextRoundService = async (body) => {
   const category = findCategoryOrThrow(competition, resolvedName);
   const genderBySkaterId = await loadGenderBySkaterId([competition]);
 
-  const currentRoundData = filterCompetitorsByGender(
-    (category[round] || []).map(toPlainCompetitorRow),
-    genderBySkaterId,
-    genderFilter
-  );
+  const getGenderRoundRows = (roundKey) =>
+    filterCompetitorsByGender(
+      (category[roundKey] || []).map(toPlainCompetitorRow),
+      genderBySkaterId,
+      genderFilter
+    );
+
+  const findLastPopulatedRound = () => {
+    for (let i = DEFAULT_ROUND_KEYS.length - 1; i >= 0; i -= 1) {
+      const key = DEFAULT_ROUND_KEYS[i];
+      if (getGenderRoundRows(key).length) {
+        return key;
+      }
+    }
+    return null;
+  };
+
+  // Final + empty nextRound → last populated round becomes Final Round, then 1st/2nd/3rd.
+  const isFinalResultSubmit = round === "final" && !optionalNextRound;
+  let sourceRound = round;
+  let currentRoundData = [];
+
+  if (isFinalResultSubmit) {
+    const lastRound = findLastPopulatedRound();
+    if (!lastRound) {
+      throw new AppError(
+        genderFilter
+          ? `No ${genderLabel} skaters found to submit as Final Round for "${resolvedName}"`
+          : `No skaters found to submit as Final Round for "${resolvedName}"`,
+        400
+      );
+    }
+    sourceRound = lastRound;
+    currentRoundData = getGenderRoundRows(sourceRound);
+
+    // Rename last populated round → final (keep time/position).
+    if (sourceRound !== "final") {
+      setCategoryRound(
+        category,
+        "final",
+        mergeRoundRowsByGender(
+          category["final"],
+          currentRoundData,
+          genderBySkaterId,
+          genderFilter
+        )
+      );
+      setCategoryRound(
+        category,
+        sourceRound,
+        mergeRoundRowsByGender(
+          category[sourceRound],
+          [],
+          genderBySkaterId,
+          genderFilter
+        )
+      );
+      // Clear empty intermediate rounds between source and final for this gender.
+      const sourceIdx = DEFAULT_ROUND_KEYS.indexOf(sourceRound);
+      for (const mid of DEFAULT_ROUND_KEYS.slice(sourceIdx + 1, -1)) {
+        setCategoryRound(
+          category,
+          mid,
+          mergeRoundRowsByGender(
+            category[mid],
+            [],
+            genderBySkaterId,
+            genderFilter
+          )
+        );
+      }
+      currentRoundData = getGenderRoundRows("final");
+    }
+  } else {
+    currentRoundData = getGenderRoundRows(round);
+  }
 
   if (!currentRoundData.length) {
     throw new AppError(
       genderFilter
-        ? `No ${genderLabel} skaters in ${round} for "${resolvedName}"`
-        : `No skaters in ${round} for "${resolvedName}"`,
+        ? `No ${genderLabel} skaters in ${isFinalResultSubmit ? "Final Round" : round} for "${resolvedName}"`
+        : `No skaters in ${isFinalResultSubmit ? "Final Round" : round} for "${resolvedName}"`,
       400
     );
   }
 
-  // Final + empty nextRound → submit final medals (no further round).
-  const isFinalResultSubmit = round === "final" && !optionalNextRound;
   const defaultNext = NEXT_MANUAL_ROUND[round];
   const targetRound = isFinalResultSubmit
     ? "winners"
@@ -984,7 +1242,7 @@ export const updateManualToNextRoundService = async (body) => {
   if (targetRound === "winners") {
     if (!Array.isArray(chestNos) || !chestNos.length) {
       throw new AppError(
-        "chestNos is required for final result — pass 1st, 2nd, 3rd by order",
+        "chestNos is required for final result — pass finalists to rank for 1st/2nd/3rd",
         400
       );
     }
@@ -1014,7 +1272,7 @@ export const updateManualToNextRoundService = async (body) => {
       const row = findRowByChest(lookup, key);
       if (!row) {
         throw new AppError(
-          `Chest number "${key}" not found in final for "${resolvedName}"`,
+          `Chest number "${key}" not found in Final Round for "${resolvedName}"`,
           400
         );
       }
@@ -1025,11 +1283,37 @@ export const updateManualToNextRoundService = async (body) => {
       throw new AppError("No skaters selected for final result", 400);
     }
 
-    // chestNos order = result order: [0]=1st, [1]=2nd, [2]=3rd
-    const firstPlace = medalists[0] || null;
-    const secondPlace = medalists[1] || null;
-    const thirdPlace = medalists[2] || null;
-    selectedChestNos = medalists.map((row) => normalizeChest(row.chestNo));
+    // Rank by time when any selected skater has a time; otherwise by position.
+    const hasAnyTime = medalists.some((row) => hasNonEmptyTime(row?.time));
+    const ranked = [...medalists].sort((a, b) => {
+      if (hasAnyTime) {
+        const timeA = getSecondsFromTime(String(a?.time || ""));
+        const timeB = getSecondsFromTime(String(b?.time || ""));
+        if (timeA !== timeB) {
+          return timeA - timeB;
+        }
+      } else {
+        const posA = Number(String(a?.position ?? "").trim());
+        const posB = Number(String(b?.position ?? "").trim());
+        const validA = Number.isInteger(posA) && posA >= 1;
+        const validB = Number.isInteger(posB) && posB >= 1;
+        if (validA && validB && posA !== posB) {
+          return posA - posB;
+        }
+        if (validA && !validB) {
+          return -1;
+        }
+        if (!validA && validB) {
+          return 1;
+        }
+      }
+      return String(a?.fullName || "").localeCompare(String(b?.fullName || ""));
+    });
+
+    const firstPlace = ranked[0] || null;
+    const secondPlace = ranked[1] || null;
+    const thirdPlace = ranked[2] || null;
+    selectedChestNos = ranked.map((row) => normalizeChest(row.chestNo));
 
     setCategoryRound(
       category,
@@ -1148,19 +1432,25 @@ export const updateManualToNextRoundService = async (body) => {
     categoryId: resolvedCategoryId,
     gender: genderLabel,
     goToNextRound: true,
-    fromRound: round,
+    fromRound: isFinalResultSubmit ? "final" : round,
+    fromRoundName: isFinalResultSubmit
+      ? "Final Round"
+      : MANUAL_ROUND_DISPLAY_NAME[round] || round,
+    renamedFromRound:
+      isFinalResultSubmit && sourceRound !== "final" ? sourceRound : undefined,
     toRound: targetRound,
     nextRound: optionalNextRound || targetRound,
     isFinalResult: targetRound === "winners",
     chestNos: selectedChestNos,
     totalInFromRound: currentRoundData.length,
     promotedCount: totalPromoted,
-    message:
-      targetRound === "winners"
-        ? "Final result submitted"
-        : `${round} kept; ${targetRound} created/updated with ${totalPromoted} skater(s)`,
     result: targetRound === "winners" ? nextRoundParticipants : undefined,
-    promotedSkaters: nextRoundParticipants,
+    "1st":
+      targetRound === "winners" ? nextRoundParticipants?.["1st"] : undefined,
+    "2nd":
+      targetRound === "winners" ? nextRoundParticipants?.["2nd"] : undefined,
+    "3rd":
+      targetRound === "winners" ? nextRoundParticipants?.["3rd"] : undefined,
     [targetRound]: nextRoundParticipants,
   };
 };

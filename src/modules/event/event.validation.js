@@ -978,6 +978,45 @@ const manualCompetitorUpdateItem = Joi.object({
         }),
 });
 
+const manualResultTypeField = Joi.string()
+    .trim()
+    .lowercase()
+    .valid("position", "time")
+    .required()
+    .messages({
+        "any.only": 'type must be "position" or "time"',
+        "any.required": 'type is required ("position" or "time")',
+        "string.empty": 'type is required ("position" or "time")',
+    });
+
+const assertCompetitorsMatchResultType = (value, helpers) => {
+    const type = String(value.type || "").trim().toLowerCase();
+    const rows =
+        Array.isArray(value.competitors) && value.competitors.length
+            ? value.competitors
+            : value.skaterId
+              ? [{ skaterId: value.skaterId, time: value.time, position: value.position }]
+              : [];
+
+    for (const row of rows) {
+        if (type === "position") {
+            if (row.position === undefined || row.position === null || row.position === "") {
+                return helpers.message({
+                    custom: 'When type is "position", each competitor must include position',
+                });
+            }
+        }
+        if (type === "time") {
+            if (row.time === undefined || row.time === null) {
+                return helpers.message({
+                    custom: 'When type is "time", each competitor must include time',
+                });
+            }
+        }
+    }
+    return value;
+};
+
 export const manualRoundsQueryValidation = {
     query: Joi.object({
         eventId: objectIdString.required(),
@@ -1039,11 +1078,13 @@ const manualUpdateSkaterBulkBody = Joi.object({
     skatingEventCategories: objectIdString.optional(),
     categoriesId: objectIdString.optional(),
     gender: manualGenderField,
+    /** Result mode used for display-sortby: "position" | "time" */
+    type: manualResultTypeField,
     competitors: Joi.array().items(manualCompetitorUpdateItem).min(1).required(),
     skaterId: Joi.forbidden(),
     time: Joi.forbidden(),
     position: Joi.forbidden(),
-});
+}).custom(assertCompetitorsMatchResultType);
 
 const manualUpdateSkaterSingleBody = Joi.object({
     eventId: objectIdString.required(),
@@ -1055,6 +1096,8 @@ const manualUpdateSkaterSingleBody = Joi.object({
     skatingEventCategories: objectIdString.optional(),
     categoriesId: objectIdString.optional(),
     gender: manualGenderField,
+    /** Result mode used for display-sortby: "position" | "time" */
+    type: manualResultTypeField,
     skaterId: objectIdString.required(),
     time: Joi.string().trim().allow("").optional(),
     position: Joi.string()
@@ -1065,7 +1108,7 @@ const manualUpdateSkaterSingleBody = Joi.object({
             "any.only": "position must be one of: 0, 1, 2, 3",
         }),
     competitors: Joi.forbidden(),
-});
+}).custom(assertCompetitorsMatchResultType);
 
 export const manualUpdateSkaterResultValidation = {
     body: Joi.alternatives().try(
@@ -1138,7 +1181,7 @@ export const manualUpdateToNextRoundValidation = {
         if (!Array.isArray(value.chestNos) || !value.chestNos.length) {
             return helpers.message({
                 custom: isFinal
-                    ? "chestNos is required for final result (1st, 2nd, 3rd by order)"
+                    ? "chestNos is required for final result (ranked by time, else position)"
                     : "chestNos is required (pass the chest numbers to promote)",
             });
         }

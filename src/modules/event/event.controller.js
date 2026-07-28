@@ -848,11 +848,11 @@ export const updateManualToNextRound = asyncHandler(async (req, res) => {
     const data = await updateManualToNextRoundService(req.body);
     const message =
         data?.message ||
-        (data?.toRound === "winners"
-            ? "Final medals (1st, 2nd, 3rd) updated successfully"
+        (data?.isFinalResult || data?.toRound === "winners"
+            ? "Final result submitted successfully (1st, 2nd, 3rd)"
             : data?.goToNextRound === false
               ? "Next round skipped"
-              : "Promoted to next round successfully");
+              : `Promoted to ${data?.toRound || "next round"} successfully`);
     return res.status(200).json(new ApiResponse(200, data, message));
 });
 

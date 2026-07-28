@@ -243,6 +243,13 @@ export const normalizeCompetitionGenderFilter = (raw) => {
   return null;
 };
 
+/** Canonicalize a stored skater gender to male | female | "" for comparisons. */
+export const normalizeSkaterGenderValue = (raw) =>
+  normalizeCompetitionGenderFilter(raw) ||
+  (["male", "female"].includes(String(raw || "").trim().toLowerCase())
+    ? String(raw).trim().toLowerCase()
+    : "");
+
 /** Label returned in API responses (boys | girls | both). */
 export const toCompetitionGenderLabel = (raw) => {
   const target = normalizeCompetitionGenderFilter(raw);
@@ -256,7 +263,13 @@ export const filterCompetitorsByGender = (rows, genderBySkaterId, targetGender) 
     return Array.isArray(rows) ? rows : [];
   }
   return (Array.isArray(rows) ? rows : []).filter((row) => {
-    const gender = genderBySkaterId.get(String(row?.skaterId || ""));
+    const gender = normalizeSkaterGenderValue(
+      genderBySkaterId.get(String(row?.skaterId || ""))
+    );
+    // Include skaters with unknown gender so scoring is not blocked
+    if (!gender) {
+      return true;
+    }
     return gender === targetGender;
   });
 };

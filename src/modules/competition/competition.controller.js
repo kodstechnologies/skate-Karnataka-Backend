@@ -38,6 +38,7 @@ import {
     findEventCategoryMeta,
     formatCategoryRoundDisplay,
     normalizeCompetitionGenderFilter,
+    normalizeSkaterGenderValue,
     scopeResolvedSkatingCategories,
     toCategoryMetaFields,
     toCompetitionGenderLabel,
@@ -55,7 +56,10 @@ const loadCompetitionGenderBySkaterId = async (competitions = []) => {
         .lean();
 
     return new Map(
-        users.map((user) => [String(user._id), String(user.gender || "").trim().toLowerCase()])
+        users.map((user) => [
+            String(user._id),
+            normalizeSkaterGenderValue(user.gender),
+        ])
     );
 };
 
@@ -734,7 +738,12 @@ const updatePoints = asyncHandler(async (req, res) => {
 
     const assertSkaterMatchesGender = (id) => {
         if (!genderFilter) return;
-        const skaterGender = genderBySkaterId.get(String(id));
+        const skaterGender = normalizeSkaterGenderValue(
+            genderBySkaterId.get(String(id))
+        );
+        if (!skaterGender) {
+            return;
+        }
         if (skaterGender !== genderFilter) {
             throw new AppError(
                 `Skater does not match gender filter "${genderLabel}"`,

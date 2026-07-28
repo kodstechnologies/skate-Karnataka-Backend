@@ -966,21 +966,6 @@ const manualRoundField = Joi.alternatives()
     )
     .optional();
 
-const manualHasTime = (value) =>
-    value !== undefined && value !== null && String(value).trim() !== "";
-
-const manualHasPosition = (value) =>
-    value !== undefined && value !== null && String(value).trim() !== "";
-
-const manualRequireTimeOrPosition = (value, helpers) => {
-    if (!manualHasTime(value?.time) && !manualHasPosition(value?.position)) {
-        return helpers.message({
-            custom: "At least one of time or position is required",
-        });
-    }
-    return value;
-};
-
 const manualCompetitorUpdateItem = Joi.object({
     skaterId: objectIdString.required(),
     time: Joi.string().trim().allow("").optional(),
@@ -991,7 +976,7 @@ const manualCompetitorUpdateItem = Joi.object({
         .messages({
             "any.only": "position must be one of: 0, 1, 2, 3",
         }),
-}).custom(manualRequireTimeOrPosition);
+});
 
 export const manualRoundsQueryValidation = {
     query: Joi.object({
@@ -1014,7 +999,16 @@ export const manualRoundsAllSkaterQueryValidation = {
         name: Joi.string().trim().min(1).required(),
         /** Default round is 1 / 1stRound when omitted. */
         round: manualRoundField,
+        /** Lap sub-doc _id or SkatingEventCategory document _id */
+        categoryId: objectIdString.optional(),
+        skatingEventCategoryId: objectIdString.optional(),
+        skatingEventCategories: objectIdString.optional(),
+        categoriesId: objectIdString.optional(),
         gender: manualGenderField,
+        page: Joi.number().integer().min(1).optional(),
+        limit: Joi.number().integer().min(1).max(100).optional(),
+        /** Search chestNo, fullName, krsaId, rsfiId */
+        search: Joi.string().trim().max(200).allow("").optional(),
     }),
 };
 
@@ -1024,7 +1018,14 @@ export const manualDisplaySortByQueryValidation = {
         ageGroup: competitionAgeGroupLabel.required(),
         name: Joi.string().trim().min(1).required(),
         round: manualRoundField,
+        categoryId: objectIdString.required(),
+        skatingEventCategoryId: objectIdString.optional(),
+        skatingEventCategories: objectIdString.optional(),
+        categoriesId: objectIdString.optional(),
         gender: manualGenderField,
+        page: Joi.number().integer().min(1).optional(),
+        limit: Joi.number().integer().min(1).max(100).optional(),
+        search: Joi.string().trim().max(200).allow("").optional(),
     }),
 };
 
@@ -1033,6 +1034,10 @@ const manualUpdateSkaterBulkBody = Joi.object({
     ageGroup: competitionAgeGroupLabel.required(),
     round: manualRoundField,
     name: Joi.string().trim().min(1).optional(),
+    categoryId: objectIdString.required(),
+    skatingEventCategoryId: objectIdString.optional(),
+    skatingEventCategories: objectIdString.optional(),
+    categoriesId: objectIdString.optional(),
     gender: manualGenderField,
     competitors: Joi.array().items(manualCompetitorUpdateItem).min(1).required(),
     skaterId: Joi.forbidden(),
@@ -1045,6 +1050,10 @@ const manualUpdateSkaterSingleBody = Joi.object({
     ageGroup: competitionAgeGroupLabel.required(),
     round: manualRoundField,
     name: Joi.string().trim().min(1).optional(),
+    categoryId: objectIdString.required(),
+    skatingEventCategoryId: objectIdString.optional(),
+    skatingEventCategories: objectIdString.optional(),
+    categoriesId: objectIdString.optional(),
     gender: manualGenderField,
     skaterId: objectIdString.required(),
     time: Joi.string().trim().allow("").optional(),
@@ -1056,7 +1065,7 @@ const manualUpdateSkaterSingleBody = Joi.object({
             "any.only": "position must be one of: 0, 1, 2, 3",
         }),
     competitors: Joi.forbidden(),
-}).custom(manualRequireTimeOrPosition);
+});
 
 export const manualUpdateSkaterResultValidation = {
     body: Joi.alternatives().try(
@@ -1069,7 +1078,11 @@ export const manualUpdateToNextRoundValidation = {
     body: Joi.object({
         eventId: objectIdString.required(),
         ageGroup: competitionAgeGroupLabel.required(),
-        name: Joi.string().trim().min(1).required(),
+        name: Joi.string().trim().min(1).optional(),
+        categoryId: objectIdString.required(),
+        skatingEventCategoryId: objectIdString.optional(),
+        skatingEventCategories: objectIdString.optional(),
+        categoriesId: objectIdString.optional(),
         /** Existing / current round (default 1stRound). */
         round: manualRoundField,
         /**
@@ -1099,8 +1112,42 @@ export const manualUpdateToNextRoundValidation = {
             .optional()
             .allow(null, ""),
         gender: manualGenderField,
-        promoteCount: Joi.number().integer().min(1).optional(),
-        skaterIds: Joi.array().items(objectIdString).optional(),
+        /**
+         * Chest numbers to promote — count of items = how many advance.
+         * Required when goToNextRound is true and current round is not final.
+         */
+        chestNos: Joi.array()
+            .items(
+                Joi.alternatives().try(
+                    Joi.string().trim().min(1),
+                    Joi.number().integer()
+                )
+            )
+            .min(1)
+            .optional(),
+        chestNo: Joi.forbidden(),
+        promoteCount: Joi.forbidden(),
+        skaterIds: Joi.forbidden(),
+    }).custom((value, helpers) => {
+        const go = value.goToNextRound !== false;
+        if (!go) {
+            return value;
+        }
+        const round = String(value.round || "1stRound").trim().toLowerCase();
+        const isFinal = round === "final" || round === "4";
+        if (!Array.isArray(value.chestNos) || !value.chestNos.length) {
+            return helpers.message({
+                custom: isFinal
+                    ? "chestNos is required for final result (1st, 2nd, 3rd by order)"
+                    : "chestNos is required (pass the chest numbers to promote)",
+            });
+        }
+        if (isFinal && value.chestNos.length > 3) {
+            return helpers.message({
+                custom: "chestNos for final may have at most 3 entries (1st, 2nd, 3rd)",
+            });
+        }
+        return value;
     }),
 };
 

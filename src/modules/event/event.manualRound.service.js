@@ -12,12 +12,13 @@ import {
   findEventCategoryMeta,
   formatCategoryRoundDisplay,
   normalizeCompetitionGenderFilter,
+  normalizeSkaterGenderValue,
   scopeResolvedSkatingCategories,
   toCompetitionGenderLabel,
 } from "../competition/displayRound.util.js";
-import { selectFinalWinners } from "../competition/competition.promotion.js";
 import { getEventSkatingEventCategoriesFullRepository } from "./event.repositories.js";
 import { AppError } from "../../util/common/AppError.js";
+import { buildPaginationMeta } from "../../util/common/paginate.js";
 import {
   formatCompetitionTimeDisplay,
   normalizeCompetitionTimeForStorage,
@@ -225,7 +226,7 @@ const loadGenderBySkaterId = async (competitions = []) => {
   return new Map(
     users.map((user) => [
       String(user._id),
-      String(user.gender || "").trim().toLowerCase(),
+      normalizeSkaterGenderValue(user.gender),
     ])
   );
 };
@@ -291,11 +292,28 @@ export const sortManualCompetitors = (rows = []) => {
   });
 };
 
+/**
+ * Update competitor time/position.
+ * If both are omitted → reset to empty defaults (time "", position "0").
+ * If a field is sent (including ""), that field is written; the other is left as-is.
+ */
 const applyCompetitorResultUpdate = (competitor, { time, position }) => {
-  if (hasNonEmptyTime(time)) {
-    competitor.time = normalizeCompetitionTimeForStorage(time);
+  const timeOmitted = time === undefined;
+  const positionOmitted = position === undefined;
+
+  if (timeOmitted && positionOmitted) {
+    competitor.time = "";
+    competitor.position = "0";
+    return;
   }
-  if (hasProvidedPosition(position)) {
+
+  if (!timeOmitted) {
+    competitor.time = hasNonEmptyTime(time)
+      ? normalizeCompetitionTimeForStorage(time)
+      : "";
+  }
+
+  if (!positionOmitted) {
     competitor.position = normalizeCompetitionPosition(position);
   }
 };
@@ -530,49 +548,134 @@ export const getManualRoundsService = async ({
 
 /**
  * GET manual-rounds-all-skater — boys | girls | both.
+ * Supports page/limit pagination and search on chestNo, fullName, krsaId, rsfiId.
  */
 export const getManualRoundsAllSkaterService = async ({
   eventId,
   ageGroup,
   name,
+  categoryId,
+  skatingEventCategoryId,
+  categoriesId,
   round: roundRaw,
   gender: genderQuery,
+  page,
+  limit,
+  search,
+  sortBy,
 }) => {
   await assertChestNumbersGeneratedForEvent(eventId);
 
   const round = normalizeManualRound(roundRaw, { defaultRound: "1stRound" });
   const genderFilter = normalizeCompetitionGenderFilter(genderQuery);
   const genderLabel = toCompetitionGenderLabel(genderQuery);
+  const pageNum = Math.max(Number(page) || 1, 1);
+  const limitNum = Math.min(Math.max(Number(limit) || 10, 1), 100);
+  const searchTerm = String(search || "").trim().toLowerCase();
+
+  const eventMeta = await getEventSkatingEventCategoriesFullRepository(eventId);
+  if (!eventMeta) {
+    throw new AppError("Event not found", 404);
+  }
+
+  const skatingCategoryScopeId =
+    skatingEventCategoryId || categoriesId || null;
+  const scopedCategories = scopeResolvedSkatingCategories(
+    eventMeta.skatingEventCategories || [],
+    skatingCategoryScopeId
+  );
+
+  let meta = findEventCategoryByQuery(scopedCategories, {
+    ageGroup,
+    categoryId,
+    categoriesId: skatingCategoryScopeId || undefined,
+    skatingEventCategoryId: skatingCategoryScopeId || undefined,
+    name,
+  });
+
+  if (!meta && name && ageGroup) {
+    meta = findEventCategoryMeta(scopedCategories, ageGroup, name);
+  }
+
+  if (
+    categoryId &&
+    meta?.categoryId &&
+    String(meta.categoryId) !== String(categoryId) &&
+    String(meta.skatingEventCategoryId) !== String(categoryId)
+  ) {
+    throw new AppError("Category id does not match this event category", 404);
+  }
+
+  const resolvedName = meta?.name || name;
+  const resolvedCategoryId = meta?.categoryId
+    ? String(meta.categoryId)
+    : categoryId
+      ? String(categoryId)
+      : null;
 
   const competition = await loadCompetitionOrSync(eventId, ageGroup);
-  const category = findCategoryOrThrow(competition, name);
+  const category = findCategoryOrThrow(competition, resolvedName);
   const genderBySkaterId = await loadGenderBySkaterId([competition]);
 
-  const skaters = filterCompetitorsByGender(
+  let skaters = filterCompetitorsByGender(
     (category[round] || []).map(toPlainCompetitorRow),
     genderBySkaterId,
     genderFilter
   ).map(mapCompetitor);
 
+  if (searchTerm) {
+    skaters = skaters.filter((row) => {
+      const chestNo = String(row.chestNo || "").toLowerCase();
+      const fullName = String(row.fullName || "").toLowerCase();
+      const krsaId = String(row.krsaId || "").toLowerCase();
+      const rsfiId = String(row.rsfiId || "").toLowerCase();
+      return (
+        chestNo.includes(searchTerm) ||
+        fullName.includes(searchTerm) ||
+        krsaId.includes(searchTerm) ||
+        rsfiId.includes(searchTerm)
+      );
+    });
+  }
+
+  if (sortBy === "position_then_time") {
+    skaters = sortManualCompetitors(skaters);
+  }
+
+  const total = skaters.length;
+  const skip = (pageNum - 1) * limitNum;
+  const pagedSkaters = skaters.slice(skip, skip + limitNum);
+
   return {
     eventId,
     ageGroup,
     name: category.name,
+    categoryId: resolvedCategoryId,
     round,
     gender: genderLabel,
-    total: skaters.length,
-    skaters,
+    search: searchTerm || "",
+    ...(sortBy === "position_then_time" ? { sortBy: "position_then_time" } : {}),
+    skaters: pagedSkaters,
+    pagination: buildPaginationMeta({
+      total,
+      page: pageNum,
+      limit: limitNum,
+    }),
   };
 };
 
 /**
  * PATCH manual-update-skater-result — update time and/or position.
+ * categoryId is required and used to resolve the lap/category.
  */
 export const updateManualSkaterResultService = async (body) => {
   const {
     eventId,
     ageGroup,
     name,
+    categoryId,
+    skatingEventCategoryId,
+    categoriesId,
     skaterId,
     time,
     position,
@@ -582,6 +685,50 @@ export const updateManualSkaterResultService = async (body) => {
   const genderFilter = normalizeCompetitionGenderFilter(body.gender);
   const genderLabel = toCompetitionGenderLabel(body.gender);
 
+  if (!categoryId) {
+    throw new AppError("categoryId is required", 400);
+  }
+
+  const eventMeta = await getEventSkatingEventCategoriesFullRepository(eventId);
+  if (!eventMeta) {
+    throw new AppError("Event not found", 404);
+  }
+
+  const skatingCategoryScopeId =
+    skatingEventCategoryId || categoriesId || null;
+  const scopedCategories = scopeResolvedSkatingCategories(
+    eventMeta.skatingEventCategories || [],
+    skatingCategoryScopeId
+  );
+
+  let meta = findEventCategoryByQuery(scopedCategories, {
+    ageGroup,
+    categoryId,
+    categoriesId: skatingCategoryScopeId || undefined,
+    skatingEventCategoryId: skatingCategoryScopeId || undefined,
+    name: name || undefined,
+  });
+
+  if (!meta && name && ageGroup) {
+    meta = findEventCategoryMeta(scopedCategories, ageGroup, name);
+  }
+
+  if (!meta) {
+    throw new AppError("Category not found for this event and categoryId", 404);
+  }
+
+  if (
+    String(meta.categoryId) !== String(categoryId) &&
+    String(meta.skatingEventCategoryId) !== String(categoryId)
+  ) {
+    throw new AppError("Category id does not match this event category", 404);
+  }
+
+  const resolvedName = meta.name || name;
+  const resolvedCategoryId = meta.categoryId
+    ? String(meta.categoryId)
+    : String(categoryId);
+
   const competition = await loadCompetitionOrSync(eventId, ageGroup);
   const genderBySkaterId = genderFilter
     ? await loadGenderBySkaterId([competition])
@@ -589,7 +736,13 @@ export const updateManualSkaterResultService = async (body) => {
 
   const assertSkaterMatchesGender = (id) => {
     if (!genderFilter) return;
-    const skaterGender = genderBySkaterId.get(String(id));
+    const skaterGender = normalizeSkaterGenderValue(
+      genderBySkaterId.get(String(id))
+    );
+    // Missing / unknown gender: allow (skater is already in this competition round)
+    if (!skaterGender) {
+      return;
+    }
     if (skaterGender !== genderFilter) {
       throw new AppError(
         `Skater does not match gender filter "${genderLabel}"`,
@@ -611,51 +764,31 @@ export const updateManualSkaterResultService = async (body) => {
     );
   }
 
+  const targetCategory = findCategoryOrThrow(competition, resolvedName);
   const touchedCategories = new Map();
 
   for (const update of updates) {
-    if (!hasNonEmptyTime(update.time) && !hasProvidedPosition(update.position)) {
-      throw new AppError(
-        "At least one of time or position is required for each skater",
-        400
-      );
-    }
-
     assertSkaterMatchesGender(update.skaterId);
 
-    let foundCategory = null;
-    let foundCompetitor = null;
+    const competitor = (targetCategory[round] || []).find(
+      (row) => String(row.skaterId) === String(update.skaterId)
+    );
 
-    const searchCategories = name
-      ? [findCategoryOrThrow(competition, name)]
-      : competition.categories || [];
-
-    for (const category of searchCategories) {
-      const competitor = (category[round] || []).find(
-        (row) => String(row.skaterId) === String(update.skaterId)
-      );
-      if (competitor) {
-        foundCategory = category;
-        foundCompetitor = competitor;
-        break;
-      }
-    }
-
-    if (!foundCategory || !foundCompetitor) {
+    if (!competitor) {
       throw new AppError(
         `Skater ${update.skaterId} not found in ${round}`,
         404
       );
     }
 
-    applyCompetitorResultUpdate(foundCompetitor, update);
+    applyCompetitorResultUpdate(competitor, update);
     clearSubsequentRoundsInCategoryByGender(
-      foundCategory,
+      targetCategory,
       round,
       genderBySkaterId,
       genderFilter
     );
-    touchedCategories.set(String(foundCategory.name), foundCategory);
+    touchedCategories.set(String(targetCategory.name), targetCategory);
   }
 
   competition.markModified("categories");
@@ -663,6 +796,7 @@ export const updateManualSkaterResultService = async (body) => {
 
   const responseCategories = [...touchedCategories.values()].map((category) => ({
     name: category.name,
+    categoryId: resolvedCategoryId,
     competitors: filterCompetitorsByGender(
       category[round] || [],
       genderBySkaterId,
@@ -673,6 +807,8 @@ export const updateManualSkaterResultService = async (body) => {
   return {
     eventId: competition.eventId,
     ageGroup: competition.ageGroup,
+    name: resolvedName,
+    categoryId: resolvedCategoryId,
     round,
     gender: genderLabel,
     categories: responseCategories,
@@ -681,42 +817,47 @@ export const updateManualSkaterResultService = async (body) => {
 
 /**
  * GET manual-display-sortby — position first, then lowest→highest time.
+ * Pagination + search applied after sorting.
  */
-export const getManualDisplaySortByService = async (query) => {
-  const payload = await getManualRoundsAllSkaterService(query);
-  const skaters = sortManualCompetitors(payload.skaters);
-  return {
-    ...payload,
+export const getManualDisplaySortByService = async (query) =>
+  getManualRoundsAllSkaterService({
+    ...query,
     sortBy: "position_then_time",
-    skaters,
-  };
-};
+  });
 
 /**
  * PATCH manual-update-to-next-round
  * - goToNextRound false → no promotion
- * - round final → medals 1st/2nd/3rd (nextRound optional)
- * - else promote to nextRound if provided, otherwise default next round
+ * - round final + empty nextRound → submit final result (medals from chestNos order)
+ * - else promote skaters whose chestNos are passed
+ * - categoryId required
  */
 export const updateManualToNextRoundService = async (body) => {
   const {
     eventId,
     ageGroup,
     name,
+    categoryId,
+    skatingEventCategoryId,
+    categoriesId,
     goToNextRound = true,
-    skaterIds,
-    promoteCount,
+    chestNos,
   } = body;
   const round = normalizeManualRound(body.round, { defaultRound: "1stRound" });
   const optionalNextRound = normalizeOptionalNextRound(body.nextRound);
   const genderFilter = normalizeCompetitionGenderFilter(body.gender);
   const genderLabel = toCompetitionGenderLabel(body.gender);
 
+  if (!categoryId) {
+    throw new AppError("categoryId is required", 400);
+  }
+
   if (!goToNextRound) {
     return {
       eventId,
       ageGroup,
-      name,
+      name: name || null,
+      categoryId: String(categoryId),
       gender: genderLabel,
       fromRound: round,
       goToNextRound: false,
@@ -726,8 +867,48 @@ export const updateManualToNextRoundService = async (body) => {
     };
   }
 
+  const eventMeta = await getEventSkatingEventCategoriesFullRepository(eventId);
+  if (!eventMeta) {
+    throw new AppError("Event not found", 404);
+  }
+
+  const skatingCategoryScopeId =
+    skatingEventCategoryId || categoriesId || null;
+  const scopedCategories = scopeResolvedSkatingCategories(
+    eventMeta.skatingEventCategories || [],
+    skatingCategoryScopeId
+  );
+
+  let meta = findEventCategoryByQuery(scopedCategories, {
+    ageGroup,
+    categoryId,
+    categoriesId: skatingCategoryScopeId || undefined,
+    skatingEventCategoryId: skatingCategoryScopeId || undefined,
+    name: name || undefined,
+  });
+
+  if (!meta && name && ageGroup) {
+    meta = findEventCategoryMeta(scopedCategories, ageGroup, name);
+  }
+
+  if (!meta) {
+    throw new AppError("Category not found for this event and categoryId", 404);
+  }
+
+  if (
+    String(meta.categoryId) !== String(categoryId) &&
+    String(meta.skatingEventCategoryId) !== String(categoryId)
+  ) {
+    throw new AppError("Category id does not match this event category", 404);
+  }
+
+  const resolvedName = meta.name || name;
+  const resolvedCategoryId = meta.categoryId
+    ? String(meta.categoryId)
+    : String(categoryId);
+
   const competition = await loadCompetitionOrSync(eventId, ageGroup);
-  const category = findCategoryOrThrow(competition, name);
+  const category = findCategoryOrThrow(competition, resolvedName);
   const genderBySkaterId = await loadGenderBySkaterId([competition]);
 
   const currentRoundData = filterCompetitorsByGender(
@@ -739,15 +920,18 @@ export const updateManualToNextRoundService = async (body) => {
   if (!currentRoundData.length) {
     throw new AppError(
       genderFilter
-        ? `No ${genderLabel} skaters in ${round} for "${name}"`
-        : `No skaters in ${round} for "${name}"`,
+        ? `No ${genderLabel} skaters in ${round} for "${resolvedName}"`
+        : `No skaters in ${round} for "${resolvedName}"`,
       400
     );
   }
 
+  // Final + empty nextRound → submit final medals (no further round).
+  const isFinalResultSubmit = round === "final" && !optionalNextRound;
   const defaultNext = NEXT_MANUAL_ROUND[round];
-  const targetRound =
-    round === "final" ? "winners" : optionalNextRound || defaultNext;
+  const targetRound = isFinalResultSubmit
+    ? "winners"
+    : optionalNextRound || defaultNext;
 
   if (!targetRound) {
     throw new AppError(`Cannot promote from round "${round}"`, 400);
@@ -764,17 +948,88 @@ export const updateManualToNextRoundService = async (body) => {
     }
   }
 
+  const normalizeChest = (value) => String(value ?? "").trim();
+
+  /** Match "004" with "4" / "004" / 4 */
+  const buildChestLookup = (rows) => {
+    const byExact = new Map();
+    const byNumeric = new Map();
+    for (const row of rows) {
+      const key = normalizeChest(row.chestNo);
+      if (!key) continue;
+      byExact.set(key, row);
+      const numeric = key.replace(/^0+/, "") || "0";
+      if (!byNumeric.has(numeric)) {
+        byNumeric.set(numeric, row);
+      }
+    }
+    return { byExact, byNumeric };
+  };
+
+  const findRowByChest = (lookup, raw) => {
+    const key = normalizeChest(raw);
+    if (!key) return null;
+    if (lookup.byExact.has(key)) {
+      return lookup.byExact.get(key);
+    }
+    const numeric = key.replace(/^0+/, "") || "0";
+    return lookup.byNumeric.get(numeric) || null;
+  };
+
   let totalPromoted = 0;
   let nextRoundParticipants = null;
   let promotedSource = [];
+  let selectedChestNos = [];
 
   if (targetRound === "winners") {
-    const sorted = sortManualCompetitors(currentRoundData);
-    const { firstPlace, secondPlace, thirdPlace } = selectFinalWinners(
-      sorted,
-      3,
-      getSecondsFromTime
-    );
+    if (!Array.isArray(chestNos) || !chestNos.length) {
+      throw new AppError(
+        "chestNos is required for final result — pass 1st, 2nd, 3rd by order",
+        400
+      );
+    }
+    if (chestNos.length > 3) {
+      throw new AppError(
+        "chestNos for final may have at most 3 entries (1st, 2nd, 3rd)",
+        400
+      );
+    }
+
+    const lookup = buildChestLookup(currentRoundData);
+    const seen = new Set();
+    const medalists = [];
+
+    for (const raw of chestNos) {
+      const key = normalizeChest(raw);
+      if (!key) {
+        continue;
+      }
+      const matchKey = key.replace(/^0+/, "") || "0";
+      if (seen.has(matchKey) || seen.has(key)) {
+        throw new AppError(`Duplicate chest number "${key}"`, 400);
+      }
+      seen.add(matchKey);
+      seen.add(key);
+
+      const row = findRowByChest(lookup, key);
+      if (!row) {
+        throw new AppError(
+          `Chest number "${key}" not found in final for "${resolvedName}"`,
+          400
+        );
+      }
+      medalists.push(row);
+    }
+
+    if (!medalists.length) {
+      throw new AppError("No skaters selected for final result", 400);
+    }
+
+    // chestNos order = result order: [0]=1st, [1]=2nd, [2]=3rd
+    const firstPlace = medalists[0] || null;
+    const secondPlace = medalists[1] || null;
+    const thirdPlace = medalists[2] || null;
+    selectedChestNos = medalists.map((row) => normalizeChest(row.chestNo));
 
     setCategoryRound(
       category,
@@ -801,7 +1056,7 @@ export const updateManualToNextRoundService = async (body) => {
       "3rd",
       mergeRoundRowsByGender(
         category["3rd"],
-        thirdPlace ? [mapCompetitorForMedal(thirdPlace, "0")] : [],
+        thirdPlace ? [mapCompetitorForMedal(thirdPlace, "3")] : [],
         genderBySkaterId,
         genderFilter
       )
@@ -812,31 +1067,51 @@ export const updateManualToNextRoundService = async (body) => {
     nextRoundParticipants = {
       "1st": firstPlace ? [mapCompetitorForMedal(firstPlace, "1")] : [],
       "2nd": secondPlace ? [mapCompetitorForMedal(secondPlace, "2")] : [],
-      "3rd": thirdPlace ? [mapCompetitorForMedal(thirdPlace, "0")] : [],
+      "3rd": thirdPlace ? [mapCompetitorForMedal(thirdPlace, "3")] : [],
     };
   } else {
-    let candidates = sortManualCompetitors(currentRoundData);
-
-    if (Array.isArray(skaterIds) && skaterIds.length) {
-      const wanted = new Set(skaterIds.map((id) => String(id)));
-      candidates = candidates.filter((row) =>
-        wanted.has(String(row.skaterId))
+    if (!Array.isArray(chestNos) || !chestNos.length) {
+      throw new AppError(
+        "chestNos is required — pass the chest numbers to promote",
+        400
       );
-      if (!candidates.length) {
-        throw new AppError("None of the provided skaterIds are in this round", 400);
-      }
     }
 
-    const limit =
-      promoteCount != null && Number(promoteCount) > 0
-        ? Math.trunc(Number(promoteCount))
-        : candidates.length;
+    const lookup = buildChestLookup(currentRoundData);
+    const seen = new Set();
 
-    promotedSource = candidates.slice(0, limit);
+    for (const raw of chestNos) {
+      const key = normalizeChest(raw);
+      if (!key) {
+        continue;
+      }
+      const matchKey = key.replace(/^0+/, "") || "0";
+      if (seen.has(matchKey) || seen.has(key)) {
+        throw new AppError(`Duplicate chest number "${key}"`, 400);
+      }
+      seen.add(matchKey);
+      seen.add(key);
+
+      const row = findRowByChest(lookup, key);
+      if (!row) {
+        const available = currentRoundData
+          .map((r) => normalizeChest(r.chestNo))
+          .filter(Boolean);
+        throw new AppError(
+          `Chest number "${key}" not found in ${round} for "${resolvedName}" (event ${eventId}). Available: ${available.join(", ") || "none"}`,
+          400
+        );
+      }
+      promotedSource.push(row);
+    }
+
     if (!promotedSource.length) {
       throw new AppError(`No skaters to promote from "${round}"`, 400);
     }
 
+    selectedChestNos = promotedSource.map((row) => normalizeChest(row.chestNo));
+
+    // Create / replace this gender's rows in the next round (fresh time/position)
     setCategoryRound(
       category,
       targetRound,
@@ -854,7 +1129,9 @@ export const updateManualToNextRoundService = async (body) => {
       genderFilter
     );
     totalPromoted = promotedSource.length;
-    nextRoundParticipants = promotedSource.map(cloneCompetitorForNextRound).map(mapCompetitor);
+    nextRoundParticipants = promotedSource
+      .map(cloneCompetitorForNextRound)
+      .map(mapCompetitor);
   }
 
   if (totalPromoted === 0) {
@@ -868,13 +1145,21 @@ export const updateManualToNextRoundService = async (body) => {
     eventId: competition.eventId,
     ageGroup: competition.ageGroup,
     name: category.name,
+    categoryId: resolvedCategoryId,
     gender: genderLabel,
     goToNextRound: true,
     fromRound: round,
     toRound: targetRound,
-    nextRound: optionalNextRound,
+    nextRound: optionalNextRound || targetRound,
+    isFinalResult: targetRound === "winners",
+    chestNos: selectedChestNos,
     totalInFromRound: currentRoundData.length,
     promotedCount: totalPromoted,
+    message:
+      targetRound === "winners"
+        ? "Final result submitted"
+        : `${round} kept; ${targetRound} created/updated with ${totalPromoted} skater(s)`,
+    result: targetRound === "winners" ? nextRoundParticipants : undefined,
     promotedSkaters: nextRoundParticipants,
     [targetRound]: nextRoundParticipants,
   };

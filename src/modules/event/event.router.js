@@ -250,6 +250,12 @@ router.get(
     validate(manualDisplaySortByQueryValidation),
     getManualDisplaySortBy
 );
+router.post(
+    "/v1/manual-update-to-next-round",
+    authenticate(["Club", "District", "State", "Admin"]),
+    validate(manualUpdateToNextRoundValidation),
+    updateManualToNextRound
+);
 router.patch(
     "/v1/manual-update-to-next-round",
     authenticate(["Club", "District", "State", "Admin"]),

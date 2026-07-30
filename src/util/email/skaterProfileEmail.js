@@ -1,4 +1,4 @@
-import { getTransporter } from "../otp/emailOtp.js";
+import { sendMail } from "../otp/emailOtp.js";
 import { formatDob } from "../time/timeUtil.js";
 
 const escapeHtml = (value) =>
@@ -271,8 +271,7 @@ export const sendSkaterProfileSubmittedEmail = async (skater) => {
         return false;
     }
 
-    await getTransporter().sendMail({
-        from: `"KRSA" <${process.env.EMAIL_USER}>`,
+    await sendMail({
         to,
         subject: `KRSA Profile Submitted — ${skater.krsaId || skater.fullName || "Skater"}`,
         text: buildSkaterProfileEmailText(skater),

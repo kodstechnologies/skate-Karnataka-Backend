@@ -830,13 +830,32 @@ const resolveSkaterDistrict = (skater, districtNameMap = {}) => {
   return null;
 };
 
-export const getAllSkatersForAdmin = async ({ page = 1, limit = 10, search = "" } = {}) => {
+export const getAllSkatersForAdmin = async ({
+  page = 1,
+  limit = 10,
+  search = "",
+  gender = "",
+  status = "",
+} = {}) => {
   const currentPage = Math.max(Number(page) || 1, 1);
   const pageLimit = Math.max(Number(limit) || 10, 1);
   const skip = (currentPage - 1) * pageLimit;
   const trimmedSearch = String(search || "").trim();
+  const genderFilter = String(gender || "").trim().toLowerCase();
+  const statusFilter = String(status || "").trim().toLowerCase();
 
   const query = { role: "Skater" };
+
+  if (genderFilter && ["male", "female", "other"].includes(genderFilter)) {
+    query.gender = genderFilter;
+  }
+
+  if (statusFilter === "active") {
+    query.isBlocked = { $ne: true };
+  } else if (statusFilter === "blocked") {
+    query.isBlocked = true;
+  }
+
   if (trimmedSearch) {
     const matchingDistricts = await District.find({
       name: { $regex: trimmedSearch, $options: "i" },

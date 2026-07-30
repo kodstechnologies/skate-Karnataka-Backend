@@ -1,4 +1,4 @@
-import { getTransporter } from "../otp/emailOtp.js";
+import { sendMail } from "../otp/emailOtp.js";
 
 const escapeHtml = (value) =>
     String(value ?? "")
@@ -164,8 +164,7 @@ export const sendRegistrationWelcomeEmail = async (user) => {
         return false;
     }
 
-    await getTransporter().sendMail({
-        from: `"KRSA" <${process.env.EMAIL_USER}>`,
+    await sendMail({
         to,
         subject: `Welcome to KRSA — Your ID ${user.krsaId || ""} is registered`,
         text: buildRegistrationEmailText(user),

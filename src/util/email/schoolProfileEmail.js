@@ -1,4 +1,4 @@
-import { getTransporter } from "../otp/emailOtp.js";
+import { sendMail } from "../otp/emailOtp.js";
 import { formatDate } from "../time/timeUtil.js";
 
 const escapeHtml = (value) =>
@@ -336,8 +336,7 @@ export const sendSchoolProfileSubmittedEmail = async (school, submission = {}) =
 
     const mergedSchool = mergeSchoolUploads(school, submission);
 
-    await getTransporter().sendMail({
-        from: `"KRSA" <${process.env.EMAIL_USER}>`,
+    await sendMail({
         to,
         subject: `KRSA School Profile Submitted — ${mergedSchool.krsaId || mergedSchool.schoolName || "School"}`,
         text: buildSchoolProfileEmailText(mergedSchool),

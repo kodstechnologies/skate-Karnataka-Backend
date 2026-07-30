@@ -302,8 +302,8 @@ export const setClubMainMemberByAdmin = asyncHandler(async (req, res) => {
 });
 
 export const getAllSkatersByAdmin = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 10, search = "" } = req.query;
-  const result = await getAllSkatersByAdminService({ page, limit, search });
+  const { page = 1, limit = 10, search = "", gender = "", status = "" } = req.query;
+  const result = await getAllSkatersByAdminService({ page, limit, search, gender, status });
 
   return res
     .status(200)

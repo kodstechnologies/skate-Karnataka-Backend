@@ -1,4 +1,4 @@
-import { getTransporter } from "./emailOtp.js";
+import { sendMail } from "./emailOtp.js";
 
 const escapeHtml = (value) =>
     String(value ?? "")
@@ -173,8 +173,7 @@ export const sendEmailVerificationOTP = async (email, otp) => {
         throw new Error("Recipient email is required to send verification OTP");
     }
 
-    await getTransporter().sendMail({
-        from: `"KRSA" <${process.env.EMAIL_USER}>`,
+    await sendMail({
         to,
         subject: `${otp} — Verify your email for KRSA registration`,
         text: buildEmailVerificationOtpText(otp, to),

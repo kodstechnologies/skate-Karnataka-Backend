@@ -664,8 +664,8 @@ export const setClubMainMemberByAdminService = async (clubId, memberId) => {
   };
 };
 
-export const getAllSkatersByAdminService = async ({ page, limit, search }) => {
-  return getAllSkatersForAdmin({ page, limit, search });
+export const getAllSkatersByAdminService = async ({ page, limit, search, gender, status }) => {
+  return getAllSkatersForAdmin({ page, limit, search, gender, status });
 };
 
 const resolveDistrictIdForSkaterCreate = async (districtValue) => {

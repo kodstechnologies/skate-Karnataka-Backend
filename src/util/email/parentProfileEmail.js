@@ -1,4 +1,4 @@
-import { getTransporter } from "../otp/emailOtp.js";
+import { sendMail } from "../otp/emailOtp.js";
 import { formatDob } from "../time/timeUtil.js";
 import mongoose from "mongoose";
 import { District } from "../../modules/district/district.model.js";
@@ -251,8 +251,7 @@ export const sendParentProfileSubmittedEmail = async (parent) => {
     const districtName = parent.districtName || (await resolveDistrictName(parent.district));
     const payload = { ...parent, districtName };
 
-    await getTransporter().sendMail({
-        from: `"KRSA" <${process.env.EMAIL_USER}>`,
+    await sendMail({
         to,
         subject: `KRSA Parent Profile Submitted — ${parent.krsaId || parent.fullName || "Parent"}`,
         text: buildParentProfileEmailText(payload),

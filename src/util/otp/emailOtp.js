@@ -1,25 +1,78 @@
 import nodemailer from "nodemailer";
 
-let transporter;
+let accounts;
 
+const loadEmailAccounts = () => {
+    if (accounts) {
+        return accounts;
+    }
+
+    const list = [];
+
+    for (let i = 1; i <= 10; i++) {
+        const user = process.env[`EMAIL_USER_${i}`]?.trim();
+        const pass = process.env[`EMAIL_PASS_${i}`]?.trim();
+        if (user && pass) {
+            list.push({ user, pass });
+        }
+    }
+
+    // Legacy single-account fallback
+    const legacyUser = process.env.EMAIL_USER?.trim();
+    const legacyPass = process.env.EMAIL_PASS?.trim();
+    if (list.length === 0 && legacyUser && legacyPass) {
+        list.push({ user: legacyUser, pass: legacyPass });
+    }
+
+    if (list.length === 0) {
+        throw new Error(
+            "No email accounts configured. Set EMAIL_USER_1 / EMAIL_PASS_1 (and optionally _2, …)"
+        );
+    }
+
+    accounts = list.map(({ user, pass }) => ({
+        user,
+        transporter: nodemailer.createTransport({
+            service: "gmail",
+            auth: { user, pass },
+        }),
+    }));
+
+    return accounts;
+};
+
+/** @deprecated Prefer sendMail — kept for any direct transporter use */
 export const getTransporter = () => {
-    if (transporter) {
-        return transporter;
+    return loadEmailAccounts()[0].transporter;
+};
+
+/**
+ * Send email with automatic failover across EMAIL_USER_1, EMAIL_USER_2, …
+ * Tries each configured account in order until one succeeds.
+ */
+export const sendMail = async (mailOptions) => {
+    const list = loadEmailAccounts();
+    const errors = [];
+
+    for (let i = 0; i < list.length; i++) {
+        const { user, transporter } = list[i];
+        try {
+            const info = await transporter.sendMail({
+                ...mailOptions,
+                from: mailOptions.from || `"KRSA" <${user}>`,
+            });
+            if (i > 0) {
+                console.warn(`[email] Sent via fallback account ${i + 1} (${user})`);
+            }
+            return info;
+        } catch (err) {
+            const msg = err?.message || String(err);
+            console.error(`[email] Account ${i + 1} (${user}) failed: ${msg}`);
+            errors.push(`Account ${i + 1} (${user}): ${msg}`);
+        }
     }
 
-    const user = process.env.EMAIL_USER;
-    const pass = process.env.EMAIL_PASS;
-
-    if (!user || !pass) {
-        throw new Error("EMAIL_USER / EMAIL_PASS are not configured in environment");
-    }
-
-    transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: { user, pass },
-    });
-
-    return transporter;
+    throw new Error(`All email accounts failed:\n${errors.join("\n")}`);
 };
 
 const buildOtpEmailHtml = (otp) => {
@@ -102,8 +155,7 @@ export const sendOTPToEmail = async (email, otp) => {
         throw new Error("Recipient email is required to send OTP");
     }
 
-    await getTransporter().sendMail({
-        from: `"KRSA" <${process.env.EMAIL_USER}>`,
+    await sendMail({
         to,
         subject: `${otp} is your KRSA login OTP`,
         text: `Your KRSA login OTP is ${otp}. It is valid for 5 minutes. Do not share it with anyone.`,

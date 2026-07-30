@@ -293,12 +293,16 @@ const buildChestDoc = (participant, eventId, ageGroup, chestNo) => {
   return doc;
 };
 
-const resolveSkaterDistrictName = (user) => {
-  const fromUserDistrict = String(user?.district?.name || "").trim();
-  if (fromUserDistrict) return fromUserDistrict;
+const resolveClubDistrictName = (user) => {
   const fromClubDistrict = String(user?.club?.district?.name || "").trim();
   if (fromClubDistrict) return fromClubDistrict;
   return String(user?.club?.districtName || "").trim();
+};
+
+const resolveSkaterDistrictName = (user) => {
+  const fromUserDistrict = String(user?.district?.name || "").trim();
+  if (fromUserDistrict) return fromUserDistrict;
+  return resolveClubDistrictName(user);
 };
 
 const resolveSkaterClubName = (user) =>
@@ -953,6 +957,7 @@ const mapSkaterSummary = (row) => {
     dob: row?.dob || null,
     clubName: String(row?.clubName || ""),
     district: String(row?.district || ""),
+    clubDistrict: String(row?.clubDistrict || ""),
     remarks,
     remark: remarks,
     paymentStatus,
@@ -1003,6 +1008,7 @@ const buildRegisteredSkatersByKey = (participants = [], chestDocs = []) => {
       participant.userId?.club?.name || participant.userId?.clubName || ""
     ).trim();
     const district = resolveSkaterDistrictName(participant.userId);
+    const clubDistrict = resolveClubDistrictName(participant.userId);
     const paymentStatus = String(participant.paymentStatus || "").trim();
 
     for (const category of participant.categories || []) {
@@ -1028,6 +1034,7 @@ const buildRegisteredSkatersByKey = (participants = [], chestDocs = []) => {
           dob,
           clubName,
           district,
+          clubDistrict,
           remarks: category?.remarks || "",
           paymentStatus,
           attendanceStatus: category?.attendanceStatus || "pending",
@@ -1064,6 +1071,7 @@ const flattenSummaryAttendees = (skatingCategories = []) => {
             dob: skater.dob || null,
             clubName: String(skater.clubName || "").trim(),
             district: String(skater.district || "").trim(),
+            clubDistrict: String(skater.clubDistrict || "").trim(),
             remarks: String(skater.remarks || "").trim(),
             remark: String(skater.remarks || skater.remark || "").trim(),
             paymentStatus: String(skater.paymentStatus || "").trim(),

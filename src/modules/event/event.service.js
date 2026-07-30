@@ -1412,8 +1412,8 @@ export const updateEventChestNumberModeService = async (id, isAutomated, user) =
         eventType: updated.eventType,
         isAutomated: updated.isAutomated !== false,
         message: updated.isAutomated
-            ? "Switched to automatic chest numbers"
-            : "Switched to manual chest numbers",
+            ? "Switched to automatic"
+            : "Switched to manual",
     };
 };
 

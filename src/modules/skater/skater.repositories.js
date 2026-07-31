@@ -1041,9 +1041,13 @@ const buildCategoryRoundDisplayForSkater = async (
         )
     );
 
+    const rounds = (formatted.rounds ?? []).filter(
+        (row) => Number(row?.count) > 0
+    );
+
     return {
-        roundCount: formatted.rounds?.length ?? 0,
-        rounds: formatted.rounds ?? [],
+        roundCount: rounds.length,
+        rounds,
         activeRound: formatted.activeRound ?? null,
         "1st": formatted["1st"],
         "2nd": formatted["2nd"],
@@ -1250,9 +1254,13 @@ const get_skater_results_event_names_repository = async (userId, eventId) => {
             participant,
             category.name
         );
+        const roundCount = roundDisplay.roundCount ?? 0;
+        if (roundCount === 0) {
+            continue;
+        }
         categories.push({
             ...category,
-            roundCount: roundDisplay.roundCount ?? 0,
+            roundCount,
             rounds: roundDisplay.rounds ?? [],
             activeRound: roundDisplay.activeRound ?? null,
             "1st": Boolean(roundDisplay["1st"]),

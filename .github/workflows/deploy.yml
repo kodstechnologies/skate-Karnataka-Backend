@@ -1,4 +1,4 @@
-name: Depoloy Skate-Karnataka-Backend
+name: Deploy Skate-Karnataka-Backend
 
 on:
   push:

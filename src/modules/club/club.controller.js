@@ -217,10 +217,14 @@ const display_all_Club_basedOn_user_district = asyncHandler(async (req, res) => 
         throw new AppError("User not authenticated", 401);
     }
 
-    const { page, limit } = req.query;
+    const rawPage = Array.isArray(req.query.page) ? req.query.page[0] : req.query.page;
+    const rawLimit = Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit;
+    const page = Math.max(1, Number.parseInt(rawPage, 10) || 1);
+    const limit = Math.max(1, Number.parseInt(rawLimit, 10) || 5);
+
     const result = await clubsByUserDistrictService(user, {
         page,
-        limit: limit ?? 5,
+        limit,
     });
 
     return res

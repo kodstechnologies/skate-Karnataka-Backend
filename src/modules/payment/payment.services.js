@@ -8,8 +8,8 @@ import { Event } from "../event/event.model.js";
 import { createRegisterFormRepository } from "../event/event.repositories.js";
 
 const getRazorpayCredentials = () => {
-    const keyId = process.env.RAZORPAY_KEY_ID;
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    const keyId = String(process.env.RAZORPAY_KEY_ID || "").trim();
+    const keySecret = String(process.env.RAZORPAY_KEY_SECRET || "").trim();
 
     if (!keyId || !keySecret) {
         throw new AppError("Razorpay configuration missing", 500);
@@ -18,8 +18,26 @@ const getRazorpayCredentials = () => {
     return { keyId, keySecret };
 };
 
+const razorpayBasicAuthHeader = (keyId, keySecret) =>
+    `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString("base64")}`;
+
+const throwRazorpayOrderError = (error) => {
+    const status = error?.response?.status;
+    const description = String(error?.response?.data?.error?.description || "").trim();
+
+    if (status === 401 || /authentication failed/i.test(description)) {
+        throw new AppError(
+            "Payment gateway is not configured. Update valid Razorpay keys on the server and try again.",
+            502
+        );
+    }
+
+    throw new AppError(description || "Razorpay order creation failed", 400);
+};
+
 const toPaise = (amount) => {
-    const parsedAmount = Number.parseFloat(amount ?? 0);
+    const cleaned = String(amount ?? "0").replace(/[^0-9.]/g, "").trim();
+    const parsedAmount = Number.parseFloat(cleaned === "" ? "0" : cleaned);
     if (!Number.isFinite(parsedAmount) || parsedAmount < 0) {
         throw new AppError("Invalid event entry fee", 400);
     }
@@ -34,11 +52,7 @@ const buildReceipt = (eventId) => {
 };
 
 const verifySignature = (orderId, paymentId, signature) => {
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
-    if (!keySecret) {
-        throw new AppError("Razorpay configuration missing", 500);
-    }
-
+    const { keySecret } = getRazorpayCredentials();
     const expectedSignature = crypto
         .createHmac("sha256", keySecret)
         .update(`${orderId}|${paymentId}`)
@@ -256,11 +270,14 @@ export const initiateRazorpayPaymentServices = async ({
                     username: keyId,
                     password: keySecret,
                 },
+                headers: {
+                    Authorization: razorpayBasicAuthHeader(keyId, keySecret),
+                },
+                timeout: 15000,
             }
         );
     } catch (error) {
-        const message = error?.response?.data?.error?.description || "Razorpay order creation failed";
-        throw new AppError(message, 400);
+        throwRazorpayOrderError(error);
     }
     const order = response.data;
 
@@ -280,7 +297,7 @@ export const initiateRazorpayPaymentServices = async ({
 
     return {
         isFreeEvent: false,
-        keyId: process.env.RAZORPAY_KEY_ID,
+        keyId,
         amount: order.amount,
         currency: order.currency,
         orderId: order.id,

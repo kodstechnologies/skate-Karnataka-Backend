@@ -2,6 +2,7 @@ import crypto from "crypto";
 import axios from "axios";
 import { AppError } from "../../util/common/AppError.js";
 import { sendNotification } from "../../util/firebase/sendNotification.js";
+import { BaseAuth } from "../auth/baseAuth.model.js";
 import { Payment } from "./payment.model.js";
 import { EventParticipant } from "../event/eventParticipant.model.js";
 import { Event } from "../event/event.model.js";
@@ -18,22 +19,40 @@ const getRazorpayCredentials = () => {
     return { keyId, keySecret };
 };
 
-const razorpayBasicAuthHeader = (keyId, keySecret) =>
-    `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString("base64")}`;
-
 const throwRazorpayOrderError = (error) => {
     const status = error?.response?.status;
     const description = String(error?.response?.data?.error?.description || "").trim();
+    console.error("Razorpay order failed:", status || error?.message, description);
 
     if (status === 401 || /authentication failed/i.test(description)) {
         throw new AppError(
-            "Payment gateway is not configured. Update valid Razorpay keys on the server and try again.",
+            "Razorpay keys are invalid or revoked. Put new Key Id and Key Secret in .env (Dashboard → Account & Settings → API Keys) and restart the server. Test keys only work with Razorpay test cards, not real UPI.",
             502
         );
     }
 
     throw new AppError(description || "Razorpay order creation failed", 400);
 };
+
+const pickVerifyFields = (payload = {}) => ({
+    razorpay_order_id:
+        payload.razorpay_order_id ||
+        payload.razorpayOrderId ||
+        payload.orderId ||
+        payload.order_id ||
+        "",
+    razorpay_payment_id:
+        payload.razorpay_payment_id ||
+        payload.razorpayPaymentId ||
+        payload.paymentId ||
+        payload.payment_id ||
+        "",
+    razorpay_signature:
+        payload.razorpay_signature ||
+        payload.razorpaySignature ||
+        payload.signature ||
+        "",
+});
 
 const toPaise = (amount) => {
     const cleaned = String(amount ?? "0").replace(/[^0-9.]/g, "").trim();
@@ -209,7 +228,7 @@ export const initiateRazorpayPaymentServices = async ({
         throw new AppError("Already registered for this event", 400);
     }
 
-    const event = await Event.findById(resolvedEventId).select("entryFee").lean();
+    const event = await Event.findById(resolvedEventId).select("entryFee header").lean();
     if (!event) {
         throw new AppError("Event not found", 404);
     }
@@ -270,9 +289,6 @@ export const initiateRazorpayPaymentServices = async ({
                     username: keyId,
                     password: keySecret,
                 },
-                headers: {
-                    Authorization: razorpayBasicAuthHeader(keyId, keySecret),
-                },
                 timeout: 15000,
             }
         );
@@ -295,21 +311,37 @@ export const initiateRazorpayPaymentServices = async ({
         { new: true, upsert: true, setDefaultsOnInsert: true }
     );
 
+    const payer = resolvedUserId
+        ? await BaseAuth.findById(resolvedUserId).select("fullName phone email").lean()
+        : null;
+
     return {
         isFreeEvent: false,
         keyId,
+        key: keyId,
         amount: order.amount,
+        amountPaise: order.amount,
+        amountRupees: order.amount / 100,
         currency: order.currency,
         orderId: order.id,
+        order_id: order.id,
+        razorpayOrderId: order.id,
+        name: "KRSA",
+        description: event.header || "Event registration",
+        prefill: {
+            name: payer?.fullName || "",
+            contact: payer?.phone || "",
+            email: payer?.email || "",
+        },
+        isTestMode: keyId.startsWith("rzp_test_"),
     };
 };
 
-export const verifyRazorpayPaymentServices = async ({
-    userId,
-    razorpay_order_id,
-    razorpay_payment_id,
-    razorpay_signature,
-}) => {
+export const verifyRazorpayPaymentServices = async (payload = {}) => {
+    const userId = payload.userId;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
+        pickVerifyFields(payload);
+
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
         throw new AppError("Payment verification fields are required", 400);
     }

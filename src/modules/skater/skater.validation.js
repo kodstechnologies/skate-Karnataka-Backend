@@ -28,7 +28,7 @@ const afterLoginSkaterFormValidation = {
                 "string.pattern.base": "Please enter a valid 12-digit Aadhaar number",
                 "string.empty": "Aadhaar number is required",
             }),
-        
+
 
         gender: Joi.string()
             .valid("male", "female", "other")
@@ -43,8 +43,18 @@ const afterLoginSkaterFormValidation = {
 
         address: Joi.string().max(200),
 
-        district: Joi.string(), // ObjectId (string)
-        club: Joi.string(),     // ObjectId (string)
+        // district: Joi.string(), // ObjectId (string)
+        // club: Joi.string(),     // ObjectId (string)
+
+        district: Joi.string().required().messages({
+            "string.empty": "District is required",
+            "any.required": "District is required",
+        }),
+
+        club: Joi.string().required().messages({
+            "string.empty": "Club is required",
+            "any.required": "Club is required",
+        }),
 
         parent: Joi.string(),
 

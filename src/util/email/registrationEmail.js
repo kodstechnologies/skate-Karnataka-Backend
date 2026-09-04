@@ -1,4 +1,4 @@
-import { sendMail } from "../otp/emailOtp.js";
+import { sendMail } from "../../services/email/email.service.js";
 
 const escapeHtml = (value) =>
     String(value ?? "")

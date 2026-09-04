@@ -1,4 +1,4 @@
-import { sendMail } from "../otp/emailOtp.js";
+import { sendMail } from "../../services/email/email.service.js";
 import { formatDate } from "../time/timeUtil.js";
 
 const escapeHtml = (value) =>

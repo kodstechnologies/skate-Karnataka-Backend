@@ -1,4 +1,4 @@
-import { sendMail } from "../otp/emailOtp.js";
+import { sendMail } from "../../services/email/email.service.js";
 import { formatDob } from "../time/timeUtil.js";
 import mongoose from "mongoose";
 import { District } from "../../modules/district/district.model.js";

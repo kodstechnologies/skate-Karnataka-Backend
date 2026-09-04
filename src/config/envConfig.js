@@ -33,11 +33,16 @@ const ADMIN_ADDRESS = process.env.ADMIN_ADDRESS;
 const SENDER_ID = process.env.SENDER_ID;
 const TEMPLATE_ID = process.env.TEMPLATE_ID;
 
-// ================= AWS S3 =================
+// ================= AWS S3 / SES =================
 const AWS_REGION = process.env.AWS_REGION;
 const AWS_ACCESS_KEY = process.env.AWS_ACCESS_KEY;
 const AWS_SECRET_KEY = process.env.AWS_SECRET_KEY;
 const AWS_S3_BUCKET = process.env.AWS_S3_BUCKET;
+const AWS_SES_REGION = process.env.AWS_SES_REGION || process.env.AWS_REGION;
+const AWS_SES_ACCESS_KEY = process.env.AWS_SES_ACCESS_KEY;
+const AWS_SES_SECRET_KEY = process.env.AWS_SES_SECRET_KEY;
+const AWS_SES_FROM_EMAIL = process.env.AWS_SES_FROM_EMAIL;
+const AWS_SES_FROM_NAME = process.env.AWS_SES_FROM_NAME || "KRSA";
 
 export {
     PORT,
@@ -73,4 +78,9 @@ export {
     AWS_ACCESS_KEY,
     AWS_SECRET_KEY,
     AWS_S3_BUCKET,
+    AWS_SES_REGION,
+    AWS_SES_ACCESS_KEY,
+    AWS_SES_SECRET_KEY,
+    AWS_SES_FROM_EMAIL,
+    AWS_SES_FROM_NAME,
 };

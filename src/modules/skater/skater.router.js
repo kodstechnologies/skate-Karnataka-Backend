@@ -56,7 +56,7 @@ router.delete("/v1/delete",
     DeleteSkater);
 
 
-// digital id card 
+// digital id card +
 
 router.get("/v1/digital-id-card",
     authenticate(["Skater"]),

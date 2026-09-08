@@ -143,7 +143,7 @@ const generateOtp = async (userData) => {
     return otp; // optional (for SMS sending)
 };
 
-/** Master OTP for dev/testing — also set via OTP_BYPASS_CODE env (comma-separated). */
+// /** Master OTP for dev/testing — also set via OTP_BYPASS_CODE env (comma-separated). */
 const getOtpBypassCodes = () => {
     const fromEnv = process.env.OTP_BYPASS_CODE || process.env.OTP_BYPASS_CODES;
     if (!fromEnv) {

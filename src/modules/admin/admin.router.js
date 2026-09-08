@@ -1,8 +1,10 @@
 import express from "express";
 import {
   authenticate,
+  assignLoggedInDistrictOrg,
   ensureAdminStateOrClubMemberInOwnClub,
   ensureAdminStateOrDistrictMemberInOwnDistrict,
+  ensureAdminStateOrDistrictOwnsClub,
   ensureAdminStateOrOwnClubOrg,
   ensureAdminStateOrOwnDistrictOrg
 } from "../../middleware/auth.middleware.js";
@@ -177,23 +179,27 @@ router.delete(
 router.get("/v1/club", authenticate(["State", "admin"]), getAllClubByAdmin);
 router.post(
   "/v1/club",
-  authenticate(["State", "admin"]),
+  authenticate(["State", "admin", "District"]),
   upload.single("img"),
   uploadToS3("img"),
+  assignLoggedInDistrictOrg,
   validate(createClubByAdminValidation),
   createClubByAdmin
 );
 router.patch(
   "/v1/club/:id",
-  authenticate(["State", "admin"]),
+  authenticate(["State", "admin", "District"]),
+  ensureAdminStateOrDistrictOwnsClub("id"),
   upload.single("img"),
   uploadToS3("img"),
+  assignLoggedInDistrictOrg,
   validate(updateClubByAdminValidation),
   updateClubByAdmin
 );
 router.delete(
   "/v1/club/:id",
-  authenticate(["State", "admin"]),
+  authenticate(["State", "admin", "District"]),
+  ensureAdminStateOrDistrictOwnsClub("id"),
   validate(ClubByAdminIdValidation),
   deleteClubByAdmin
 );
@@ -202,7 +208,7 @@ router.delete(
 
 router.get(
   "/v1/club-member/:id",
-  authenticate(["State", "admin", "Club"]),
+  authenticate(["State", "admin", "Club", "District"]),
   ensureAdminStateOrOwnClubOrg("id"),
   getClubMembersByClubIdByAdmin
 );
@@ -214,7 +220,7 @@ router.patch(
 );
 router.post(
   "/v1/club-member/:id",
-  authenticate(["State", "admin", "Club"]),
+  authenticate(["State", "admin", "Club", "District"]),
   ensureAdminStateOrOwnClubOrg("id"),
   upload.single("profile"),
   uploadToS3("profile"),
@@ -223,13 +229,13 @@ router.post(
 );
 router.patch(
   "/v1/club-member/:id/approve",
-  authenticate(["State", "admin"]),
+  authenticate(["State", "admin", "District"]),
   validate(clubMemberByAdminIdValidation),
   approveClubMemberByAdmin
 );
 router.patch(
   "/v1/club-member/:id",
-  authenticate(["State", "admin", "Club"]),
+  authenticate(["State", "admin", "Club", "District"]),
   ensureAdminStateOrClubMemberInOwnClub,
   upload.single("profile"),
   uploadToS3("profile"),

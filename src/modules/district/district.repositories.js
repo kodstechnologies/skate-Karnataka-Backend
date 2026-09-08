@@ -305,7 +305,7 @@ const singleDistrictSkatersRepository = async (id) => {
   };
 };
 
-const districtTotalClubsRepository = async (id, { page, limit }) => {
+const districtTotalClubsRepository = async (id, { page, limit, search }) => {
 
   const districtUser = await BaseAuth.findById(id).select("district");
 
@@ -322,7 +322,19 @@ const districtTotalClubsRepository = async (id, { page, limit }) => {
   }
 
   const clubIds = district.club || [];
-  const totalClubs = clubIds.length;
+  const normalizedSearch = String(search || "").trim();
+  const clubFilter = { _id: { $in: clubIds } };
+
+  if (normalizedSearch) {
+    const escaped = normalizedSearch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    clubFilter.$or = [
+      { name: { $regex: escaped, $options: "i" } },
+      { clubId: { $regex: escaped, $options: "i" } },
+      { officeAddress: { $regex: escaped, $options: "i" } },
+    ];
+  }
+
+  const totalClubs = await Club.countDocuments(clubFilter);
 
   const {
     skip,
@@ -330,10 +342,8 @@ const districtTotalClubsRepository = async (id, { page, limit }) => {
     page: currentPage
   } = paginate(page, limit);
 
-  const clubs = await Club.find({
-    _id: { $in: clubIds }
-  })
-    .select("_id name officeAddress img clubId")
+  const clubs = await Club.find(clubFilter)
+    .select("_id name officeAddress img clubId districtName districtStatus about members")
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(pageLimit)
@@ -368,7 +378,11 @@ const districtTotalClubsRepository = async (id, { page, limit }) => {
     img: club.img,
     address: club.officeAddress || "",
     officeAddress: club.officeAddress || "",
+    about: club.about || "",
+    districtName: club.districtName || district.name || "",
+    districtStatus: club.districtStatus || "",
     skaters: skaterCountByClub.get(String(club._id)) ?? 0,
+    memberCount: Array.isArray(club.members) ? club.members.length : 0,
   }));
 
   return {
@@ -391,8 +405,39 @@ const districtTotalClubsRepository = async (id, { page, limit }) => {
   };
 };
 
-const districtTotalSkatersRepository = async (id, { page, limit }) => {
+const buildDistrictSkaterQuery = (district, search = "") => {
+  const clubIds = district.club || [];
+  const orConditions = [{ district: district._id }];
+  if (clubIds.length) {
+    orConditions.push({ club: { $in: clubIds } });
+  }
 
+  const query = {
+    role: "Skater",
+    $or: orConditions,
+  };
+
+  const normalizedSearch = String(search || "").trim();
+  if (normalizedSearch) {
+    const escaped = normalizedSearch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const rx = { $regex: escaped, $options: "i" };
+    query.$and = [
+      {
+        $or: [
+          { fullName: rx },
+          { krsaId: rx },
+          { phone: rx },
+          { email: rx },
+          { address: rx },
+        ],
+      },
+    ];
+  }
+
+  return query;
+};
+
+const districtTotalSkatersRepository = async (id, { page, limit, search }) => {
   const districtUser = await BaseAuth.findById(id)
     .select("district")
     .lean();
@@ -409,11 +454,7 @@ const districtTotalSkatersRepository = async (id, { page, limit }) => {
     throw new AppError("District not found", 404);
   }
 
-  const clubIds = district.club || [];
-
-  const query = {
-    club: { $in: clubIds }
-  };
+  const query = buildDistrictSkaterQuery(district, search);
 
   const {
     skip,
@@ -421,33 +462,40 @@ const districtTotalSkatersRepository = async (id, { page, limit }) => {
     page: currentPage
   } = paginate(page, limit);
 
-  const skaters = await Skater.find(query)
-    .select("_id krsaId fullName address photo club")
-    .populate("club", "_id name")
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(pageLimit)
-    .lean();
-
-  const totalSkaters = await Skater.countDocuments(query);
+  const [skaters, totalSkaters] = await Promise.all([
+    Skater.find(query)
+      .select("_id krsaId fullName address photo club phone email gender")
+      .populate("club", "_id name")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(pageLimit)
+      .lean(),
+    Skater.countDocuments(query),
+  ]);
 
   return {
+    district: {
+      id: district._id,
+      name: district.name || "",
+    },
     data: skaters.map((skater) => ({
-
+      id: skater._id,
       skaterId: skater._id || "",
       krsaId: skater.krsaId || "",
       img: skater.photo || "",
       name: skater.fullName || "",
+      phone: skater.phone || "",
+      email: skater.email || "",
+      gender: skater.gender || "",
       address: skater.address || "",
-      clubName: skater.club?.name || ""
+      clubName: skater.club?.name || "",
     })),
-
     pagination: {
       total: totalSkaters,
       page: currentPage,
       limit: pageLimit,
-      totalPages: Math.ceil(totalSkaters / pageLimit)
-    }
+      totalPages: calcTotalPages(totalSkaters, pageLimit),
+    },
   };
 };
 
@@ -774,11 +822,10 @@ const districtClubSkatersRepository = async (districtMemberId, clubId, { page, l
   };
 };
 
-const districtClubDetailsRepository = async ({ clubId }) => {
-
+const districtClubDetailsRepository = async ({ clubId, districtMemberId }) => {
   const club = await Club.findById(clubId)
     .select(
-      "_id clubId name address about districtStatus"
+      "_id clubId name img officeAddress about district districtName districtStatus"
     )
     .lean();
 
@@ -789,49 +836,82 @@ const districtClubDetailsRepository = async ({ clubId }) => {
     );
   }
 
+  if (districtMemberId) {
+    const districtUser = await BaseAuth.findById(districtMemberId).select("district").lean();
+    if (!districtUser?.district || String(club.district) !== String(districtUser.district)) {
+      throw new AppError("Club is not affiliated with this district", 403);
+    }
+  }
+
   const totalSkaters = await Skater.countDocuments({
     club: club._id,
     clubStatus: "join"
   });
 
   return {
+    _id: club._id,
     clubId: club.clubId || String(club._id),
     name: club.name || "",
-    officeAddress: club.address || "",
+    img: club.img || "",
+    officeAddress: club.officeAddress || "",
     about: club.about || "",
+    district: club.district || "",
+    districtName: club.districtName || "",
     totalSkaters,
     districtStatus: club.districtStatus || ""
   };
 };
 
-const displaySkaterDetailsRepository = async (skaterId) => {
-
-  const skater = await BaseAuth.findById(skaterId)
-    .select(
-      "_id fullName photo address krsaId"
-    )
+const displaySkaterDetailsRepository = async (skaterId, districtMemberId) => {
+  const districtUser = await BaseAuth.findById(districtMemberId)
+    .select("district")
     .lean();
 
-  if (!skater) {
-    throw new AppError(
-      "Skater not found",
-      404
-    );
+  if (!districtUser?.district) {
+    throw new AppError("District Id not found in user", 404);
+  }
+
+  const district = await District.findById(districtUser.district)
+    .select("_id name club")
+    .lean();
+
+  if (!district) {
+    throw new AppError("District not found", 404);
+  }
+
+  const skater = await Skater.findById(skaterId)
+    .select("_id fullName photo address krsaId phone email gender club district role")
+    .populate("club", "_id name")
+    .lean();
+
+  if (!skater || String(skater.role || "Skater") !== "Skater") {
+    throw new AppError("Skater not found", 404);
+  }
+
+  const belongsToDistrict =
+    String(skater.district || "") === String(district._id) ||
+    (district.club || []).some((id) => String(id) === String(skater.club?._id || skater.club || ""));
+
+  if (!belongsToDistrict) {
+    throw new AppError("Skater is not affiliated with this district", 403);
   }
 
   return {
+    id: skater._id,
     name: skater.fullName || "",
     img: skater.photo || "",
     krsaId: skater.krsaId || "",
-
+    phone: skater.phone || "",
+    email: skater.email || "",
+    gender: skater.gender || "",
+    clubName: skater.club?.name || "",
+    districtName: district.name || "",
     address: skater.address || "Address not available",
-
     districtRank: 0,
     stateRank: 0,
-
     gold: 0,
     silver: 0,
-    bronze: 0
+    bronze: 0,
   };
 };
 
@@ -858,10 +938,9 @@ export const displayDashboardDataRepository = async (id) => {
   // Approved clubs
   const totalClubs = clubIds.length;
 
-  // Skaters
-  const totalSkaters = await Skater.countDocuments({
-    club: { $in: clubIds }
-  });
+  const totalSkaters = await Skater.countDocuments(
+    buildDistrictSkaterQuery(district)
+  );
 
   // Pending club approvals (applied to this district)
   const pendingApprovals = await Club.countDocuments({

@@ -2,6 +2,16 @@ import mongoose from "mongoose";
 import { BaseAuth } from "../auth/baseAuth.model.js";
 
 const skaterSchema = new mongoose.Schema({
+  // Override BaseAuth phone — skaters (children) may share parent's phone,
+  // so phone is optional at the discriminator level.
+  phone: {
+    type: String,
+    trim: true,
+    required: false,
+    match: [/^[6-9]\d{9}$/, "Invalid Indian phone number"],
+    default: undefined,
+  },
+
   photo: {
     type: String,
     default: "",

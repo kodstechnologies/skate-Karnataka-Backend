@@ -81,20 +81,20 @@ const singleDistrictSkatersService = async (id) => {
     return await singleDistrictSkatersRepository(id);
 };
 
-const displayTotalClubsService = async (districtId, { page, limit }) => {
+const displayTotalClubsService = async (districtId, { page, limit, search }) => {
     if (!districtId) {
         throw new AppError("districtId is required", 400);
     }
 
-    return await districtTotalClubsRepository(districtId, { page, limit });
+    return await districtTotalClubsRepository(districtId, { page, limit, search });
 };
 
-const displayTotalSkatersService = async (districtId, { page, limit }) => {
+const displayTotalSkatersService = async (districtId, { page, limit, search }) => {
     if (!districtId) {
         throw new AppError("districtId is required", 400);
     }
 
-    return await districtTotalSkatersRepository(districtId, { page, limit });
+    return await districtTotalSkatersRepository(districtId, { page, limit, search });
 };
 
 const displayAllApplyService = async (districtMemberId, { page, limit }) => {
@@ -121,12 +121,12 @@ const districtUnLinkClubService = async ({ districtMemberId, clubId }) => {
     return await districtUnLinkClubRepository({ districtMemberId, clubId });
 };
 
-const districtClubDetailsService = async ({ clubId }) => {
+const districtClubDetailsService = async ({ clubId, districtMemberId }) => {
     if (!clubId) {
         throw new AppError("district member id and club id are required", 400);
     }
 
-    return await districtClubDetailsRepository({ clubId });
+    return await districtClubDetailsRepository({ clubId, districtMemberId });
 };
 
 const districtClubSkatersService = async (districtMemberId, clubId, { page, limit }) => {
@@ -137,12 +137,11 @@ const districtClubSkatersService = async (districtMemberId, clubId, { page, limi
     return await districtClubSkatersRepository(districtMemberId, clubId, { page, limit });
 };
 
-const displaySkaterDetailsService = async (skaterId) => {
+const displaySkaterDetailsService = async (skaterId, districtMemberId) => {
     if (!skaterId) {
         throw new AppError("skater id is required", 400);
     }
-    console.log(skaterId, "skaterId====")
-    return await displaySkaterDetailsRepository(skaterId);
+    return await displaySkaterDetailsRepository(skaterId, districtMemberId);
 };
 
 export const displayDashboardData = async (districtId) => {

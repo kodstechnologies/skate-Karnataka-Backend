@@ -19,8 +19,9 @@ const BaseAuthSchema = new mongoose.Schema(
     },
     phone: {
       type: String,
-      required: true,
+      required: false,
       unique: true,
+      sparse: true,
       index: true,
       trim: true,
       match: [/^[6-9]\d{9}$/, "Invalid Indian phone number"],
@@ -170,8 +171,12 @@ BaseAuth.on("index", async () => {
           idx.name === "district_1_name_1" ||
           (Object.prototype.hasOwnProperty.call(key, "name") &&
             Object.prototype.hasOwnProperty.call(key, "district"));
+        // Drop old non-sparse phone index so the new sparse one takes effect
+        const isNonSparsePhoneIndex =
+          (idx.name === "phone_1" || Object.keys(key).join(",") === "phone") &&
+          !idx.sparse;
 
-        return isClubIdIndex || isNameDistrictIndex;
+        return isClubIdIndex || isNameDistrictIndex || isNonSparsePhoneIndex;
       })
       .map((idx) => idx.name)
       .filter(Boolean);

@@ -156,6 +156,55 @@ export const ensureAdminStateOrOwnClubOrg = (paramName = "id") =>
       }
       return next(new AppError("Forbidden: You can only access your own club", 403));
     }
+    if (role === "district") {
+      const user = await BaseAuth.findById(req.user._id).select("district").lean();
+      const paramId = String(req.params[paramName] || "").trim();
+      if (!user?.district) {
+        return next(new AppError("District not found", 404));
+      }
+      const club = await Club.findById(paramId).select("district").lean();
+      if (club && String(club.district) === String(user.district)) {
+        return next();
+      }
+      return next(new AppError("Forbidden: You can only access clubs in your district", 403));
+    }
+    return next(new AppError("Forbidden: Insufficient permissions", 403));
+  });
+
+/** District users: always write clubs under their own district org (not member _id). */
+export const assignLoggedInDistrictOrg = asyncHandler(async (req, res, next) => {
+  const role = (req.user?.role || "").toLowerCase();
+  if (role !== "district") {
+    return next();
+  }
+  const user = await BaseAuth.findById(req.user._id).select("district").lean();
+  if (!user?.district) {
+    return next(new AppError("District Id not found in user", 404));
+  }
+  req.body = { ...(req.body || {}), district: String(user.district) };
+  next();
+});
+
+export const ensureAdminStateOrDistrictOwnsClub = (paramName = "id") =>
+  asyncHandler(async (req, res, next) => {
+    const role = (req.user?.role || "").toLowerCase();
+    if (role === "admin" || role === "state") {
+      return next();
+    }
+    if (role === "district") {
+      const user = await BaseAuth.findById(req.user._id).select("district").lean();
+      if (!user?.district) {
+        return next(new AppError("District not found", 404));
+      }
+      const club = await Club.findById(req.params[paramName]).select("district").lean();
+      if (!club) {
+        return next(new AppError("Club not found", 404));
+      }
+      if (String(club.district) !== String(user.district)) {
+        return next(new AppError("Forbidden: Club is not in your district", 403));
+      }
+      return next();
+    }
     return next(new AppError("Forbidden: Insufficient permissions", 403));
   });
 
@@ -192,6 +241,23 @@ export const ensureAdminStateOrClubMemberInOwnClub = asyncHandler(async (req, re
       return next();
     }
     return next(new AppError("Forbidden: You can only manage your club members", 403));
+  }
+  if (role === "district") {
+    const memberId = String(req.params.id || "").trim();
+    const user = await BaseAuth.findById(req.user._id).select("district").lean();
+    if (!user?.district) {
+      return next(new AppError("District not found", 404));
+    }
+    const club = await Club.findOne({
+      members: memberId,
+      district: user.district,
+    })
+      .select("_id")
+      .lean();
+    if (club) {
+      return next();
+    }
+    return next(new AppError("Forbidden: You can only manage members of clubs in your district", 403));
   }
   return next(new AppError("Forbidden: Insufficient permissions", 403));
 });

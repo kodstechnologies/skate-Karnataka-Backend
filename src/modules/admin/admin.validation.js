@@ -188,8 +188,7 @@ export const createClubByAdminValidation = {
       "any.required": "Club name is required",
       "string.empty": "Club name is required",
     }),
-    district: Joi.string().trim().required().messages({
-      "any.required": "District id is required",
+    district: Joi.string().trim().allow("").optional().messages({
       "string.empty": "District id is required",
     }),
     img: Joi.string().uri().allow("").optional().messages({

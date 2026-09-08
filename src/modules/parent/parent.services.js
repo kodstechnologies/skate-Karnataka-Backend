@@ -202,17 +202,29 @@ const getUniqueEmailForSkater = async ({
     preferredEmail,
     skaterFullName,
     parentId,
+    parentEmail,
     batchUsedEmails,
 }) => {
     const normalizedPreferredEmail = normalizeEmail(preferredEmail);
+    const normalizedParentEmail = normalizeEmail(parentEmail);
+
     if (normalizedPreferredEmail) {
+        // Allow same email as parent — parent and child may share contact details
+        const isParentOwnEmail = normalizedParentEmail && normalizedParentEmail === normalizedPreferredEmail;
+
+        if (isParentOwnEmail) {
+            // Don't add to batchUsedEmails — parent email can be reused by multiple children
+            return normalizedPreferredEmail;
+        }
+
         if (batchUsedEmails.has(normalizedPreferredEmail)) {
             throw new AppError("Skater email already exists", 409);
         }
-        const existingPreferredEmailUser = await findUserByPhoneOrEmailRepositories({
+        const existingUser = await findUserByPhoneOrEmailRepositories({
             email: normalizedPreferredEmail,
+            excludeId: parentId,
         });
-        if (existingPreferredEmailUser) {
+        if (existingUser) {
             throw new AppError("Skater email already exists", 409);
         }
         batchUsedEmails.add(normalizedPreferredEmail);
@@ -242,7 +254,7 @@ const getUniqueEmailForSkater = async ({
             : `${localPart}+${attempt}@${domainPart}`;
         const inBatch = batchUsedEmails.has(candidate);
         if (!inBatch) {
-            const existing = await findUserByPhoneOrEmailRepositories({ email: candidate });
+            const existing = await findUserByPhoneOrEmailRepositories({ email: candidate, excludeId: parentId });
             if (!existing) {
                 batchUsedEmails.add(candidate);
                 return candidate;
@@ -256,6 +268,7 @@ const getUniqueEmailForSkater = async ({
 
 const getUniquePhoneForSkater = async ({
     preferredPhone,
+    parentPhone,
     index,
 }) => {
     const normalizedSkaterPhone = toTrimmedString(preferredPhone);
@@ -285,22 +298,29 @@ const createSkatersForParent = async (skatersInput = [], parentContext = {}) => 
         const validated = validateSkaterPayload(skatersInput[index], index);
         const skaterPhone = await getUniquePhoneForSkater({
             preferredPhone: validated.phone,
+            parentPhone: parentContext.phone,
             index,
         });
         const skaterEmail = await getUniqueEmailForSkater({
             preferredEmail: validated.email,
             skaterFullName: validated.fullName,
             parentId: parentContext.id,
+            parentEmail: parentContext.email,
             batchUsedEmails,
         });
+
+        const isSameEmailAsParent = skaterEmail && normalizeEmail(parentContext.email) === normalizeEmail(skaterEmail);
+        const isSamePhoneAsParent = skaterPhone && toTrimmedString(parentContext.phone) === toTrimmedString(skaterPhone);
 
         try {
             const created = await Skater.create({
                 role: "Skater",
                 verify: true,
                 fullName: validated.fullName,
-                phone: skaterPhone,
-                email: skaterEmail,
+                // Omit phone/email when they match the parent to avoid unique-index conflict.
+                // The parent's contact info already represents this child.
+                phone: isSamePhoneAsParent ? undefined : skaterPhone,
+                email: isSameEmailAsParent ? undefined : skaterEmail,
                 rsfiId: validated.rsfiId,
                 gender: validated.gender || undefined,
                 dob: validated.dob,
@@ -390,6 +410,7 @@ const afterLoginFormParentService = async (data, id) => {
         id,
         fullName: updatedParent.fullName || existingParent.fullName,
         phone: updatedParent.phone || existingParent.phone,
+        email: updatedParent.email || existingParent.email,
     });
 
     if (createdSkaterIds.length !== skatersInput.length) {

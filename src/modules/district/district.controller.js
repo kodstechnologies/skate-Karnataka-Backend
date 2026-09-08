@@ -115,8 +115,8 @@ const displaySingleDistrictMembers = asyncHandler(async (req, res) => {
 
 const displayTotalClubs = asyncHandler(async (req, res) => {
   const districtId = req.user?._id;
-  const { page = 1, limit = 10 } = req.query;
-  const clubsData = await displayTotalClubsService(districtId, { page, limit });
+  const { page = 1, limit = 10, search = "" } = req.query;
+  const clubsData = await displayTotalClubsService(districtId, { page, limit, search });
 
   return res.status(200).json(
     new ApiResponse(200, clubsData, "District clubs fetched successfully")
@@ -125,8 +125,8 @@ const displayTotalClubs = asyncHandler(async (req, res) => {
 
 const displayTotalSkater = asyncHandler(async (req, res) => {
   const districtId = req.user?._id;
-  const { page = 1, limit = 10 } = req.query;
-  const skaterData = await displayTotalSkatersService(districtId, { page, limit });
+  const { page = 1, limit = 10, search = "" } = req.query;
+  const skaterData = await displayTotalSkatersService(districtId, { page, limit, search });
 
   return res.status(200).json(
     new ApiResponse(200, skaterData, "District skaters fetched successfully")
@@ -162,7 +162,10 @@ export const displayApplyAllClub = asyncHandler(async (req, res) => {
 
 const districtClubDetails = asyncHandler(async (req, res) => {
   const { id: clubId } = req.params;
-  const result = await districtClubDetailsService({  clubId });
+  const result = await districtClubDetailsService({
+    clubId,
+    districtMemberId: req.user?._id,
+  });
 
   return res.status(200).json(
     new ApiResponse(200, result, "Club details fetched successfully")
@@ -185,8 +188,7 @@ const displayDistrictClubSkaters = asyncHandler(async (req, res) => {
 
 const displaySkaterDetails = asyncHandler(async (req, res) => {
   const { id: skaterId } = req.params;
-  console.log(skaterId,"skaterId====")
-  const result = await displaySkaterDetailsService(skaterId);
+  const result = await displaySkaterDetailsService(skaterId, req.user?._id);
 
   return res.status(200).json(
     new ApiResponse(200, result, "Skater details fetched successfully")

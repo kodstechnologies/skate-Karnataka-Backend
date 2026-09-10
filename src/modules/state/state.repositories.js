@@ -301,7 +301,7 @@ export const stateDashboardRepository = async (user) => {
       )
       .lean(),
     Skater.aggregate([
-      { $match: { discipline: { $ne: null }, isActive: { $ne: false } } },
+      { $match: { discipline: { $ne: null, $type: "objectId" }, isActive: { $ne: false } } },
       { $group: { _id: "$discipline", count: { $sum: 1 } } },
       { $sort: { count: -1 } },
       { $limit: 6 },
@@ -355,7 +355,13 @@ export const stateDashboardRepository = async (user) => {
   const skaterGrowthLabel =
     skaterGrowth > 0 ? `+${skaterGrowth}` : skaterGrowth < 0 ? `${skaterGrowth}` : "0";
 
-  const disciplineIds = disciplineAgg.map((item) => item._id).filter(Boolean);
+  const disciplineIds = disciplineAgg
+    .map((item) => item._id)
+    .filter((id) => {
+      if (!id) return false;
+      // Only keep valid 24-char hex ObjectId strings
+      return /^[0-9a-fA-F]{24}$/.test(String(id));
+    });
   const disciplineDocs = disciplineIds.length
     ? await DisciplineService.find({ _id: { $in: disciplineIds } })
         .select("name")

@@ -286,7 +286,7 @@ router.get("/v1/display-latest-about", displayLatestAbout);
 router.get("/v1/display-about-guest", displayAboutGuest);
 router.post(
   "/v1/guest-about",
-  authenticate(["Skater", "Admin"]),
+  authenticate(["State", "Admin", "admin"]),
   upload.fields([
     { name: "logo", maxCount: 1 },
     { name: "img", maxCount: 20 },
@@ -297,7 +297,7 @@ router.post(
 );
 router.patch(
   "/v1/guest-about",
-  authenticate(["Skater", "Admin"]),
+  authenticate(["State", "Admin", "admin"]),
   upload.fields([
     { name: "logo", maxCount: 1 },
     { name: "img", maxCount: 20 },
@@ -308,7 +308,7 @@ router.patch(
 );
 router.delete(
   "/v1/guest-about",
-  authenticate(["Skater", "Admin"]),
+  authenticate(["State", "Admin", "admin"]),
   deleteAbout
 );
 

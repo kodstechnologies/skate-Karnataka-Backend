@@ -27,14 +27,15 @@ export const isAdminRole = (role) => {
   return normalized === "admin" || normalized === "superadmin";
 };
 
-/** State media is approved by Admin only; club/district by Admin or State. */
+/** State media is approved by Admin only; club/district by Admin, State, or District. */
 export const canReviewerApproveMediaOwner = (ownerType, reviewerRole) => {
   const type = String(ownerType || "").trim().toLowerCase();
   const role = String(reviewerRole || "").trim().toLowerCase();
   if (type === "state") {
     return isAdminRole(role);
   }
-  return isStateOrAdminRole(role);
+  // Club and District media can be approved by Admin, State, or District
+  return isStateOrAdminRole(role) || role === "district";
 };
 
 export const initialMediaApprovalStatus = (ownerType, uploaderRole) => {

@@ -25,7 +25,7 @@ router.get("/v1/based-on-skater", authenticate(["Skater"]),  displayAllMediaBase
 router.get("/v1/all", authenticate(["Admin","State"]),  displayAllMedia);
 router.get(
   "/v1/admin/pending",
-  authenticate(["Admin", "State"]),
+  authenticate(["Admin", "State", "District"]),
   displayPendingMediaForAdmin
 );
 router.get("/v1", authenticate(["Admin","Club", "District", "State"]),basedOnRoleDisplay)
@@ -46,22 +46,22 @@ router.delete("/v1/:id", authenticate(["Admin","Club", "District", "State"]), de
 
 router.patch(
   "/v1/admin/media/:id/approve",
-  authenticate(["Admin", "State"]),
+  authenticate(["Admin", "State", "District"]),
   approveMediaByAdmin
 );
 router.patch(
   "/v1/admin/media/:id/reject",
-  authenticate(["Admin", "State"]),
+  authenticate(["Admin", "State", "District"]),
   rejectMediaByAdmin
 );
 router.patch(
   "/v1/admin/media/:id/approve-delete",
-  authenticate(["Admin", "State"]),
+  authenticate(["Admin", "State", "District"]),
   approveMediaDeleteByAdmin
 );
 router.patch(
   "/v1/admin/media/:id/reject-delete",
-  authenticate(["Admin", "State"]),
+  authenticate(["Admin", "State", "District"]),
   rejectMediaDeleteByAdmin
 );
 

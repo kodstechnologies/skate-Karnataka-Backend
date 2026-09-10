@@ -1208,6 +1208,72 @@ export const createRegisterFormService = async (userId, payload) => {
     };
 };
 
+export const createFreeEventRegisterFormService = async (userId, payload) => {
+    const skater = await Skater.findById(userId).select("fullName club clubStatus").lean();
+    if (!skater) throw new AppError("Skater not found", 404);
+
+    if (!skater.club || skater.clubStatus !== "join") {
+        throw new AppError("You must be a member of a club to register for an event", 400);
+    }
+
+    const event = await Event.findById(payload.eventId).select("entryFee header").lean();
+    if (!event) throw new AppError("Event not found", 404);
+
+    const amountInPaise = Math.round(
+        Number(String(event.entryFee || "0").replace(/[^0-9.]/g, "")) * 100
+    );
+    if (amountInPaise > 0) {
+        throw new AppError(
+            "This event requires payment. Use the paid registration endpoint.",
+            400
+        );
+    }
+
+    const existingPaid = await EventParticipant.findOne({
+        eventId: payload.eventId,
+        userId,
+        paymentStatus: "paid",
+    }).lean();
+    if (existingPaid) throw new AppError("Already registered for this event", 400);
+
+    const name =
+        (typeof payload.name === "string" ? payload.name.trim() : "") ||
+        skater?.fullName?.trim() ||
+        "";
+
+    const categories = normalizeRegisterFormCategories(payload.categories);
+    if (categories.length === 0) throw new AppError("At least one category is required", 400);
+
+    await EventParticipant.deleteMany({
+        eventId: payload.eventId,
+        userId,
+        paymentStatus: { $in: ["pending", "failed"] },
+    });
+
+    const registrationPayload = {
+        eventId: payload.eventId,
+        userId,
+        name,
+        ageGroup: payload.ageGroup,
+        categories,
+        paymentStatus: "paid",
+    };
+
+    const categoriesId =
+        typeof payload.categoriesId === "string" ? payload.categoriesId.trim() : "";
+    if (categoriesId && mongoose.Types.ObjectId.isValid(categoriesId)) {
+        registrationPayload.categoriesId = categoriesId;
+    }
+
+    const registration = await createRegisterFormRepository(registrationPayload);
+
+    return {
+        registration,
+        registrationComplete: true,
+        message: "Event registered successfully",
+    };
+};
+
 export const applyCertificationBySkaterService = async (participantId, userId) => {
     const { participant, alreadyApplied } = await applyCertificationBySkaterRepository(
         participantId,

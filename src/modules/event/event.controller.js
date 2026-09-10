@@ -50,6 +50,7 @@ import {
   getRegisterDetailsByEventIdService,
   getRegisterFormByIdService,
   getRegisterFormByUserIdService,
+  createFreeEventRegisterFormService,
   stateEventFullDetailsService,
   stateEventResultsService,
   stateEventSkatersSummaryService,
@@ -686,6 +687,21 @@ export const createRegisterForm = asyncHandler(async (req, res) => {
                 201,
                 result,
                 result?.message || "Register form submitted successfully"
+            )
+        );
+});
+
+export const createFreeEventRegisterForm = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+    const result = await createFreeEventRegisterFormService(userId, req.body);
+
+    return res
+        .status(201)
+        .json(
+            new ApiResponse(
+                201,
+                result,
+                result?.message || "Registered successfully"
             )
         );
 });

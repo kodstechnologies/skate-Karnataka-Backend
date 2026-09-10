@@ -25,14 +25,15 @@ export const isAdminRole = (role) => {
   return normalized === "admin" || normalized === "superadmin";
 };
 
-/** State events are approved by Admin only; club/district by Admin or State. */
+/** State events are approved by Admin only; club/district by Admin, State, or District. */
 export const canReviewerApproveEventType = (eventType, reviewerRole) => {
   const type = String(eventType || "").trim();
   const role = String(reviewerRole || "").trim().toLowerCase();
   if (type === "State") {
     return isAdminRole(role);
   }
-  return isStateOrAdminRole(role);
+  // Club and District events can be approved by Admin, State, or District
+  return isStateOrAdminRole(role) || role === "district";
 };
 
 /** Mongo filter: events visible to skaters / registration lists (approved only). */

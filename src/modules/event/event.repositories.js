@@ -13,6 +13,10 @@ import {
   getClubOverrideFromStandardDoc,
   mergeStandardWithOrgOverride,
   resolveSkatingCategoriesForEvent,
+  categoryNameOf,
+  findDisciplineInCategory,
+  prepareDisciplinePayload,
+  withCategoryNameAlias,
 } from "./skatingEventCategory.sync.js";
 import { EventParticipant } from "./eventParticipant.model.js";
 import { GeneratedCertificate } from "../certificate/generatedCertificate.model.js";
@@ -195,13 +199,17 @@ const buildSkaterCategoryMatchClause = async (skaterCategoryId) => {
 
   const idSet = new Set([String(skaterOid)]);
   const skaterCat = await SkatingEventCategory.findById(skaterOid)
-    .select("typeName")
+    .select("name typeName")
     .lean();
 
-  const typeName = String(skaterCat?.typeName || "").trim();
+  const typeName = String(skaterCat?.name || skaterCat?.typeName || "").trim();
   if (typeName) {
+    const escaped = typeName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const peers = await SkatingEventCategory.find({
-      typeName: { $regex: new RegExp(`^${typeName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
+      $or: [
+        { name: { $regex: new RegExp(`^${escaped}$`, "i") } },
+        { typeName: { $regex: new RegExp(`^${escaped}$`, "i") } },
+      ],
     })
       .select("_id")
       .lean();
@@ -270,28 +278,29 @@ const displayAllEventRepository = async ({ page, limit }) => {
 };
 
 const CATEGORY_FORMULA_POPULATE = [
-  "ageGroups.categories.formula",
-  "customCategoryNames.formula",
-  "clubOverrides.ageGroups.categories.formula",
-  "clubOverrides.customCategoryNames.formula",
-  "districtOverrides.ageGroups.categories.formula",
-  "districtOverrides.customCategoryNames.formula",
+  "disciplines.ageGroups.categories.formula",
+  "disciplines.customCategoryNames.formula",
+  "disciplines.clubOverrides.ageGroups.categories.formula",
+  "disciplines.clubOverrides.customCategoryNames.formula",
+  "disciplines.districtOverrides.ageGroups.categories.formula",
+  "disciplines.districtOverrides.customCategoryNames.formula",
 ];
 
 export const getVisibleSkatingEventCategoriesRepository = async ({ clubId, districtId } = {}) => {
   const filter = buildVisibleCategoriesFilter({ clubId, districtId });
   return SkatingEventCategory.find(filter)
     .populate(CATEGORY_FORMULA_POPULATE)
-    .sort({ typeName: 1, createdAt: -1 })
+    .sort({ name: 1, createdAt: -1 })
     .lean();
 };
 
 /** All standard (super admin) skating event category documents. */
 export const listStandardSkatingEventCategoriesRepository = async () => {
-  return SkatingEventCategory.find(legacyStandardCategoryClause())
+  const docs = await SkatingEventCategory.find(legacyStandardCategoryClause())
     .populate(CATEGORY_FORMULA_POPULATE)
-    .sort({ typeName: 1, createdAt: -1 })
+    .sort({ name: 1, createdAt: -1 })
     .lean();
+  return docs.map((doc) => withCategoryNameAlias(doc));
 };
 
 export const getAllEventCategoriesRepository = async ({ page, limit, filter = {} }) => {
@@ -311,14 +320,15 @@ export const getAllEventCategoriesRepository = async ({ page, limit, filter = {}
     page: currentPage,
     limit: pageLimit,
     totalPages: calcTotalPages(total, pageLimit),
-    data,
+    data: data.map((doc) => withCategoryNameAlias(doc)),
   };
 };
 
 export const getEventCategoryByIdRepository = async (id) => {
-  return await SkatingEventCategory.findById(id)
+  const doc = await SkatingEventCategory.findById(id)
     .populate(CATEGORY_FORMULA_POPULATE)
     .lean();
+  return withCategoryNameAlias(doc);
 };
 
 export const createEventCategoryRepository = async (payload) => {
@@ -341,6 +351,143 @@ export const deleteEventCategoryRepository = async (id) => {
   return await SkatingEventCategory.findByIdAndDelete(id).lean();
 };
 
+export const findCategoryByDisciplineIdRepository = async (disciplineId) => {
+  if (!disciplineId || !mongoose.Types.ObjectId.isValid(String(disciplineId))) {
+    return null;
+  }
+  return SkatingEventCategory.findOne({ "disciplines._id": disciplineId })
+    .populate(CATEGORY_FORMULA_POPULATE)
+    .lean();
+};
+
+export const addDisciplinesToCategoryRepository = async (categoryId, disciplinePayloads = []) => {
+  const doc = await SkatingEventCategory.findById(categoryId);
+  if (!doc) {
+    throw new AppError("Event category not found", 404);
+  }
+
+  const created = [];
+  for (const payload of disciplinePayloads) {
+    const prepared = prepareDisciplinePayload(payload);
+    if (!prepared.name) {
+      throw new AppError("Discipline name is required", 400);
+    }
+    const duplicate = (doc.disciplines || []).some(
+      (row) => String(row.name).trim().toLowerCase() === prepared.name.toLowerCase()
+    );
+    if (duplicate) {
+      throw new AppError(`Discipline "${prepared.name}" already exists on this category`, 409);
+    }
+    doc.disciplines.push({
+      name: prepared.name,
+      categoryStatus: prepared.categoryStatus,
+      club: prepared.club ?? null,
+      district: prepared.district ?? null,
+      ageGroups: prepared.ageGroups || [],
+      customCategoryNames: prepared.customCategoryNames || [],
+      clubOverrides: prepared.clubOverrides || [],
+      districtOverrides: prepared.districtOverrides || [],
+    });
+    created.push(doc.disciplines[doc.disciplines.length - 1]);
+  }
+
+  await doc.save();
+  await doc.populate(CATEGORY_FORMULA_POPULATE);
+  const saved = doc.toObject({ virtuals: true });
+  return {
+    category: saved,
+    disciplines: created.map((row) =>
+      findDisciplineInCategory(saved, row._id)
+    ),
+  };
+};
+
+export const updateDisciplineInCategoryRepository = async (
+  categoryId,
+  disciplineId,
+  payload = {}
+) => {
+  const doc = await SkatingEventCategory.findById(categoryId);
+  if (!doc) {
+    throw new AppError("Event category not found", 404);
+  }
+
+  const discipline = (doc.disciplines || []).id(disciplineId);
+  if (!discipline) {
+    throw new AppError("Discipline not found", 404);
+  }
+
+  const prepared = prepareDisciplinePayload(payload);
+
+  if (prepared.name) {
+    const duplicate = (doc.disciplines || []).some(
+      (row) =>
+        String(row._id) !== String(disciplineId) &&
+        String(row.name).trim().toLowerCase() === prepared.name.toLowerCase()
+    );
+    if (duplicate) {
+      throw new AppError(`Discipline "${prepared.name}" already exists on this category`, 409);
+    }
+    discipline.name = prepared.name;
+  }
+
+  if (prepared.categoryStatus) {
+    discipline.categoryStatus = prepared.categoryStatus;
+  }
+  if (Object.prototype.hasOwnProperty.call(prepared, "club")) {
+    discipline.club = prepared.club;
+  }
+  if (Object.prototype.hasOwnProperty.call(prepared, "district")) {
+    discipline.district = prepared.district;
+  }
+  if (Array.isArray(prepared.ageGroups)) {
+    discipline.ageGroups = prepared.ageGroups;
+  }
+  if (Array.isArray(prepared.customCategoryNames)) {
+    discipline.customCategoryNames = prepared.customCategoryNames;
+  }
+
+  await doc.save();
+  await doc.populate(CATEGORY_FORMULA_POPULATE);
+  const saved = doc.toObject({ virtuals: true });
+  return {
+    category: saved,
+    discipline: findDisciplineInCategory(saved, disciplineId),
+  };
+};
+
+export const deleteDisciplineFromCategoryRepository = async (categoryId, disciplineId) => {
+  const doc = await SkatingEventCategory.findById(categoryId);
+  if (!doc) {
+    throw new AppError("Event category not found", 404);
+  }
+
+  const discipline = (doc.disciplines || []).id(disciplineId);
+  if (!discipline) {
+    throw new AppError("Discipline not found", 404);
+  }
+
+  discipline.deleteOne();
+  await doc.save();
+  await doc.populate(CATEGORY_FORMULA_POPULATE);
+  return doc.toObject({ virtuals: true });
+};
+
+export const listAllEmbeddedDisciplinesRepository = async () => {
+  const categories = await SkatingEventCategory.find({})
+    .select("name disciplines")
+    .sort({ name: 1 })
+    .lean();
+
+  return categories.flatMap((category) =>
+    (category.disciplines || []).map((discipline) => ({
+      ...discipline,
+      parentCategoryId: category._id,
+      parentCategoryName: categoryNameOf(category),
+    }))
+  );
+};
+
 export const findOrgCustomCategoryRepository = async ({ clubId, districtId } = {}) => {
   const filter = { categoryStatus: CATEGORY_STATUS.CUSTOM };
 
@@ -357,11 +504,66 @@ export const findOrgCustomCategoryRepository = async ({ clubId, districtId } = {
     .lean();
 };
 
+const applyClubOverrideOnDiscipline = (discipline, clubId, entry) => {
+  const idx = (discipline.clubOverrides || []).findIndex(
+    (row) => String(row.club) === String(clubId)
+  );
+  if (idx >= 0) {
+    Object.assign(discipline.clubOverrides[idx], entry);
+  } else {
+    discipline.clubOverrides.push(entry);
+  }
+};
+
+const applyDistrictOverrideOnDiscipline = (discipline, districtId, entry) => {
+  const idx = (discipline.districtOverrides || []).findIndex(
+    (row) => String(row.district) === String(districtId)
+  );
+  if (idx >= 0) {
+    Object.assign(discipline.districtOverrides[idx], entry);
+  } else {
+    discipline.districtOverrides.push(entry);
+  }
+};
+
+export const upsertClubOverrideOnDisciplineRepository = async (
+  categoryId,
+  disciplineId,
+  clubId,
+  input = {}
+) => {
+  const payload = buildOverridePayloadFromInput(input);
+  const doc = await SkatingEventCategory.findById(categoryId);
+  if (!doc) {
+    throw new AppError("Event category not found", 404);
+  }
+
+  const discipline = (doc.disciplines || []).id(disciplineId);
+  if (!discipline) {
+    throw new AppError("Discipline not found", 404);
+  }
+
+  applyClubOverrideOnDiscipline(discipline, clubId, {
+    club: clubId,
+    typeName: payload.typeName,
+    customCategoryNames: payload.customCategoryNames,
+    ageGroups: payload.ageGroups,
+  });
+
+  await doc.save();
+  await doc.populate(CATEGORY_FORMULA_POPULATE);
+  return doc.toObject({ virtuals: true });
+};
+
 export const upsertClubOverrideOnCategoryRepository = async (categoryId, clubId, input = {}) => {
   const payload = buildOverridePayloadFromInput(input);
   const doc = await SkatingEventCategory.findById(categoryId);
   if (!doc) {
     throw new AppError("Event category not found", 404);
+  }
+
+  if (!(doc.disciplines || []).length) {
+    throw new AppError("Add a discipline before saving club overrides", 400);
   }
 
   const entry = {
@@ -371,17 +573,42 @@ export const upsertClubOverrideOnCategoryRepository = async (categoryId, clubId,
     ageGroups: payload.ageGroups,
   };
 
-  const idx = (doc.clubOverrides || []).findIndex((row) => String(row.club) === String(clubId));
-
-  if (idx >= 0) {
-    Object.assign(doc.clubOverrides[idx], entry);
-  } else {
-    doc.clubOverrides.push(entry);
+  for (const discipline of doc.disciplines) {
+    applyClubOverrideOnDiscipline(discipline, clubId, entry);
   }
 
   await doc.save();
   await doc.populate(CATEGORY_FORMULA_POPULATE);
-  return doc.toObject();
+  return doc.toObject({ virtuals: true });
+};
+
+export const upsertDistrictOverrideOnDisciplineRepository = async (
+  categoryId,
+  disciplineId,
+  districtId,
+  input = {}
+) => {
+  const payload = buildOverridePayloadFromInput(input);
+  const doc = await SkatingEventCategory.findById(categoryId);
+  if (!doc) {
+    throw new AppError("Event category not found", 404);
+  }
+
+  const discipline = (doc.disciplines || []).id(disciplineId);
+  if (!discipline) {
+    throw new AppError("Discipline not found", 404);
+  }
+
+  applyDistrictOverrideOnDiscipline(discipline, districtId, {
+    district: districtId,
+    typeName: payload.typeName,
+    customCategoryNames: payload.customCategoryNames,
+    ageGroups: payload.ageGroups,
+  });
+
+  await doc.save();
+  await doc.populate(CATEGORY_FORMULA_POPULATE);
+  return doc.toObject({ virtuals: true });
 };
 
 export const upsertDistrictOverrideOnCategoryRepository = async (
@@ -395,6 +622,10 @@ export const upsertDistrictOverrideOnCategoryRepository = async (
     throw new AppError("Event category not found", 404);
   }
 
+  if (!(doc.disciplines || []).length) {
+    throw new AppError("Add a discipline before saving district overrides", 400);
+  }
+
   const entry = {
     district: districtId,
     typeName: payload.typeName,
@@ -402,19 +633,13 @@ export const upsertDistrictOverrideOnCategoryRepository = async (
     ageGroups: payload.ageGroups,
   };
 
-  const idx = (doc.districtOverrides || []).findIndex(
-    (row) => String(row.district) === String(districtId)
-  );
-
-  if (idx >= 0) {
-    Object.assign(doc.districtOverrides[idx], entry);
-  } else {
-    doc.districtOverrides.push(entry);
+  for (const discipline of doc.disciplines) {
+    applyDistrictOverrideOnDiscipline(discipline, districtId, entry);
   }
 
   await doc.save();
   await doc.populate(CATEGORY_FORMULA_POPULATE);
-  return doc.toObject();
+  return doc.toObject({ virtuals: true });
 };
 
 /** Save org custom names into districtOverrides / clubOverrides on every standard category. */
@@ -461,28 +686,42 @@ export const deleteLegacyOrgCustomCategoryRepository = async ({ clubId, district
   return SkatingEventCategory.findOneAndDelete(filter).lean();
 };
 
+const firstOrgOverrideFromCategory = (category, { clubId, districtId } = {}) => {
+  for (const discipline of category?.disciplines || []) {
+    const override = clubId
+      ? getClubOverrideFromStandardDoc(discipline, clubId)
+      : getDistrictOverrideFromStandardDoc(discipline, districtId);
+    if (extractCustomNamesFromDoc(override).length) {
+      return { discipline, override };
+    }
+  }
+  return { discipline: null, override: null };
+};
+
 /** Summary for org-custom API from embedded overrides (first standard) or legacy custom doc. */
 export const findOrgOverrideSummaryRepository = async ({ clubId, districtId } = {}) => {
   const standards = await listStandardSkatingEventCategoriesRepository();
 
   if (standards.length) {
-    const first = standards[0];
-    const override = clubId
-      ? getClubOverrideFromStandardDoc(first, clubId)
-      : getDistrictOverrideFromStandardDoc(first, districtId);
-
-    const names = extractCustomNamesFromDoc(override);
-    if (override && names.length) {
-      return {
-        _id: first._id,
-        categoryStatus: CATEGORY_STATUS.STANDARD,
-        typeName: override.typeName?.trim() || first.typeName,
-        customCategoryNames: override.customCategoryNames,
-        ageGroups: override.ageGroups,
-        club: clubId || null,
-        district: districtId || null,
-        _fromEmbeddedOverride: true,
-      };
+    for (const category of standards) {
+      const { discipline, override } = firstOrgOverrideFromCategory(category, {
+        clubId,
+        districtId,
+      });
+      if (override) {
+        return {
+          _id: category._id,
+          disciplineId: discipline?._id,
+          categoryStatus: CATEGORY_STATUS.STANDARD,
+          name: category.name || category.typeName,
+          typeName: override.typeName?.trim() || discipline?.name || category.name,
+          customCategoryNames: override.customCategoryNames,
+          ageGroups: override.ageGroups,
+          club: clubId || null,
+          district: districtId || null,
+          _fromEmbeddedOverride: true,
+        };
+      }
     }
   }
 
@@ -493,10 +732,8 @@ export const orgHasEmbeddedOverridesRepository = async ({ clubId, districtId } =
   const standards = await listStandardSkatingEventCategoriesRepository();
 
   return standards.some((cat) => {
-    const override = clubId
-      ? getClubOverrideFromStandardDoc(cat, clubId)
-      : getDistrictOverrideFromStandardDoc(cat, districtId);
-    return extractCustomNamesFromDoc(override).length > 0;
+    const { override } = firstOrgOverrideFromCategory(cat, { clubId, districtId });
+    return Boolean(override);
   });
 };
 
@@ -560,7 +797,7 @@ const REGISTER_DETAILS_POPULATE = [
     select:
       "header about registerStartDate registerEndDate eventStartDate eventEndDate eventStartTime eventEndTime address eventType status entryFee colorOne colorTwo textColor",
   },
-  { path: "categoriesId", select: "_id typeName" },
+  { path: "categoriesId", select: "_id name" },
   { path: "userId", select: "fullName krsaId" },
 ];
 
@@ -681,7 +918,7 @@ const formatRegisterDetailsByEvent = (item, chestNo = "") => {
     categoriesId: categoryRefId
       ? {
           _id: categoryRefId,
-          name: skatingCategory?.typeName ?? "",
+          name: skatingCategory?.name || skatingCategory?.typeName || "",
         }
       : null,
     ageGroup: item.ageGroup,
@@ -2644,7 +2881,7 @@ export const enrichLeanEventsSkatingCategoryNames = async (events) => {
   }
   const objectIds = [...idSet].map((id) => new mongoose.Types.ObjectId(id));
   const docs = await SkatingEventCategory.find({ _id: { $in: objectIds } })
-    .select("_id typeName")
+    .select("_id name typeName")
     .lean();
   const byId = new Map(docs.map((d) => [String(d._id), d]));
 
@@ -2653,9 +2890,10 @@ export const enrichLeanEventsSkatingCategoryNames = async (events) => {
     skatingEventCategories: (ev.skatingEventCategories || []).map((id) => {
       const key = String(id);
       const doc = byId.get(key);
+      const name = categoryNameOf(doc);
       return doc
-        ? { _id: doc._id, typeName: doc.typeName ?? "" }
-        : { _id: id, typeName: null };
+        ? { _id: doc._id, name, typeName: name }
+        : { _id: id, name: null, typeName: null };
     }),
   }));
 };
@@ -2772,7 +3010,7 @@ const toLiveEventListItem = (ev) => ({
   textColor: ev.textColor ?? "#FFFFFF",
   skatingEventCategories: (ev.skatingEventCategories || []).map((cat) => ({
     _id: cat._id,
-    name: cat.typeName ?? "",
+    name: cat.name || cat.typeName || "",
   })),
 });
 
@@ -3137,7 +3375,7 @@ export const getSkaterEventFullDetailsDtoRepository = async (eventId, skaterUser
 
 const toSkatingCategorySummary = (doc) =>
   doc
-    ? { _id: doc._id, typeName: doc.typeName ?? "" }
+    ? { _id: doc._id, name: categoryNameOf(doc), typeName: categoryNameOf(doc) }
     : null;
 
 /**
@@ -3202,13 +3440,13 @@ export const getSkaterEventFormCategoryDetailsRepository = async (eventId, skate
       category = toSkatingCategorySummary(fromEventList);
     } else {
       const skaterCat = await SkatingEventCategory.findById(skaterCategoryId)
-        .select("_id typeName")
+        .select("_id name typeName")
         .lean();
-      const typeName = String(skaterCat?.typeName || "").trim();
+      const typeName = categoryNameOf(skaterCat);
       const peerOnEvent = typeName
         ? skatingEventCategories.find(
             (doc) =>
-              String(doc?.typeName || "").trim().toLowerCase() === typeName.toLowerCase()
+              categoryNameOf(doc).toLowerCase() === typeName.toLowerCase()
           )
         : null;
       category = peerOnEvent

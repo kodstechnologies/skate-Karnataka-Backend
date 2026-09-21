@@ -26,13 +26,23 @@ const create_discipline_service = async (payload) => {
     if (!name) {
         throw new AppError("Discipline name is required", 400);
     }
+    if (!payload?.categoryId && !payload?.parentCategoryId) {
+        throw new AppError("categoryId is required to create a discipline", 400);
+    }
 
     const existing = await get_discipline_by_name_repositories(name);
     if (existing) {
         throw new AppError("Discipline already exists", 409);
     }
 
-    return await create_discipline_repositories({ name });
+    const created = await create_discipline_repositories({
+        name,
+        categoryId: payload.categoryId || payload.parentCategoryId,
+    });
+    if (!created) {
+        throw new AppError("Event category not found", 404);
+    }
+    return created;
 };
 
 const update_discipline_service = async (id, payload) => {

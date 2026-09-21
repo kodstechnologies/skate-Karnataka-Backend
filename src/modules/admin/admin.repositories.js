@@ -985,7 +985,7 @@ export const getSkaterFullDetailsByIdForAdmin = async (skaterId) => {
     .select("-refreshTokens -isNotificationsEnabled -isActive -firebaseTokens")
     .populate("district", "_id name")
     .populate("club", "_id name clubId district districtName")
-    .populate("category", "_id typeName")
+    .populate("category", "_id name")
     .lean();
 
   if (!skater) {

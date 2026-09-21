@@ -765,11 +765,7 @@ const isAlreadyAppliedToClubRepository = async (skaterId, clubId) => {
 }
 
 const approve_join_club_repositories = async (skaterId, ClubId) => {
-    const club = await Club.findOne({
-        $or: [{ _id: ClubId }, { members: ClubId }],
-    })
-        .select("_id")
-        .lean();
+    const club = await resolveClubDocumentByRef(ClubId);
 
     if (!club) {
         throw new AppError("Club not found", 404);
@@ -797,11 +793,7 @@ const approve_join_club_repositories = async (skaterId, ClubId) => {
 }
 
 export const reject_join_club_repositories = async (skaterId, clubId) => {
-    const club = await Club.findOne({
-        $or: [{ _id: clubId }, { members: clubId }],
-    })
-        .select("_id")
-        .lean();
+    const club = await resolveClubDocumentByRef(clubId);
 
     if (!club) {
         throw new AppError("Club not found", 404);
@@ -841,11 +833,23 @@ export const resolveClubDocumentByRef = async (clubRefOrMemberId) => {
     }
 
     const rawId = clubRefOrMemberId?._id ?? clubRefOrMemberId;
-
+    
+    // Check if rawId is a valid ObjectId
+    const isValidObjectId = /^[0-9a-fA-F]{24}$/.test(rawId);
+    
+    // Build the query conditions
+    const conditions = [{ clubId: rawId }];
+    
+    // Only include _id condition if it's a valid ObjectId
+    if (isValidObjectId) {
+        conditions.push({ _id: rawId });
+        conditions.push({ members: rawId });
+    }
+    
     return Club.findOne({
-        $or: [{ _id: rawId }, { members: rawId }],
+        $or: conditions,
     })
-        .select("_id name")
+        .select("_id name clubId")
         .lean();
 };
 
@@ -1212,7 +1216,7 @@ export const display_club_skater_details_repositories = async (
     })
         .select("-refreshTokens -firebaseTokens")
         .populate("club", "name clubId img districtName")
-        .populate("category", "typeName")
+        .populate("category", "name")
         .populate("discipline", "name title")
         .populate("applyClub", "name clubId")
         .lean();
@@ -1246,7 +1250,7 @@ export const display_club_skater_details_repositories = async (
         category: skater.category
             ? {
                   _id: skater.category._id,
-                  typeName: skater.category.typeName || "",
+                  typeName: skater.category.name || skater.category.typeName || "",
               }
             : null,
         club: skater.club

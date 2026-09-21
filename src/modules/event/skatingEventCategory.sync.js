@@ -155,50 +155,108 @@ export const extractCustomCategoryRowsFromDoc = (doc) => {
 export const extractCustomNamesFromDoc = (doc) =>
   extractCustomCategoryRowsFromDoc(doc).map((row) => row.name);
 
-export const getClubOverrideFromStandardDoc = (standardDoc, clubId) => {
-  if (!standardDoc || !clubId) {
+export const categoryNameOf = (doc) =>
+  String(doc?.name || doc?.typeName || "").trim();
+
+export const withCategoryNameAlias = (doc) => {
+  if (!doc) {
+    return doc;
+  }
+  const name = categoryNameOf(doc);
+  return { ...doc, name, typeName: name };
+};
+
+export const findDisciplineInCategory = (category, disciplineId) => {
+  if (!category || !disciplineId) {
+    return null;
+  }
+  return (category.disciplines || []).find((row) => String(row._id) === String(disciplineId)) || null;
+};
+
+export const toDisciplineView = (parent, discipline) => {
+  const parentName = categoryNameOf(parent);
+  const name = String(discipline?.name || "").trim();
+  return {
+    ...discipline,
+    _id: discipline?._id,
+    parentCategoryId: parent?._id,
+    parentName,
+    name,
+    typeName: name || parentName,
+    ageGroups: discipline?.ageGroups || [],
+    customCategoryNames: discipline?.customCategoryNames || [],
+    clubOverrides: discipline?.clubOverrides || [],
+    districtOverrides: discipline?.districtOverrides || [],
+    categoryStatus: discipline?.categoryStatus,
+    club: discipline?.club ?? null,
+    district: discipline?.district ?? null,
+  };
+};
+
+export const expandCategoryToDisciplineViews = (parent) => {
+  if (!parent) {
+    return [];
+  }
+  return (parent.disciplines || []).map((discipline) => toDisciplineView(parent, discipline));
+};
+
+export const getClubOverrideFromStandardDoc = (disciplineOrDoc, clubId) => {
+  if (!disciplineOrDoc || !clubId) {
     return null;
   }
 
-  return (standardDoc.clubOverrides || []).find(
+  return (disciplineOrDoc.clubOverrides || []).find(
     (row) => row?.club && String(row.club) === String(clubId)
   );
 };
 
-export const getDistrictOverrideFromStandardDoc = (standardDoc, districtId) => {
-  if (!standardDoc || !districtId) {
+export const getDistrictOverrideFromStandardDoc = (disciplineOrDoc, districtId) => {
+  if (!disciplineOrDoc || !districtId) {
     return null;
   }
 
-  return (standardDoc.districtOverrides || []).find(
+  return (disciplineOrDoc.districtOverrides || []).find(
     (row) => row?.district && String(row.district) === String(districtId)
   );
 };
 
-export const getOrgOverrideFromStandardDoc = (standardDoc, { clubId = null, districtId = null } = {}) => {
+export const getOrgOverrideFromStandardDoc = (
+  disciplineOrDoc,
+  { clubId = null, districtId = null } = {}
+) => {
   if (districtId) {
-    return getDistrictOverrideFromStandardDoc(standardDoc, districtId);
+    return getDistrictOverrideFromStandardDoc(disciplineOrDoc, districtId);
   }
   if (clubId) {
-    return getClubOverrideFromStandardDoc(standardDoc, clubId);
+    return getClubOverrideFromStandardDoc(disciplineOrDoc, clubId);
   }
   return null;
 };
 
-/** Apply club/district override onto a standard category for APIs and event forms. */
-export const mergeStandardWithOrgOverride = (standardDoc, { clubId = null, districtId = null } = {}) => {
-  if (!standardDoc) {
+export const mergeDisciplineWithOrgOverride = (
+  discipline,
+  { clubId = null, districtId = null } = {}
+) => {
+  if (!discipline) {
     return null;
   }
 
-  const override = getOrgOverrideFromStandardDoc(standardDoc, { clubId, districtId });
+  const override = getOrgOverrideFromStandardDoc(discipline, { clubId, districtId });
   if (!override) {
-    return standardDoc;
+    return {
+      ...discipline,
+      name: discipline.name,
+      typeName: discipline.name,
+    };
   }
 
   const rows = extractCustomCategoryRowsFromDoc(override);
   if (!rows.length) {
-    return standardDoc;
+    return {
+      ...discipline,
+      name: discipline.name,
+      typeName: discipline.name,
+    };
   }
 
   const ageGroups =
@@ -207,12 +265,32 @@ export const mergeStandardWithOrgOverride = (standardDoc, { clubId = null, distr
       : buildAgeGroupsFromCustomNames(rows);
 
   return {
-    ...standardDoc,
-    typeName: override.typeName?.trim() || standardDoc.typeName,
+    ...discipline,
+    name: discipline.name,
+    typeName: override.typeName?.trim() || discipline.name,
     customCategoryNames: rows,
     ageGroups,
     _effectiveOverride: true,
   };
+};
+
+/** Apply club/district override onto each discipline of a parent category. */
+export const mergeStandardWithOrgOverride = (
+  standardDoc,
+  { clubId = null, districtId = null } = {}
+) => {
+  if (!standardDoc) {
+    return null;
+  }
+
+  const disciplines = (standardDoc.disciplines || []).map((discipline) =>
+    mergeDisciplineWithOrgOverride(discipline, { clubId, districtId })
+  );
+
+  return withCategoryNameAlias({
+    ...standardDoc,
+    disciplines,
+  });
 };
 
 export const EVENT_CATEGORY_FORMAT = Object.freeze({
@@ -232,27 +310,35 @@ export const resolveSkatingCategoriesForEvent = (event, docs = []) => {
   const list = Array.isArray(docs) ? docs : [];
   const format = normalizeCategoryFormat(event?.categoryFormat);
 
-  if (format === EVENT_CATEGORY_FORMAT.STANDARD) {
-    return list.map((doc) => ({
-      ...doc,
-      typeName: doc.typeName,
-      ageGroups: doc.ageGroups || [],
-    }));
-  }
-
   const eventForId =
     event?.eventFor && typeof event.eventFor === "object" && event.eventFor._id
       ? event.eventFor._id
       : event?.eventFor;
 
   const scope =
-    event?.eventType === "Club"
-      ? { clubId: eventForId }
-      : event?.eventType === "District"
-        ? { districtId: eventForId }
-        : {};
+    format === EVENT_CATEGORY_FORMAT.CUSTOM
+      ? event?.eventType === "Club"
+        ? { clubId: eventForId }
+        : event?.eventType === "District"
+          ? { districtId: eventForId }
+          : {}
+      : {};
 
-  return list.map((doc) => mergeStandardWithOrgOverride(doc, scope));
+  return list.flatMap((doc) => {
+    const merged =
+      format === EVENT_CATEGORY_FORMAT.CUSTOM
+        ? mergeStandardWithOrgOverride(doc, scope)
+        : withCategoryNameAlias(doc);
+    return expandCategoryToDisciplineViews(merged);
+  }).filter((discipline) => {
+    const selected = Array.isArray(event?.skatingEventDisciplines)
+      ? event.skatingEventDisciplines.map((id) => String(id))
+      : [];
+    if (!selected.length) {
+      return true;
+    }
+    return selected.includes(String(discipline?._id));
+  });
 };
 
 export const buildOverridePayloadFromInput = ({ typeName, customCategoryNames, names, ageGroups } = {}) => {
@@ -269,8 +355,8 @@ export const buildOverridePayloadFromInput = ({ typeName, customCategoryNames, n
   };
 };
 
-/** Prepare create/update payload: sync customCategoryNames → ageGroups with per-name formula. */
-export const prepareEventCategoryPayload = (payload = {}) => {
+/** Prepare create/update payload for a discipline: sync customCategoryNames → ageGroups. */
+export const prepareDisciplinePayload = (payload = {}) => {
   const rows = normalizeCustomCategoryNameRows(
     payload.customCategoryNames ?? payload.names ?? []
   );
@@ -286,9 +372,29 @@ export const prepareEventCategoryPayload = (payload = {}) => {
 
   const next = { ...payload, ageGroups };
   delete next.names;
+  delete next.typeName;
+
+  if (payload.name != null || payload.typeName != null) {
+    next.name = String(payload.name || payload.typeName || "").trim();
+  }
 
   if (rows.length) {
     next.customCategoryNames = rows.map(rowToCategory);
+  }
+
+  return next;
+};
+
+/** Parent category payload: identity plus optional nested disciplines. */
+export const prepareEventCategoryPayload = (payload = {}) => {
+  const name = String(payload.name || payload.typeName || "").trim();
+  const next = {};
+  if (name) {
+    next.name = name;
+  }
+
+  if (Array.isArray(payload.disciplines)) {
+    next.disciplines = payload.disciplines.map((row) => prepareDisciplinePayload(row));
   }
 
   return next;

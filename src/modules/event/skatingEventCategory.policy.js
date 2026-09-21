@@ -36,7 +36,7 @@ export const isStateOrAdminRole = (roleOrUser) => {
   return r === "state" || r === "admin" || r === "superadmin";
 };
 
-/** Legacy rows created before categoryStatus existed are treated as standard. */
+/** Parent docs are containers. Legacy standalone custom docs still have categoryStatus. */
 export const legacyStandardCategoryClause = () => ({
   $or: [
     { categoryStatus: CATEGORY_STATUS.STANDARD },
@@ -45,21 +45,39 @@ export const legacyStandardCategoryClause = () => ({
   ],
 });
 
-/** Categories visible when creating events (standard + org custom). */
+/** Categories visible when creating events (standard parents + org custom disciplines). */
 export const buildVisibleCategoriesFilter = ({ clubId = null, districtId = null } = {}) => {
   const or = [legacyStandardCategoryClause()];
 
   if (clubId && mongoose.Types.ObjectId.isValid(String(clubId))) {
+    const clubOid = new mongoose.Types.ObjectId(String(clubId));
     or.push({
       categoryStatus: CATEGORY_STATUS.CUSTOM,
-      club: new mongoose.Types.ObjectId(String(clubId)),
+      club: clubOid,
+    });
+    or.push({
+      disciplines: {
+        $elemMatch: {
+          categoryStatus: CATEGORY_STATUS.CUSTOM,
+          club: clubOid,
+        },
+      },
     });
   }
 
   if (districtId && mongoose.Types.ObjectId.isValid(String(districtId))) {
+    const districtOid = new mongoose.Types.ObjectId(String(districtId));
     or.push({
       categoryStatus: CATEGORY_STATUS.CUSTOM,
-      district: new mongoose.Types.ObjectId(String(districtId)),
+      district: districtOid,
+    });
+    or.push({
+      disciplines: {
+        $elemMatch: {
+          categoryStatus: CATEGORY_STATUS.CUSTOM,
+          district: districtOid,
+        },
+      },
     });
   }
 
@@ -72,15 +90,15 @@ export const buildAdminCategoriesListFilter = (query = {}) => {
   const ownerType = String(query.ownerType || "").trim().toLowerCase();
 
   if (status === CATEGORY_STATUS.STANDARD || status === CATEGORY_STATUS.CUSTOM) {
-    filter.categoryStatus = status;
+    filter["disciplines.categoryStatus"] = status;
   }
 
   if (ownerType === "club" && query.clubId) {
-    filter.categoryStatus = CATEGORY_STATUS.CUSTOM;
-    filter.club = query.clubId;
+    filter["disciplines.categoryStatus"] = CATEGORY_STATUS.CUSTOM;
+    filter["disciplines.club"] = query.clubId;
   } else if (ownerType === "district" && query.districtId) {
-    filter.categoryStatus = CATEGORY_STATUS.CUSTOM;
-    filter.district = query.districtId;
+    filter["disciplines.categoryStatus"] = CATEGORY_STATUS.CUSTOM;
+    filter["disciplines.district"] = query.districtId;
   }
 
   return filter;
@@ -142,12 +160,12 @@ export const resolveCategoryOwnershipForCreate = (user, body = {}) => {
   throw new AppError("You are not allowed to create event categories", 403);
 };
 
-export const isStandardCategory = (category) => {
-  if (!category) {
+export const isStandardCategory = (categoryOrDiscipline) => {
+  if (!categoryOrDiscipline) {
     return false;
   }
 
-  const status = category.categoryStatus;
+  const status = categoryOrDiscipline.categoryStatus;
   return !status || status === CATEGORY_STATUS.STANDARD;
 };
 
@@ -161,23 +179,36 @@ export const assertCanMutateCategory = (user, category) => {
     return;
   }
 
-  if (isStandardCategory(category)) {
-    throw new AppError("Only state admin can change standard categories", 403);
+  throw new AppError("Only state admin can change event categories", 403);
+};
+
+export const assertCanMutateDiscipline = (user, discipline) => {
+  if (!discipline) {
+    throw new AppError("Discipline not found", 404);
+  }
+
+  const role = getAuthRole(user);
+  if (isStateOrAdminRole(role)) {
+    return;
+  }
+
+  if (isStandardCategory(discipline)) {
+    throw new AppError("Only state admin can change standard disciplines", 403);
   }
 
   if (role === "club") {
-    if (!user?.clubDocId || String(category.club) !== String(user.clubDocId)) {
-      throw new AppError("You can only edit your club's custom categories", 403);
+    if (!user?.clubDocId || String(discipline.club) !== String(user.clubDocId)) {
+      throw new AppError("You can only edit your club's custom disciplines", 403);
     }
     return;
   }
 
   if (role === "district") {
-    if (!user?.districtDocId || String(category.district) !== String(user.districtDocId)) {
-      throw new AppError("You can only edit your district's custom categories", 403);
+    if (!user?.districtDocId || String(discipline.district) !== String(user.districtDocId)) {
+      throw new AppError("You can only edit your district's custom disciplines", 403);
     }
     return;
   }
 
-  throw new AppError("You are not allowed to modify this category", 403);
+  throw new AppError("You are not allowed to modify this discipline", 403);
 };

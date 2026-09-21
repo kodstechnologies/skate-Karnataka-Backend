@@ -22,6 +22,10 @@ import {
   createClubEventService,
   createDistrictEventService,
   createEventCategoryService,
+  addDisciplinesToCategoryService,
+  updateDisciplineInCategoryService,
+  deleteDisciplineFromCategoryService,
+  getDisciplineByIdService,
   createRegisterFormService,
   createStateEventService,
   create_event_schema,
@@ -613,6 +617,51 @@ export const createEventCategory = asyncHandler(async (req, res) => {
     return res
         .status(201)
         .json(new ApiResponse(201, category, "Event category created successfully"));
+});
+
+export const addDisciplinesToCategory = asyncHandler(async (req, res) => {
+    const category = await addDisciplinesToCategoryService(
+        req.params.categoryId || req.params.id,
+        req.body,
+        req.user
+    );
+    return res
+        .status(201)
+        .json(new ApiResponse(201, category, "Discipline(s) added successfully"));
+});
+
+export const getDisciplineById = asyncHandler(async (req, res) => {
+    const discipline = await getDisciplineByIdService(
+        req.params.categoryId || req.params.id,
+        req.params.disciplineId,
+        req.user
+    );
+    return res
+        .status(200)
+        .json(new ApiResponse(200, discipline, "Discipline fetched successfully"));
+});
+
+export const updateDisciplineInCategory = asyncHandler(async (req, res) => {
+    const category = await updateDisciplineInCategoryService(
+        req.params.categoryId || req.params.id,
+        req.params.disciplineId,
+        req.body,
+        req.user
+    );
+    return res
+        .status(200)
+        .json(new ApiResponse(200, category, "Discipline updated successfully"));
+});
+
+export const deleteDisciplineFromCategory = asyncHandler(async (req, res) => {
+    const category = await deleteDisciplineFromCategoryService(
+        req.params.categoryId || req.params.id,
+        req.params.disciplineId,
+        req.user
+    );
+    return res
+        .status(200)
+        .json(new ApiResponse(200, category, "Discipline deleted successfully"));
 });
 
 export const updateEventCategory = asyncHandler(async (req, res) => {

@@ -6,7 +6,8 @@ import { Club } from "../club/club.model.js";
 import { Skater } from "../skater/skater.model.js";
 import { Report } from "../report/report.model.js";
 import { Event } from "../event/event.model.js";
-import { DisciplineService } from "../discipline/discipline.model.js";
+import SkatingEventCategory from "../event/SkatingEventCategory.model.js";
+import { categoryNameOf } from "../event/skatingEventCategory.sync.js";
 import { BaseAuth } from "../auth/baseAuth.model.js";
 import { State } from "./state.model.js";
 
@@ -363,13 +364,16 @@ export const stateDashboardRepository = async (user) => {
       return /^[0-9a-fA-F]{24}$/.test(String(id));
     });
   const disciplineDocs = disciplineIds.length
-    ? await DisciplineService.find({ _id: { $in: disciplineIds } })
-        .select("name")
+    ? await SkatingEventCategory.find({ "disciplines._id": { $in: disciplineIds } })
+        .select("name disciplines._id disciplines.name")
         .lean()
     : [];
-  const disciplineNameById = new Map(
-    disciplineDocs.map((doc) => [String(doc._id), doc.name || "Other"])
-  );
+  const disciplineNameById = new Map();
+  for (const category of disciplineDocs) {
+    for (const discipline of category.disciplines || []) {
+      disciplineNameById.set(String(discipline._id), discipline.name || categoryNameOf(category) || "Other");
+    }
+  }
 
   const disciplineTotal =
     disciplineAgg.reduce((sum, item) => sum + (item.count || 0), 0) || totalSkaters || 1;

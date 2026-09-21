@@ -22,6 +22,7 @@ import reportRouter from "./modules/report/report.router.js";
 import certificateRouter from "./modules/certificate/certificate.router.js";
 import paymentRouter from "./modules/payment/payment.router.js";
 import disciplineRouter from "./modules/discipline/discipline.router.js";
+import skatingEventCategoryRouter from "./modules/event/skatingEventCategory.router.js";
 import onboardingRouter from "./modules/onboarding/onboarding.router.js";
 import aboutUsCardRouter from "./modules/about-us-card/aboutUsCard.router.js";
 import sidebarRouter from "./modules/sidebar/sidebar.router.js";
@@ -81,6 +82,7 @@ app.use("/school", schoolRouter);
 
 // app.use("/coach", coachRouter);
 app.use("/discipline",disciplineRouter);
+app.use("/skating-event-categories", skatingEventCategoryRouter);
 app.use("/club", clubRouter);
 app.use("/district", districtRouter);
 app.use("/state",stateRouter);

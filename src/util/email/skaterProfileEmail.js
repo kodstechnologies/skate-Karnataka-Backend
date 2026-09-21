@@ -81,7 +81,7 @@ const buildSkaterProfileEmailHtml = (skater) => {
     const firstName = escapeHtml((skater.fullName || "Skater").split(" ")[0]);
     const krsaId = skater.krsaId || "—";
     const photo = skater.photo || skater.profile || "";
-    const categoryName = skater.category?.typeName || "";
+    const categoryName = skater.category?.name || skater.category?.typeName || "";
     const disciplineName =
         skater.disciplineName ||
         skater.discipline?.name ||
@@ -219,7 +219,7 @@ const buildSkaterProfileEmailHtml = (skater) => {
 };
 
 const buildSkaterProfileEmailText = (skater) => {
-    const categoryName = skater.category?.typeName || "";
+    const categoryName = skater.category?.name || skater.category?.typeName || "";
     const disciplineName =
         skater.disciplineName ||
         skater.discipline?.name ||

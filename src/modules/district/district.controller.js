@@ -1,6 +1,9 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
+import { AppError } from "../../util/common/AppError.js";
+import { BaseAuth } from "../auth/baseAuth.model.js";
 import { acceptClubService, createNewDistrictService, displayAllApplyService, displayApplyAllClubService, displayDashboardData, displayDistrictProfileServices, displaySkaterDetailsService, displayTotalClubsService, displayTotalSkatersService, districtClubDetailsService, districtClubSkatersService, districtDeletedService, districtUnLinkClubService, getAllDistrictService, leaveClubService, rejectClubLeaveService, rejectClubService, singleDistrictAllClubNameService, singleDistrictSkatersService, updateDistrictProfileService, updateDistrictService } from "./district.service.js";
+import { approve_join_club_service, approve_leave_club_service, reject_join_club_service, reject_leave_club_service } from "../club/club.service.js";
 
 const displayAllDistrict = asyncHandler(async (req, res) => {
   const districts = await getAllDistrictService();
@@ -231,6 +234,77 @@ export const displayDistrictDashboard = asyncHandler(async(req, res) =>{
   );
 })
 
+// Skater join/leave approval functions for district
+const acceptJoinSkater = asyncHandler(async (req, res) => {
+  const { id: skaterId, clubId } = req.params;
+  const districtMemberId = req.user?._id;
+  
+  const result = await approve_join_club_service(skaterId, clubId);
+
+  return res.status(200).json(
+    new ApiResponse(200, result, "Skater join request accepted")
+  );
+});
+
+const rejectJoinSkater = asyncHandler(async (req, res) => {
+  const { id: skaterId, clubId } = req.params;
+  const districtMemberId = req.user?._id;
+  
+  const result = await reject_join_club_service(skaterId, clubId);
+
+  return res.status(200).json(
+    new ApiResponse(200, result, "Skater join request rejected")
+  );
+});
+
+const acceptLeaveSkater = asyncHandler(async (req, res) => {
+  const { id: skaterId, clubId } = req.params;
+  const districtMemberId = req.user?._id;
+  
+  const result = await approve_leave_club_service(skaterId, clubId);
+
+  return res.status(200).json(
+    new ApiResponse(200, result, "Skater leave request accepted")
+  );
+});
+
+const rejectLeaveSkater = asyncHandler(async (req, res) => {
+  const { id: skaterId, clubId } = req.params;
+  const districtMemberId = req.user?._id;
+  
+  const result = await reject_leave_club_service(skaterId, clubId);
+
+  return res.status(200).json(
+    new ApiResponse(200, result, "Skater leave request rejected")
+  );
+});
+
+const blockDistrictSkater = asyncHandler(async (req, res) => {
+  const { id: skaterId } = req.params;
+  const { isBlocked } = req.body;
+  if (typeof isBlocked !== "boolean") {
+    throw new AppError("isBlocked must be a boolean", 400);
+  }
+  const updated = await BaseAuth.findByIdAndUpdate(
+    skaterId,
+    { isBlocked },
+    { new: true, runValidators: false }
+  ).select("_id fullName isBlocked").lean();
+  if (!updated) throw new AppError("Skater not found", 404);
+  return res.status(200).json(
+    new ApiResponse(200, updated, isBlocked ? "Skater blocked" : "Skater unblocked")
+  );
+});
+
+const deleteDistrictSkater = asyncHandler(async (req, res) => {
+  const { id: skaterId } = req.params;
+  const deleted = await BaseAuth.findByIdAndDelete(skaterId).lean();
+  if (!deleted) throw new AppError("Skater not found", 404);
+  return res.status(200).json(
+    new ApiResponse(200, null, "Skater deleted successfully")
+  );
+});
+
 export {
   displayAllDistrict,
   createNewDistrict,
@@ -247,5 +321,11 @@ export {
   displayAllApply,
   districtClubDetails,
   displayDistrictClubSkaters,
-  displaySkaterDetails
+  displaySkaterDetails,
+  blockDistrictSkater,
+  deleteDistrictSkater,
+  acceptJoinSkater,
+  rejectJoinSkater,
+  acceptLeaveSkater,
+  rejectLeaveSkater
 }

@@ -10,6 +10,7 @@ import { Club } from "../club/club.model.js";
 import { BaseAuth } from "./baseAuth.model.js";
 import SkatingEventCategory from "../event/SkatingEventCategory.model.js";
 import { legacyStandardCategoryClause } from "../event/skatingEventCategory.policy.js";
+import { categoryNameOf } from "../event/skatingEventCategory.sync.js";
 import mongoose from "mongoose";
 import { checkEmailOTP, checkOtp, checkPhoneOTP, deleteAccount, findParentByIdForChildren, findSkatersByParentPhone, isExist, isExistEmail, isExistKSRAId, isExistPhone, registerUser_repositories, removeFirebaseTokenAndRefressToken, removeOldEmailOtp, removeOldKRSAIdOtp, removeOldPhoneOtp, saveEmailOtp, saveFirebaseToken, saveKRSAIdOTP, savePhoneOTP, saveRefreshToken } from "./auth.repositories.js";
 import { assertMemberApprovedCanLogin, resolveVerifyOnRegister } from "./authLoginPolicy.js";
@@ -501,19 +502,15 @@ const displayChildrenByParentService = async (parentId) => {
 
 const getAllSkatingEventCategoryNamesService = async () => {
     const categories = await SkatingEventCategory.find(legacyStandardCategoryClause())
-        .select("_id typeName categoryStatus")
+        .select("_id name typeName categoryStatus")
         .sort({ createdAt: -1 })
         .lean();
 
     return categories
-        .filter(
-            (category) =>
-                typeof category?.typeName === "string" &&
-                category.typeName.trim().length > 0
-        )
+        .filter((category) => categoryNameOf(category).length > 0)
         .map((category) => ({
             id: category._id,
-            name: category.typeName,
+            name: categoryNameOf(category),
         }));
 };
 

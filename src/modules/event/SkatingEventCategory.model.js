@@ -59,7 +59,6 @@ const CustomCategoryNameSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    /** Competition formula for this lap/time label (one Formula per custom name). */
     formula: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Formula",
@@ -69,7 +68,7 @@ const CustomCategoryNameSchema = new mongoose.Schema(
   { _id: false }
 );
 
-/** Per-club edits on a standard KRSA category (keyed by club id). */
+/** Per-club edits on a standard discipline (keyed by club id). */
 const ClubCategoryOverrideSchema = new mongoose.Schema(
   {
     club: {
@@ -95,7 +94,7 @@ const ClubCategoryOverrideSchema = new mongoose.Schema(
   { _id: true, timestamps: true }
 );
 
-/** Per-district edits on a standard KRSA category (keyed by district id). */
+/** Per-district edits on a standard discipline (keyed by district id). */
 const DistrictCategoryOverrideSchema = new mongoose.Schema(
   {
     district: {
@@ -121,73 +120,60 @@ const DistrictCategoryOverrideSchema = new mongoose.Schema(
   { _id: true, timestamps: true }
 );
 
-const SkatingEventCategorySchema = new mongoose.Schema(
+const DisciplineSchema = new mongoose.Schema(
   {
-    typeName: {
+    name: {
       type: String,
       required: true,
       trim: true,
     },
 
-    /** standard = KRSA-wide (admin/state). custom = legacy standalone org doc. */
     categoryStatus: {
       type: String,
       enum: Object.values(CATEGORY_STATUS),
       default: CATEGORY_STATUS.STANDARD,
       required: true,
-      index: true,
     },
 
-    /** Legacy: standalone custom document for one club. Prefer clubOverrides on standard docs. */
     club: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Club",
       default: null,
-      index: true,
     },
 
-    /** Legacy: standalone custom document for one district. Prefer districtOverrides on standard docs. */
     district: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "District",
       default: null,
-      index: true,
     },
 
-    /** KRSA default age groups (super admin). */
     ageGroups: {
       type: [AgeGroupSchema],
       default: [],
     },
 
-    /**
-     * Club-specific overrides on this standard category.
-     * Each entry is keyed by club; only that club's events use it when "Custom" is selected.
-     */
     clubOverrides: {
       type: [ClubCategoryOverrideSchema],
       default: [],
     },
 
-    /**
-     * District-specific overrides on this standard category.
-     * Each entry is keyed by district; only that district's events use it when "Custom" is selected.
-     */
     districtOverrides: {
       type: [DistrictCategoryOverrideSchema],
       default: [],
     },
 
-    /** Legacy flat list on standalone custom documents. */
     customCategoryNames: {
       type: [CustomCategoryNameSchema],
       default: [],
     },
   },
-  { timestamps: true }
+  {
+    _id: true,
+    timestamps: true,
+  }
 );
 
-SkatingEventCategorySchema.pre("validate", function validateOwnership() {
+DisciplineSchema.pre("validate", function validateDisciplineOwnership() {
   const status = this.categoryStatus || CATEGORY_STATUS.STANDARD;
 
   if (status === CATEGORY_STATUS.STANDARD) {
@@ -207,31 +193,49 @@ SkatingEventCategorySchema.pre("validate", function validateOwnership() {
   }
 });
 
-/** One legacy custom category document per club. */
-SkatingEventCategorySchema.index(
-  { club: 1 },
+const SkatingEventCategorySchema = new mongoose.Schema(
   {
-    unique: true,
-    partialFilterExpression: {
-      categoryStatus: CATEGORY_STATUS.CUSTOM,
-      club: { $type: "objectId" },
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+      unique: true,
     },
+
+    disciplines: {
+      type: [DisciplineSchema],
+      default: [],
+    },
+  },
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
 );
 
-/** One legacy custom category document per district. */
-SkatingEventCategorySchema.index(
-  { district: 1 },
-  {
-    unique: true,
-    partialFilterExpression: {
-      categoryStatus: CATEGORY_STATUS.CUSTOM,
-      district: { $type: "objectId" },
-    },
+/** Legacy documents stored `typeName` on the parent. */
+SkatingEventCategorySchema.pre("validate", function syncLegacyParentName() {
+  if (!this.name) {
+    const legacyName = this.get("typeName");
+    if (legacyName) {
+      this.name = legacyName;
+    }
   }
-);
+});
 
-SkatingEventCategorySchema.index({ "clubOverrides.club": 1 });
-SkatingEventCategorySchema.index({ "districtOverrides.district": 1 });
+SkatingEventCategorySchema.virtual("typeName")
+  .get(function getTypeName() {
+    return this.name;
+  })
+  .set(function setTypeName(value) {
+    this.name = value;
+  });
+
+SkatingEventCategorySchema.index({ "disciplines._id": 1 });
+SkatingEventCategorySchema.index({ "disciplines.clubOverrides.club": 1 });
+SkatingEventCategorySchema.index({ "disciplines.districtOverrides.district": 1 });
+
+export { DisciplineSchema };
 
 export default mongoose.model("SkatingEventCategory", SkatingEventCategorySchema);

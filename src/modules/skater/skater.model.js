@@ -39,9 +39,14 @@ const skaterSchema = new mongoose.Schema({
     ref: "SkatingEventCategory",
   },
 
+  eventCategory: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "SkatingEventCategory",
+  },
+
   discipline: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "DisciplineService",
+    ref: "SkatingEventCategory",
   },
 
   // district: {

@@ -1,7 +1,7 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
 import { formatDate, formatDob } from "../../util/time/timeUtil.js";
-import { after_login_form_skater_service, deleteUser_skater_service, get_all_discipline_service, get_all_skating_event_categories_full_service, get_all_skating_event_categories_service, get_skater_digital_id_card_service, get_skater_profile_service, get_skater_results_event_all_skaters_service, get_skater_results_event_names_service, get_skater_results_event_rounds_service, get_skater_results_event_service, get_skater_results_service, update_skater_profile_service } from "./skater.service.js";
+import { after_login_form_skater_service, deleteUser_skater_service, get_all_discipline_service, get_disciplines_by_category_service, get_all_skating_event_categories_full_service, get_all_skating_event_categories_service, get_skater_digital_id_card_service, get_skater_profile_service, get_skater_results_event_all_skaters_service, get_skater_results_event_names_service, get_skater_results_event_rounds_service, get_skater_results_event_service, get_skater_results_service, update_skater_profile_service } from "./skater.service.js";
 import { requestSkaterRsfiChangeService } from "./skaterRsfiChange.service.js";
 
 const afterLoginSkaterForm = asyncHandler(async (req, res) => {
@@ -26,7 +26,7 @@ const GetSkaterProfile = asyncHandler(async (req, res) => {
         img: profile?.photo || "",
         name: profile?.fullName || "",
         krsaId: profile?.krsaId || "",
-        category: profile?.category?.typeName || "",
+        category: profile?.category?.name || profile?.category?.typeName || "",
         discipline: profile?.disciplineName || profile?.discipline?.name || "",
         goldMedals: profile?.goldMedals ?? 0,
         silverMedals: profile?.silverMedals ?? 0,
@@ -42,7 +42,7 @@ const GetSkaterDigitalIdCard = asyncHandler(async (req, res) => {
         ...profile,
         img: profile.photo || "",
         name: profile.fullName || "",
-        category: profile.category?.typeName || "",
+        category: profile.category?.name || profile.category?.typeName || "",
         clubName: profile.club?.name || "",
         dob: profile.dob ? formatDob(profile.dob) : "",
         discipline: profile.discipline || "",
@@ -113,6 +113,20 @@ const GetAllSkatingEventCategoriesFull = asyncHandler(async (req, res) => {
 
 const getAllDiscipline = asyncHandler(async (_req, res) => {
     const disciplines = await get_all_discipline_service();
+    return res
+        .status(200)
+        .json(new ApiResponse(200, disciplines, "Disciplines fetched successfully"));
+});
+
+const getAllEventCategories = asyncHandler(async (_req, res) => {
+    const categories = await get_all_skating_event_categories_service();
+    return res
+        .status(200)
+        .json(new ApiResponse(200, categories, "Event categories fetched successfully"));
+});
+
+const getDisciplinesByCategory = asyncHandler(async (req, res) => {
+    const disciplines = await get_disciplines_by_category_service(req.params.id);
     return res
         .status(200)
         .json(new ApiResponse(200, disciplines, "Disciplines fetched successfully"));
@@ -209,6 +223,8 @@ DeleteSkater,
 GetAllSkatingEventCategories,
 GetAllSkatingEventCategoriesFull,
 getAllDiscipline,
+getAllEventCategories,
+getDisciplinesByCategory,
 GetSkaterResultsEvent,
 GetSkaterResultsEventNames,
 GetSkaterResultsEventRounds,

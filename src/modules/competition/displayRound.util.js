@@ -79,7 +79,7 @@ const pickFormulaForCategory = (skatingCategory, subCategory) => {
 const formatCategoryMeta = (skatingCategory, subCategory) => ({
   name: String(subCategory.name || "").trim(),
   skatingEventCategoryId: skatingCategory._id,
-  skatingEventCategoryName: skatingCategory.typeName ?? "",
+  skatingEventCategoryName: skatingCategory.name || skatingCategory.typeName || "",
   categoryId: subCategory._id,
   formula: pickFormulaForCategory(skatingCategory, subCategory),
 });
@@ -156,7 +156,11 @@ export const findEventCategoryByQuery = (
 
   // 2) SkatingEventCategory document _id + name (+ optional age group)
   for (const skatingCategory of resolvedCategories) {
-    if (!idCandidates.some((id) => idsEqual(skatingCategory._id, id))) {
+    if (
+      !idCandidates.some(
+        (id) => idsEqual(skatingCategory._id, id) || idsEqual(skatingCategory.parentCategoryId, id)
+      )
+    ) {
       continue;
     }
 
@@ -196,7 +200,11 @@ export const scopeResolvedSkatingCategories = (
   if (!skatingEventCategoryId) {
     return resolvedCategories;
   }
-  return resolvedCategories.filter((row) => idsEqual(row._id, skatingEventCategoryId));
+  return resolvedCategories.filter(
+    (row) =>
+      idsEqual(row._id, skatingEventCategoryId) ||
+      idsEqual(row.parentCategoryId, skatingEventCategoryId)
+  );
 };
 
 /** Round status only (for display-round API). */

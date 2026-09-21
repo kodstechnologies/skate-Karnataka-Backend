@@ -55,6 +55,19 @@ const get_all_discipline_service = async () => {
     return await get_all_discipline_repositories();
 }
 
+const get_disciplines_by_category_service = async (categoryId) => {
+    const { getEventCategoryByIdRepository } = await import("../event/event.repositories.js");
+    const category = await getEventCategoryByIdRepository(categoryId);
+    if (!category) {
+        const { AppError } = await import("../../util/common/AppError.js");
+        throw new AppError("Event category not found", 404);
+    }
+    return (category.disciplines || []).map((discipline) => ({
+        id: String(discipline._id),
+        name: discipline.name || "",
+    }));
+};
+
 const get_skater_results_service = async (userId, eventId, categoryName) => {
     return await get_skater_results_by_event_repositories(
         userId,
@@ -108,6 +121,7 @@ export {
     get_all_skating_event_categories_service,
     get_all_skating_event_categories_full_service,
     get_all_discipline_service,
+    get_disciplines_by_category_service,
     get_skater_results_service,
     get_skater_results_event_service,
     get_skater_results_event_names_service,

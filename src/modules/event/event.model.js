@@ -124,6 +124,16 @@ const eventSchema = new mongoose.Schema(
       default: [],
     },
 
+    /** Selected discipline sub-document ids from the linked event categories. */
+    skatingEventDisciplines: {
+      type: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+        },
+      ],
+      default: [],
+    },
+
     colorOne: {
       type: String,
       default: "#6A11CB" // primary (purple)

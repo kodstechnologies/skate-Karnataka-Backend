@@ -21,7 +21,7 @@ import {
     patchDistrictFormulaSourceSetting,
     updateDistrictFormulaHandler,
 } from "./district.formula.controller.js";
-import { acceptClub, createNewDistrict, deleteDistrict, displayAllApply, displayApplyAllClub, displayAllDistrict, displayDistrictClubSkaters, displayDistrictDashboard, displayDistrictProfile, displaySingleDistrictAllClubs, displaySingleDistrictMembers, displaySkaterDetails, displayTotalClubs, displayTotalSkater, districtClubDetails, districtUnLinkClub, leaveClub, rejectClub, rejectLeaveClub, updateDistrict, updateDistrictProfile } from "./district.controller.js";
+import { acceptClub, acceptJoinSkater, acceptLeaveSkater, blockDistrictSkater, createNewDistrict, deleteDistrict, deleteDistrictSkater, displayAllApply, displayApplyAllClub, displayAllDistrict, displayDistrictClubSkaters, displayDistrictDashboard, displayDistrictProfile, displaySingleDistrictAllClubs, displaySingleDistrictMembers, displaySkaterDetails, displayTotalClubs, displayTotalSkater, districtClubDetails, districtUnLinkClub, leaveClub, rejectClub, rejectJoinSkater, rejectLeaveClub, rejectLeaveSkater, updateDistrict, updateDistrictProfile } from "./district.controller.js";
 import { upload } from "../../middleware/multer.middleware.js";
 import { uploadToS3 } from "../../middleware/s3Upload.middleware.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
@@ -94,6 +94,8 @@ router.delete("/v1/formula/:id", authenticate(["District"]), deleteDistrictFormu
 router.get("/v1/total-club",authenticate(["District"]) ,displayTotalClubs);
 router.get("/v1/total-skater",authenticate(["District"]) ,displayTotalSkater);
 router.get("/v1/skater/:id",authenticate(["District"]) ,displaySkaterDetails);
+router.patch("/v1/skater/:id/block", authenticate(["District"]), blockDistrictSkater);
+router.delete("/v1/skater/:id", authenticate(["District"]), deleteDistrictSkater);
 
 
 router.get(
@@ -102,6 +104,11 @@ router.get(
   validate(districtPendingApprovalsQueryValidation),
   displayApplyAllClub
 );
+router.get("/v1/accept-join-skater/:id/:clubId", authenticate(["District"]), acceptJoinSkater)
+router.get("/v1/reject-join-skater/:id/:clubId", authenticate(["District"]), rejectJoinSkater)
+router.get("/v1/accept-leave-skater/:id/:clubId", authenticate(["District"]), acceptLeaveSkater)
+router.get("/v1/reject-leave-skater/:id/:clubId", authenticate(["District"]), rejectLeaveSkater)
+
 router.get("/v1/accept-join-club/:id", authenticate(["District"]), acceptClub);
 router.get("/v1/reject-join-club/:id", authenticate(["District"]), rejectClub);
 router.get("/v1/accept-leave-club/:id", authenticate(["District"]), leaveClub);

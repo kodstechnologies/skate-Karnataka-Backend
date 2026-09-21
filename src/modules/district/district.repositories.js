@@ -464,7 +464,7 @@ const districtTotalSkatersRepository = async (id, { page, limit, search }) => {
 
   const [skaters, totalSkaters] = await Promise.all([
     Skater.find(query)
-      .select("_id krsaId fullName address photo club phone email gender")
+      .select("_id krsaId fullName address photo club phone email gender isBlocked")
       .populate("club", "_id name")
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -480,6 +480,7 @@ const districtTotalSkatersRepository = async (id, { page, limit, search }) => {
     },
     data: skaters.map((skater) => ({
       id: skater._id,
+      _id: skater._id,
       skaterId: skater._id || "",
       krsaId: skater.krsaId || "",
       img: skater.photo || "",
@@ -489,6 +490,7 @@ const districtTotalSkatersRepository = async (id, { page, limit, search }) => {
       gender: skater.gender || "",
       address: skater.address || "",
       clubName: skater.club?.name || "",
+      isBlocked: skater.isBlocked ?? false,
     })),
     pagination: {
       total: totalSkaters,
@@ -628,6 +630,54 @@ export const displayApplyAllClubRepository = async (
   }
 
   if (districtClubIds.length > 0) {
+    // Skater join club requests (apply to join clubs in this district)
+    const skaterJoinRequests = await Skater.find({
+      role: "Skater",
+      applyClub: { $in: districtClubIds },
+      clubStatus: "apply",
+    })
+      .select("_id fullName krsaId applyClub createdAt")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    for (const skater of skaterJoinRequests) {
+      const applyClubIds = (skater.applyClub || []).map((id) => String(id));
+      const matchedClubId = applyClubIds.find((id) =>
+        districtClubIds.some((cid) => String(cid) === id)
+      );
+      const clubDoc = matchedClubId ? clubById.get(matchedClubId) : null;
+      data.push(
+        formatDistrictPendingItem("joinClub", skater._id, skater.createdAt, {
+          krsaId: skater.krsaId || "",
+          fullName: skater.fullName || "",
+          clubId: clubDoc?.clubId || "",
+          clubName: clubDoc?.name || "",
+        })
+      );
+    }
+
+    // Skater leave club requests (apply-leave from clubs in this district)
+    const skaterLeaveRequests = await Skater.find({
+      role: "Skater",
+      club: { $in: districtClubIds },
+      clubStatus: "apply-leave",
+    })
+      .select("_id fullName krsaId club updatedAt createdAt")
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    for (const skater of skaterLeaveRequests) {
+      const clubDoc = clubById.get(String(skater.club || ""));
+      data.push(
+        formatDistrictPendingItem("leaveClub", skater._id, skater.updatedAt || skater.createdAt, {
+          krsaId: skater.krsaId || "",
+          fullName: skater.fullName || "",
+          clubId: clubDoc?.clubId || "",
+          clubName: clubDoc?.name || "",
+        })
+      );
+    }
+
     const skaters = await Skater.find({
       role: "Skater",
       club: { $in: districtClubIds },
@@ -701,6 +751,8 @@ export const displayApplyAllClubRepository = async (
     counts: {
       joinDistrict: countByType("joinDistrict"),
       leaveDistrict: countByType("leaveDistrict"),
+      joinClub: countByType("joinClub"),
+      leaveClub: countByType("leaveClub"),
       certificateRequest: countByType("certificateRequest"),
     },
     data: paged,

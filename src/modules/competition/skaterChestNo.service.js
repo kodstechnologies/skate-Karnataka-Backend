@@ -1050,7 +1050,7 @@ const flattenSummaryAttendees = (skatingCategories = []) => {
   const rows = [];
 
   for (const skatingCategory of skatingCategories) {
-    const discipline = String(skatingCategory?.typeName || "").trim();
+    const discipline = String(skatingCategory?.name || skatingCategory?.typeName || "").trim();
     for (const ageGroupEntry of skatingCategory?.ageGroups || []) {
       const ageGroup = String(ageGroupEntry?.label || "").trim();
       for (const category of ageGroupEntry?.categories || []) {
@@ -1242,7 +1242,7 @@ export const getChestNumberSummaryByEvent = async (
 
     return {
       id: skatingCategory._id,
-      typeName: skatingCategory.typeName || "",
+      typeName: skatingCategory.name || skatingCategory.typeName || "",
       ageGroups,
     };
   });

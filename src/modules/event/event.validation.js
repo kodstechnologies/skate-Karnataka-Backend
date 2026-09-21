@@ -119,6 +119,7 @@ const skatingEventCategoryIds = Joi.any()
         }
         const { error, value: normalized } = Joi.array()
             .items(objectIdString)
+            .max(1)
             .validate(arr, { abortEarly: false });
         if (error) {
             return helpers.error("any.invalid", {
@@ -149,7 +150,107 @@ const skatingEventCategoriesRequired = Joi.any()
         }
         if (!Array.isArray(arr)) {
             return helpers.error("any.invalid", {
-                message: "skatingEventCategories must be an array of SkatingEventCategory ids",
+                message: "skatingEventCategories must be an array",
+            });
+        }
+
+        // Check if it's the new format (array of objects with categoryId and disciplines)
+        if (arr.length > 0 && arr[0] && typeof arr[0] === "object" && arr[0].categoryId) {
+            // New format validation
+            const { error, value: normalized } = Joi.array()
+                .items(
+                    Joi.object({
+                        categoryId: objectIdString.required(),
+                        disciplines: Joi.array()
+                            .items(
+                                Joi.object({
+                                    id: objectIdString.required()
+                                })
+                            )
+                            .optional()
+                            .default([])
+                    })
+                )
+                .min(1)
+                .validate(arr, { abortEarly: false });
+            
+            if (error) {
+                return helpers.error("any.invalid", {
+                    message: error.details.map((d) => d.message.replace(/"/g, "")).join(", "),
+                });
+            }
+            return normalized;
+        } else {
+            // Old format validation (array of category IDs)
+            const { error, value: normalized } = Joi.array()
+                .items(objectIdString.required())
+                .min(1)
+                .validate(arr, { abortEarly: false });
+            if (error) {
+                return helpers.error("any.invalid", {
+                    message: error.details.map((d) => d.message.replace(/"/g, "")).join(", "),
+                });
+            }
+            return normalized;
+        }
+    }, "required SkatingEventCategory array");
+
+/** Optional array of embedded discipline ObjectIds (JSON string allowed for multipart). */
+const skatingEventDisciplineIds = Joi.any()
+    .optional()
+    .custom((value, helpers) => {
+        if (value === undefined || value === null || value === "") {
+            return undefined;
+        }
+        let arr = value;
+        if (typeof value === "string") {
+            const trimmed = value.trim();
+            if (!trimmed) return undefined;
+            try {
+                arr = JSON.parse(trimmed);
+            } catch {
+                return helpers.error("any.invalid", {
+                    message: "skatingEventDisciplines must be valid JSON when sent as a string",
+                });
+            }
+        }
+        if (!Array.isArray(arr)) {
+            return helpers.error("any.invalid", {
+                message: "skatingEventDisciplines must be an array of discipline ids",
+            });
+        }
+        const { error, value: normalized } = Joi.array()
+            .items(objectIdString)
+            .validate(arr, { abortEarly: false });
+        if (error) {
+            return helpers.error("any.invalid", {
+                message: error.details.map((d) => d.message.replace(/"/g, "")).join(", "),
+            });
+        }
+        return normalized;
+    }, "discipline id array");
+
+const skatingEventDisciplinesRequired = Joi.any()
+    .required()
+    .custom((value, helpers) => {
+        if (value === undefined || value === null || value === "") {
+            return helpers.error("any.required");
+        }
+        let arr = value;
+        if (typeof value === "string") {
+            const trimmed = value.trim();
+            if (!trimmed) return helpers.error("any.required");
+            try {
+                arr = JSON.parse(trimmed);
+            } catch {
+                return helpers.error("any.invalid", {
+                    message: "skatingEventDisciplines must be valid JSON when sent as a string",
+                });
+            }
+        }
+        if (!Array.isArray(arr)) {
+            return helpers.error("any.invalid", {
+                message: "skatingEventDisciplines must be an array of discipline ids",
             });
         }
         const { error, value: normalized } = Joi.array()
@@ -162,7 +263,7 @@ const skatingEventCategoriesRequired = Joi.any()
             });
         }
         return normalized;
-    }, "required SkatingEventCategory id array");
+    }, "required discipline id array");
 
 export const stateEventListQueryValidation = {
     query: Joi.object({
@@ -551,6 +652,7 @@ const create_club_event_validation = {
         categorySource: categoryFormatField.optional(),
 
         skatingEventCategories: skatingEventCategoriesRequired,
+        skatingEventDisciplines: skatingEventDisciplinesRequired,
     })
         .custom(enforceEventDateTimeOrder)
         .messages({
@@ -604,6 +706,7 @@ const create_district_event_validation = {
         categorySource: categoryFormatField.optional(),
 
         skatingEventCategories: skatingEventCategoriesRequired,
+        skatingEventDisciplines: skatingEventDisciplinesRequired,
     })
         .custom(enforceEventDateTimeOrder)
         .messages({
@@ -656,7 +759,8 @@ const create_state_event_validation = {
             .valid("coming_soon", "active", "cancelled", "completed")
             .optional(),
 
-        skatingEventCategories: skatingEventCategoryIds,
+        skatingEventCategories: skatingEventCategoriesRequired,
+        skatingEventDisciplines: skatingEventDisciplinesRequired,
     })
         .custom(enforceEventDateTimeOrder)
         .messages({
@@ -707,6 +811,7 @@ const update_event_validation = {
         categoryFormat: categoryFormatField.optional(),
         categorySource: categoryFormatField.optional(),
         skatingEventCategories: skatingEventCategoryIds,
+        skatingEventDisciplines: skatingEventDisciplineIds,
     })
 
 
@@ -744,27 +849,57 @@ const customCategoryNameItem = Joi.alternatives().try(
     })
 );
 
+const disciplineBodySchema = Joi.object({
+    name: Joi.string().trim().min(1).max(100),
+    typeName: Joi.string().trim().min(1).max(100),
+    ageGroups: Joi.array().items(ageGroupSchema).optional(),
+    customCategoryNames: Joi.array().items(customCategoryNameItem).optional(),
+    names: Joi.array().items(Joi.string().trim().min(1)).optional(),
+    categoryStatus: Joi.string()
+        .valid(CATEGORY_STATUS.STANDARD, CATEGORY_STATUS.CUSTOM)
+        .optional(),
+    club: Joi.string().trim().pattern(/^[0-9a-fA-F]{24}$/).optional(),
+    clubId: Joi.string().trim().pattern(/^[0-9a-fA-F]{24}$/).optional(),
+    district: Joi.string().trim().pattern(/^[0-9a-fA-F]{24}$/).optional(),
+    districtId: Joi.string().trim().pattern(/^[0-9a-fA-F]{24}$/).optional(),
+});
+
 const create_event_category_validation = {
     body: Joi.object({
-        typeName: Joi.string().trim().min(2).max(100).required(),
-        ageGroups: Joi.array().items(ageGroupSchema).default([]),
-        customCategoryNames: Joi.array().items(customCategoryNameItem).default([]),
-        names: Joi.array().items(Joi.string().trim().min(1)).optional(),
+        name: Joi.string().trim().min(2).max(100),
+        typeName: Joi.string().trim().min(2).max(100),
+        disciplines: Joi.array().items(disciplineBodySchema).optional(),
         categoryStatus: Joi.string()
             .valid(CATEGORY_STATUS.STANDARD, CATEGORY_STATUS.CUSTOM)
             .optional(),
         clubId: Joi.string().trim().pattern(/^[0-9a-fA-F]{24}$/).optional(),
         districtId: Joi.string().trim().pattern(/^[0-9a-fA-F]{24}$/).optional(),
-    }),
+    }).or("name", "typeName"),
 };
 
 const update_event_category_validation = {
     body: Joi.object({
+        name: Joi.string().trim().min(2).max(100),
         typeName: Joi.string().trim().min(2).max(100),
+        disciplines: Joi.array().items(disciplineBodySchema),
+        disciplineId: Joi.string().trim().pattern(/^[0-9a-fA-F]{24}$/).optional(),
         ageGroups: Joi.array().items(ageGroupSchema),
         customCategoryNames: Joi.array().items(customCategoryNameItem).optional(),
         names: Joi.array().items(Joi.string().trim().min(1)).optional(),
     }).min(1),
+};
+
+const create_discipline_validation = {
+    body: Joi.alternatives().try(
+        disciplineBodySchema.or("name", "typeName"),
+        Joi.object({
+            disciplines: Joi.array().items(disciplineBodySchema.or("name", "typeName")).min(1).required(),
+        })
+    ),
+};
+
+const update_discipline_validation = {
+    body: disciplineBodySchema.min(1),
 };
 
 const upsert_org_custom_category_validation = {
@@ -1163,6 +1298,8 @@ export {
     update_chest_number_mode_validation,
     create_event_category_validation,
     update_event_category_validation,
+    create_discipline_validation,
+    update_discipline_validation,
     upsert_org_custom_category_validation,
     eventCategoryListQueryValidation,
     register_form_validation,

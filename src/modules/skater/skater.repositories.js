@@ -1,7 +1,8 @@
 import mongoose from "mongoose";
 import { AppError } from "../../util/common/AppError.js";
 import { BaseAuth } from "../auth/baseAuth.model.js";
-import { DisciplineService } from "../discipline/discipline.model.js";
+import SkatingEventCategory from "../event/SkatingEventCategory.model.js";
+import { categoryNameOf } from "../event/skatingEventCategory.sync.js";
 import { Discipline } from "../guest/disciplines.model.js";
 import {
   countSkaterParticipantMedalStatsRepository,
@@ -29,7 +30,6 @@ import {
 } from "../../util/time/timeUtil.js";
 import { getQualificationTypeFromFormula } from "../competition/competition.formulaResolve.js";
 import { EventParticipant } from "../event/eventParticipant.model.js";
-import SkatingEventCategory from "../event/SkatingEventCategory.model.js";
 import { Skater } from "./skater.model.js";
 import { Club } from "../club/club.model.js";
 import { paginate, calcTotalPages } from "../../util/common/paginate.js";
@@ -63,11 +63,14 @@ const findDisciplineById = async (disciplineId) => {
         return null;
     }
 
-    const service = await DisciplineService.findById(disciplineId)
-        .select("name")
+    const category = await SkatingEventCategory.findOne({ "disciplines._id": disciplineId })
+        .select("name disciplines._id disciplines.name")
         .lean();
-    if (service?.name) {
-        return { name: service.name };
+    const embedded = (category?.disciplines || []).find(
+        (row) => String(row._id) === String(disciplineId)
+    );
+    if (embedded?.name) {
+        return { name: embedded.name };
     }
 
     const guest = await Discipline.findById(disciplineId).select("title").lean();
@@ -139,7 +142,7 @@ const assertUniqueContactForUpdate = async (id, payload, existingUser) => {
 
 const SKATER_ROLES = ["Skater", "skater"];
 
-const SKATER_OBJECT_ID_FIELDS = ["category", "discipline", "district", "club"];
+const SKATER_OBJECT_ID_FIELDS = ["category", "eventCategory", "discipline", "district", "club"];
 
 const castSkaterObjectIdFields = (payload) => {
     for (const field of SKATER_OBJECT_ID_FIELDS) {
@@ -286,7 +289,7 @@ const after_login_skater_form_repositories = async (data, id) => {
     const populated = await Skater.findById(id)
         .populate("district")
         .populate("club")
-        .populate("category", "typeName")
+        .populate("category", "name")
         .lean();
 
     const profile = populated ?? updated.toObject?.() ?? updated;
@@ -322,7 +325,7 @@ const attachDisciplineName = async (profile) => {
 const get_skater_profile_repositories = async (id) => {
     const profile = await Skater.findById(id)
         .select("photo fullName krsaId discipline category")
-        .populate("category", "typeName")
+        .populate("category", "name")
         .lean();
 
     if (!profile) return null;
@@ -363,7 +366,7 @@ const formatSkaterFullDetailsDto = (skater, disciplineName, medalStats = {}) => 
     category: skater.category
         ? {
               _id: skater.category._id,
-              typeName: skater.category.typeName || "",
+              typeName: skater.category.name || skater.category.typeName || "",
           }
         : null,
     club: skater.club
@@ -399,7 +402,7 @@ const get_skater_digital_id_card_repositories = async (id) => {
     const profile = await Skater.findById(id)
         .select("-refreshTokens -firebaseTokens")
         .populate("club", "name clubId img districtName officeAddress")
-        .populate("category", "typeName")
+        .populate("category", "name")
         .populate("discipline", "name title")
         .populate("district", "name")
         .populate("applyClub", "name clubId img")
@@ -425,42 +428,48 @@ const delete_skater_repositories = async (userId) => {
 
 const get_all_skating_event_categories_repositories = async () => {
     const categories = await SkatingEventCategory.find({})
-        .select("_id typeName")
-        .sort({ typeName: 1 })
+        .select("_id name typeName")
+        .sort({ name: 1 })
         .lean();
 
     return categories.map((category) => ({
         id: String(category._id),
-        name: category.typeName || "",
+        name: categoryNameOf(category),
     }));
 };
 
 const get_all_skating_event_categories_full_repositories = async () => {
     return await SkatingEventCategory.find({})
         .populate([
-            "ageGroups.categories.formula",
-            "customCategoryNames.formula",
-            "clubOverrides.ageGroups.categories.formula",
-            "clubOverrides.customCategoryNames.formula",
-            "districtOverrides.ageGroups.categories.formula",
-            "districtOverrides.customCategoryNames.formula",
+            "disciplines.ageGroups.categories.formula",
+            "disciplines.customCategoryNames.formula",
+            "disciplines.clubOverrides.ageGroups.categories.formula",
+            "disciplines.clubOverrides.customCategoryNames.formula",
+            "disciplines.districtOverrides.ageGroups.categories.formula",
+            "disciplines.districtOverrides.customCategoryNames.formula",
         ])
-        .sort({ typeName: 1 })
+        .sort({ name: 1 })
         .lean();
 };
 
 const get_all_discipline_repositories = async () => {
-    const [services, guests] = await Promise.all([
-        DisciplineService.find({}).select("_id name").sort({ name: 1 }).lean(),
+    const [categories, guests] = await Promise.all([
+        SkatingEventCategory.find({}).select("name disciplines._id disciplines.name").sort({ name: 1 }).lean(),
         Discipline.find({}).select("_id title").sort({ title: 1 }).lean(),
     ]);
 
-    return [
-        ...services.map((row) => ({
+    const embedded = categories.flatMap((category) =>
+        (category.disciplines || []).map((row) => ({
             _id: row._id,
             name: row.name,
-            source: "service",
-        })),
+            parentCategoryId: category._id,
+            parentCategoryName: categoryNameOf(category),
+            source: "event",
+        }))
+    );
+
+    return [
+        ...embedded,
         ...guests.map((row) => ({
             _id: row._id,
             name: row.title,
@@ -1084,7 +1093,7 @@ const get_skater_results_by_event_repositories = async (
             select:
                 "header eventType eventStartDate eventEndDate eventStartTime eventEndTime address status colorOne colorTwo textColor",
         })
-        .populate("categoriesId", "_id typeName")
+        .populate("categoriesId", "_id name")
         .lean();
 
     if (!participant) {
@@ -1134,7 +1143,7 @@ const get_skater_results_by_event_repositories = async (
         categoriesId: categoryRefId
             ? {
                   _id: categoryRefId,
-                  name: skatingCategory?.typeName ?? "",
+                  name: skatingCategory?.name || skatingCategory?.typeName || "",
               }
             : null,
     };

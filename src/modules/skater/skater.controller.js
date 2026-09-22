@@ -38,7 +38,9 @@ const GetSkaterProfile = asyncHandler(async (req, res) => {
 const GetSkaterDigitalIdCard = asyncHandler(async (req, res) => {
     const id = req.user._id;
     const profile = await get_skater_digital_id_card_service(id);
-    
+
+    const parent = profile.SkaterParent || null;
+
     const response = {
         ...profile,
         img: profile.photo || "",
@@ -48,6 +50,9 @@ const GetSkaterDigitalIdCard = asyncHandler(async (req, res) => {
         dob: profile.dob ? formatDob(profile.dob) : "",
         discipline: profile.discipline || "",
         date: profile.createdAt ? formatDate(profile.createdAt) : "",
+        phone: profile.phone || parent?.phone || "",
+        email: profile.email || parent?.email || "",
+        address: profile.address || parent?.address || "",
     };
 
     return res

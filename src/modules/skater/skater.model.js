@@ -67,7 +67,7 @@ const skaterSchema = new mongoose.Schema({
   },
   clubStatus: {
     type: String,
-    enum: ["apply", "join", "apply-leave", "leave", "reject"],
+    enum: ["apply", "join", "apply-leave", "leave", "reject", "block"],
     default: "apply"
   },
 

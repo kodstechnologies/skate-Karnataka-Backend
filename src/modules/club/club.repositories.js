@@ -1173,7 +1173,7 @@ export const display_all_club_skater_repositories = async (
     const [total, skaters] = await Promise.all([
         Skater.countDocuments(filter),
         Skater.find(filter)
-            .select("fullName photo profile krsaId createdAt")
+            .select("fullName photo profile krsaId phone gender district districtName clubStatus createdAt")
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(pageLimit)
@@ -1186,8 +1186,12 @@ export const display_all_club_skater_repositories = async (
         data: skaters.map((skater) => ({
             id: skater._id,
             name: skater.fullName || "",
-            profile: skater.photo || skater.profile || "",
+            img: skater.photo || skater.profile || "",
             krsaId: skater.krsaId || "",
+            phone: skater.phone || "",
+            gender: skater.gender || "",
+            districtName: skater.districtName || "",
+            clubStatus: skater.clubStatus || "",
         })),
         pagination: {
             total,
@@ -1407,3 +1411,71 @@ export {
     display_existing_club_repositories,
     display_all_apply_skater_repositories,
 }
+
+export const edit_club_skater_repository = async (clubMemberId, skaterId, updates) => {
+    const club = await resolveClubIdFromClubMember(clubMemberId);
+    const rawId = String(skaterId || "").trim();
+    if (!rawId) throw new AppError("Skater id is required", 400);
+
+    const skater = await Skater.findOne({ _id: rawId, club: club._id, role: "Skater" })
+        .select("_id")
+        .lean();
+    if (!skater) throw new AppError("Skater not found in this club", 404);
+
+    const allowedFields = ["fullName", "phone", "gender", "address", "district", "districtName"];
+    const setData = {};
+    for (const key of allowedFields) {
+        if (updates[key] !== undefined && updates[key] !== null) {
+            setData[key] = updates[key];
+        }
+    }
+
+    if (Object.keys(setData).length === 0) throw new AppError("No valid fields to update", 400);
+
+    const updated = await Skater.findByIdAndUpdate(
+        rawId,
+        { $set: setData },
+        { new: true }
+    ).select("_id fullName phone gender address district districtName krsaId").lean();
+
+    return {
+        id: updated._id,
+        name: updated.fullName || "",
+        phone: updated.phone || "",
+        gender: updated.gender || "",
+        address: updated.address || "",
+        districtName: updated.districtName || "",
+        krsaId: updated.krsaId || "",
+    };
+};
+
+export const list_all_districts_repository = async () => {
+    const { District } = await import("../district/district.model.js");
+    return await District.find({}).select("_id name districtKrsaId").sort({ name: 1 }).lean();
+};
+
+export const block_skater_repository = async (clubMemberId, skaterId) => {
+    const club = await resolveClubIdFromClubMember(clubMemberId);
+    const rawId = String(skaterId || "").trim();
+    if (!rawId) throw new AppError("Skater id is required", 400);
+
+    const skater = await Skater.findOne({ _id: rawId, club: club._id, role: "Skater" })
+        .select("clubStatus")
+        .lean();
+    if (!skater) throw new AppError("Skater not found in this club", 404);
+
+    const isBlocked = skater.clubStatus === "block";
+    const updated = await Skater.findByIdAndUpdate(
+        rawId,
+        { $set: { clubStatus: isBlocked ? "join" : "block" } },
+        { new: true }
+    ).select("_id fullName krsaId clubStatus").lean();
+
+    return {
+        id: updated._id,
+        fullName: updated.fullName,
+        krsaId: updated.krsaId,
+        clubStatus: updated.clubStatus,
+        blocked: updated.clubStatus === "block",
+    };
+};

@@ -548,6 +548,7 @@ const displayRound = asyncHandler(async (req, res) => {
         req.query.categoriesId ||
         "";
     const categoryId = req.query.categoryId ? String(req.query.categoryId).trim() : "";
+    const disciplineId = req.query.disciplineId ? String(req.query.disciplineId).trim() : "";
     const genderFilter = normalizeCompetitionGenderFilter(req.query.gender);
     const genderLabel = toCompetitionGenderLabel(req.query.gender);
 
@@ -557,13 +558,26 @@ const displayRound = asyncHandler(async (req, res) => {
     }
 
     const resolvedCategories = eventMeta.skatingEventCategories || [];
-    const scopedCategories = scopeResolvedSkatingCategories(
+
+    // Scope by skatingEventCategoryId first, then further filter by disciplineId if provided
+    let scopedCategories = scopeResolvedSkatingCategories(
         resolvedCategories,
         skatingEventCategoryId
     );
 
+    if (disciplineId) {
+        scopedCategories = scopedCategories.filter((row) =>
+            String(row._id || "") === String(disciplineId) ||
+            String(row.parentCategoryId || "") === String(disciplineId)
+        );
+    }
+
     if (skatingEventCategoryId && !scopedCategories.length) {
         throw new AppError("Skating event category not linked to this event", 404);
+    }
+
+    if (disciplineId && !scopedCategories.length) {
+        throw new AppError("Discipline not linked to this event", 404);
     }
 
     const competitions = await EventCompetition.find({ eventId }).lean();
@@ -616,6 +630,8 @@ const displayRound = asyncHandler(async (req, res) => {
                   skatingEventCategoryId: String(meta.skatingEventCategoryId),
                   skatingEventCategoryName: meta.skatingEventCategoryName,
                   categoryId: String(meta.categoryId),
+                  disciplineId: meta.disciplineId ? String(meta.disciplineId) : null,
+                  disciplineName: meta.disciplineName ?? null,
               }
             : skatingEventCategoryId
               ? { skatingEventCategoryId: String(skatingEventCategoryId) }
@@ -720,6 +736,7 @@ const updatePoints = asyncHandler(async (req, res) => {
         req.body.skatingEventCategories ||
         req.body.categoriesId ||
         null;
+    const disciplineId = req.body.disciplineId ? String(req.body.disciplineId).trim() : null;
     const genderFilter = normalizeCompetitionGenderFilter(req.body.gender);
     const genderLabel = toCompetitionGenderLabel(req.body.gender);
 
@@ -888,6 +905,8 @@ const updatePoints = asyncHandler(async (req, res) => {
             eventId: competition.eventId,
             ageGroup: competition.ageGroup,
             round: round,
+            skatingEventCategoryId: skatingEventCategoryId ?? null,
+            disciplineId: disciplineId ?? null,
             gender: genderLabel,
             categories: responseCategories,
         },
@@ -907,6 +926,7 @@ const promoteToNextRound = asyncHandler(async (req, res) => {
         req.body.categoriesId ||
         req.body.categoryId ||
         null;
+    const disciplineId = req.body.disciplineId ? String(req.body.disciplineId).trim() : null;
     const genderFilter = normalizeCompetitionGenderFilter(req.body.gender);
     const genderLabel = toCompetitionGenderLabel(req.body.gender);
 
@@ -1136,6 +1156,8 @@ const promoteToNextRound = asyncHandler(async (req, res) => {
             eventId: saved?.eventId ?? competition.eventId,
             ageGroup: saved?.ageGroup ?? competition.ageGroup,
             name: savedCategory?.name ?? category.name,
+            skatingEventCategoryId: skatingEventCategoryId ?? null,
+            disciplineId: disciplineId ?? null,
             gender: genderLabel,
             fromRound: round,
             toRound: targetRound,

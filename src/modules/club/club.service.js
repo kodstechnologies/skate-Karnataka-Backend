@@ -412,3 +412,18 @@ export {
     display_existing_club_service,
     display_all_apply_skater_service,
 }
+
+export const block_skater_service = async (clubMemberId, skaterId) => {
+    const { block_skater_repository } = await import("./club.repositories.js");
+    return block_skater_repository(clubMemberId, skaterId);
+};
+
+export const edit_club_skater_service = async (clubMemberId, skaterId, updates) => {
+    const { edit_club_skater_repository } = await import("./club.repositories.js");
+    return edit_club_skater_repository(clubMemberId, skaterId, updates);
+};
+
+export const list_all_districts_service = async () => {
+    const { list_all_districts_repository } = await import("./club.repositories.js");
+    return list_all_districts_repository();
+};

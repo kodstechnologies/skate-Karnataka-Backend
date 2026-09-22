@@ -70,6 +70,7 @@ const bulkUpdateBody = Joi.object({
     skatingEventCategoryId: objectIdString.optional(),
     skatingEventCategories: objectIdString.optional(),
     categoriesId: objectIdString.optional(),
+    disciplineId: objectIdString.optional(),
     gender: competitionGenderField,
     categories: Joi.array().items(categoryUpdateItem).min(1).required(),
     skaterId: Joi.forbidden(),
@@ -91,6 +92,7 @@ const singleUpdateBody = Joi.object({
     skatingEventCategoryId: objectIdString.optional(),
     skatingEventCategories: objectIdString.optional(),
     categoriesId: objectIdString.optional(),
+    disciplineId: objectIdString.optional(),
     gender: competitionGenderField,
     skaterId: objectIdString.required(),
     time: Joi.string().trim().allow("").optional(),
@@ -124,6 +126,7 @@ export const promoteToNextRoundValidation = {
         skatingEventCategories: objectIdString.optional(),
         categoriesId: objectIdString.optional(),
         categoryId: objectIdString.optional(),
+        disciplineId: objectIdString.optional(),
         gender: competitionGenderField,
     }),
 };
@@ -146,6 +149,7 @@ export const displayRoundQueryValidation = {
         skatingEventCategoryId: objectIdString.optional(),
         categoriesId: objectIdString.optional(),
         categoryId: objectIdString.optional(),
+        disciplineId: objectIdString.optional(),
         /** boys | girls | both (also accepts boy/girl/male/female) */
         gender: competitionGenderField,
     }),

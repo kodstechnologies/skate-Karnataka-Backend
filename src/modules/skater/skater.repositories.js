@@ -421,6 +421,7 @@ const get_skater_digital_id_card_repositories = async (id) => {
         .populate("club", "name clubId img districtName officeAddress")
         .populate("district", "name")
         .populate("applyClub", "name clubId img")
+        .populate("SkaterParent", "phone email address fullName")
         .lean();
 
     if (!profile) {
@@ -464,6 +465,7 @@ const get_skater_digital_id_card_repositories = async (id) => {
         discipline: withDiscipline.disciplineName || "",  // Use disciplineName from attachDisciplineName
         disciplineId: withDiscipline.discipline?._id || withDiscipline.discipline || null,
         parent: withDiscipline.parent || "",
+        SkaterParent: withDiscipline.SkaterParent || null,
         bloodGroup: withDiscipline.bloodGroup || "",
         school: withDiscipline.school || "",
         grade: withDiscipline.grade || "",

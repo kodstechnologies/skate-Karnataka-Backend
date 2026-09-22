@@ -76,13 +76,25 @@ const pickFormulaForCategory = (skatingCategory, subCategory) => {
   return null;
 };
 
-const formatCategoryMeta = (skatingCategory, subCategory) => ({
-  name: String(subCategory.name || "").trim(),
-  skatingEventCategoryId: skatingCategory._id,
-  skatingEventCategoryName: skatingCategory.name || skatingCategory.typeName || "",
-  categoryId: subCategory._id,
-  formula: pickFormulaForCategory(skatingCategory, subCategory),
-});
+const formatCategoryMeta = (skatingCategory, subCategory) => {
+  const hasParent = skatingCategory.parentCategoryId != null &&
+    String(skatingCategory.parentCategoryId).length > 0;
+  return {
+    name: String(subCategory.name || "").trim(),
+    // discipline view: parentCategoryId = SkatingEventCategory _id, _id = discipline _id
+    // standard category: no parentCategoryId, _id = SkatingEventCategory _id
+    skatingEventCategoryId: hasParent
+      ? skatingCategory.parentCategoryId
+      : skatingCategory._id,
+    skatingEventCategoryName: hasParent
+      ? (skatingCategory.parentName || "")
+      : (skatingCategory.name || skatingCategory.typeName || ""),
+    disciplineId: hasParent ? skatingCategory._id : null,
+    disciplineName: hasParent ? (skatingCategory.name || "") : null,
+    categoryId: subCategory._id,
+    formula: pickFormulaForCategory(skatingCategory, subCategory),
+  };
+};
 
 export const findEventCategoryMeta = (resolvedCategories, ageGroup, categoryName) => {
   const normAge = String(ageGroup || "").trim().toLowerCase();
@@ -191,6 +203,8 @@ export const toCategoryMetaFields = (meta) => ({
     ? String(meta.skatingEventCategoryId)
     : null,
   skatingEventCategoryName: meta?.skatingEventCategoryName ?? null,
+  disciplineId: meta?.disciplineId ? String(meta.disciplineId) : null,
+  disciplineName: meta?.disciplineName ?? null,
 });
 
 export const scopeResolvedSkatingCategories = (
@@ -214,6 +228,9 @@ export const toDisplayRoundCategoryOnly = (formatted) => ({
   skatingEventCategoryId: formatted.skatingEventCategoryId
     ? String(formatted.skatingEventCategoryId)
     : null,
+  skatingEventCategoryName: formatted.skatingEventCategoryName ?? null,
+  disciplineId: formatted.disciplineId ? String(formatted.disciplineId) : null,
+  disciplineName: formatted.disciplineName ?? null,
   rounds: formatted.rounds,
   activeRound: formatted.activeRound,
   "1st": formatted["1st"],
@@ -504,6 +521,8 @@ export const buildCategoriesForAgeGroup = ({
               : null,
             skatingEventCategoryName: meta.skatingEventCategoryName || null,
             categoryId: meta.categoryId ? String(meta.categoryId) : null,
+            disciplineId: meta.disciplineId ? String(meta.disciplineId) : null,
+            disciplineName: meta.disciplineName ?? null,
           }
         : {}
     );

@@ -393,49 +393,35 @@ export const competitionDetailsService = async (eventId, reqUser) => {
         throw new AppError("Event not found", 404);
     }
 
-    // result.skatingEventCategories is a flat list of discipline views from resolveSkatingCategoriesForEvent
-    // Each item has: _id (disciplineId), parentCategoryId, parentName, name (disciplineName), ageGroups
-    // Group them by parentCategoryId to produce the desired response shape
+    // result.skatingEventCategories is flat discipline views from resolveSkatingCategoriesForEvent
+    // Each has: _id (disciplineId), parentCategoryId, parentName, name (disciplineName), ageGroups[]
+    // Group by parentCategoryId, each discipline keeps its own ageGroups
     const categoryMap = new Map();
 
-    for (const disciplineView of (result.skatingEventCategories || [])) {
-        const catId = String(disciplineView.parentCategoryId || "");
+    for (const disc of (result.skatingEventCategories || [])) {
+        const catId = String(disc.parentCategoryId || "");
         if (!catId) continue;
 
         if (!categoryMap.has(catId)) {
             categoryMap.set(catId, {
                 categoryId: catId,
-                name: disciplineView.parentName || "",
+                name: disc.parentName || "",
                 disciplines: [],
-                // ageGroups come from discipline level — collect from first discipline that has them
-                ageGroups: [],
             });
         }
 
-        const category = categoryMap.get(catId);
-
-        // Add this discipline
-        category.disciplines.push({
-            id: String(disciplineView._id || ""),
-            name: disciplineView.name || "",
+        categoryMap.get(catId).disciplines.push({
+            id: String(disc._id || ""),
+            name: disc.name || "",
+            ageGroups: (disc.ageGroups || []).map((ag) => ({
+                label: ag.label || "",
+                categories: (ag.categories || []).map((c) => ({
+                    name: c.name || "",
+                    description: c.description || "",
+                })),
+            })),
         });
-
-        // Merge ageGroups — use the first discipline's ageGroups if not yet set,
-        // otherwise merge unique labels
-        if (Array.isArray(disciplineView.ageGroups) && disciplineView.ageGroups.length > 0) {
-            if (category.ageGroups.length === 0) {
-                category.ageGroups = disciplineView.ageGroups.map((ag) => ({
-                    label: ag.label || "",
-                    categories: (ag.categories || []).map((c) => ({
-                        name: c.name || "",
-                        description: c.description || "",
-                    })),
-                }));
-            }
-        }
     }
-
-    const skatingEventCategories = [...categoryMap.values()];
 
     return {
         eventId: result.eventId != null ? String(result.eventId) : "",
@@ -443,7 +429,7 @@ export const competitionDetailsService = async (eventId, reqUser) => {
         eventType: result.eventType ?? "",
         isAutomated: result.isAutomated !== false,
         gender: result.gender || ["boys", "girls", "both"],
-        skatingEventCategories,
+        skatingEventCategories: [...categoryMap.values()],
     };
 };
 

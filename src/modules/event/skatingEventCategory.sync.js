@@ -374,8 +374,10 @@ export const prepareDisciplinePayload = (payload = {}) => {
   delete next.names;
   delete next.typeName;
 
-  if (payload.name != null || payload.typeName != null) {
-    next.name = String(payload.name || payload.typeName || "").trim();
+  // Ensure name is always set from either name or typeName
+  const nameFromPayload = String(payload.name || payload.typeName || "").trim();
+  if (nameFromPayload) {
+    next.name = nameFromPayload;
   }
 
   if (rows.length) {

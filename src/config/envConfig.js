@@ -44,6 +44,13 @@ const AWS_SES_SECRET_KEY = process.env.AWS_SES_SECRET_KEY;
 const AWS_SES_FROM_EMAIL = process.env.AWS_SES_FROM_EMAIL;
 const AWS_SES_FROM_NAME = process.env.AWS_SES_FROM_NAME || "KRSA";
 
+// ================= RAZORPAY =================
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID;
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
+const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET;
+const RAZORPAY_DEV_BYPASS = process.env.RAZORPAY_DEV_BYPASS;
+const RAZORPAY_TEST_MODE = process.env.RAZORPAY_TEST_MODE;
+
 export {
     PORT,
     DB_NAME,
@@ -83,4 +90,11 @@ export {
     AWS_SES_SECRET_KEY,
     AWS_SES_FROM_EMAIL,
     AWS_SES_FROM_NAME,
+
+    // RAZORPAY
+    RAZORPAY_KEY_ID,
+    RAZORPAY_KEY_SECRET,
+    RAZORPAY_WEBHOOK_SECRET,
+    RAZORPAY_DEV_BYPASS,
+    RAZORPAY_TEST_MODE,
 };

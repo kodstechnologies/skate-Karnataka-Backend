@@ -728,7 +728,7 @@ export const getRegisterDetailsByEventId = asyncHandler(async (req, res) => {
 export const createRegisterForm = asyncHandler(async (req, res) => {
     const userId = req.user._id;
     const result = await createRegisterFormService(userId, req.body);
-
+console.log(result,"------1")
     return res
         .status(201)
         .json(

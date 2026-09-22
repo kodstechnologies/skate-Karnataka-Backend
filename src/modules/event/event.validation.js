@@ -133,138 +133,204 @@ const skatingEventCategoryIds = Joi.any()
 const skatingEventCategoriesRequired = Joi.any()
     .required()
     .custom((value, helpers) => {
+        // Required check
         if (value === undefined || value === null || value === "") {
             return helpers.error("any.required");
         }
+
         let arr = value;
+
+        // Support multipart/form-data where JSON may arrive as a string
         if (typeof value === "string") {
             const trimmed = value.trim();
-            if (!trimmed) return helpers.error("any.required");
+
+            if (!trimmed) {
+                return helpers.error("any.required");
+            }
+
             try {
                 arr = JSON.parse(trimmed);
             } catch {
                 return helpers.error("any.invalid", {
-                    message: "skatingEventCategories must be valid JSON when sent as a string",
+                    message:
+                        "skatingEventCategories must be valid JSON when sent as a string",
                 });
             }
         }
+
+        // Must be an array
         if (!Array.isArray(arr)) {
             return helpers.error("any.invalid", {
                 message: "skatingEventCategories must be an array",
             });
         }
 
-        // Check if it's the new format (array of objects with categoryId and disciplines)
-        if (arr.length > 0 && arr[0] && typeof arr[0] === "object" && arr[0].categoryId) {
-            // New format validation
-            const { error, value: normalized } = Joi.array()
-                .items(
-                    Joi.object({
-                        categoryId: objectIdString.required(),
-                        disciplines: Joi.array()
-                            .items(
-                                Joi.object({
-                                    id: objectIdString.required()
-                                })
-                            )
-                            .optional()
-                            .default([])
-                    })
-                )
-                .min(1)
-                .validate(arr, { abortEarly: false });
-            
-            if (error) {
-                return helpers.error("any.invalid", {
-                    message: error.details.map((d) => d.message.replace(/"/g, "")).join(", "),
-                });
-            }
-            return normalized;
-        } else {
-            // Old format validation (array of category IDs)
-            const { error, value: normalized } = Joi.array()
-                .items(objectIdString.required())
-                .min(1)
-                .validate(arr, { abortEarly: false });
-            if (error) {
-                return helpers.error("any.invalid", {
-                    message: error.details.map((d) => d.message.replace(/"/g, "")).join(", "),
-                });
-            }
-            return normalized;
+        // At least one category is required
+        if (arr.length === 0) {
+            return helpers.error("any.invalid", {
+                message: "skatingEventCategories must contain at least one category",
+            });
         }
-    }, "required SkatingEventCategory array");
 
+        // New format only:
+        // [
+        //   {
+        //     categoryId: "...",
+        //     disciplines: [
+        //       { id: "..." },
+        //       { id: "..." }
+        //     ]
+        //   }
+        // ]
+
+        const { error, value: normalized } = Joi.array()
+            .items(
+                Joi.object({
+                    categoryId: objectIdString.required(),
+
+                    disciplines: Joi.array()
+                        .items(
+                            Joi.object({
+                                id: objectIdString.required(),
+                            }).required()
+                        )
+                        .default([]),
+                }).required()
+            )
+            .min(1)
+            .validate(arr, {
+                abortEarly: false,
+            });
+
+        if (error) {
+            return helpers.error("any.invalid", {
+                message: error.details
+                    .map((d) => d.message.replace(/"/g, ""))
+                    .join(", "),
+            });
+        }
+
+        return normalized;
+    }, "required SkatingEventCategory array");
 /** Optional array of embedded discipline ObjectIds (JSON string allowed for multipart). */
 const skatingEventDisciplineIds = Joi.any()
     .optional()
     .custom((value, helpers) => {
-        if (value === undefined || value === null || value === "") {
+        // Not required because disciplines come inside
+        // skatingEventCategories[].disciplines[]
+        if (
+            value === undefined ||
+            value === null ||
+            value === ""
+        ) {
             return undefined;
         }
+
         let arr = value;
+
+        // Support JSON string from multipart/form-data
         if (typeof value === "string") {
             const trimmed = value.trim();
-            if (!trimmed) return undefined;
+
+            if (!trimmed) {
+                return undefined;
+            }
+
             try {
                 arr = JSON.parse(trimmed);
             } catch {
                 return helpers.error("any.invalid", {
-                    message: "skatingEventDisciplines must be valid JSON when sent as a string",
+                    message:
+                        "skatingEventDisciplines must be valid JSON when sent as a string",
                 });
             }
         }
+
+        // Must be an array
         if (!Array.isArray(arr)) {
             return helpers.error("any.invalid", {
-                message: "skatingEventDisciplines must be an array of discipline ids",
+                message:
+                    "skatingEventDisciplines must be an array of discipline ids",
             });
         }
+
+        // Validate ObjectIds
         const { error, value: normalized } = Joi.array()
             .items(objectIdString)
-            .validate(arr, { abortEarly: false });
+            .validate(arr, {
+                abortEarly: false,
+            });
+
         if (error) {
             return helpers.error("any.invalid", {
-                message: error.details.map((d) => d.message.replace(/"/g, "")).join(", "),
+                message: error.details
+                    .map((d) => d.message.replace(/"/g, ""))
+                    .join(", "),
             });
         }
+
         return normalized;
     }, "discipline id array");
-
 const skatingEventDisciplinesRequired = Joi.any()
-    .required()
+    .optional()
     .custom((value, helpers) => {
-        if (value === undefined || value === null || value === "") {
-            return helpers.error("any.required");
+        // Disciplines are now provided inside
+        // skatingEventCategories[].disciplines[]
+        if (
+            value === undefined ||
+            value === null ||
+            value === ""
+        ) {
+            return undefined;
         }
+
         let arr = value;
+
+        // Support JSON string
+        // Example from multipart/form-data
         if (typeof value === "string") {
             const trimmed = value.trim();
-            if (!trimmed) return helpers.error("any.required");
+
+            if (!trimmed) {
+                return undefined;
+            }
+
             try {
                 arr = JSON.parse(trimmed);
             } catch {
                 return helpers.error("any.invalid", {
-                    message: "skatingEventDisciplines must be valid JSON when sent as a string",
+                    message:
+                        "skatingEventDisciplines must be valid JSON when sent as a string",
                 });
             }
         }
+
+        // Must be an array
         if (!Array.isArray(arr)) {
             return helpers.error("any.invalid", {
-                message: "skatingEventDisciplines must be an array of discipline ids",
+                message:
+                    "skatingEventDisciplines must be an array of discipline ids",
             });
         }
+
+        // Validate discipline ObjectIds
         const { error, value: normalized } = Joi.array()
             .items(objectIdString.required())
             .min(1)
-            .validate(arr, { abortEarly: false });
+            .validate(arr, {
+                abortEarly: false,
+            });
+
         if (error) {
             return helpers.error("any.invalid", {
-                message: error.details.map((d) => d.message.replace(/"/g, "")).join(", "),
+                message: error.details
+                    .map((d) => d.message.replace(/"/g, ""))
+                    .join(", "),
             });
         }
-        return normalized;
-    }, "required discipline id array");
 
+        return normalized;
+    }, "discipline id array");
 export const stateEventListQueryValidation = {
     query: Joi.object({
         page: Joi.number().integer().min(1).default(1),
@@ -731,8 +797,14 @@ const create_state_event_validation = {
         registerEndDate: Joi.date().required(),
         eventStartDate: Joi.date().required(),
         eventEndDate: Joi.date().required(),
-        eventStartTime: Joi.string().trim().required(),
-        eventEndTime: Joi.string().trim().required(),
+
+        eventStartTime: Joi.string()
+            .trim()
+            .required(),
+
+        eventEndTime: Joi.string()
+            .trim()
+            .required(),
 
         about: Joi.string()
             .trim()
@@ -744,30 +816,33 @@ const create_state_event_validation = {
             .optional()
             .allow(""),
 
-        // club event type and club id are forced from authenticated token in service layer
         eventType: Joi.forbidden(),
         eventFor: Joi.forbidden(),
 
-        /** Required when the authenticated user is Admin; ignored for State users (controller). */
         stateId: objectIdString.optional(),
 
         entryFee: Joi.string().allow(""),
         colorOne: Joi.string().allow(""),
         colorTwo: Joi.string().allow(""),
         textColor: Joi.string().allow(""),
+
         status: Joi.string()
-            .valid("coming_soon", "active", "cancelled", "completed")
+            .valid(
+                "coming_soon",
+                "active",
+                "cancelled",
+                "completed"
+            )
             .optional(),
 
+        // ONLY this field comes from frontend
         skatingEventCategories: skatingEventCategoriesRequired,
-        skatingEventDisciplines: skatingEventDisciplinesRequired,
     })
         .custom(enforceEventDateTimeOrder)
         .messages({
             "any.custom": "{{#message}}",
         }),
 };
-
 
 const update_event_validation = {
     body: Joi.object({
@@ -862,7 +937,7 @@ const disciplineBodySchema = Joi.object({
     clubId: Joi.string().trim().pattern(/^[0-9a-fA-F]{24}$/).optional(),
     district: Joi.string().trim().pattern(/^[0-9a-fA-F]{24}$/).optional(),
     districtId: Joi.string().trim().pattern(/^[0-9a-fA-F]{24}$/).optional(),
-});
+}).or("name", "typeName"); // Require at least one of name or typeName
 
 const create_event_category_validation = {
     body: Joi.object({
@@ -953,6 +1028,7 @@ const register_form_validation = {
                 return value;
             }),
         categories: Joi.array().items(registerCategoryItem).min(1).required(),
+        discipline: Joi.string().trim().pattern(/^[0-9a-fA-F]{24}$/).optional(),
     }),
 };
 

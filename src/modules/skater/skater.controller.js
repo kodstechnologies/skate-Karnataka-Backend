@@ -38,6 +38,7 @@ const GetSkaterProfile = asyncHandler(async (req, res) => {
 const GetSkaterDigitalIdCard = asyncHandler(async (req, res) => {
     const id = req.user._id;
     const profile = await get_skater_digital_id_card_service(id);
+    
     const response = {
         ...profile,
         img: profile.photo || "",

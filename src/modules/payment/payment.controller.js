@@ -10,7 +10,8 @@ import {
 
 export const razorpayWebhook = asyncHandler(async (req, res) => {
     const result = await razorpayWebhookServices({
-        body: req.body,
+        body: req.rawBody || req.body,
+        parsedBody: req.body,
         signature: req.headers["x-razorpay-signature"],
     });
     return res.status(200).json(new ApiResponse(200, result, "Webhook processed successfully"));
@@ -21,6 +22,7 @@ export const initiateRazorpayPayment = asyncHandler(async (req, res) => {
         userId: req.user._id,
         participantId: req.body?.participantId,
         eventId: req.body?.eventId,
+        registrationPayload: req.body?.registrationPayload,
     });
     return res.status(200).json(new ApiResponse(200, result, "Payment order created successfully"));
 });

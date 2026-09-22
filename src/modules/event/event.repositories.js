@@ -2869,31 +2869,103 @@ export const enrichLeanEventsSkatingCategoryNames = async (events) => {
   if (!Array.isArray(events) || events.length === 0) {
     return events;
   }
+  
+  // Collect all category IDs from events (handling both old and new formats)
   const idSet = new Set();
+  const disciplineIdSet = new Set();
+  
   for (const ev of events) {
-    for (const id of ev.skatingEventCategories || []) {
-      const s = String(id);
-      if (mongoose.Types.ObjectId.isValid(s)) idSet.add(s);
+    const categories = ev.skatingEventCategories || [];
+    
+    for (const cat of categories) {
+      if (typeof cat === 'string' || mongoose.Types.ObjectId.isValid(cat)) {
+        // Old format: array of string/ObjectId IDs
+        const s = String(cat);
+        if (mongoose.Types.ObjectId.isValid(s)) idSet.add(s);
+      } else if (cat && typeof cat === 'object' && cat.categoryId) {
+        // New format: { categoryId: "...", disciplines: [...] }
+        const s = String(cat.categoryId);
+        if (mongoose.Types.ObjectId.isValid(s)) idSet.add(s);
+        
+        // Collect discipline IDs for name lookup
+        const disciplines = cat.disciplines || [];
+        for (const disc of disciplines) {
+          if (disc && disc.id && mongoose.Types.ObjectId.isValid(String(disc.id))) {
+            disciplineIdSet.add(String(disc.id));
+          }
+        }
+      }
     }
   }
-  if (idSet.size === 0) {
-    return events.map((ev) => ({ ...ev, skatingEventCategories: [] }));
-  }
+  
+  // Fetch all category documents with their embedded disciplines
   const objectIds = [...idSet].map((id) => new mongoose.Types.ObjectId(id));
-  const docs = await SkatingEventCategory.find({ _id: { $in: objectIds } })
-    .select("_id name typeName")
+  const categoryDocs = await SkatingEventCategory.find({ _id: { $in: objectIds } })
+    .select("_id name typeName ageGroups disciplines")
     .lean();
-  const byId = new Map(docs.map((d) => [String(d._id), d]));
+  
+  // Create maps for quick lookup
+  const categoryById = new Map(categoryDocs.map((d) => [String(d._id), d]));
+  
+  // Map discipline IDs to their names by searching through all categories
+  const disciplineNameById = new Map();
+  for (const category of categoryDocs) {
+    const disciplines = category.disciplines || [];
+    for (const disc of disciplines) {
+      if (disc && disc._id) {
+        disciplineNameById.set(String(disc._id), disc.name || null);
+      }
+    }
+  }
 
   return events.map((ev) => ({
     ...ev,
-    skatingEventCategories: (ev.skatingEventCategories || []).map((id) => {
-      const key = String(id);
-      const doc = byId.get(key);
-      const name = categoryNameOf(doc);
-      return doc
-        ? { _id: doc._id, name, typeName: name }
-        : { _id: id, name: null, typeName: null };
+    skatingEventCategories: (ev.skatingEventCategories || []).map((cat) => {
+      // Handle old format: string/ObjectId
+      if (typeof cat === 'string' || mongoose.Types.ObjectId.isValid(cat)) {
+        const key = String(cat);
+        const doc = categoryById.get(key);
+        const name = categoryNameOf(doc);
+        return doc
+          ? { 
+              categoryId: cat,
+              name: name || null,
+              disciplines: [] 
+            }
+          : { 
+              categoryId: cat,
+              name: null,
+              disciplines: [] 
+            };
+      }
+      
+      // Handle new format: { categoryId, disciplines }
+      if (cat && typeof cat === 'object' && cat.categoryId) {
+        const key = String(cat.categoryId);
+        const doc = categoryById.get(key);
+        const name = categoryNameOf(doc);
+        
+        // Enhance disciplines with names, clean up to only include id and name
+        const enhancedDisciplines = (cat.disciplines || []).map((disc) => {
+          const discId = disc.id ? String(disc.id) : null;
+          const discName = discId ? disciplineNameById.get(discId) : null;
+          // Return clean object with only id and name fields
+          return {
+            id: disc.id || disc._id || null,
+            name: discName || disc.name || null
+          };
+        });
+        
+        // Return clean category object with only needed fields
+        return {
+          categoryId: cat.categoryId,
+          name: name || null,
+          disciplines: enhancedDisciplines
+        };
+      }
+      
+      // Unknown format
+      return cat;
     }),
   }));
 };
@@ -3409,9 +3481,11 @@ export const getSkaterEventFormCategoryDetailsRepository = async (eventId, skate
     countryCode: skater?.countryCode ?? "+91",
   };
 
-  const orderedIds = (event.skatingEventCategories || [])
-    .map((id) => String(id))
-    .filter((id) => mongoose.Types.ObjectId.isValid(id));
+  // Extract category IDs from the new event structure
+  const eventSkatingCategories = event.skatingEventCategories || [];
+  const categoryIds = eventSkatingCategories
+    .map(item => String(item.categoryId))
+    .filter(id => mongoose.Types.ObjectId.isValid(id));
 
   const skaterCategoryId =
     skater?.category && mongoose.Types.ObjectId.isValid(String(skater.category))
@@ -3419,16 +3493,20 @@ export const getSkaterEventFormCategoryDetailsRepository = async (eventId, skate
       : null;
 
   let skatingEventCategories = [];
-  if (orderedIds.length > 0) {
-    const objectIds = orderedIds.map((id) => new mongoose.Types.ObjectId(id));
+  if (categoryIds.length > 0) {
+    // Fetch all categories with full population
+    const objectIds = categoryIds.map(id => new mongoose.Types.ObjectId(id));
     const docs = await SkatingEventCategory.find({ _id: { $in: objectIds } })
       .populate(CATEGORY_FORMULA_POPULATE)
       .lean();
-    const byId = new Map(docs.map((doc) => [String(doc._id), doc]));
-    skatingEventCategories = resolveSkatingCategoriesForEvent(
-      event,
-      orderedIds.map((id) => byId.get(id)).filter(Boolean)
-    );
+    
+    // Create a map for easy lookup
+    const categoriesById = new Map(docs.map(doc => [String(doc._id), doc]));
+    
+    // Build categories in the order they appear in the event, with populated data
+    skatingEventCategories = categoryIds
+      .map(categoryId => categoriesById.get(categoryId))
+      .filter(Boolean);
   }
 
   let category = null;
@@ -3474,9 +3552,28 @@ export const getEventSkatingEventCategoriesFullRepository = async (eventId) => {
     return null;
   }
 
-  const orderedIds = (event.skatingEventCategories || [])
-    .map((id) => String(id))
-    .filter((id) => mongoose.Types.ObjectId.isValid(id));
+  // skatingEventCategories is [{categoryId, disciplines:[{id}]}] — extract categoryId
+  const skatingEventCategoryEntries = (event.skatingEventCategories || []);
+
+  const orderedIds = skatingEventCategoryEntries
+    .map((entry) => {
+      // Handle both plain ObjectId (legacy) and new {categoryId, disciplines} shape
+      const raw = entry?.categoryId ?? entry;
+      return raw ? String(raw) : null;
+    })
+    .filter((id) => id && mongoose.Types.ObjectId.isValid(id));
+
+  // Build a map of categoryId → selected discipline ids for filtering
+  const disciplinesByCategory = new Map();
+  for (const entry of skatingEventCategoryEntries) {
+    if (entry?.categoryId) {
+      const catId = String(entry.categoryId);
+      const discIds = (entry.disciplines || [])
+        .map((d) => d?.id ? String(d.id) : null)
+        .filter(Boolean);
+      disciplinesByCategory.set(catId, discIds);
+    }
+  }
 
   let skatingEventCategories = [];
   if (orderedIds.length > 0) {
@@ -3485,8 +3582,18 @@ export const getEventSkatingEventCategoriesFullRepository = async (eventId) => {
       .populate(CATEGORY_FORMULA_POPULATE)
       .lean();
     const byId = new Map(docs.map((doc) => [String(doc._id), doc]));
+
+    // Pass an event shape with skatingEventDisciplines flattened for resolveSkatingCategoriesForEvent
+    const allSelectedDisciplineIds = [...disciplinesByCategory.values()].flat();
+    const eventForResolve = {
+      ...event,
+      skatingEventDisciplines: allSelectedDisciplineIds.length > 0
+        ? allSelectedDisciplineIds.map((id) => new mongoose.Types.ObjectId(id))
+        : undefined,
+    };
+
     skatingEventCategories = resolveSkatingCategoriesForEvent(
-      event,
+      eventForResolve,
       orderedIds.map((id) => byId.get(id)).filter(Boolean)
     );
   }
@@ -3496,9 +3603,7 @@ export const getEventSkatingEventCategoriesFullRepository = async (eventId) => {
     eventName: event.header ?? "",
     eventType: event.eventType ?? "",
     categoryFormat: event.categoryFormat ?? "standard",
-    /** true = daily scheduler; false = manual generate only. */
     isAutomated: event.isAutomated !== false,
-    /** Static gender filter options for competition UI. */
     gender: ["boys", "girls", "both"],
     skatingEventCategories,
   };

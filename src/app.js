@@ -33,7 +33,13 @@ import { globalErrorHandler } from "./util/globalErrorHandler.js";
 const app = express();
 
 // parse json 
-app.use(express.json());
+app.use(express.json({
+    verify: (req, _res, buf) => {
+        if (req.originalUrl?.startsWith("/payment/v1/webhook")) {
+            req.rawBody = buf;
+        }
+    },
+}));
 app.use(express.urlencoded({ extended: true }));
 
 // Lightweight cookie parsing so auth middleware can read cookie tokens.

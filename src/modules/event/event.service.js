@@ -37,33 +37,40 @@ import {
 const transformEventCategoriesData = (data) => {
     const { skatingEventCategories, ...restData } = data;
 
-    // If already in old format (array of strings), return as is
-    if (Array.isArray(skatingEventCategories) && 
-        skatingEventCategories.length > 0 && 
-        typeof skatingEventCategories[0] === "string") {
-        return data;
-    }
-
-    // If in new format (array of objects), transform it
+    // If already in correct format (array of objects with categoryId), return as is
     if (Array.isArray(skatingEventCategories) && 
         skatingEventCategories.length > 0 && 
         typeof skatingEventCategories[0] === "object" && 
         skatingEventCategories[0].categoryId) {
-        
-        const categoryIds = skatingEventCategories.map(cat => cat.categoryId);
-        const disciplineIds = skatingEventCategories
-            .flatMap(cat => cat.disciplines || [])
-            .map(disc => disc.id)
-            .filter(id => id); // Remove any falsy values
+        // Already in correct format for Event model
+        return data;
+    }
 
+    // If we get a plain string ID (single category), convert it to object format
+    if (typeof skatingEventCategories === "string" && skatingEventCategories.trim()) {
         return {
             ...restData,
-            skatingEventCategories: categoryIds,
-            skatingEventDisciplines: disciplineIds
+            skatingEventCategories: [{
+                categoryId: skatingEventCategories,
+                disciplines: []
+            }]
         };
     }
 
-    // If categories is empty or invalid format, return as is
+    // If array of strings (old format), convert to object format
+    if (Array.isArray(skatingEventCategories) && 
+        skatingEventCategories.length > 0 && 
+        typeof skatingEventCategories[0] === "string") {
+        return {
+            ...restData,
+            skatingEventCategories: skatingEventCategories.map(catId => ({
+                categoryId: catId,
+                disciplines: []
+            }))
+        };
+    }
+
+    // If empty or invalid format, return as is (will fail validation at mongoose level)
     return data;
 };
  
@@ -386,19 +393,49 @@ export const competitionDetailsService = async (eventId, reqUser) => {
         throw new AppError("Event not found", 404);
     }
 
-    /** Lean payload for competition UI — no formula / description / ObjectId buffers. */
-    const skatingEventCategories = (result.skatingEventCategories || []).map((category) => ({
-        _id: category?._id != null ? String(category._id) : "",
-        parentCategoryId: category?.parentCategoryId != null ? String(category.parentCategoryId) : "",
-        name: category?.name ?? "",
-        typeName: category?.name || category?.typeName || "",
-        ageGroups: (category?.ageGroups || []).map((ageGroup) => ({
-            label: ageGroup?.label ?? "",
-            categories: (ageGroup?.categories || []).map((row) => ({
-                name: row?.name ?? "",
-            })),
-        })),
-    }));
+    // result.skatingEventCategories is a flat list of discipline views from resolveSkatingCategoriesForEvent
+    // Each item has: _id (disciplineId), parentCategoryId, parentName, name (disciplineName), ageGroups
+    // Group them by parentCategoryId to produce the desired response shape
+    const categoryMap = new Map();
+
+    for (const disciplineView of (result.skatingEventCategories || [])) {
+        const catId = String(disciplineView.parentCategoryId || "");
+        if (!catId) continue;
+
+        if (!categoryMap.has(catId)) {
+            categoryMap.set(catId, {
+                categoryId: catId,
+                name: disciplineView.parentName || "",
+                disciplines: [],
+                // ageGroups come from discipline level — collect from first discipline that has them
+                ageGroups: [],
+            });
+        }
+
+        const category = categoryMap.get(catId);
+
+        // Add this discipline
+        category.disciplines.push({
+            id: String(disciplineView._id || ""),
+            name: disciplineView.name || "",
+        });
+
+        // Merge ageGroups — use the first discipline's ageGroups if not yet set,
+        // otherwise merge unique labels
+        if (Array.isArray(disciplineView.ageGroups) && disciplineView.ageGroups.length > 0) {
+            if (category.ageGroups.length === 0) {
+                category.ageGroups = disciplineView.ageGroups.map((ag) => ({
+                    label: ag.label || "",
+                    categories: (ag.categories || []).map((c) => ({
+                        name: c.name || "",
+                        description: c.description || "",
+                    })),
+                }));
+            }
+        }
+    }
+
+    const skatingEventCategories = [...categoryMap.values()];
 
     return {
         eventId: result.eventId != null ? String(result.eventId) : "",
@@ -1062,8 +1099,8 @@ export const addDisciplinesToCategoryService = async (categoryId, payload, user)
             ...stripOwnershipFromPayload(row),
             ...ownership,
         });
-        if (!next.name) {
-            throw new AppError("Discipline name is required", 400);
+        if (!next.name || next.name.trim().length === 0) {
+            throw new AppError("Discipline name is required. Please provide either 'name' or 'typeName' field.", 400);
         }
         assertAgeGroupCategoriesHaveFormula(next.ageGroups);
         return next;
@@ -1361,6 +1398,48 @@ const normalizeRegisterFormCategories = (categories = []) =>
         })
         .filter(Boolean);
 
+const asObjectIdString = (value) => {
+    if (typeof value !== "string") return "";
+    const trimmed = value.trim();
+    return mongoose.Types.ObjectId.isValid(trimmed) ? trimmed : "";
+};
+
+/** Accept either a SkatingEventCategory id or a nested discipline id as categoriesId. */
+const resolveRegisterCategoryRefs = async (payload = {}) => {
+    let categoriesId = asObjectIdString(payload.categoriesId);
+    let discipline = asObjectIdString(payload.discipline);
+
+    if (!categoriesId && !discipline) {
+        return { categoriesId: "", discipline: "" };
+    }
+
+    if (categoriesId) {
+        const asCategory = await SkatingEventCategory.findById(categoriesId)
+            .select("_id")
+            .lean();
+        if (asCategory) {
+            return { categoriesId: String(asCategory._id), discipline };
+        }
+
+        const parent = await findCategoryByDisciplineIdRepository(categoriesId);
+        if (parent) {
+            return {
+                categoriesId: String(parent._id),
+                discipline: discipline || categoriesId,
+            };
+        }
+    }
+
+    if (discipline) {
+        const parent = await findCategoryByDisciplineIdRepository(discipline);
+        if (parent) {
+            return { categoriesId: String(parent._id), discipline };
+        }
+    }
+
+    return { categoriesId, discipline };
+};
+
 export const createRegisterFormService = async (userId, payload) => {
     const skater = await Skater.findById(userId)
         .select("fullName club clubStatus")
@@ -1396,7 +1475,27 @@ export const createRegisterFormService = async (userId, payload) => {
         skater?.fullName?.trim() ||
         "";
 
-    const categories = normalizeRegisterFormCategories(payload.categories);
+    // Handle both old and new format for categories
+    let categories;
+    if (payload.discipline && Array.isArray(payload.categories)) {
+        // New format: discipline + multiple category names
+        categories = payload.categories
+            .map((item) => {
+                if (typeof item === "string") {
+                    const name = item.trim();
+                    return name ? { name, disciplineId: payload.discipline } : null;
+                }
+                if (item && typeof item.name === "string" && item.name.trim()) {
+                    return { ...item, name: item.name.trim(), disciplineId: payload.discipline };
+                }
+                return null;
+            })
+            .filter(Boolean);
+    } else {
+        // Old format: categories with disciplineIds
+        categories = normalizeRegisterFormCategories(payload.categories);
+    }
+
     if (categories.length === 0) {
         throw new AppError("At least one category is required", 400);
     }
@@ -1409,9 +1508,11 @@ export const createRegisterFormService = async (userId, payload) => {
         categories,
     };
 
-    const categoriesId =
-        typeof payload.categoriesId === "string" ? payload.categoriesId.trim() : "";
-    if (categoriesId && mongoose.Types.ObjectId.isValid(categoriesId)) {
+    const { categoriesId, discipline } = await resolveRegisterCategoryRefs(payload);
+    if (discipline) {
+        registrationPayload.discipline = discipline;
+    }
+    if (categoriesId) {
         registrationPayload.categoriesId = categoriesId;
     }
 
@@ -1421,7 +1522,8 @@ export const createRegisterFormService = async (userId, payload) => {
         registrationPayload,
     });
 
-    if (payment?.registration || payment?.participantId) {
+    // Free events complete registration immediately
+    if (payment?.registrationComplete || payment?.registration || payment?.participantId) {
         const registration =
             payment.registration ||
             (await EventParticipant.findById(payment.participantId).lean());
@@ -1434,6 +1536,7 @@ export const createRegisterFormService = async (userId, payload) => {
         };
     }
 
+    // Paid events require payment completion
     return {
         registration: null,
         payment,
@@ -1475,7 +1578,27 @@ export const createFreeEventRegisterFormService = async (userId, payload) => {
         skater?.fullName?.trim() ||
         "";
 
-    const categories = normalizeRegisterFormCategories(payload.categories);
+    // Handle both old and new format for categories
+    let categories;
+    if (payload.discipline && Array.isArray(payload.categories)) {
+        // New format: discipline + multiple category names
+        categories = payload.categories
+            .map((item) => {
+                if (typeof item === "string") {
+                    const name = item.trim();
+                    return name ? { name, disciplineId: payload.discipline } : null;
+                }
+                if (item && typeof item.name === "string" && item.name.trim()) {
+                    return { ...item, name: item.name.trim(), disciplineId: payload.discipline };
+                }
+                return null;
+            })
+            .filter(Boolean);
+    } else {
+        // Old format: categories with disciplineIds
+        categories = normalizeRegisterFormCategories(payload.categories);
+    }
+
     if (categories.length === 0) throw new AppError("At least one category is required", 400);
 
     await EventParticipant.deleteMany({
@@ -1493,9 +1616,11 @@ export const createFreeEventRegisterFormService = async (userId, payload) => {
         paymentStatus: "paid",
     };
 
-    const categoriesId =
-        typeof payload.categoriesId === "string" ? payload.categoriesId.trim() : "";
-    if (categoriesId && mongoose.Types.ObjectId.isValid(categoriesId)) {
+    const { categoriesId, discipline } = await resolveRegisterCategoryRefs(payload);
+    if (discipline) {
+        registrationPayload.discipline = discipline;
+    }
+    if (categoriesId) {
         registrationPayload.categoriesId = categoriesId;
     }
 
@@ -1577,12 +1702,150 @@ export const displaySkaterEventFullDetailsService = async (eventId, skaterUserId
     return dto;
 };
 
+const mapAgeGroupsForRegisterForm = (ageGroups = []) =>
+    (Array.isArray(ageGroups) ? ageGroups : [])
+        .map((ageGroup) => ({
+            label: ageGroup?.label || "",
+            categories: (ageGroup?.categories || [])
+                .map((lapCategory) => ({
+                    id: lapCategory?._id ? String(lapCategory._id) : null,
+                    name: lapCategory?.name || "",
+                    description: lapCategory?.description || "",
+                    formula: lapCategory?.formula
+                        ? {
+                              id: String(lapCategory.formula._id || lapCategory.formula),
+                              name:
+                                  lapCategory.formula.formulaName ||
+                                  lapCategory.formula.categoryName ||
+                                  null,
+                          }
+                        : null,
+                }))
+                .filter((lap) => lap.name.trim()),
+        }))
+        .filter((ageGroup) => ageGroup.label && ageGroup.categories.length > 0);
+
+const toRegisterFormCategoryItem = (cat) => {
+    if (!cat || typeof cat !== "object") return null;
+
+    const nestedAgeGroups = (cat.disciplines || []).flatMap((disc) =>
+        mapAgeGroupsForRegisterForm(disc?.ageGroups)
+    );
+    const ageGroups = mapAgeGroupsForRegisterForm(cat.ageGroups);
+    const resolvedAgeGroups = ageGroups.length ? ageGroups : nestedAgeGroups;
+
+    const name = categoryNameOf(cat) || cat.name || cat.typeName || null;
+    if (!name) return null;
+
+    const id = cat._id
+        ? String(cat._id)
+        : cat.id
+          ? String(cat.id)
+          : cat.categoryId
+            ? String(cat.categoryId)
+            : null;
+
+    return {
+        _id: id,
+        categoryId: cat.parentCategoryId ? String(cat.parentCategoryId) : id,
+        parentCategoryId: cat.parentCategoryId ? String(cat.parentCategoryId) : null,
+        name,
+        typeName: cat.typeName || name,
+        ageGroups: resolvedAgeGroups,
+    };
+};
+
 export const displaySkaterEventFormCategoryDetailsService = async (eventId, skaterUserId) => {
     const result = await getSkaterEventFormCategoryDetailsRepository(eventId, skaterUserId);
     if (!result) {
         throw new AppError("Event not found or not available for registration", 404);
     }
-    return result;
+    
+    // Get the skater's discipline information for the category field
+    const skater = await Skater.findById(skaterUserId)
+        .select("discipline")
+        .lean();
+    
+    // Enhance the category field to include only the skater's discipline with full structure
+    if (result.category && result.category._id && skater?.discipline) {
+        try {
+            const fullCategoryDoc = await SkatingEventCategory.findById(result.category._id)
+                .populate([
+                    "disciplines.ageGroups.categories.formula",
+                    "disciplines.customCategoryNames.formula"
+                ])
+                .lean();
+            
+            if (fullCategoryDoc) {
+                // Find only the skater's discipline
+                const skaterDiscipline = (fullCategoryDoc.disciplines || []).find(disc => 
+                    String(disc._id) === String(skater.discipline)
+                );
+                
+                if (skaterDiscipline) {
+                    // Enhance the category with discipline structure
+                    result.category = {
+                        _id: result.category._id,
+                        name: result.category.name,
+                        typeName: result.category.typeName,
+                        discipline: {
+                            id: String(skaterDiscipline._id),
+                            name: skaterDiscipline.name || ""
+                        }
+                    };
+                }
+            }
+        } catch (error) {
+            console.error("Error enhancing category with skater discipline:", error.message);
+        }
+    }
+    
+    // Get ALL skating event categories for the event (not filtered by skater)
+    const eventCategories = result.skatingEventCategories || [];
+    
+    // Transform ALL categories and disciplines to match the desired format
+    const transformedCategories = eventCategories.map(category => {
+        const categoryData = {
+            categoryId: String(category._id),
+            name: category.name || category.typeName || "",
+            disciplines: []
+        };
+
+        // Transform ALL disciplines within each category
+        if (Array.isArray(category.disciplines)) {
+            categoryData.disciplines = category.disciplines.map(discipline => ({
+                id: String(discipline._id),
+                name: discipline.name || "",
+                ageGroups: (discipline.ageGroups || []).map(ageGroup => ({
+                    label: ageGroup.label || "",
+                    categories: (ageGroup.categories || []).map(cat => ({
+                        id: String(cat._id || cat.id),
+                        name: cat.name || "",
+                        description: cat.description || "",
+                        formula: cat.formula ? {
+                            id: String(cat.formula._id || cat.formula.id),
+                            name: cat.formula.name || ""
+                        } : null
+                    }))
+                }))
+            }));
+        }
+
+        return categoryData;
+    });
+
+    return {
+        eventId: result.eventId,
+        eventName: result.eventName,
+        entryFee: result.entryFee,
+        skaterName: result.skaterName,
+        krsaId: result.krsaId,
+        phone: result.phone,
+        countryCode: result.countryCode,
+        categoryFormat: result.categoryFormat,
+        category: result.category,
+        skatingEventCategories: transformedCategories
+    };
 };
 
 const displaySingleEventDetailsServer = async (id) => {

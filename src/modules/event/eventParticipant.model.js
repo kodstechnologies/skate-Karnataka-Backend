@@ -28,6 +28,11 @@ const participantSchema = new mongoose.Schema(
       ref: "SkatingEventCategory",
     },
 
+    discipline: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Discipline",
+    },
+
     division: {
       type: String,
       trim: true,
@@ -48,6 +53,11 @@ const participantSchema = new mongoose.Schema(
           type: String, // "1 Lap", "2 Laps"
           required: true,
           trim: true,
+        },
+
+        disciplineId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Discipline",
         },
 
         timeTaken: {

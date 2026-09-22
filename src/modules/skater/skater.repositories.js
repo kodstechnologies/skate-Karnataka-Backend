@@ -85,12 +85,13 @@ const resolveDisciplineName = async (discipline) => {
     if (!discipline) return "";
 
     if (typeof discipline === "object") {
+        if (discipline.title) return discipline.title;  // Discipline model uses 'title'
         if (discipline.name) return discipline.name;
-        if (discipline.title) return discipline.title;
     }
 
     const disciplineId = toDisciplineId(discipline);
     const record = await findDisciplineById(disciplineId);
+    if (record?.title) return record.title;  // Discipline model uses 'title'
     if (record?.name) return record.name;
 
     return typeof discipline === "string" ? discipline : "";
@@ -323,12 +324,27 @@ const attachDisciplineName = async (profile) => {
 };
 
 const get_skater_profile_repositories = async (id) => {
+    // First get the profile without populating category
     const profile = await Skater.findById(id)
         .select("photo fullName krsaId discipline category")
-        .populate("category", "name")
         .lean();
 
     if (!profile) return null;
+
+    // Only populate category if it's a valid ObjectId
+    if (profile.category && mongoose.Types.ObjectId.isValid(String(profile.category))) {
+        const populatedProfile = await Skater.findById(id)
+            .select("photo fullName krsaId discipline category")
+            .populate("category", "name")
+            .lean();
+        
+        if (populatedProfile) {
+            profile.category = populatedProfile.category;
+        }
+    } else if (profile.category) {
+        // If category is not a valid ObjectId, set it to null to avoid issues
+        profile.category = null;
+    }
 
     const withDiscipline = await attachDisciplineName(profile);
     // const medalStats = await countSkaterParticipantMedalStatsRepository(id);
@@ -354,7 +370,7 @@ const formatSkaterFullDetailsDto = (skater, disciplineName, medalStats = {}) => 
     dob: skater.dob || null,
     rsfiId: skater.rsfiId || "",
     aadharNumber: skater.aadharNumber || "",
-    discipline: disciplineName || skater.discipline?.name || skater.discipline?.title || "",
+    discipline: disciplineName || skater.discipline?.title || skater.discipline?.name || "",
     disciplineId: skater.discipline?._id || skater.discipline || null,
     parent: skater.parent || "",
     bloodGroup: skater.bloodGroup || "",
@@ -399,11 +415,10 @@ const formatSkaterFullDetailsDto = (skater, disciplineName, medalStats = {}) => 
 });
 
 const get_skater_digital_id_card_repositories = async (id) => {
+    // First get profile without populating category and discipline
     const profile = await Skater.findById(id)
         .select("-refreshTokens -firebaseTokens")
         .populate("club", "name clubId img districtName officeAddress")
-        .populate("category", "name")
-        .populate("discipline", "name title")
         .populate("district", "name")
         .populate("applyClub", "name clubId img")
         .lean();
@@ -412,10 +427,85 @@ const get_skater_digital_id_card_repositories = async (id) => {
         return null;
     }
 
-    const disciplineName = await resolveDisciplineName(profile.discipline);
+    // Handle category population separately to avoid invalid ObjectId errors
+    if (profile.category && mongoose.Types.ObjectId.isValid(String(profile.category))) {
+        const categoryDoc = await SkatingEventCategory.findById(profile.category)
+            .select("name")
+            .lean();
+        if (categoryDoc) {
+            profile.category = categoryDoc;
+        } else {
+            profile.category = null;
+        }
+    } else if (profile.category) {
+        // If category is not a valid ObjectId, set it to null
+        profile.category = null;
+    }
+
+    // Use the same discipline resolution logic as profile endpoint
+    const withDiscipline = await attachDisciplineName(profile);
     const medalStats = await countSkaterParticipantMedalStatsRepository(id);
 
-    return formatSkaterFullDetailsDto(profile, disciplineName, medalStats);
+    // Create the response with both discipline name and ID
+    const result = {
+        id: withDiscipline._id,
+        fullName: withDiscipline.fullName || "",
+        phone: withDiscipline.phone || "",
+        countryCode: withDiscipline.countryCode || "+91",
+        email: withDiscipline.email || "",
+        gender: withDiscipline.gender || "",
+        address: withDiscipline.address || "",
+        photo: withDiscipline.photo || "",
+        profile: withDiscipline.profile || withDiscipline.photo || "",
+        krsaId: withDiscipline.krsaId || "",
+        dob: withDiscipline.dob || null,
+        rsfiId: withDiscipline.rsfiId || "",
+        aadharNumber: withDiscipline.aadharNumber || "",
+        discipline: withDiscipline.disciplineName || "",  // Use disciplineName from attachDisciplineName
+        disciplineId: withDiscipline.discipline?._id || withDiscipline.discipline || null,
+        parent: withDiscipline.parent || "",
+        bloodGroup: withDiscipline.bloodGroup || "",
+        school: withDiscipline.school || "",
+        grade: withDiscipline.grade || "",
+        signature: withDiscipline.signature || "",
+        clubStatus: withDiscipline.clubStatus || "",
+        verify: Boolean(withDiscipline.verify),
+        category: withDiscipline.category
+            ? {
+                  _id: withDiscipline.category._id,
+                  typeName: withDiscipline.category.name || withDiscipline.category.typeName || "",
+              }
+            : null,
+        club: withDiscipline.club
+            ? {
+                  _id: withDiscipline.club._id,
+                  name: withDiscipline.club.name || "",
+                  clubId: withDiscipline.club.clubId || "",
+                  img: withDiscipline.club.img || "",
+                  districtName: withDiscipline.club.districtName || "",
+                  officeAddress: withDiscipline.club.officeAddress || "",
+              }
+            : null,
+        district: withDiscipline.district
+            ? {
+                  _id: withDiscipline.district._id,
+                  name: withDiscipline.district.name || "",
+              }
+            : null,
+        applyClub: (withDiscipline.applyClub || []).map((item) => ({
+            _id: item?._id,
+            name: item?.name || "",
+            clubId: item?.clubId || "",
+            img: item?.img || "",
+        })),
+        documents: withDiscipline.documents || [],
+        goldMedals: medalStats.goldMedals ?? 0,
+        silverMedals: medalStats.silverMedals ?? 0,
+        createdAt: withDiscipline.createdAt,
+        updatedAt: withDiscipline.updatedAt,
+    };
+    
+    return result;
 };
 
 const update_skater_profile_repositories = async (userData, updateData) => {

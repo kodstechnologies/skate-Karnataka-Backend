@@ -114,26 +114,32 @@ const eventSchema = new mongoose.Schema(
     },
 
     // 🛼 Skating event categories (multiple SkatingEventCategory documents)
-    skatingEventCategories: {
-      type: [
-        {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "SkatingEventCategory",
-        },
-      ],
-      default: [],
-    },
+  // 🛼 Skating event categories
+// Each category contains its selected disciplines.
+skatingEventCategories: {
+  type: [
+    {
+      categoryId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "SkatingEventCategory",
+        required: true,
+      },
 
-    /** Selected discipline sub-document ids from the linked event categories. */
-    skatingEventDisciplines: {
-      type: [
-        {
-          type: mongoose.Schema.Types.ObjectId,
-        },
-      ],
-      default: [],
+      disciplines: {
+        type: [
+          {
+            id: {
+              type: mongoose.Schema.Types.ObjectId,
+              required: true,
+            },
+          },
+        ],
+        default: [],
+      },
     },
-
+  ],
+  default: [],
+},
     colorOne: {
       type: String,
       default: "#6A11CB" // primary (purple)

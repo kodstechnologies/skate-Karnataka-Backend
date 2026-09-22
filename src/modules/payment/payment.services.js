@@ -7,10 +7,16 @@ import { Payment } from "./payment.model.js";
 import { EventParticipant } from "../event/eventParticipant.model.js";
 import { Event } from "../event/event.model.js";
 import { createRegisterFormRepository } from "../event/event.repositories.js";
+import { 
+    RAZORPAY_KEY_ID, 
+    RAZORPAY_KEY_SECRET, 
+    RAZORPAY_WEBHOOK_SECRET,
+    RAZORPAY_TEST_MODE,
+} from "../../config/envConfig.js";
 
 const getRazorpayCredentials = () => {
-    const keyId = String(process.env.RAZORPAY_KEY_ID || "").trim();
-    const keySecret = String(process.env.RAZORPAY_KEY_SECRET || "").trim();
+    const keyId = String(RAZORPAY_KEY_ID || "").trim();
+    const keySecret = String(RAZORPAY_KEY_SECRET || "").trim();
 
     if (!keyId || !keySecret) {
         throw new AppError("Razorpay configuration missing", 500);
@@ -19,11 +25,8 @@ const getRazorpayCredentials = () => {
     return { keyId, keySecret };
 };
 
-const isNonProduction = () =>
-    String(process.env.NODE_ENV || "development").trim().toLowerCase() !== "production";
-
-const isRazorpayDevBypass = () =>
-    ["1", "true", "yes"].includes(String(process.env.RAZORPAY_DEV_BYPASS || "").trim().toLowerCase());
+const isRazorpayTestMode = () =>
+    ["1", "true", "yes"].includes(String(RAZORPAY_TEST_MODE || "").trim().toLowerCase());
 
 const isRazorpayAuthFailure = (error) => {
     const status = error?.response?.status;
@@ -213,6 +216,7 @@ const finalizeRegistrationAfterPayment = async (payment) => {
         ageGroup: payload.ageGroup,
         categories: payload.categories,
         ...(payload.categoriesId ? { categoriesId: payload.categoriesId } : {}),
+        ...(payload.discipline ? { discipline: payload.discipline } : {}),
         paymentStatus: "paid",
     });
 
@@ -262,16 +266,28 @@ export const initiateRazorpayPaymentServices = async ({
         throw new AppError("Registration not found for this user", 404);
     }
 
-    const resolvedEventId = eventId || participant?.eventId || registrationPayload?.eventId;
+    let payload = registrationPayload || null;
+    const resolvedUserId = userId || participant?.userId || payload?.userId;
+    const resolvedEventId = eventId || participant?.eventId || payload?.eventId;
     if (!resolvedEventId) {
         throw new AppError("eventId is required", 400);
     }
 
-    if (!participantId && !registrationPayload) {
-        throw new AppError("Registration data is required to initiate payment", 400);
+    if (!participantId && !payload && resolvedUserId) {
+        const pending = await Payment.findOne({
+            eventId: resolvedEventId,
+            userId: resolvedUserId,
+            paymentStatus: "pending",
+            registrationPayload: { $ne: null },
+        })
+            .sort({ createdAt: -1 })
+            .lean();
+        payload = pending?.registrationPayload || null;
     }
 
-    const resolvedUserId = userId || participant?.userId || registrationPayload?.userId;
+    if (!participantId && !payload) {
+        throw new AppError("Registration data is required to initiate payment", 400);
+    }
     const existingPaid = await EventParticipant.findOne({
         eventId: resolvedEventId,
         userId: resolvedUserId,
@@ -289,7 +305,7 @@ export const initiateRazorpayPaymentServices = async ({
     const amountInPaise = toPaise(event.entryFee || 0);
     const bypassArgs = {
         participant,
-        registrationPayload,
+        registrationPayload: payload,
         resolvedEventId,
         resolvedUserId,
     };
@@ -303,13 +319,14 @@ export const initiateRazorpayPaymentServices = async ({
                 currency: "INR",
                 paymentStatus: "paid",
                 participantId: participant._id,
+                registrationComplete: true,
             };
         }
 
-        if (registrationPayload) {
+        if (payload) {
             await clearStaleUnpaidRegistrations(resolvedEventId, resolvedUserId);
             const registration = await createRegisterFormRepository({
-                ...registrationPayload,
+                ...payload,
                 paymentStatus: "paid",
             });
             return {
@@ -318,6 +335,8 @@ export const initiateRazorpayPaymentServices = async ({
                 currency: "INR",
                 paymentStatus: "paid",
                 registration,
+                participantId: registration._id,
+                registrationComplete: true,
             };
         }
 
@@ -326,16 +345,64 @@ export const initiateRazorpayPaymentServices = async ({
             amount: 0,
             currency: "INR",
             paymentStatus: "paid",
+            registrationComplete: true,
         };
     }
 
-    if (isRazorpayDevBypass()) {
+    // ⛔ PAID EVENT — Razorpay required
+    // Only skip Razorpay if explicitly in test mode
+    if (isRazorpayTestMode()) {
         return completePaidWithoutRazorpay({
             ...bypassArgs,
-            reason: "RAZORPAY_DEV_BYPASS",
+            reason: "RAZORPAY_TEST_MODE=true",
         });
     }
 
+    // Return existing pending order for the same user+event to enforce pay-once
+    const existingPending = await Payment.findOne({
+        eventId: resolvedEventId,
+        userId: resolvedUserId,
+        paymentStatus: "pending",
+        razorpayOrderId: { $exists: true, $ne: null },
+    })
+        .sort({ createdAt: -1 })
+        .lean();
+
+    if (existingPending?.razorpayOrderId) {
+        // Update registrationPayload with latest submission (discipline/categories may have changed)
+        if (payload) {
+            await Payment.findByIdAndUpdate(existingPending._id, {
+                registrationPayload: payload,
+            });
+        }
+        const payer = resolvedUserId
+            ? await BaseAuth.findById(resolvedUserId).select("fullName phone email").lean()
+            : null;
+        const { keyId } = getRazorpayCredentials();
+        return {
+            isFreeEvent: false,
+            keyId,
+            key: keyId,
+            amount: Math.round(existingPending.amount * 100),
+            amountPaise: Math.round(existingPending.amount * 100),
+            amountRupees: existingPending.amount,
+            currency: "INR",
+            orderId: existingPending.razorpayOrderId,
+            order_id: existingPending.razorpayOrderId,
+            razorpayOrderId: existingPending.razorpayOrderId,
+            name: "KRSA",
+            description: event.header || "Event registration",
+            prefill: {
+                name: payer?.fullName || "",
+                contact: payer?.phone || "",
+                email: payer?.email || "",
+            },
+            isTestMode: keyId.startsWith("rzp_test_"),
+            registrationComplete: false,
+        };
+    }
+
+    // Exception: If Razorpay keys are invalid in development, allow bypass for testing
     const { keyId, keySecret } = getRazorpayCredentials();
     let response;
     try {
@@ -360,12 +427,6 @@ export const initiateRazorpayPaymentServices = async ({
             }
         );
     } catch (error) {
-        if (isRazorpayAuthFailure(error) && isNonProduction()) {
-            return completePaidWithoutRazorpay({
-                ...bypassArgs,
-                reason: "invalid or revoked Razorpay keys",
-            });
-        }
         throwRazorpayOrderError(error);
     }
     const order = response.data;
@@ -376,7 +437,7 @@ export const initiateRazorpayPaymentServices = async ({
             eventId: resolvedEventId,
             userId: resolvedUserId,
             participantId: participant?._id || null,
-            registrationPayload: registrationPayload || null,
+            registrationPayload: payload || null,
             amount: amountInPaise / 100,
             razorpayOrderId: order.id,
             paymentStatus: "pending",
@@ -407,6 +468,7 @@ export const initiateRazorpayPaymentServices = async ({
             email: payer?.email || "",
         },
         isTestMode: keyId.startsWith("rzp_test_"),
+        registrationComplete: false,
     };
 };
 
@@ -424,6 +486,10 @@ export const verifyRazorpayPaymentServices = async (payload = {}) => {
         throw new AppError("Payment order not found", 404);
     }
 
+    if (userId && payment.userId && String(payment.userId) !== String(userId)) {
+        throw new AppError("Forbidden", 403);
+    }
+
     const wasAlreadySuccessful = payment.paymentStatus === "success";
 
     const isValidSignature = verifySignature(
@@ -433,10 +499,12 @@ export const verifyRazorpayPaymentServices = async (payload = {}) => {
     );
 
     if (!isValidSignature) {
-        await handleFailedPayment(payment, {
-            paymentId: razorpay_payment_id,
-            signature: razorpay_signature,
-        });
+        if (!wasAlreadySuccessful) {
+            await handleFailedPayment(payment, {
+                paymentId: razorpay_payment_id,
+                signature: razorpay_signature,
+            });
+        }
         throw new AppError("Invalid payment signature — registration not completed", 400);
     }
 
@@ -478,6 +546,10 @@ export const checkPaymentStatusServices = async ({ razorpayOrderId, userId }) =>
         throw new AppError("Payment not found", 404);
     }
 
+    if (userId && payment.userId && String(payment.userId) !== String(userId)) {
+        throw new AppError("Forbidden", 403);
+    }
+
     if (payment.participantId) {
         const participant = await EventParticipant.findById(payment.participantId)
             .select("userId")
@@ -498,12 +570,17 @@ export const checkPaymentStatusServices = async ({ razorpayOrderId, userId }) =>
     };
 };
 
-export const razorpayWebhookServices = async ({ body, signature }) => {
-    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+export const razorpayWebhookServices = async ({ body, parsedBody, signature }) => {
+    const webhookSecret = RAZORPAY_WEBHOOK_SECRET;
+    const eventBody = parsedBody || (typeof body === "object" && !Buffer.isBuffer(body) ? body : null);
     if (webhookSecret && signature) {
+        const rawBody =
+            typeof body === "string" || Buffer.isBuffer(body)
+                ? body
+                : JSON.stringify(body);
         const expected = crypto
             .createHmac("sha256", webhookSecret)
-            .update(JSON.stringify(body))
+            .update(rawBody)
             .digest("hex");
 
         if (expected !== signature) {
@@ -511,8 +588,8 @@ export const razorpayWebhookServices = async ({ body, signature }) => {
         }
     }
 
-    const eventType = body?.event;
-    const paymentEntity = body?.payload?.payment?.entity;
+    const eventType = eventBody?.event;
+    const paymentEntity = eventBody?.payload?.payment?.entity;
     const orderId = paymentEntity?.order_id;
     const paymentId = paymentEntity?.id;
 

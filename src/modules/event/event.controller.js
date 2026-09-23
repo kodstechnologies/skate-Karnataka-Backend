@@ -402,6 +402,7 @@ export const givenPoint = asyncHandler(async (req, res) => {
 });
 
 export const createStateEvent = asyncHandler(async (req, res) => {
+    console.log(req.body, "bnody")
     const role = (req.user.role || "").toLowerCase();
     const body = req.body || {};
     const { stateId: bodyStateId, ...payload } = body;
@@ -728,7 +729,7 @@ export const getRegisterDetailsByEventId = asyncHandler(async (req, res) => {
 export const createRegisterForm = asyncHandler(async (req, res) => {
     const userId = req.user._id;
     const result = await createRegisterFormService(userId, req.body);
-console.log(result,"------1")
+
     return res
         .status(201)
         .json(

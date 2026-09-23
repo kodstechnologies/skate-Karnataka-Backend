@@ -706,7 +706,7 @@ const create_club_event_validation = {
         eventType: Joi.forbidden(),
         eventFor: Joi.forbidden(),
 
-        entryFee: Joi.string().allow(""),
+        entryFee: Joi.alternatives().try(Joi.string().allow(""), Joi.number().min(0)).optional(),
         colorOne: Joi.string().allow(""),
         colorTwo: Joi.string().allow(""),
         textColor: Joi.string().allow(""),
@@ -760,7 +760,7 @@ const create_district_event_validation = {
         eventType: Joi.forbidden(),
         eventFor: Joi.forbidden(),
 
-        entryFee: Joi.string().allow(""),
+        entryFee: Joi.alternatives().try(Joi.string().allow(""), Joi.number().min(0)).optional(),
         colorOne: Joi.string().allow(""),
         colorTwo: Joi.string().allow(""),
         textColor: Joi.string().allow(""),

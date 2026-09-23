@@ -932,7 +932,7 @@ const displaySkaterDetailsRepository = async (skaterId, districtMemberId) => {
   }
 
   const skater = await Skater.findById(skaterId)
-    .select("_id fullName photo address krsaId phone email gender club district role")
+    .select("_id fullName photo address krsaId phone email gender club district role bloodGroup school grade")
     .populate("club", "_id name")
     .lean();
 
@@ -959,6 +959,9 @@ const displaySkaterDetailsRepository = async (skaterId, districtMemberId) => {
     clubName: skater.club?.name || "",
     districtName: district.name || "",
     address: skater.address || "Address not available",
+    bloodGroup: skater.bloodGroup || "",
+    school: skater.school || "",
+    grade: skater.grade || "",
     districtRank: 0,
     stateRank: 0,
     gold: 0,
@@ -1154,3 +1157,53 @@ export {
   districtClubSkatersRepository,
   displaySkaterDetailsRepository
 }
+
+export const editDistrictSkaterRepository = async (skaterId, districtMemberId, updates) => {
+  const districtUser = await BaseAuth.findById(districtMemberId).select("district").lean();
+  if (!districtUser?.district) throw new AppError("District not found for user", 404);
+
+  const district = await District.findById(districtUser.district).select("_id club").lean();
+  if (!district) throw new AppError("District not found", 404);
+
+  const skater = await Skater.findById(skaterId)
+    .select("_id district club role")
+    .populate("club", "_id")
+    .lean();
+
+  if (!skater || String(skater.role || "Skater") !== "Skater") {
+    throw new AppError("Skater not found", 404);
+  }
+
+  const belongsToDistrict =
+    String(skater.district || "") === String(district._id) ||
+    (district.club || []).some((id) => String(id) === String(skater.club?._id || skater.club || ""));
+
+  if (!belongsToDistrict) throw new AppError("Skater is not affiliated with this district", 403);
+
+  const allowed = ["fullName", "phone", "email", "gender", "address", "bloodGroup", "school", "grade"];
+  const setData = {};
+  for (const key of allowed) {
+    if (updates[key] !== undefined && updates[key] !== null && updates[key] !== "") {
+      setData[key] = updates[key];
+    }
+  }
+  if (!Object.keys(setData).length) throw new AppError("No valid fields to update", 400);
+
+  const updated = await Skater.findByIdAndUpdate(skaterId, { $set: setData }, { new: true })
+    .select("_id fullName phone email gender address bloodGroup school grade krsaId photo")
+    .lean();
+
+  return {
+    id: updated._id,
+    name: updated.fullName || "",
+    phone: updated.phone || "",
+    email: updated.email || "",
+    gender: updated.gender || "",
+    address: updated.address || "",
+    bloodGroup: updated.bloodGroup || "",
+    school: updated.school || "",
+    grade: updated.grade || "",
+    krsaId: updated.krsaId || "",
+    img: updated.photo || "",
+  };
+};

@@ -162,6 +162,10 @@ const prepareClubDistrictEventPayload = (data = {}) => {
         payload.categoryFormat ?? payload.categorySource
     );
     delete payload.categorySource;
+    // Normalise entryFee: numeric 0 is valid (free event), coerce to string for model
+    if (payload.entryFee !== undefined && payload.entryFee !== null) {
+        payload.entryFee = String(payload.entryFee);
+    }
     return payload;
 };
 

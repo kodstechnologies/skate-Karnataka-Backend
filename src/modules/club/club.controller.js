@@ -383,6 +383,16 @@ const remove_skater_from_club = asyncHandler(async (req, res) => {
         new ApiResponse(200, result, "Skater removed from club successfully")
     );
 });
+const edit_club_skater = asyncHandler(async (req, res) => {
+    const clubMemberId = req.user._id;
+    const { id } = req.params;
+    const { edit_club_skater_service } = await import("./club.service.js");
+    const result = await edit_club_skater_service(clubMemberId, id, req.body);
+    return res.status(200).json(
+        new ApiResponse(200, result, "Skater details updated successfully")
+    );
+});
+
 const block_skater_toggle = asyncHandler(async (req, res) => {
     const clubMemberId = req.user._id;
     const { id } = req.params;
@@ -422,4 +432,5 @@ export {
     remove_skater_from_club,
     addSkaterByClub,
     block_skater_toggle,
+    edit_club_skater,
 }

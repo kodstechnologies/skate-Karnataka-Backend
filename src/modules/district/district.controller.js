@@ -305,6 +305,14 @@ const deleteDistrictSkater = asyncHandler(async (req, res) => {
   );
 });
 
+const editDistrictSkater = asyncHandler(async (req, res) => {
+  const districtMemberId = req.user._id;
+  const { id: skaterId } = req.params;
+  const { editDistrictSkaterService } = await import("./district.service.js");
+  const result = await editDistrictSkaterService(skaterId, districtMemberId, req.body);
+  return res.status(200).json(new ApiResponse(200, result, "Skater updated successfully"));
+});
+
 export {
   displayAllDistrict,
   createNewDistrict,
@@ -324,6 +332,7 @@ export {
   displaySkaterDetails,
   blockDistrictSkater,
   deleteDistrictSkater,
+  editDistrictSkater,
   acceptJoinSkater,
   rejectJoinSkater,
   acceptLeaveSkater,

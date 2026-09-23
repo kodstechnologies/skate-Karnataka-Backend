@@ -185,3 +185,8 @@ export {
     districtClubSkatersService,
     displaySkaterDetailsService
 }
+
+export const editDistrictSkaterService = async (skaterId, districtMemberId, updates) => {
+    const { editDistrictSkaterRepository } = await import("./district.repositories.js");
+    return editDistrictSkaterRepository(skaterId, districtMemberId, updates);
+};

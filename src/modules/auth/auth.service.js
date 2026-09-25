@@ -514,6 +514,11 @@ const getAllSkatingEventCategoryNamesService = async () => {
         }));
 };
 
+const saveFirebaseTokenService = async ({ userId, firebaseToken }) => {
+    if (!userId || !firebaseToken) return;
+    await saveFirebaseToken({ userId, firebaseToken });
+};
+
 export {
     RegisterUserService,
     sendEmailOTPService,
@@ -542,4 +547,5 @@ export {
     DeleteAccountService,
     displayChildrenByParentService,
     ToggleUserBlockService,
+    saveFirebaseTokenService,
 }

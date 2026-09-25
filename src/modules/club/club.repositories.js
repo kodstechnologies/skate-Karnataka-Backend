@@ -8,6 +8,22 @@ import { Event } from "../event/event.model.js";
 import { EventParticipant } from "../event/eventParticipant.model.js";
 import { Club } from "./club.model.js";
 import { BaseAuth } from "../auth/baseAuth.model.js";
+import SkatingEventCategory from "../event/SkatingEventCategory.model.js";
+
+// Resolve discipline name from embedded SkatingEventCategory discipline subdoc
+const resolveDisciplineInfo = async (disciplineRef) => {
+    if (!disciplineRef) return { id: null, name: "" };
+    const rawId = disciplineRef?._id ?? disciplineRef?.id ?? disciplineRef;
+    const idStr = String(rawId || "").trim();
+    if (!idStr) return { id: null, name: "" };
+
+    const cat = await SkatingEventCategory.findOne({ "disciplines._id": rawId })
+        .select("name disciplines._id disciplines.name")
+        .lean();
+    const embedded = (cat?.disciplines || []).find((d) => String(d._id) === idStr);
+    if (embedded) return { id: idStr, name: embedded.name || "" };
+    return { id: idStr, name: "" };
+};
 
 const hasDistrictRef = (district) =>
     district != null && String(district).trim() !== "";
@@ -1219,15 +1235,31 @@ export const display_club_skater_details_repositories = async (
         role: "Skater",
     })
         .select("-refreshTokens -firebaseTokens")
-        .populate("club", "name clubId img districtName")
+        .populate("club", "name clubId img districtName officeAddress")
+        .populate("district", "name")
         .populate("category", "name")
-        .populate("discipline", "name title")
-        .populate("applyClub", "name clubId")
+        .populate("eventCategory", "name disciplines._id disciplines.name")
+        .populate("applyClub", "name clubId img")
         .lean();
 
     if (!skater) {
         throw new AppError("Skater not found in this club", 404);
     }
+
+    const discInfo = await resolveDisciplineInfo(skater.discipline);
+
+    // Resolve eventCategory disciplines for display
+    const eventCategoryDoc = skater.eventCategory;
+    const eventCategoryOut = eventCategoryDoc
+        ? {
+              _id: eventCategoryDoc._id,
+              name: eventCategoryDoc.name || eventCategoryDoc.typeName || "",
+              disciplines: (eventCategoryDoc.disciplines || []).map((d) => ({
+                  _id: d._id,
+                  name: d.name || "",
+              })),
+          }
+        : null;
 
     return {
         id: skater._id,
@@ -1243,7 +1275,6 @@ export const display_club_skater_details_repositories = async (
         dob: skater.dob || null,
         rsfiId: skater.rsfiId || "",
         aadharNumber: skater.aadharNumber || "",
-        discipline: skater.discipline?.name || skater.discipline?.title || "",
         parent: skater.parent || "",
         bloodGroup: skater.bloodGroup || "",
         school: skater.school || "",
@@ -1251,12 +1282,18 @@ export const display_club_skater_details_repositories = async (
         signature: skater.signature || "",
         clubStatus: skater.clubStatus || "",
         verify: Boolean(skater.verify),
-        category: skater.category
-            ? {
-                  _id: skater.category._id,
-                  typeName: skater.category.name || skater.category.typeName || "",
-              }
+        // district from BaseAuth
+        district: skater.district
+            ? { _id: skater.district._id, name: skater.district.name || "" }
             : null,
+        // skating event category (what the skater selected as their category)
+        category: skater.category
+            ? { _id: skater.category._id, name: skater.category.name || "" }
+            : null,
+        // event category with its disciplines list
+        eventCategory: eventCategoryOut,
+        // resolved discipline (embedded inside SkatingEventCategory)
+        discipline: { _id: discInfo.id, name: discInfo.name },
         club: skater.club
             ? {
                   _id: skater.club._id,
@@ -1270,6 +1307,7 @@ export const display_club_skater_details_repositories = async (
             _id: item?._id,
             name: item?.name || "",
             clubId: item?.clubId || "",
+            img: item?.img || "",
         })),
         documents: skater.documents || [],
         createdAt: skater.createdAt,
@@ -1422,7 +1460,14 @@ export const edit_club_skater_repository = async (clubMemberId, skaterId, update
         .lean();
     if (!skater) throw new AppError("Skater not found in this club", 404);
 
-    const allowedFields = ["fullName", "phone", "gender", "address", "district", "districtName"];
+    const allowedFields = [
+        "fullName", "phone", "gender", "address",
+        "district", "districtName",
+        "parent", "bloodGroup", "school", "grade",
+        "aadharNumber", "signature",
+        "dob", "rsfiId",
+        "eventCategory", "discipline",
+    ];
     const setData = {};
     for (const key of allowedFields) {
         if (updates[key] !== undefined && updates[key] !== null) {
@@ -1436,7 +1481,7 @@ export const edit_club_skater_repository = async (clubMemberId, skaterId, update
         rawId,
         { $set: setData },
         { new: true }
-    ).select("_id fullName phone gender address district districtName krsaId").lean();
+    ).select("_id fullName phone gender address district districtName krsaId parent bloodGroup school grade aadharNumber signature dob rsfiId").lean();
 
     return {
         id: updated._id,

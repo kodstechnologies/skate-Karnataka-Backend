@@ -1111,17 +1111,16 @@ export const updateDisciplineInCategoryService = async (
         throw new AppError("Event category not found", 404);
     }
 
-    const discipline = findDisciplineInCategory(existing, disciplineId);
-    if (!discipline) {
-        throw new AppError("Discipline not found", 404);
-    }
-
     const scope = await enrichUserForCategoryScope(user);
     const userPlain = typeof user?.toObject === "function" ? user.toObject({ getters: true }) : { ...user };
     const actor = { ...userPlain, ...scope };
     const role = getAuthRole(user);
 
-    if (isStandardCategory(discipline) && (role === "club" || role === "district")) {
+    const discipline = findDisciplineInCategory(existing, disciplineId);
+
+    // Club / district updating a standard discipline → upsert their override.
+    // The repo will auto-create the discipline entry if it is missing.
+    if ((role === "club" || role === "district") && (!discipline || isStandardCategory(discipline))) {
         const overrideInput = {
             typeName: payload.name || payload.typeName,
             customCategoryNames: payload.customCategoryNames ?? payload.names,
@@ -1151,6 +1150,10 @@ export const updateDisciplineInCategoryService = async (
             overrideInput
         );
         return mergeStandardWithOrgOverride(updated, { districtId: actor.districtDocId });
+    }
+
+    if (!discipline) {
+        throw new AppError("Discipline not found", 404);
     }
 
     assertCanMutateDiscipline(actor, discipline);

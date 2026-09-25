@@ -2,7 +2,7 @@ import { resolveLogoutUserId } from "../../middleware/auth.middleware.js";
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
 import { formatDate } from "../../util/time/timeUtil.js";
-import {ContactSupportService, DeleteAccountService, displayChildrenByParentService, getAllSkatingEventCategoryNamesService, GetDigitalIDCardService, GetUserProfileService, LoginUserService, LogoutUserService, RegisterUserService, SelectAccountLoginService, sendEmailOTPService, sendPhoneOTPService, ToggleNotificationsService, ToggleUserBlockService, verifyEmailOTPService, VerifyOTPService, verifyPhoneOTPService} from "./auth.service.js";
+import {ContactSupportService, DeleteAccountService, displayChildrenByParentService, getAllSkatingEventCategoryNamesService, GetDigitalIDCardService, GetUserProfileService, LoginUserService, LogoutUserService, RegisterUserService, saveFirebaseTokenService, SelectAccountLoginService, sendEmailOTPService, sendPhoneOTPService, ToggleNotificationsService, ToggleUserBlockService, verifyEmailOTPService, VerifyOTPService, verifyPhoneOTPService} from "./auth.service.js";
 
 const RegisterUser = asyncHandler(async (req, res) => {
     const result = await RegisterUserService(req.body);
@@ -235,6 +235,14 @@ const ToggleUserBlock = asyncHandler(async (req, res) => {
     );
 });
 
+const UpdateFCMToken = asyncHandler(async (req, res) => {
+    const firebaseToken = req.body?.firebaseToken ?? req.body?.token;
+    if (firebaseToken && req.user?._id) {
+        await saveFirebaseTokenService({ userId: req.user._id, firebaseToken });
+    }
+    return res.status(200).json(new ApiResponse(200, null, "FCM token updated"));
+});
+
 export {
 RegisterUser,
 sendEmailOTP,
@@ -256,4 +264,5 @@ DisplayChildrenByParent,
 SelectAccount,
 DeleteUser,
 ToggleUserBlock,
+UpdateFCMToken,
 }

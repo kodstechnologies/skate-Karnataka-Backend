@@ -538,9 +538,23 @@ export const upsertClubOverrideOnDisciplineRepository = async (
     throw new AppError("Event category not found", 404);
   }
 
-  const discipline = (doc.disciplines || []).id(disciplineId);
+  let discipline = (doc.disciplines || []).id(disciplineId);
+
+  // If discipline doesn't exist yet, add it as a standard discipline so the
+  // override can be stored (club/district cannot rename standard disciplines).
   if (!discipline) {
-    throw new AppError("Discipline not found", 404);
+    const name = String(input.name || input.typeName || "").trim();
+    doc.disciplines.push({
+      _id: disciplineId,
+      name: name || "Unnamed",
+      categoryStatus: CATEGORY_STATUS.STANDARD,
+      clubOverrides: [],
+      districtOverrides: [],
+    });
+    discipline = (doc.disciplines || []).id(disciplineId);
+    if (!discipline) {
+      throw new AppError("Failed to initialise discipline", 500);
+    }
   }
 
   applyClubOverrideOnDiscipline(discipline, clubId, {
@@ -594,9 +608,23 @@ export const upsertDistrictOverrideOnDisciplineRepository = async (
     throw new AppError("Event category not found", 404);
   }
 
-  const discipline = (doc.disciplines || []).id(disciplineId);
+  let discipline = (doc.disciplines || []).id(disciplineId);
+
+  // If discipline doesn't exist yet, add it as a standard discipline so the
+  // override can be stored (district cannot rename standard disciplines).
   if (!discipline) {
-    throw new AppError("Discipline not found", 404);
+    const name = String(input.name || input.typeName || "").trim();
+    doc.disciplines.push({
+      _id: disciplineId,
+      name: name || "Unnamed",
+      categoryStatus: CATEGORY_STATUS.STANDARD,
+      clubOverrides: [],
+      districtOverrides: [],
+    });
+    discipline = (doc.disciplines || []).id(disciplineId);
+    if (!discipline) {
+      throw new AppError("Failed to initialise discipline", 500);
+    }
   }
 
   applyDistrictOverrideOnDiscipline(discipline, districtId, {

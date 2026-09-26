@@ -932,8 +932,10 @@ const displaySkaterDetailsRepository = async (skaterId, districtMemberId) => {
   }
 
   const skater = await Skater.findById(skaterId)
-    .select("_id fullName photo address krsaId phone email gender club district role bloodGroup school grade")
-    .populate("club", "_id name")
+    .select("-refreshTokens -firebaseTokens")
+    .populate("club", "_id name clubId districtName")
+    .populate("district", "_id name")
+    .populate("eventCategory", "_id name disciplines._id disciplines.name")
     .lean();
 
   if (!skater || String(skater.role || "Skater") !== "Skater") {
@@ -941,7 +943,7 @@ const displaySkaterDetailsRepository = async (skaterId, districtMemberId) => {
   }
 
   const belongsToDistrict =
-    String(skater.district || "") === String(district._id) ||
+    String(skater.district?._id || skater.district || "") === String(district._id) ||
     (district.club || []).some((id) => String(id) === String(skater.club?._id || skater.club || ""));
 
   if (!belongsToDistrict) {
@@ -951,17 +953,35 @@ const displaySkaterDetailsRepository = async (skaterId, districtMemberId) => {
   return {
     id: skater._id,
     name: skater.fullName || "",
+    fullName: skater.fullName || "",
     img: skater.photo || "",
+    photo: skater.photo || "",
     krsaId: skater.krsaId || "",
+    rsfiId: skater.rsfiId || "",
     phone: skater.phone || "",
     email: skater.email || "",
     gender: skater.gender || "",
-    clubName: skater.club?.name || "",
-    districtName: district.name || "",
-    address: skater.address || "Address not available",
+    address: skater.address || "",
     bloodGroup: skater.bloodGroup || "",
     school: skater.school || "",
     grade: skater.grade || "",
+    parent: skater.parent || "",
+    aadharNumber: skater.aadharNumber || "",
+    signature: skater.signature || "",
+    dob: skater.dob || null,
+    clubStatus: skater.clubStatus || "",
+    verify: Boolean(skater.verify),
+    club: skater.club ? { _id: skater.club._id, name: skater.club.name || "", clubId: skater.club.clubId || "" } : null,
+    district: skater.district ? { _id: skater.district._id, name: skater.district.name || "" } : { _id: district._id, name: district.name || "" },
+    eventCategory: skater.eventCategory
+      ? {
+          _id: skater.eventCategory._id,
+          name: skater.eventCategory.name || "",
+          disciplines: (skater.eventCategory.disciplines || []).map((d) => ({ _id: d._id, name: d.name || "" })),
+        }
+      : null,
+    discipline: skater.discipline || null,
+    documents: skater.documents || [],
     districtRank: 0,
     stateRank: 0,
     gold: 0,
@@ -1180,7 +1200,12 @@ export const editDistrictSkaterRepository = async (skaterId, districtMemberId, u
 
   if (!belongsToDistrict) throw new AppError("Skater is not affiliated with this district", 403);
 
-  const allowed = ["fullName", "phone", "email", "gender", "address", "bloodGroup", "school", "grade"];
+  const allowed = [
+    "fullName", "gender", "address", "bloodGroup", "school", "grade",
+    "parent", "aadharNumber", "signature", "dob", "rsfiId",
+    "district", "club", "eventCategory", "discipline",
+    "photo",
+  ];
   const setData = {};
   for (const key of allowed) {
     if (updates[key] !== undefined && updates[key] !== null && updates[key] !== "") {
@@ -1190,7 +1215,7 @@ export const editDistrictSkaterRepository = async (skaterId, districtMemberId, u
   if (!Object.keys(setData).length) throw new AppError("No valid fields to update", 400);
 
   const updated = await Skater.findByIdAndUpdate(skaterId, { $set: setData }, { new: true })
-    .select("_id fullName phone email gender address bloodGroup school grade krsaId photo")
+    .select("_id fullName phone email gender address bloodGroup school grade krsaId photo parent aadharNumber signature dob rsfiId district eventCategory discipline")
     .lean();
 
   return {

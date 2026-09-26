@@ -1189,7 +1189,7 @@ export const display_all_club_skater_repositories = async (
     const [total, skaters] = await Promise.all([
         Skater.countDocuments(filter),
         Skater.find(filter)
-            .select("fullName photo profile krsaId phone gender district districtName clubStatus createdAt")
+            .select("fullName photo profile krsaId phone gender district districtName clubStatus createdAt email")
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(pageLimit)
@@ -1203,6 +1203,7 @@ export const display_all_club_skater_repositories = async (
             id: skater._id,
             name: skater.fullName || "",
             img: skater.photo || skater.profile || "",
+            email: skater.email || "",
             krsaId: skater.krsaId || "",
             phone: skater.phone || "",
             gender: skater.gender || "",
@@ -1467,6 +1468,7 @@ export const edit_club_skater_repository = async (clubMemberId, skaterId, update
         "aadharNumber", "signature",
         "dob", "rsfiId",
         "eventCategory", "discipline",
+        "photo",
     ];
     const setData = {};
     for (const key of allowedFields) {

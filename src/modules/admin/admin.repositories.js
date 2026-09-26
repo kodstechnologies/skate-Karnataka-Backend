@@ -1041,7 +1041,7 @@ export const updateSkaterByIdForAdmin = async (skaterId, payload) => {
     normalizedPayload.aadharNumber = undefined;
   }
 
-  for (const field of ["district", "club", "category"]) {
+  for (const field of ["district", "club", "category", "eventCategory", "discipline"]) {
     if (!(field in normalizedPayload)) continue;
 
     const casted = castOptionalObjectId(normalizedPayload[field]);

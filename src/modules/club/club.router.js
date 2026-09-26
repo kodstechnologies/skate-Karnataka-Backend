@@ -73,7 +73,7 @@ router.get(
     display_all_club_skater
 );
 router.get("/v1/club-skater-details/:id", authenticate(["Club"]), display_club_skater_details);
-router.patch("/v1/club-skater-edit/:id", authenticate(["Club"]), edit_club_skater);
+router.patch("/v1/club-skater-edit/:id", authenticate(["Club"]), upload.single("photo"), uploadToS3("skaters"), edit_club_skater);
 router.get("/v1/remove-skater/:id", authenticate(["Club"]), remove_skater_from_club);
 router.patch("/v1/block-skater/:id", authenticate(["Club"]), block_skater_toggle);
 

@@ -94,7 +94,7 @@ router.delete("/v1/formula/:id", authenticate(["District"]), deleteDistrictFormu
 router.get("/v1/total-club",authenticate(["District"]) ,displayTotalClubs);
 router.get("/v1/total-skater",authenticate(["District"]) ,displayTotalSkater);
 router.get("/v1/skater/:id",authenticate(["District"]) ,displaySkaterDetails);
-router.patch("/v1/skater/:id", authenticate(["District"]), editDistrictSkater);
+router.patch("/v1/skater/:id", authenticate(["District"]), upload.single("photo"), uploadToS3("skaters"), editDistrictSkater);
 router.patch("/v1/skater/:id/block", authenticate(["District"]), blockDistrictSkater);
 router.delete("/v1/skater/:id", authenticate(["District"]), deleteDistrictSkater);
 

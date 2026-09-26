@@ -980,6 +980,17 @@ export const createSkaterForAdmin = async (payload) => {
   };
 };
 
+const resolveDisciplineNameForAdmin = async (disciplineId) => {
+  if (!disciplineId || !mongoose.Types.ObjectId.isValid(String(disciplineId))) return "";
+  const category = await SkatingEventCategory.findOne({ "disciplines._id": disciplineId })
+    .select("disciplines._id disciplines.name")
+    .lean();
+  const embedded = (category?.disciplines || []).find(
+    (d) => String(d._id) === String(disciplineId)
+  );
+  return embedded?.name || "";
+};
+
 export const getSkaterFullDetailsByIdForAdmin = async (skaterId) => {
   const skater = await Skater.findOne({ _id: skaterId, role: "Skater" })
     .select("-refreshTokens -isNotificationsEnabled -isActive -firebaseTokens")
@@ -994,12 +1005,14 @@ export const getSkaterFullDetailsByIdForAdmin = async (skaterId) => {
 
   const districtNameMap = await buildDistrictNameMap([skater]);
   const district = resolveSkaterDistrict(skater, districtNameMap);
+  const disciplineName = await resolveDisciplineNameForAdmin(skater.discipline);
 
   return {
     ...skater,
     district,
     districtName: district?.name || "",
     districtDetails: district,
+    disciplineName,
   };
 };
 

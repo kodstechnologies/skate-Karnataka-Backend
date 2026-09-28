@@ -222,20 +222,24 @@ const apply_club_service = async (clubId, userID) => {
 };
 const approve_join_club_service = async (skaterId ,ClubId) => {
     const status = await isApplyRepository(skaterId);
-    console.log(status, "status");
-    const errorMap = {
-        join: "Already joined",
-        leave: "Apply first",
-    };
 
     if (!status) {
-        throw new AppError("Application not found");
+        throw new AppError("Application not found", 404);
     }
+
+    const errorMap = {
+        join: "Skater has already joined a club",
+        "apply-leave": "Skater has a pending leave request — resolve it first",
+        leave: "Skater has not applied to join",
+        reject: "Skater has not applied to join",
+        block: "Skater is blocked",
+    };
 
     if (errorMap[status]) {
-        throw new AppError(errorMap[status]);
+        throw new AppError(errorMap[status], 400);
     }
 
+    // only "apply" reaches here
     const skater = await approve_join_club_repositories(skaterId, ClubId);
     const club = await resolveClubIdFromClubMember(ClubId);
 
@@ -248,10 +252,20 @@ const approve_join_club_service = async (skaterId ,ClubId) => {
 
     return skater;
 };
+
 export const reject_join_club_service = async (skaterId, clubId) => {
     const status = await isApplyRepository(skaterId);
     if (!status) {
         throw new AppError("Application not found", 404);
+    }
+
+    if (status !== "apply") {
+        const msg = status === "join"
+            ? "Skater has already joined — cannot reject"
+            : status === "apply-leave"
+            ? "Skater has a pending leave request, not a join request"
+            : "No pending join application";
+        throw new AppError(msg, 400);
     }
 
     const skater = await reject_join_club_repositories(skaterId, clubId);
@@ -310,7 +324,14 @@ const approve_leave_club_service = async (skaterId, clubMemberId) => {
         throw new AppError("Application not found", 404);
     }
     if (status !== "apply-leave") {
-        throw new AppError("Skater has not requested leave", 400);
+        const msg = status === "join"
+            ? "Skater has not submitted a leave request yet"
+            : status === "apply"
+            ? "Skater has a pending join request, not a leave request"
+            : status === "leave"
+            ? "Skater has already left the club"
+            : `Cannot approve leave — current status is "${status}"`;
+        throw new AppError(msg, 400);
     }
 
     const skater = await approve_leave_club_repositories(skaterId, clubMemberId);
@@ -342,7 +363,14 @@ const reject_leave_club_service = async (id, clubMemberId) => {
         throw new AppError("Application not found", 404);
     }
     if (status !== "apply-leave") {
-        throw new AppError("Skater has not requested leave", 400);
+        const msg = status === "join"
+            ? "Skater has not submitted a leave request yet"
+            : status === "apply"
+            ? "Skater has a pending join request, not a leave request"
+            : status === "leave"
+            ? "Skater has already left the club"
+            : `Cannot reject leave — current status is "${status}"`;
+        throw new AppError(msg, 400);
     }
 
     const skater = await reject_leave_club_repositories(id, clubMemberId);

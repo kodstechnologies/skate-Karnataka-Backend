@@ -204,7 +204,7 @@ export const updateAdminPasswordByEmail = async (email, password) => {
   return admin;
 };
 
-const STATE_PHOTO = "https://skate-karnataka.s3.ap-south-1.amazonaws.com/img/1790587815915-Zoro___One_Piece.jpeg";
+const STATE_PHOTO = "https://skate-karnataka.s3.ap-south-1.amazonaws.com/img/1790589744213-krsalogo.png";
 
 export const findAdminProfileById = async (adminId) => {
   const admin = await Admin.findOne({ _id: adminId, role: "admin" })

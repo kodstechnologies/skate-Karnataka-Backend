@@ -443,11 +443,18 @@ export const formatCategoryRoundDisplay = (categoryDoc, formula, meta = {}) => {
   const roundKeys = getRoundKeysFromFormula(formula);
   const plain =
     typeof category.toObject === "function" ? category.toObject() : category;
+
+  // Only include extra keys that are known competition round names —
+  // never pick up arbitrary array fields (Mongoose internals, etc.)
+  const KNOWN_ROUND_KEYS = new Set([
+    "1stRound", "2ndRound", "3rdRound",
+    "quarterFinal", "semiFinal", "final",
+  ]);
   const extraKeys = Object.keys(plain || {}).filter(
     (key) =>
-      Array.isArray(plain[key]) &&
-      !["1st", "2nd", "3rd", "name", "resultType", "_id", "id"].includes(key) &&
-      !roundKeys.includes(key)
+      KNOWN_ROUND_KEYS.has(key) &&
+      !roundKeys.includes(key) &&
+      Array.isArray(plain[key])
   );
   const allRoundKeys = [...roundKeys, ...extraKeys];
 

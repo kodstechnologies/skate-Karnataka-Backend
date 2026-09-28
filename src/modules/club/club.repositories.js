@@ -1190,7 +1190,7 @@ export const display_all_club_skater_repositories = async (
     const [total, skaters] = await Promise.all([
         Skater.countDocuments(filter),
         Skater.find(filter)
-            .select("fullName photo profile krsaId")
+            .select("fullName photo profile krsaId phone email gender")
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(pageLimit)
@@ -1205,6 +1205,9 @@ export const display_all_club_skater_repositories = async (
             name: skater.fullName || "",
             img: skater.photo || skater.profile || "",
             krsaId: skater.krsaId || "",
+            phone: skater.phone || "",
+            email: skater.email || "",
+            gender: skater.gender || "",
         })),
         pagination: {
             total,

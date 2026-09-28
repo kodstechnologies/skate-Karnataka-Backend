@@ -844,6 +844,70 @@ const create_state_event_validation = {
         }),
 };
 
+/** Optional skatingEventCategories for update — accepts both old (plain ObjectId array) and new ({ categoryId, disciplines }[]) formats. */
+const skatingEventCategoriesUpdate = Joi.any()
+    .optional()
+    .custom((value, helpers) => {
+        if (value === undefined || value === null || value === "") return undefined;
+
+        let arr = value;
+        if (typeof value === "string") {
+            const trimmed = value.trim();
+            if (!trimmed) return undefined;
+            try {
+                arr = JSON.parse(trimmed);
+            } catch {
+                return helpers.error("any.invalid", {
+                    message: "skatingEventCategories must be valid JSON when sent as a string",
+                });
+            }
+        }
+
+        if (!Array.isArray(arr)) {
+            return helpers.error("any.invalid", {
+                message: "skatingEventCategories must be an array",
+            });
+        }
+
+        if (arr.length === 0) return arr;
+
+        // Detect format: new ({ categoryId, disciplines }) vs old (plain ObjectId strings)
+        const isNewFormat = arr.some((item) => item && typeof item === "object" && !Array.isArray(item));
+
+        if (isNewFormat) {
+            const { error, value: normalized } = Joi.array()
+                .items(
+                    Joi.object({
+                        categoryId: objectIdString.required(),
+                        disciplines: Joi.array()
+                            .items(Joi.object({ id: objectIdString.required() }).required())
+                            .default([]),
+                    }).required()
+                )
+                .min(1)
+                .validate(arr, { abortEarly: false });
+
+            if (error) {
+                return helpers.error("any.invalid", {
+                    message: error.details.map((d) => d.message.replace(/"/g, "")).join(", "),
+                });
+            }
+            return normalized;
+        }
+
+        // Old format: plain ObjectId strings
+        const { error, value: normalized } = Joi.array()
+            .items(objectIdString)
+            .validate(arr, { abortEarly: false });
+
+        if (error) {
+            return helpers.error("any.invalid", {
+                message: error.details.map((d) => d.message.replace(/"/g, "")).join(", "),
+            });
+        }
+        return normalized;
+    }, "update SkatingEventCategory array");
+
 const update_event_validation = {
     body: Joi.object({
         header: Joi.string()
@@ -885,11 +949,9 @@ const update_event_validation = {
 
         categoryFormat: categoryFormatField.optional(),
         categorySource: categoryFormatField.optional(),
-        skatingEventCategories: skatingEventCategoryIds,
+        skatingEventCategories: skatingEventCategoriesUpdate,
         skatingEventDisciplines: skatingEventDisciplineIds,
     })
-
-
 };
 
 /** Club/District: toggle chest-number mode (true = automatic scheduler, false = manual). */

@@ -513,7 +513,7 @@ export const stateDashboardRepository = async (user) => {
 
 export const stateProfileRepository = async (stateId) => {
   const currentUser = await BaseAuth.findById(stateId)
-    .select("role fullName phone email profile gender address district krsaId")
+    .select("role fullName phone email profile img gender address district krsaId")
     .lean();
 
   if (!currentUser) {
@@ -585,7 +585,7 @@ export const stateProfileRepository = async (stateId) => {
       fullName: currentUser.fullName || "",
       phone: currentUser.phone || "",
       email: currentUser.email || "",
-      photo: currentUser.profile || "",
+      photo: currentUser.profile || currentUser.img || "",
       gender: currentUser.gender || "",
       address: currentUser.address || "",
       role: currentUser.role || "State",
@@ -594,7 +594,7 @@ export const stateProfileRepository = async (stateId) => {
     stateDetails: {
       name: state.name || "",
       officialAddress: state.officialAddress || "",
-      img: state.img || "",
+      img: state.img || "https://skate-karnataka.s3.ap-south-1.amazonaws.com/img/1790587815915-Zoro___One_Piece.jpeg",
       krsaId: state.krsaId || "",
       districtCount,
       clubCount,

@@ -427,6 +427,12 @@ export const initiateRazorpayPaymentServices = async ({
             }
         );
     } catch (error) {
+        console.error("[Razorpay] Order creation failed:", {
+            status: error?.response?.status,
+            error: error?.response?.data?.error,
+            keyId: keyId?.slice(0, 12) + "...",
+            amountInPaise,
+        });
         throwRazorpayOrderError(error);
     }
     const order = response.data;

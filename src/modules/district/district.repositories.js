@@ -936,6 +936,7 @@ const displaySkaterDetailsRepository = async (skaterId, districtMemberId) => {
     .select("-refreshTokens -firebaseTokens")
     .populate("club", "_id name clubId districtName")
     .populate("district", "_id name")
+    .populate("category", "_id name")
     .populate("eventCategory", "_id name disciplines._id disciplines.name")
     .populate("SkaterParent", "phone email address")
     .lean();
@@ -990,13 +991,25 @@ const displaySkaterDetailsRepository = async (skaterId, districtMemberId) => {
     verify: Boolean(skater.verify),
     club: skater.club ? { _id: skater.club._id, name: skater.club.name || "", clubId: skater.club.clubId || "" } : null,
     district: skater.district ? { _id: skater.district._id, name: skater.district.name || "" } : { _id: district._id, name: district.name || "" },
-    eventCategory: skater.eventCategory
-      ? {
-          _id: skater.eventCategory._id,
-          name: skater.eventCategory.name || "",
-          disciplines: (skater.eventCategory.disciplines || []).map((d) => ({ _id: d._id, name: d.name || "" })),
-        }
+    category: skater.category
+      ? { _id: skater.category._id, name: skater.category.name || "" }
       : null,
+    eventCategory: (() => {
+      const ec = skater.eventCategory;
+      if (ec) {
+        return {
+          _id: ec._id,
+          name: ec.name || "",
+          disciplines: (ec.disciplines || []).map((d) => ({ _id: d._id, name: d.name || "" })),
+        };
+      }
+      // fall back to category when eventCategory is not set
+      const cat = skater.category;
+      if (cat) {
+        return { _id: cat._id, name: cat.name || "" };
+      }
+      return null;
+    })(),
     discipline: disciplineId
       ? { _id: disciplineId, name: disciplineName }
       : null,

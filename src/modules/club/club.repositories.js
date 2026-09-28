@@ -3,6 +3,7 @@ import { AppError } from "../../util/common/AppError.js";
 // import { Skater } from "../auth/skater.model.js";
 import { District } from "../district/district.model.js";
 import { Skater } from "../skater/skater.model.js";
+import { Parent } from "../parent/parent.model.js";
 import { listPendingRsfiChangesForClubRepository } from "../skater/skaterRsfiChange.repositories.js";
 import { Event } from "../event/event.model.js";
 import { EventParticipant } from "../event/eventParticipant.model.js";
@@ -1189,7 +1190,8 @@ export const display_all_club_skater_repositories = async (
     const [total, skaters] = await Promise.all([
         Skater.countDocuments(filter),
         Skater.find(filter)
-            .select("fullName photo profile krsaId phone gender district districtName clubStatus createdAt email parent")
+            .select("fullName photo profile krsaId phone gender district districtName clubStatus createdAt email parent address SkaterParent")
+            .populate("SkaterParent", "fullName phone email address")
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(pageLimit)
@@ -1199,18 +1201,25 @@ export const display_all_club_skater_repositories = async (
     return {
         clubId: club._id,
         clubName: club.name || "",
-        data: skaters.map((skater) => ({
-            id: skater._id,
-            name: skater.fullName || "",
-            img: skater.photo || skater.profile || "",
-            email: skater.email || "",
-            krsaId: skater.krsaId || "",
-            phone: skater.phone || "",
-            gender: skater.gender || "",
-            districtName: skater.districtName || "",
-            clubStatus: skater.clubStatus || "",
-            parent: skater.parent || "",
-        })),
+        data: skaters.map((skater) => {
+            const p = skater.SkaterParent;
+            return {
+                id: skater._id,
+                name: skater.fullName || "",
+                img: skater.photo || skater.profile || "",
+                email: skater.email || p?.email || "",
+                krsaId: skater.krsaId || "",
+                phone: skater.phone || p?.phone || "",
+                address: skater.address || p?.address || "",
+                gender: skater.gender || "",
+                districtName: skater.districtName || "",
+                clubStatus: skater.clubStatus || "",
+                parent: skater.parent || p?.fullName || "",
+                parentEmail: p?.email || "",
+                parentPhone: p?.phone || "",
+                parentAddress: p?.address || "",
+            };
+        }),
         pagination: {
             total,
             page: currentPage,

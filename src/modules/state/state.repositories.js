@@ -594,7 +594,7 @@ export const stateProfileRepository = async (stateId) => {
     stateDetails: {
       name: state.name || "",
       officialAddress: state.officialAddress || "",
-      img: state.img || "https://skate-karnataka.s3.ap-south-1.amazonaws.com/img/1790587815915-Zoro___One_Piece.jpeg",
+      img: "https://skate-karnataka.s3.ap-south-1.amazonaws.com/img/1790587815915-Zoro___One_Piece.jpeg",
       krsaId: state.krsaId || "",
       districtCount,
       clubCount,

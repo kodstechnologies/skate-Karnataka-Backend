@@ -213,16 +213,19 @@ export const findAdminProfileById = async (adminId) => {
 
   if (!admin) return null;
 
-  // Fetch the first active State member for their photo
+  // Fetch the first State member for their photo
   const stateMember = await State.findOne({ role: "State" })
-    .select("fullName img profile")
+    .select("fullName img profile designation")
     .lean();
 
   return {
     ...admin,
-    stateMemberPhoto: stateMember?.img || stateMember?.profile || "",
-    stateMemberName: stateMember?.fullName || "",
     statePhoto: STATE_PHOTO,
+    stateMemberDetails: {
+      photo: stateMember?.img || stateMember?.profile || "",
+      name: stateMember?.fullName || "",
+      designation: stateMember?.designation || "",
+    },
   };
 };
 

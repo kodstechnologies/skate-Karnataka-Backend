@@ -8,6 +8,7 @@ import { Event } from "../event/event.model.js";
 import { EventParticipant } from "../event/eventParticipant.model.js";
 import mongoose from "mongoose";
 import { paginate, calcTotalPages } from "../../util/common/paginate.js";
+import SkatingEventCategory from "../event/SkatingEventCategory.model.js";
 
 const getAllDistrict = async () => {
   return await District.find().select("_id name").lean();
@@ -936,6 +937,7 @@ const displaySkaterDetailsRepository = async (skaterId, districtMemberId) => {
     .populate("club", "_id name clubId districtName")
     .populate("district", "_id name")
     .populate("eventCategory", "_id name disciplines._id disciplines.name")
+    .populate("SkaterParent", "phone email address")
     .lean();
 
   if (!skater || String(skater.role || "Skater") !== "Skater") {
@@ -950,6 +952,21 @@ const displaySkaterDetailsRepository = async (skaterId, districtMemberId) => {
     throw new AppError("Skater is not affiliated with this district", 403);
   }
 
+  // Resolve discipline name from embedded SkatingEventCategory discipline
+  let disciplineName = "";
+  let disciplineId = skater.discipline || null;
+  if (disciplineId && mongoose.Types.ObjectId.isValid(String(disciplineId))) {
+    const catDoc = await SkatingEventCategory.findOne({ "disciplines._id": disciplineId })
+      .select("disciplines._id disciplines.name")
+      .lean();
+    const embedded = (catDoc?.disciplines || []).find(
+      (d) => String(d._id) === String(disciplineId)
+    );
+    disciplineName = embedded?.name || "";
+  }
+
+  const p = skater.SkaterParent;
+
   return {
     id: skater._id,
     name: skater.fullName || "",
@@ -958,14 +975,14 @@ const displaySkaterDetailsRepository = async (skaterId, districtMemberId) => {
     photo: skater.photo || "",
     krsaId: skater.krsaId || "",
     rsfiId: skater.rsfiId || "",
-    phone: skater.phone || "",
-    email: skater.email || "",
+    phone: skater.phone || p?.phone || "",
+    email: skater.email || p?.email || "",
     gender: skater.gender || "",
-    address: skater.address || "",
+    address: skater.address || p?.address || "",
     bloodGroup: skater.bloodGroup || "",
     school: skater.school || "",
     grade: skater.grade || "",
-    parent: skater.parent || "",
+    parent: skater.parent || p?.fullName || "",
     aadharNumber: skater.aadharNumber || "",
     signature: skater.signature || "",
     dob: skater.dob || null,
@@ -980,7 +997,9 @@ const displaySkaterDetailsRepository = async (skaterId, districtMemberId) => {
           disciplines: (skater.eventCategory.disciplines || []).map((d) => ({ _id: d._id, name: d.name || "" })),
         }
       : null,
-    discipline: skater.discipline || null,
+    discipline: disciplineId
+      ? { _id: disciplineId, name: disciplineName }
+      : null,
     documents: skater.documents || [],
     districtRank: 0,
     stateRank: 0,

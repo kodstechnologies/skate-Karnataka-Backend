@@ -1190,8 +1190,7 @@ export const display_all_club_skater_repositories = async (
     const [total, skaters] = await Promise.all([
         Skater.countDocuments(filter),
         Skater.find(filter)
-            .select("fullName photo profile krsaId phone gender district districtName clubStatus createdAt email parent address SkaterParent")
-            .populate("SkaterParent", "fullName phone email address")
+            .select("fullName photo profile krsaId")
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(pageLimit)
@@ -1201,25 +1200,12 @@ export const display_all_club_skater_repositories = async (
     return {
         clubId: club._id,
         clubName: club.name || "",
-        data: skaters.map((skater) => {
-            const p = skater.SkaterParent;
-            return {
-                id: skater._id,
-                name: skater.fullName || "",
-                img: skater.photo || skater.profile || "",
-                email: skater.email || p?.email || "",
-                krsaId: skater.krsaId || "",
-                phone: skater.phone || p?.phone || "",
-                address: skater.address || p?.address || "",
-                gender: skater.gender || "",
-                districtName: skater.districtName || "",
-                clubStatus: skater.clubStatus || "",
-                parent: skater.parent || p?.fullName || "",
-                parentEmail: p?.email || "",
-                parentPhone: p?.phone || "",
-                parentAddress: p?.address || "",
-            };
-        }),
+        data: skaters.map((skater) => ({
+            id: skater._id,
+            name: skater.fullName || "",
+            img: skater.photo || skater.profile || "",
+            krsaId: skater.krsaId || "",
+        })),
         pagination: {
             total,
             page: currentPage,
@@ -1251,6 +1237,7 @@ export const display_club_skater_details_repositories = async (
         .populate("category", "name")
         .populate("eventCategory", "name disciplines._id disciplines.name")
         .populate("applyClub", "name clubId img")
+        .populate("SkaterParent", "fullName phone email address")
         .lean();
 
     if (!skater) {
@@ -1272,14 +1259,16 @@ export const display_club_skater_details_repositories = async (
           }
         : null;
 
+    const p = skater.SkaterParent;
+
     return {
         id: skater._id,
         fullName: skater.fullName || "",
-        phone: skater.phone || "",
+        phone: skater.phone || p?.phone || "",
         countryCode: skater.countryCode || "+91",
-        email: skater.email || "",
+        email: skater.email || p?.email || "",
         gender: skater.gender || "",
-        address: skater.address || "",
+        address: skater.address || p?.address || "",
         photo: skater.photo || "",
         profile: skater.profile || skater.photo || "",
         krsaId: skater.krsaId || "",

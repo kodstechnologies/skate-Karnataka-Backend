@@ -17,6 +17,7 @@ import {
 } from "../gallery/galleryApprovalPolicy.js";
 import { AppError } from "../../util/common/AppError.js";
 import { calcTotalPages } from "../../util/common/paginate.js";
+import { State } from "../state/state.model.js";
 
 const countPendingEventApprovalsByOwner = async (eventType, ownerIds) => {
   const map = new Map();
@@ -203,10 +204,26 @@ export const updateAdminPasswordByEmail = async (email, password) => {
   return admin;
 };
 
+const STATE_PHOTO = "https://skate-karnataka.s3.ap-south-1.amazonaws.com/img/1790587815915-Zoro___One_Piece.jpeg";
+
 export const findAdminProfileById = async (adminId) => {
-  return Admin.findOne({ _id: adminId, role: "admin" })
+  const admin = await Admin.findOne({ _id: adminId, role: "admin" })
     .select("fullName phone email img gender address countryCode krsaId role")
     .lean();
+
+  if (!admin) return null;
+
+  // Fetch the first active State member for their photo
+  const stateMember = await State.findOne({ role: "State" })
+    .select("fullName img profile")
+    .lean();
+
+  return {
+    ...admin,
+    stateMemberPhoto: stateMember?.img || stateMember?.profile || "",
+    stateMemberName: stateMember?.fullName || "",
+    statePhoto: STATE_PHOTO,
+  };
 };
 
 export const updateAdminProfileById = async (adminId, payload) => {

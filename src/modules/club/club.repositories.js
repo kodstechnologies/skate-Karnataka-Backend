@@ -1189,7 +1189,7 @@ export const display_all_club_skater_repositories = async (
     const [total, skaters] = await Promise.all([
         Skater.countDocuments(filter),
         Skater.find(filter)
-            .select("fullName photo profile krsaId phone gender district districtName clubStatus createdAt email")
+            .select("fullName photo profile krsaId phone gender district districtName clubStatus createdAt email parent")
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(pageLimit)
@@ -1209,6 +1209,7 @@ export const display_all_club_skater_repositories = async (
             gender: skater.gender || "",
             districtName: skater.districtName || "",
             clubStatus: skater.clubStatus || "",
+            parent: skater.parent || "",
         })),
         pagination: {
             total,
@@ -1232,7 +1233,7 @@ export const display_club_skater_details_repositories = async (
 
     const skater = await Skater.findOne({
         _id: rawId,
-        club: club._id,
+        $or: [{ club: club._id }, { applyClub: club._id }],
         role: "Skater",
     })
         .select("-refreshTokens -firebaseTokens")
@@ -1243,9 +1244,9 @@ export const display_club_skater_details_repositories = async (
         .populate("applyClub", "name clubId img")
         .lean();
 
-    // if (!skater) {
-    //     throw new AppError("Skater not found in this club", 404);
-    // }
+    if (!skater) {
+        throw new AppError("Skater not found in this club", 404);
+    }
 
     const discInfo = await resolveDisciplineInfo(skater.discipline);
 

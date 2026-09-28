@@ -1626,15 +1626,39 @@ export const createFreeEventRegisterFormService = async (userId, payload) => {
     };
 };
 
-export const applyCertificationBySkaterService = async (participantId, userId) => {
-    const { participant, alreadyApplied } = await applyCertificationBySkaterRepository(
-        participantId,
-        userId
+// export const applyCertificationBySkaterService = async (participantId, userId) => {
+//     console.log(participantId, userId,"=====")
+//     const { participant, alreadyApplied } = await applyCertificationBySkaterRepository(
+//         participantId,
+//         userId
+//     );
+//     if (!participant) {
+//         throw new AppError("Participant not found", 404);
+//     }
+//     return { participant, alreadyApplied };
+// };
+
+export const applyCertificationBySkaterService = async (
+  participantId,
+  userId
+) => {
+  console.log("SERVICE participantId:", participantId);
+  console.log("SERVICE userId:", userId);
+
+  const { participant, alreadyApplied } =
+    await applyCertificationBySkaterRepository(
+      participantId,
+      userId
     );
-    if (!participant) {
-        throw new AppError("Participant not found", 404);
-    }
-    return { participant, alreadyApplied };
+
+  if (!participant) {
+    throw new AppError("Participant not found", 404);
+  }
+
+  return {
+    participant,
+    alreadyApplied,
+  };
 };
 
 export const getAllPlayedEventsBySkaterService = async (userId, { page, limit } = {}) => {

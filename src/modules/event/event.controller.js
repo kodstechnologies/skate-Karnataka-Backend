@@ -756,15 +756,38 @@ export const createFreeEventRegisterForm = asyncHandler(async (req, res) => {
         );
 });
 
+// export const applyCertificationBySkater = asyncHandler(async (req, res) => {
+//     const { participant, alreadyApplied } = await applyCertificationBySkaterService(
+//         req.params.id,
+//         req.user._id
+//     );
+
+//     const message = alreadyApplied
+//         ? "Certification already applied"
+//         : "Certification applied successfully";
+//     return res.status(200).json(new ApiResponse(200, participant, message));
+// });
+
 export const applyCertificationBySkater = asyncHandler(async (req, res) => {
-    const { participant, alreadyApplied } = await applyCertificationBySkaterService(
-        req.params.id,
-        req.user._id
+  console.log("========== APPLY CERTIFICATION ==========");
+
+  console.log("REQ USER:", req.user);
+  console.log("REQ USER ID:", req.user._id);
+  console.log("PARAM PARTICIPANT ID:", req.params.id);
+
+  const { participant, alreadyApplied } =
+    await applyCertificationBySkaterService(
+      req.params.id,
+      req.user._id
     );
-    const message = alreadyApplied
-        ? "Certification already applied"
-        : "Certification applied successfully";
-    return res.status(200).json(new ApiResponse(200, participant, message));
+
+  const message = alreadyApplied
+    ? "Certification already applied"
+    : "Certification applied successfully";
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, participant, message));
 });
 
 export const displayAllPlayedEventBySkater = asyncHandler(async (req, res) => {

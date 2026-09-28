@@ -48,6 +48,7 @@ import {
 } from "../../util/firebase/sendNotification.js";
 import { AppError } from "../../util/common/AppError.js";
 import { assignCompetitionRanks } from "../../util/competition/rankUtil.js";
+import { Payment } from "../payment/payment.model.js";
 import { SkaterChestNo } from "../competition/SkaterChestNo.model.js";
 
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -1250,89 +1251,207 @@ export const runDailyMissingClubCertificationJob = async () => {
 const PARTICIPANT_CERT_SELECT = "_id eventId userId skaterApply updatedAt paymentStatus";
 
 /** Resolve the logged-in skater's participant from participant id, event id, or a sibling participant id. */
-const resolveSkaterEventParticipant = async (idParam, userId) => {
-  if (
-    !mongoose.Types.ObjectId.isValid(String(idParam || "")) ||
-    !mongoose.Types.ObjectId.isValid(String(userId || ""))
-  ) {
-    return null;
-  }
+// const resolveSkaterEventParticipant = async (idParam, userId) => {
+//   if (
+//     !mongoose.Types.ObjectId.isValid(String(idParam || "")) ||
+//     !mongoose.Types.ObjectId.isValid(String(userId || ""))
+//   ) {
+//     return null;
+//   }
 
-  const userOid = new mongoose.Types.ObjectId(String(userId));
-  const idOid = new mongoose.Types.ObjectId(String(idParam));
+//   const userOid = new mongoose.Types.ObjectId(String(userId));
+//   console.log(userOid,"userOid===121")
+//   const idOid = new mongoose.Types.ObjectId(String(idParam));
+// console.log(idOid,"idOid ===1234")
+//   // 1. By participant _id (most direct)
+//   let participant = await EventParticipant.findOne({ _id: idOid, userId: userOid })
+//     .select(PARTICIPANT_CERT_SELECT).lean();
+//     console.log(participant,"participant===233")
+//   if (participant) return participant;
 
-  // 1. By participant _id
-  let participant = await EventParticipant.findOne({ _id: idOid, userId: userOid })
-    .select(PARTICIPANT_CERT_SELECT).lean();
-  if (participant) return participant;
+//   // 1b. Find by _id alone — userId field may be missing or stored under SkaterParent.
+//   //     If the doc exists and belongs to this user (or has no userId set), trust it.
+//   const participantById = await EventParticipant.findById(idOid)
+//     .select(PARTICIPANT_CERT_SELECT).lean();
+ 
+//   if (participantById) {
+//     const storedUserId = participantById.userId ? String(participantById.userId) : null;
+//     // Accept if userId matches OR if the participant has no userId stored
+//     if (!storedUserId || storedUserId === String(userOid)) {
+//       return participantById;
+//     }
+//   }
 
-  // 2. By event id
-  participant = await EventParticipant.findOne({ eventId: idOid, userId: userOid })
-    .select(PARTICIPANT_CERT_SELECT).lean();
-  if (participant) return participant;
+//   // 2. By event id
+//   participant = await EventParticipant.findOne({ eventId: idOid, userId: userOid })
+//     .select(PARTICIPANT_CERT_SELECT).lean();
+//   if (participant) return participant;
 
-  // 3. Via sibling participant's event id
-  const foreign = await EventParticipant.findById(idOid).select("eventId").lean();
-  if (foreign?.eventId) {
-    participant = await EventParticipant.findOne({ eventId: foreign.eventId, userId: userOid })
-      .select(PARTICIPANT_CERT_SELECT).lean();
-    if (participant) return participant;
-  }
+//   // 3. Via sibling participant's event id
+//   const foreign = await EventParticipant.findById(idOid).select("eventId").lean();
+//   console.log(foreign,"--1123445")
+//   if (foreign?.eventId) {
+//     participant = await EventParticipant.findOne({ eventId: foreign.eventId, userId: userOid })
+//       .select(PARTICIPANT_CERT_SELECT).lean();
+//     if (participant) return participant;
+//   }
 
-  // 4. Recover from Payment record — participant may have been deleted by old failed-payment cleanup
-  const resolvedEventId = foreign?.eventId || idOid;
-  const payment = await Payment.findOne({ eventId: resolvedEventId, userId: userOid })
-    .sort({ createdAt: -1 }).lean();
+//   // 4. Recover from Payment record — participant may have been deleted by old failed-payment cleanup
+//   const resolvedEventId = foreign?.eventId || idOid;
+//   console.log(resolvedEventId,"=====00098")
+//   const payment = await Payment.findOne({ eventId: resolvedEventId, userId: userOid })
+//     .sort({ createdAt: -1 }).lean();
+// console.log(payment,"payment=====0001")
+//   if (payment) {
+//     const payload = payment.registrationPayload;
+//     const payStatus = payment.paymentStatus === "success" ? "paid" : (payment.paymentStatus || "failed");
+//     const base = {
+//       eventId: resolvedEventId,
+//       userId: userOid,
+//       paymentStatus: payStatus,
+//       skaterApply: false,
+//     };
+//     if (payload) {
+//       Object.assign(base, {
+//         name: payload.name || "",
+//         ageGroup: payload.ageGroup || "",
+//         categories: payload.categories || [],
+//         categoriesId: payload.categoriesId || null,
+//         discipline: payload.discipline || null,
+//       });
+//     }
+//     const recovered = await EventParticipant.findOneAndUpdate(
+//       { eventId: resolvedEventId, userId: userOid },
+//       { $setOnInsert: base },
+//       { upsert: true, new: true }
+//     ).select(PARTICIPANT_CERT_SELECT).lean();
+//     return recovered || null;
+//   }
 
-  if (payment) {
-    const payload = payment.registrationPayload;
-    const payStatus = payment.paymentStatus === "success" ? "paid" : (payment.paymentStatus || "failed");
-    const base = {
-      eventId: resolvedEventId,
-      userId: userOid,
-      paymentStatus: payStatus,
-      skaterApply: false,
-    };
-    if (payload) {
-      Object.assign(base, {
-        name: payload.name || "",
-        ageGroup: payload.ageGroup || "",
-        categories: payload.categories || [],
-        categoriesId: payload.categoriesId || null,
-        discipline: payload.discipline || null,
-      });
-    }
-    const recovered = await EventParticipant.findOneAndUpdate(
-      { eventId: resolvedEventId, userId: userOid },
-      { $setOnInsert: base },
-      { upsert: true, new: true }
-    ).select(PARTICIPANT_CERT_SELECT).lean();
-    return recovered || null;
-  }
+//   return null;
+// };
 
-  return null;
+
+export const resolveSkaterEventParticipant = async (
+  participantId,
+  userId
+) => {
+  const participantObjectId = new mongoose.Types.ObjectId(
+    String(participantId)
+  );
+
+  const userObjectId = new mongoose.Types.ObjectId(
+    String(userId)
+  );
+
+  console.log("participantObjectId:", participantObjectId);
+  console.log("userObjectId:", userObjectId);
+
+  const participant = await EventParticipant.findOne({
+    _id: participantObjectId,
+    userId: userObjectId,
+  }).lean();
+
+  console.log("FOUND PARTICIPANT:", participant);
+
+  return participant;
 };
+// export const applyCertificationBySkaterRepository = async (participantId, userId) => {
+//   const existing = await resolveSkaterEventParticipant(participantId, userId);
+//   console.log(existing,"existing === 111")
+//   if (!existing) {
+//     return { participant: null, alreadyApplied: false };
+//   }
 
-export const applyCertificationBySkaterRepository = async (participantId, userId) => {
-  const existing = await resolveSkaterEventParticipant(participantId, userId);
+//   if (existing.skaterApply) {
+//     return { participant: existing, alreadyApplied: true };
+//   }
 
-  if (!existing) {
-    return { participant: null, alreadyApplied: false };
+//   const updated = await EventParticipant.findOneAndUpdate(
+//     { _id: existing._id, userId: new mongoose.Types.ObjectId(String(userId)) },
+//     { $set: { skaterApply: true } },
+//     { new: true }
+//   )
+//     .select(PARTICIPANT_CERT_SELECT)
+//     .lean();
+// console.log(updated,"updated===3")
+//   return { participant: updated, alreadyApplied: false };
+// };
+
+export const applyCertificationBySkaterRepository = async (
+  participantId,
+  userId
+) => {
+  console.log("\n========== CERTIFICATION DEBUG ==========");
+  console.log("RECEIVED participantId:", participantId);
+  console.log("RECEIVED userId:", userId);
+
+  // Find participant ONLY by userId
+  const participantByUser = await EventParticipant.findOne({
+    userId: new mongoose.Types.ObjectId(String(userId)),
+  }).lean();
+
+  console.log("PARTICIPANT BY USER:", participantByUser);
+
+  if (!participantByUser) {
+    console.log("❌ NO PARTICIPANT FOR THIS USER");
+    return {
+      participant: null,
+      alreadyApplied: false,
+    };
   }
 
-  if (existing.skaterApply) {
-    return { participant: existing, alreadyApplied: true };
+  console.log(
+    "ACTUAL PARTICIPANT ID:",
+    participantByUser._id.toString()
+  );
+
+  // Now verify requested ID
+  console.log(
+    "REQUESTED ID:",
+    String(participantId)
+  );
+
+  console.log(
+    "ID MATCH:",
+    participantByUser._id.toString() === String(participantId)
+  );
+
+  // IMPORTANT:
+  // Temporarily use the participant found from userId.
+  const existing = participantByUser;
+
+  if (existing.skaterApply === true) {
+    return {
+      participant: existing,
+      alreadyApplied: true,
+    };
   }
 
   const updated = await EventParticipant.findOneAndUpdate(
-    { _id: existing._id, userId: new mongoose.Types.ObjectId(String(userId)) },
-    { $set: { skaterApply: true } },
-    { new: true }
+    {
+      _id: existing._id,
+      userId: new mongoose.Types.ObjectId(String(userId)),
+    },
+    {
+      $set: {
+        skaterApply: true,
+      },
+    },
+    {
+      new: true,
+    }
   )
     .select(PARTICIPANT_CERT_SELECT)
     .lean();
 
-  return { participant: updated, alreadyApplied: false };
+  console.log("UPDATED:", updated);
+  console.log("========== END DEBUG ==========\n");
+
+  return {
+    participant: updated,
+    alreadyApplied: false,
+  };
 };
 
 export const getAllPlayedEventsBySkaterRepository = async (

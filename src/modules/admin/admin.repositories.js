@@ -997,6 +997,7 @@ export const getSkaterFullDetailsByIdForAdmin = async (skaterId) => {
     .populate("district", "_id name")
     .populate("club", "_id name clubId district districtName")
     .populate("category", "_id name")
+    .populate("SkaterParent", "fullName phone email address")
     .lean();
 
   if (!skater) {
@@ -1005,14 +1006,39 @@ export const getSkaterFullDetailsByIdForAdmin = async (skaterId) => {
 
   const districtNameMap = await buildDistrictNameMap([skater]);
   const district = resolveSkaterDistrict(skater, districtNameMap);
-  const disciplineName = await resolveDisciplineNameForAdmin(skater.discipline);
+
+  // Resolve discipline as { _id, name }
+  let disciplineOut = null;
+  const rawDisciplineId = skater.discipline;
+  if (rawDisciplineId && mongoose.Types.ObjectId.isValid(String(rawDisciplineId))) {
+    const catDoc = await SkatingEventCategory.findOne({ "disciplines._id": rawDisciplineId })
+      .select("disciplines._id disciplines.name")
+      .lean();
+    const embedded = (catDoc?.disciplines || []).find(
+      (d) => String(d._id) === String(rawDisciplineId)
+    );
+    if (embedded) {
+      disciplineOut = { _id: embedded._id, name: embedded.name || "" };
+    }
+  }
+
+  const p = skater.SkaterParent;
 
   return {
     ...skater,
+    phone: skater.phone || p?.phone || "",
+    email: skater.email || p?.email || "",
+    address: skater.address || p?.address || "",
+    parent: skater.parent || p?.fullName || "",
     district,
     districtName: district?.name || "",
     districtDetails: district,
-    disciplineName,
+    // category already populated as { _id, name }
+    category: skater.category
+      ? { _id: skater.category._id, name: skater.category.name || "" }
+      : null,
+    discipline: disciplineOut,
+    disciplineName: disciplineOut?.name || "",
   };
 };
 

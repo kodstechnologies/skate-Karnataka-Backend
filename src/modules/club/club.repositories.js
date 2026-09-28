@@ -1243,9 +1243,9 @@ export const display_club_skater_details_repositories = async (
         .populate("applyClub", "name clubId img")
         .lean();
 
-    if (!skater) {
-        throw new AppError("Skater not found in this club", 404);
-    }
+    // if (!skater) {
+    //     throw new AppError("Skater not found in this club", 404);
+    // }
 
     const discInfo = await resolveDisciplineInfo(skater.discipline);
 

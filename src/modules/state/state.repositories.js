@@ -746,7 +746,7 @@ export const getAllSkatersByStateRepository = async ({ page, limit, search = "" 
 };
 
 const skaterDetailSelect =
-  "fullName profile photo phone address district gender email krsaId";
+  "fullName profile photo phone address district gender email krsaId category discipline SkaterParent";
 
 const looksLikeMongoObjectId = (value) =>
   typeof value === "string" && /^[a-fA-F0-9]{24}$/.test(value);
@@ -858,6 +858,38 @@ export const getClubSkatersByClubIdForStateRepository = async (
   };
 };
 
+const resolveStateDiscipline = async (disciplineId) => {
+  if (!disciplineId || !looksLikeMongoObjectId(String(disciplineId))) return null;
+  const catDoc = await SkatingEventCategory.findOne({ "disciplines._id": disciplineId })
+    .select("disciplines._id disciplines.name")
+    .lean();
+  const embedded = (catDoc?.disciplines || []).find(
+    (d) => String(d._id) === String(disciplineId)
+  );
+  return embedded ? { _id: embedded._id, name: embedded.name || "" } : null;
+};
+
+const buildSkaterStateResponse = async (skater) => {
+  const p = skater.SkaterParent;
+  const discipline = await resolveStateDiscipline(skater.discipline);
+  return {
+    fullName: skater.fullName ?? "",
+    profile: skater.photo || skater.profile || "",
+    phone: skater.phone || p?.phone || "",
+    address: skater.address || p?.address || "",
+    districtName: skater.district?.name ?? "",
+    gender: skater.gender ?? "",
+    email: skater.email || p?.email || "",
+    krsaId: skater.krsaId ?? "",
+    rank: 0,
+    clubName: skater.club?.name ?? "",
+    category: skater.category
+      ? { _id: skater.category._id, name: skater.category.name || "" }
+      : null,
+    discipline,
+  };
+};
+
 export const getClubSkaterByIdsForStateRepository = async (clubIdParam, skaterIdParam) => {
   const club = await resolveClubLeanByParam(clubIdParam, "_id");
   if (!club) {
@@ -875,6 +907,8 @@ export const getClubSkaterByIdsForStateRepository = async (clubIdParam, skaterId
       .select(`${skaterDetailSelect} club`)
       .populate("district", "name")
       .populate("club", "name clubId")
+      .populate("category", "_id name")
+      .populate("SkaterParent", "phone email address")
       .lean();
   }
   if (!skater) {
@@ -882,6 +916,8 @@ export const getClubSkaterByIdsForStateRepository = async (clubIdParam, skaterId
       .select(`${skaterDetailSelect} club`)
       .populate("district", "name")
       .populate("club", "name clubId")
+      .populate("category", "_id name")
+      .populate("SkaterParent", "phone email address")
       .lean();
   }
 
@@ -889,18 +925,7 @@ export const getClubSkaterByIdsForStateRepository = async (clubIdParam, skaterId
     return null;
   }
 
-  return {
-    fullName: skater.fullName ?? "",
-    profile: skater.photo || skater.profile || "",
-    phone: skater.phone ?? "",
-    address: skater.address ?? "",
-    districtName: skater.district?.name ?? "",
-    gender: skater.gender ?? "",
-    email: skater.email ?? "",
-    krsaId: skater.krsaId ?? "",
-    rank: 0,
-    clubName: skater.club?.name ?? "",
-  };
+  return buildSkaterStateResponse(skater);
 };
 
 export const getSkaterByIdForStateRepository = async (id) => {
@@ -915,6 +940,8 @@ export const getSkaterByIdForStateRepository = async (id) => {
       .select(`${skaterDetailSelect} club`)
       .populate("district", "name")
       .populate("club", "name clubId")
+      .populate("category", "_id name")
+      .populate("SkaterParent", "phone email address")
       .lean();
   }
   if (!skater) {
@@ -922,6 +949,8 @@ export const getSkaterByIdForStateRepository = async (id) => {
       .select(`${skaterDetailSelect} club`)
       .populate("district", "name")
       .populate("club", "name clubId")
+      .populate("category", "_id name")
+      .populate("SkaterParent", "phone email address")
       .lean();
   }
 
@@ -929,16 +958,5 @@ export const getSkaterByIdForStateRepository = async (id) => {
     return null;
   }
 
-  return {
-    fullName: skater.fullName ?? "",
-    profile: skater.photo || skater.profile || "",
-    phone: skater.phone ?? "",
-    address: skater.address ?? "",
-    districtName: skater.district?.name ?? "",
-    gender: skater.gender ?? "",
-    email: skater.email ?? "",
-    krsaId: skater.krsaId ?? "",
-    rank: 0,
-    clubName: skater.club?.name ?? "",
-  };
+  return buildSkaterStateResponse(skater);
 };

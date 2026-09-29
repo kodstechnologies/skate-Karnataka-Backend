@@ -1253,8 +1253,87 @@ export const getChestNumberSummaryByEvent = async (
       .filter(Boolean)
   );
 
-  const allAttendees = flattenSummaryAttendees(skatingCategories);
-  const filteredAttendees = filterSummaryAttendees(allAttendees, {
+  // Build attendees directly from participants — bypasses category-name key matching issues
+  const directAttendees = [];
+  for (const participant of participants) {
+    const ageGroupLabel = String(participant.ageGroup || "").trim();
+    const chestNo = resolveChestNoForParticipant(chestDocs, participant);
+    const user = participant.userId;
+    const fullName = String(user?.fullName || participant.name || "").trim();
+    const krsaId = String(user?.krsaId || "").trim();
+    const rsfiId = String(user?.rsfiId || "").trim();
+    const gender = String(user?.gender || "").trim();
+    const email = String(user?.email || "").trim();
+    const phone = String(user?.phone || "").trim();
+    const dob = user?.dob || null;
+    const clubName = String(user?.club?.name || user?.clubName || "").trim();
+    const district = resolveSkaterDistrictName(user);
+    const clubDistrict = resolveClubDistrictName(user);
+    const paymentStatus = String(participant.paymentStatus || "").trim();
+
+    // Find discipline name from skatingCategories
+    const disciplineId = String(participant.categoriesId || "").trim();
+    const skatingCat = resolvedCategories.find(
+      (sc) => String(sc._id || "") === disciplineId
+    );
+    const disciplineName = skatingCat
+      ? String(skatingCat.name || skatingCat.typeName || "").trim()
+      : "";
+
+    if ((participant.categories || []).length === 0) {
+      // Participant with no categories — still show them
+      directAttendees.push({
+        id: `${participant._id}-nocat`,
+        discipline: disciplineName,
+        ageGroup: ageGroupLabel,
+        lap: "",
+        fullName,
+        chestNo,
+        krsaId,
+        rsfiId,
+        gender,
+        email,
+        phone,
+        dob,
+        clubName,
+        district,
+        clubDistrict,
+        remarks: "",
+        remark: "",
+        paymentStatus,
+        attendanceStatus: "pending",
+        status: "",
+      });
+    } else {
+      for (const category of participant.categories) {
+        const lap = String(category?.name || "").trim();
+        directAttendees.push({
+          id: `${participant._id}-${lap}-${ageGroupLabel}`,
+          discipline: disciplineName,
+          ageGroup: ageGroupLabel,
+          lap,
+          fullName,
+          chestNo,
+          krsaId,
+          rsfiId,
+          gender,
+          email,
+          phone,
+          dob,
+          clubName,
+          district,
+          clubDistrict,
+          remarks: String(category?.remarks || "").trim(),
+          remark: String(category?.remarks || "").trim(),
+          paymentStatus,
+          attendanceStatus: String(category?.attendanceStatus || "pending").trim(),
+          status: category?.attendanceStatus === "pending" ? "" : String(category?.attendanceStatus || ""),
+        });
+      }
+    }
+  }
+
+  const filteredAttendees = filterSummaryAttendees(directAttendees, {
     search,
     ageGroup,
     lap,
@@ -1275,7 +1354,7 @@ export const getChestNumberSummaryByEvent = async (
     totalRegistered: participants.length,
     totalWithChestNo: chestDocs.length,
     uniqueSkatersWithChestNo: uniqueChestSkaterKeys.size,
-    filters: buildSummaryFilterOptions(allAttendees),
+    filters: buildSummaryFilterOptions(directAttendees),
     attendees,
     pagination: buildPaginationMeta({
       total: filteredAttendees.length,

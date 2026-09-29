@@ -18,6 +18,8 @@ import {
     list_events_for_auto_certificate_generation_repository,
 } from "./certificate.repositories.js";
 import { putObject } from "../../util/aws/putObject.js";
+import { s3Client } from "../../util/aws/s3-credentials.js";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import axios from "axios";
 
@@ -26,19 +28,29 @@ const embedImageFromUrl = async (pdfDoc, imageUrl) => {
     if (!url) return null;
 
     try {
-        const response = await axios.get(url, {
-            responseType: "arraybuffer",
-            timeout: 15000,
-            maxRedirects: 3,
-        });
-        const bytes = response.data;
-        const contentType = String(response.headers["content-type"] || "").toLowerCase();
-        const urlLower = url.toLowerCase();
-
-        if (contentType.includes("png") || urlLower.includes(".png")) {
-            return await pdfDoc.embedPng(bytes);
+        let bytes;
+        const s3Match = url.match(/https?:\/\/([^.]+)\.s3[^/]*\.amazonaws\.com\/(.+)/);
+        if (s3Match) {
+            const bucket = s3Match[1];
+            const key = decodeURIComponent(s3Match[2].split("?")[0]);
+            const cmd = new GetObjectCommand({ Bucket: bucket, Key: key });
+            const resp = await s3Client.send(cmd);
+            const chunks = [];
+            for await (const chunk of resp.Body) chunks.push(chunk);
+            bytes = Buffer.concat(chunks);
+        } else {
+            const response = await axios.get(url, {
+                responseType: "arraybuffer",
+                timeout: 15000,
+                maxRedirects: 3,
+            });
+            bytes = response.data;
         }
 
+        const urlLower = url.toLowerCase().split("?")[0];
+        if (urlLower.includes(".png")) {
+            return await pdfDoc.embedPng(bytes);
+        }
         try {
             return await pdfDoc.embedJpg(bytes);
         } catch {
@@ -47,6 +59,23 @@ const embedImageFromUrl = async (pdfDoc, imageUrl) => {
     } catch {
         return null;
     }
+};
+
+/** Fetch a file from S3 using credentials (bypasses public-access restrictions). */
+const fetchS3FileAsBuffer = async (url) => {
+    const s3Match = String(url || "").match(/https?:\/\/([^.]+)\.s3[^/]*\.amazonaws\.com\/(.+)/);
+    if (s3Match) {
+        const bucket = s3Match[1];
+        const key = decodeURIComponent(s3Match[2].split("?")[0]);
+        const cmd = new GetObjectCommand({ Bucket: bucket, Key: key });
+        const resp = await s3Client.send(cmd);
+        const chunks = [];
+        for await (const chunk of resp.Body) chunks.push(chunk);
+        return Buffer.concat(chunks);
+    }
+    // Fallback for non-S3 URLs
+    const response = await axios.get(url, { responseType: "arraybuffer", timeout: 15000 });
+    return Buffer.from(response.data);
 };
 
 // ---------------------------------------------------------------------------
@@ -163,9 +192,9 @@ const generate_certificate_service = async (userData,temp_id) => {
         throw new Error("No active certificate template found. Please set a template as active before generating.");
     }
 
-    // Fetch the template PDF from S3/AWS
-    const response = await axios.get(template.pdfTemplateUrl, { responseType: "arraybuffer" });
-    const pdfDoc = await PDFDocument.load(response.data);
+    // Fetch the template PDF from S3/AWS using credentials (avoids 403 on private buckets)
+    const pdfBytes = await fetchS3FileAsBuffer(template.pdfTemplateUrl);
+    const pdfDoc = await PDFDocument.load(pdfBytes);
 
     const page = pdfDoc.getPages()[0];
     const { width, height } = page.getSize();

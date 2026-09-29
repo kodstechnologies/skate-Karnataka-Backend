@@ -1377,19 +1377,34 @@ export const getLiveEventsService = async (reqUser, query = {}) => {
     return await getLiveEventsRepository(reqUser.role, reqUser._id, { page, limit });
 };
 
-const normalizeRegisterFormCategories = (categories = []) =>
-    categories
+const normalizeRegisterFormCategories = (categories = []) => {
+    return categories
         .map((item) => {
             if (typeof item === "string") {
                 const name = item.trim();
-                return name ? { name } : null;
+
+                return name
+                    ? {
+                          name,
+                      }
+                    : null;
             }
-            if (item && typeof item.name === "string" && item.name.trim()) {
-                return { ...item, name: item.name.trim() };
+
+            if (
+                item &&
+                typeof item.name === "string" &&
+                item.name.trim()
+            ) {
+                return {
+                    ...item,
+                    name: item.name.trim(),
+                };
             }
+
             return null;
         })
         .filter(Boolean);
+};
 
 const asObjectIdString = (value) => {
     if (typeof value !== "string") return "";
@@ -1434,13 +1449,24 @@ const resolveRegisterCategoryRefs = async (payload = {}) => {
 };
 
 export const createRegisterFormService = async (userId, payload) => {
+    console.log("REGISTER FORM USER: --2", userId);
+    console.log("REGISTER FORM PAYLOAD: --2 1", payload);
+
+    // ==========================================
+    // 1. Get skater
+    // ==========================================
+
     const skater = await Skater.findById(userId)
         .select("fullName club clubStatus")
         .lean();
-
+console.log("REGISTER FORM SKATER: --2 3", skater);
     if (!skater) {
         throw new AppError("Skater not found", 404);
     }
+
+    // ==========================================
+    // 2. Check club membership
+    // ==========================================
 
     if (!skater.club || skater.clubStatus !== "join") {
         throw new AppError(
@@ -1449,49 +1475,121 @@ export const createRegisterFormService = async (userId, payload) => {
         );
     }
 
-    const event = await Event.findById(payload.eventId).select("entryFee header").lean();
+    // ==========================================
+    // 3. Get event
+    // ==========================================
+
+    const event = await Event.findById(payload.eventId)
+        .select("entryFee header")
+        .lean();
+console.log("REGISTER FORM EVENT: --2 4", event);
     if (!event) {
         throw new AppError("Event not found", 404);
     }
+
+    // ==========================================
+    // 4. Event must have payment
+    // ==========================================
+
+    const entryFee = Number(event.entryFee || 0);
+console.log("REGISTER FORM ENTRY FEE: --2 5", entryFee);
+    if (!Number.isFinite(entryFee) || entryFee <= 0) {
+        throw new AppError(
+            "Invalid event entry fee",
+            400
+        );
+    }
+
+    // ==========================================
+    // 5. Check already paid registration
+    // ==========================================
 
     const existingPaid = await EventParticipant.findOne({
         eventId: payload.eventId,
         userId,
         paymentStatus: "paid",
     }).lean();
+console.log("REGISTER FORM EXISTING PAID: --2 6", existingPaid);
     if (existingPaid) {
-        throw new AppError("Already registered for this event", 400);
+        throw new AppError(
+            "Already registered for this event",
+            400
+        );
     }
 
-    const name =
-        (typeof payload.name === "string" ? payload.name.trim() : "") ||
-        skater?.fullName?.trim() ||
-        "";
+    // ==========================================
+    // 6. Get name
+    // ==========================================
 
-    // Handle both old and new format for categories
+    const name =
+        typeof payload.name === "string" &&
+        payload.name.trim()
+            ? payload.name.trim()
+            : skater.fullName?.trim() || "";
+console.log("REGISTER FORM NAME: --2 7", name);
+    if (!name) {
+        throw new AppError("Name is required", 400);
+    }
+
+    // ==========================================
+    // 7. Prepare categories
+    // ==========================================
+
     let categories;
-    if (payload.discipline && Array.isArray(payload.categories)) {
-        // New format: discipline + multiple category names
+
+    if (
+        payload.discipline &&
+        Array.isArray(payload.categories)
+    ) {
         categories = payload.categories
             .map((item) => {
                 if (typeof item === "string") {
-                    const name = item.trim();
-                    return name ? { name, disciplineId: payload.discipline } : null;
+                    const categoryName = item.trim();
+
+                    if (!categoryName) {
+                        return null;
+                    }
+
+                    return {
+                        name: categoryName,
+                        disciplineId: payload.discipline,
+                    };
                 }
-                if (item && typeof item.name === "string" && item.name.trim()) {
-                    return { ...item, name: item.name.trim(), disciplineId: payload.discipline };
+
+                if (
+                    item &&
+                    typeof item.name === "string" &&
+                    item.name.trim()
+                ) {
+                    return {
+                        ...item,
+                        name: item.name.trim(),
+                        disciplineId: payload.discipline,
+                    };
                 }
+
                 return null;
             })
             .filter(Boolean);
     } else {
-        // Old format: categories with disciplineIds
-        categories = normalizeRegisterFormCategories(payload.categories);
+        categories =
+            normalizeRegisterFormCategories(
+                payload.categories
+            );
     }
 
-    if (categories.length === 0) {
-        throw new AppError("At least one category is required", 400);
+    console.log("REGISTER FORM CATEGORIES: --2 8", categories);
+
+    if (!categories.length) {
+        throw new AppError(
+            "At least one category is required",
+            400
+        );
     }
+
+    // ==========================================
+    // 8. Prepare registration data
+    // ==========================================
 
     const registrationPayload = {
         eventId: payload.eventId,
@@ -1500,41 +1598,106 @@ export const createRegisterFormService = async (userId, payload) => {
         ageGroup: payload.ageGroup,
         categories,
     };
+console.log("REGISTER FORM REGISTRATION PAYLOAD: --2 9", registrationPayload);
+    // ==========================================
+    // 9. Resolve category references
+    // ==========================================
 
-    const { categoriesId, discipline } = await resolveRegisterCategoryRefs(payload);
+    const {
+        categoriesId,
+        discipline,
+    } = await resolveRegisterCategoryRefs(payload);
+
     if (discipline) {
         registrationPayload.discipline = discipline;
     }
+
     if (categoriesId) {
         registrationPayload.categoriesId = categoriesId;
     }
 
-    const payment = await initiateRazorpayPaymentServices({
-        userId,
-        eventId: payload.eventId,
-        registrationPayload,
-    });
+    // ==========================================
+    // 10. Create Razorpay order
+    // ==========================================
 
-    // Free events complete registration immediately
-    if (payment?.registrationComplete || payment?.registration || payment?.participantId) {
-        const registration =
-            payment.registration ||
-            (await EventParticipant.findById(payment.participantId).lean());
-
-        return {
-            registration,
-            payment,
-            registrationComplete: true,
-            message: "Event registered successfully",
-        };
+    const payment =
+        await initiateRazorpayPaymentServices({
+            userId,
+            eventId: payload.eventId,
+            registrationPayload,
+        });
+console.log("REGISTER FORM PAYMENT: --2 10", payment);
+    if (!payment) {
+        throw new AppError(
+            "Unable to create payment order",
+            500
+        );
     }
 
-    // Paid events require payment completion
+    // ==========================================
+    // 11. Validate Razorpay response
+    // ==========================================
+
+    const keyId =
+        payment.keyId ||
+        payment.key ||
+        "";
+
+    const orderId =
+        payment.orderId ||
+        payment.order_id ||
+        "";
+
+    const amount = Number(
+        payment.amount ||
+        payment.amountPaise ||
+        0
+    );
+
+    const currency =
+        payment.currency ||
+        "INR";
+console.log("REGISTER FORM PAYMENT DETAILS: --2 11", {
+        keyId,
+        orderId,
+        amount,
+        currency,
+    });
+    if (!keyId) {
+        throw new AppError(
+            "Razorpay key ID is missing",
+            500
+        );
+    }
+
+    if (!orderId) {
+        throw new AppError(
+            "Razorpay order ID is missing",
+            500
+        );
+    }
+
+    if (!amount || amount <= 0) {
+        throw new AppError(
+            "Invalid Razorpay payment amount",
+            500
+        );
+    }
+
+    // ==========================================
+    // 12. Return old Flutter-compatible structure
+    // ==========================================
+
     return {
         registration: null,
-        payment,
-        registrationComplete: false,
-        message: "Complete payment to confirm event registration",
+
+        payment: {
+            isFreeEvent: false,
+            keyId,
+            amount,
+            currency,
+            orderId,
+        },
     };
 };
 

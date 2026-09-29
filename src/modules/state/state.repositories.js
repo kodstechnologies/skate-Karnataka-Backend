@@ -651,7 +651,7 @@ export const getAllDistrictsByStateRepository = async ({ page, limit, search = "
   const [data, total] = await Promise.all([
     District.find(query)
       .select("_id name img officeAddress rank championships")
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: -1, _id: -1 })
       .skip(pagination.skip)
       .limit(pagination.limit)
       .lean(),
@@ -686,7 +686,7 @@ export const getAllClubsByStateRepository = async ({ page, limit, search = "" })
     Club.find(query)
       .select("_id name clubId district districtName img officeAddress rank championships")
       .populate("district", "_id name")
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: -1, _id: -1 })
       .skip(pagination.skip)
       .limit(pagination.limit)
       .lean(),

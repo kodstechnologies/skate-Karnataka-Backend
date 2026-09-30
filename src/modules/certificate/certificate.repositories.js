@@ -6,6 +6,9 @@ import { EventParticipant } from "../event/eventParticipant.model.js";
 import { EventCompetition } from "../competition/eventCompetition.model.js";
 import { BaseAuth } from "../auth/baseAuth.model.js";
 import { Skater } from "../skater/skater.model.js";
+import { Club } from "../club/club.model.js";
+import { Discipline } from "../guest/disciplines.model.js";
+import SkatingEventCategory from "../event/SkatingEventCategory.model.js";
 import { paginate, calcTotalPages } from "../../util/common/paginate.js";
 
 const MEDAL_ROUND_KEYS = [

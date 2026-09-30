@@ -964,6 +964,26 @@ const displaySkaterDetailsRepository = async (skaterId, districtMemberId) => {
       (d) => String(d._id) === String(disciplineId)
     );
     disciplineName = embedded?.name || "";
+  } else {
+    const catObj = skater.category || skater.eventCategory;
+    if (catObj) {
+      const catDoc = await SkatingEventCategory.findById(catObj._id || catObj)
+        .select("name disciplines._id disciplines.name")
+        .lean();
+      const catDisciplines = catDoc?.disciplines || [];
+      if (catDisciplines.length === 1) {
+        disciplineId = catDisciplines[0]._id;
+        disciplineName = catDisciplines[0].name || "";
+      } else if (catDisciplines.length > 1) {
+        const matchByName = catDisciplines.find(
+          (d) => d.name?.trim().toLowerCase() === catDoc?.name?.trim().toLowerCase()
+        );
+        if (matchByName) {
+          disciplineId = matchByName._id;
+          disciplineName = matchByName.name || "";
+        }
+      }
+    }
   }
 
   const p = skater.SkaterParent;

@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { paginate, calcTotalPages } from "../../util/common/paginate.js";
 import { AppError } from "../../util/common/AppError.js";
 // import { Skater } from "../auth/skater.model.js";
@@ -1178,19 +1179,30 @@ export const display_all_club_skater_repositories = async (
 
     const term = String(search || "").trim();
     if (term) {
+        const matchingParents = await BaseAuth.find({
+            role: "Parent",
+            $or: [
+                { phone: { $regex: term, $options: "i" } },
+                { email: { $regex: term, $options: "i" } },
+            ],
+        }).select("_id").lean();
+        const parentIds = matchingParents.map((p) => p._id);
+
         filter.$or = [
             { fullName: { $regex: term, $options: "i" } },
             { phone: { $regex: term, $options: "i" } },
             { email: { $regex: term, $options: "i" } },
             { krsaId: { $regex: term, $options: "i" } },
             { rsfiId: { $regex: term, $options: "i" } },
+            ...(parentIds.length > 0 ? [{ SkaterParent: { $in: parentIds } }] : []),
         ];
     }
 
     const [total, skaters] = await Promise.all([
         Skater.countDocuments(filter),
         Skater.find(filter)
-            .select("fullName photo profile krsaId phone email gender")
+            .select("fullName photo profile krsaId phone email gender parent SkaterParent")
+            .populate("SkaterParent", "fullName phone email")
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(pageLimit)
@@ -1205,8 +1217,9 @@ export const display_all_club_skater_repositories = async (
             name: skater.fullName || "",
             img: skater.photo || skater.profile || "",
             krsaId: skater.krsaId || "",
-            phone: skater.phone || "",
-            email: skater.email || "",
+            phone: skater.phone || skater.SkaterParent?.phone || "",
+            email: skater.email || skater.SkaterParent?.email || "",
+            parent: skater.parent || skater.SkaterParent?.fullName || "",
             gender: skater.gender || "",
         })),
         pagination: {
@@ -1464,7 +1477,7 @@ export const edit_club_skater_repository = async (clubMemberId, skaterId, update
     if (!skater) throw new AppError("Skater not found in this club", 404);
 
     const allowedFields = [
-        "fullName", "phone", "gender", "address",
+        "fullName", "gender", "address",
         "district", "districtName",
         "parent", "bloodGroup", "school", "grade",
         "aadharNumber", "signature",
@@ -1479,22 +1492,53 @@ export const edit_club_skater_repository = async (clubMemberId, skaterId, update
         }
     }
 
+    if (updates.photo) {
+        setData.photo = updates.photo;
+        setData.profile = updates.photo;
+    }
+
+    // Cast or omit ObjectId fields to prevent CastError on empty strings
+    for (const field of ["district", "eventCategory", "discipline"]) {
+        if (field in setData) {
+            const raw = String(setData[field] || "").trim();
+            if (raw && mongoose.Types.ObjectId.isValid(raw)) {
+                setData[field] = new mongoose.Types.ObjectId(raw);
+            } else {
+                delete setData[field];
+            }
+        }
+    }
+
+    if (setData.dob === "" || setData.dob == null) {
+        delete setData.dob;
+    } else if (setData.dob) {
+        setData.dob = new Date(setData.dob);
+    }
+
+    if (setData.bloodGroup) {
+        setData.bloodGroup = String(setData.bloodGroup).trim().toUpperCase();
+    }
+
     if (Object.keys(setData).length === 0) throw new AppError("No valid fields to update", 400);
 
     const updated = await Skater.findByIdAndUpdate(
         rawId,
         { $set: setData },
         { new: true }
-    ).select("_id fullName phone gender address district districtName krsaId parent bloodGroup school grade aadharNumber signature dob rsfiId").lean();
+    )
+        .select("_id fullName phone gender address district districtName krsaId parent bloodGroup school grade aadharNumber signature dob rsfiId photo profile SkaterParent")
+        .populate("SkaterParent", "phone email fullName")
+        .lean();
 
     return {
         id: updated._id,
         name: updated.fullName || "",
-        phone: updated.phone || "",
+        phone: updated.phone || updated.SkaterParent?.phone || "",
         gender: updated.gender || "",
         address: updated.address || "",
         districtName: updated.districtName || "",
         krsaId: updated.krsaId || "",
+        photo: updated.photo || updated.profile || "",
     };
 };
 

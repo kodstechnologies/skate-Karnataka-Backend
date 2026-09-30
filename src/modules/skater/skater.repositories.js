@@ -98,12 +98,19 @@ const resolveDisciplineName = async (discipline) => {
 };
 
 const assertUniqueContactForUpdate = async (id, payload, existingUser) => {
+    const parentPhone = normalizePhone(existingUser?.SkaterParent?.phone);
+    const parentEmail = existingUser?.SkaterParent?.email
+        ? String(existingUser.SkaterParent.email).trim().toLowerCase()
+        : "";
+
     if (payload.phone != null && payload.phone !== "") {
         const phone = normalizePhone(payload.phone);
         payload.phone = phone;
 
         const currentPhone = normalizePhone(existingUser.phone);
-        if (phone !== currentPhone) {
+        if (parentPhone && phone === parentPhone) {
+            delete payload.phone;
+        } else if (phone !== currentPhone) {
             const phoneOwner = await BaseAuth.findOne({ phone, _id: { $ne: id } })
                 .select("_id role")
                 .lean();
@@ -125,7 +132,9 @@ const assertUniqueContactForUpdate = async (id, payload, existingUser) => {
         const currentEmail = existingUser.email
             ? String(existingUser.email).trim().toLowerCase()
             : "";
-        if (email !== currentEmail) {
+        if (parentEmail && email === parentEmail) {
+            delete payload.email;
+        } else if (email !== currentEmail) {
             const emailOwner = await BaseAuth.findOne({ email, _id: { $ne: id } })
                 .select("_id")
                 .lean();
@@ -179,7 +188,8 @@ const skaterApplyClubIncludes = (applyClub, clubId) => {
 
 const after_login_skater_form_repositories = async (data, id) => {
     const existingUser = await BaseAuth.findById(id)
-        .select("_id role phone email verify")
+        .select("_id role phone email verify SkaterParent")
+        .populate("SkaterParent", "phone email")
         .lean();
 
     const existingSkater = await Skater.findById(id)

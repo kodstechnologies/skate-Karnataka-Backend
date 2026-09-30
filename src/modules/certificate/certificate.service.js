@@ -31,13 +31,29 @@ const embedImageFromUrl = async (pdfDoc, imageUrl) => {
         let bytes;
         const s3Match = url.match(/https?:\/\/([^.]+)\.s3[^/]*\.amazonaws\.com\/(.+)/);
         if (s3Match) {
-            const bucket = s3Match[1];
+            let bucket = s3Match[1];
             const key = decodeURIComponent(s3Match[2].split("?")[0]);
-            const cmd = new GetObjectCommand({ Bucket: bucket, Key: key });
-            const resp = await s3Client.send(cmd);
-            const chunks = [];
-            for await (const chunk of resp.Body) chunks.push(chunk);
-            bytes = Buffer.concat(chunks);
+            const bucketsToTry = [bucket];
+            if (process.env.AWS_S3_BUCKET && process.env.AWS_S3_BUCKET !== bucket) {
+                bucketsToTry.unshift(process.env.AWS_S3_BUCKET);
+            }
+            let fetched = false;
+            for (const b of bucketsToTry) {
+                try {
+                    const cmd = new GetObjectCommand({ Bucket: b, Key: key });
+                    const resp = await s3Client.send(cmd);
+                    const chunks = [];
+                    for await (const chunk of resp.Body) chunks.push(chunk);
+                    bytes = Buffer.concat(chunks);
+                    fetched = true;
+                    break;
+                } catch {
+                    // try next bucket
+                }
+            }
+            if (!fetched) {
+                return null;
+            }
         } else {
             const response = await axios.get(url, {
                 responseType: "arraybuffer",
@@ -65,13 +81,26 @@ const embedImageFromUrl = async (pdfDoc, imageUrl) => {
 const fetchS3FileAsBuffer = async (url) => {
     const s3Match = String(url || "").match(/https?:\/\/([^.]+)\.s3[^/]*\.amazonaws\.com\/(.+)/);
     if (s3Match) {
-        const bucket = s3Match[1];
+        let bucket = s3Match[1];
         const key = decodeURIComponent(s3Match[2].split("?")[0]);
-        const cmd = new GetObjectCommand({ Bucket: bucket, Key: key });
-        const resp = await s3Client.send(cmd);
-        const chunks = [];
-        for await (const chunk of resp.Body) chunks.push(chunk);
-        return Buffer.concat(chunks);
+        const bucketsToTry = [bucket];
+        if (process.env.AWS_S3_BUCKET && process.env.AWS_S3_BUCKET !== bucket) {
+            bucketsToTry.unshift(process.env.AWS_S3_BUCKET);
+        }
+
+        let lastErr;
+        for (const b of bucketsToTry) {
+            try {
+                const cmd = new GetObjectCommand({ Bucket: b, Key: key });
+                const resp = await s3Client.send(cmd);
+                const chunks = [];
+                for await (const chunk of resp.Body) chunks.push(chunk);
+                return Buffer.concat(chunks);
+            } catch (err) {
+                lastErr = err;
+            }
+        }
+        throw lastErr || new Error("Failed to fetch S3 file");
     }
     // Fallback for non-S3 URLs
     const response = await axios.get(url, { responseType: "arraybuffer", timeout: 15000 });
@@ -193,8 +222,31 @@ const generate_certificate_service = async (userData,temp_id) => {
     }
 
     // Fetch the template PDF from S3/AWS using credentials (avoids 403 on private buckets)
-    const pdfBytes = await fetchS3FileAsBuffer(template.pdfTemplateUrl);
-    const pdfDoc = await PDFDocument.load(pdfBytes);
+    let pdfDoc;
+    try {
+        const pdfBytes = await fetchS3FileAsBuffer(template.pdfTemplateUrl);
+        pdfDoc = await PDFDocument.load(pdfBytes);
+    } catch (loadErr) {
+        console.warn(`[generate_certificate_service] Template PDF load failed: ${loadErr?.message}. Using standard certificate canvas.`);
+        pdfDoc = await PDFDocument.create();
+        const basePage = pdfDoc.addPage([595, 842]);
+        basePage.drawRectangle({
+            x: 18,
+            y: 18,
+            width: 559,
+            height: 806,
+            borderColor: rgb(0.8, 0.65, 0.25),
+            borderWidth: 2,
+        });
+        basePage.drawRectangle({
+            x: 24,
+            y: 24,
+            width: 547,
+            height: 794,
+            borderColor: rgb(0.12, 0.22, 0.38),
+            borderWidth: 1,
+        });
+    }
 
     const page = pdfDoc.getPages()[0];
     const { width, height } = page.getSize();

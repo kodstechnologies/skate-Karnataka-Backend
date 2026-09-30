@@ -1016,7 +1016,8 @@ export const getSkaterFullDetailsByIdForAdmin = async (skaterId) => {
     .select("-refreshTokens -isNotificationsEnabled -isActive -firebaseTokens")
     .populate("district", "_id name")
     .populate("club", "_id name clubId district districtName")
-    .populate("category", "_id name")
+    .populate("category", "_id name disciplines")
+    .populate("eventCategory", "_id name disciplines")
     .populate("SkaterParent", "fullName phone email address")
     .lean();
 
@@ -1042,6 +1043,40 @@ export const getSkaterFullDetailsByIdForAdmin = async (skaterId) => {
     }
   }
 
+  // Fallback: If discipline is not explicitly set, resolve from category / eventCategory
+  const catObj = skater.category || skater.eventCategory;
+  if (!disciplineOut && catObj) {
+    let catDisciplines = catObj.disciplines;
+    let catName = catObj.name;
+    if (!catDisciplines || !Array.isArray(catDisciplines)) {
+      const catDoc = await SkatingEventCategory.findById(catObj._id || catObj)
+        .select("name disciplines._id disciplines.name")
+        .lean();
+      catDisciplines = catDoc?.disciplines || [];
+      catName = catDoc?.name || catName;
+    }
+    if (Array.isArray(catDisciplines) && catDisciplines.length > 0) {
+      if (catDisciplines.length === 1) {
+        disciplineOut = { _id: catDisciplines[0]._id, name: catDisciplines[0].name || "" };
+      } else {
+        const matchByName = catDisciplines.find(
+          (d) => d.name?.trim().toLowerCase() === catName?.trim().toLowerCase()
+        );
+        if (matchByName) {
+          disciplineOut = { _id: matchByName._id, name: matchByName.name || "" };
+        }
+      }
+    }
+  }
+
+  // If resolved via category fallback, persist discipline into DB for future requests
+  if (!skater.discipline && disciplineOut?._id) {
+    await Skater.updateOne(
+      { _id: skaterId, role: "Skater" },
+      { $set: { discipline: disciplineOut._id } }
+    ).catch(() => {});
+  }
+
   const p = skater.SkaterParent;
 
   return {
@@ -1050,11 +1085,19 @@ export const getSkaterFullDetailsByIdForAdmin = async (skaterId) => {
     email: skater.email || p?.email || "",
     address: skater.address || p?.address || "",
     parent: skater.parent || p?.fullName || "",
+    countryCode: skater.countryCode || "+91",
     district,
     districtName: district?.name || "",
     districtDetails: district,
     // category already populated as { _id, name }
     category: skater.category
+      ? { _id: skater.category._id, name: skater.category.name || "" }
+      : skater.eventCategory
+      ? { _id: skater.eventCategory._id, name: skater.eventCategory.name || "" }
+      : null,
+    eventCategory: skater.eventCategory
+      ? { _id: skater.eventCategory._id, name: skater.eventCategory.name || "" }
+      : skater.category
       ? { _id: skater.category._id, name: skater.category.name || "" }
       : null,
     discipline: disciplineOut,
@@ -1082,8 +1125,31 @@ export const updateSkaterByIdForAdmin = async (skaterId, payload) => {
   delete normalizedPayload.imgKey;
   delete normalizedPayload.photoKey;
 
+  if (normalizedPayload.phone) {
+    const existingSkater = await Skater.findById(skaterId).select("phone SkaterParent").populate("SkaterParent", "phone").lean();
+    const parentPhone = existingSkater?.SkaterParent?.phone;
+    if (normalizedPayload.phone === existingSkater?.phone || (parentPhone && normalizedPayload.phone === parentPhone)) {
+      delete normalizedPayload.phone;
+    } else {
+      const phoneOwner = await BaseAuth.findOne({ phone: normalizedPayload.phone, _id: { $ne: skaterId } }).select("_id").lean();
+      if (phoneOwner) {
+        throw new AppError("This phone number is already registered with another account", 409);
+      }
+    }
+  }
+
   if (normalizedPayload.email) {
     normalizedPayload.email = normalizedPayload.email.toLowerCase().trim();
+    const existingSkater = await Skater.findById(skaterId).select("email SkaterParent").populate("SkaterParent", "email").lean();
+    const parentEmail = existingSkater?.SkaterParent?.email?.toLowerCase();
+    if (normalizedPayload.email === existingSkater?.email?.toLowerCase() || (parentEmail && normalizedPayload.email === parentEmail)) {
+      delete normalizedPayload.email;
+    } else {
+      const emailOwner = await BaseAuth.findOne({ email: normalizedPayload.email, _id: { $ne: skaterId } }).select("_id").lean();
+      if (emailOwner) {
+        throw new AppError("This email is already registered with another account", 409);
+      }
+    }
   }
 
   if (normalizedPayload.dob === "" || normalizedPayload.dob == null) {
@@ -1134,13 +1200,26 @@ export const updateSkaterByIdForAdmin = async (skaterId, payload) => {
     normalizedPayload.clubStatus = "apply";
   }
 
+  if (normalizedPayload.category && !normalizedPayload.eventCategory) {
+    normalizedPayload.eventCategory = normalizedPayload.category;
+  } else if (normalizedPayload.eventCategory && !normalizedPayload.category) {
+    normalizedPayload.category = normalizedPayload.eventCategory;
+  }
+
   if (normalizedPayload.category) {
     const category = await SkatingEventCategory.findById(normalizedPayload.category)
-      .select("_id")
+      .select("_id disciplines._id disciplines.name")
       .lean();
     if (!category) {
       throw new AppError("Category not found", 404);
     }
+    if (!normalizedPayload.discipline && Array.isArray(category.disciplines) && category.disciplines.length === 1) {
+      normalizedPayload.discipline = category.disciplines[0]._id;
+    }
+  }
+
+  if (normalizedPayload.countryCode !== undefined) {
+    normalizedPayload.countryCode = String(normalizedPayload.countryCode || "+91").trim();
   }
 
   const updateOperation = { $set: normalizedPayload };

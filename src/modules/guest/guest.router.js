@@ -246,9 +246,10 @@ router.post(
   authenticate(["Skater", "Admin"]),
   upload.fields([
     { name: "img", maxCount: 1 },
+    { name: "document", maxCount: 1 },
     { name: "relatedInformationImages", maxCount: 20 },
   ]),
-  uploadToS3("circular", { img: "img", relatedInformationImages: "relatedInformationImages" }),
+  uploadToS3("circular", { img: "img", document: "document", relatedInformationImages: "relatedInformationImages" }),
   validate(addCircularValidation),
   addCircular
 );
@@ -257,9 +258,10 @@ router.patch(
   authenticate(["Skater", "Admin"]),
   upload.fields([
     { name: "img", maxCount: 1 },
+    { name: "document", maxCount: 1 },
     { name: "relatedInformationImages", maxCount: 20 },
   ]),
-  uploadToS3("circular", { img: "img", relatedInformationImages: "relatedInformationImages" }),
+  uploadToS3("circular", { img: "img", document: "document", relatedInformationImages: "relatedInformationImages" }),
   validate(updateCircularValidation),
   updateCircular
 );

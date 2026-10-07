@@ -8,6 +8,12 @@ const circularSchema = new mongoose.Schema(
       trim: true
     },
 
+    document: {
+      type: String,
+      default: "",
+      trim: true
+    },
+
     heading: {
       type: String,
       required: true,

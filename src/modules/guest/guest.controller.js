@@ -15,6 +15,10 @@ const normalizeCircularPayload = (body) => {
     payload.img = payload.img[0] || "";
   }
 
+  if (Array.isArray(payload.document)) {
+    payload.document = payload.document[0] || "";
+  }
+
   if (payload.relatedInformationImages != null) {
     const images = Array.isArray(payload.relatedInformationImages)
       ? payload.relatedInformationImages

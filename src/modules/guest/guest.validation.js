@@ -194,6 +194,18 @@ export const addCircularValidation = {
         )
       )
       .optional(),
+    document: Joi.alternatives()
+      .try(
+        Joi.string().uri().allow("").messages({
+          "string.uri": "Document must be a valid URL",
+        }),
+        Joi.array().items(
+          Joi.string().uri().allow("").messages({
+            "string.uri": "Each document must be a valid URL",
+          })
+        )
+      )
+      .optional(),
     relatedInformationImages: Joi.alternatives()
       .try(
         Joi.string().uri().allow("").messages({
@@ -234,6 +246,18 @@ export const updateCircularValidation = {
         Joi.array().items(
           Joi.string().uri().allow("").messages({
             "string.uri": "Each image must be a valid URL",
+          })
+        )
+      )
+      .optional(),
+    document: Joi.alternatives()
+      .try(
+        Joi.string().uri().allow("").messages({
+          "string.uri": "Document must be a valid URL",
+        }),
+        Joi.array().items(
+          Joi.string().uri().allow("").messages({
+            "string.uri": "Each document must be a valid URL",
           })
         )
       )

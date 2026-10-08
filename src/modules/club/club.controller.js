@@ -1,6 +1,7 @@
 import { ApiResponse } from "../../util/common/ApiResponse.js";
 import { AppError } from "../../util/common/AppError.js";
 import { asyncHandler } from "../../util/common/asyncHandler.js";
+import { updateClubApprovalStatus } from "./club.repositories.js";
 import { addSkaterByClubService, affiliatedDistrictService, allClubService, allClubsInDbService, apply_club_service, apply_leave_service, applyForDistrictService, approve_join_club_service, approve_leave_club_service, approve_rsfi_change_service, clubsByUserDistrictService, createClubService, deleteClubSchema, display_all_apply_skater_service, display_all_club_skater_service, display_club_skater_details_service, displayDistrictFullDetailsService, display_existing_club_service, displayClubDashboardService, displayClubProfileService, displaySingleClubService, exceptOwnDistrictDisplayAllDistrictService, pendingApprovalsServices, reject_join_club_service, reject_leave_club_service, reject_rsfi_change_service, remove_skater_from_club_service, removeAffiliationService, reportServices, updateClubDetailsService, updateClubProfileService } from "./club.service.js";
 
 const displayClubDashboard = asyncHandler(async (req, res) => {
@@ -105,7 +106,7 @@ export const pendingApprovals = asyncHandler(async (req, res) => {
 });
 
 export const reports = asyncHandler(async (req, res) => {
-     const id = req.user._id;
+    const id = req.user._id;
     const reports = await reportServices(id);
     return res.status(200).json(new ApiResponse(
         200, reports, "Display all reports"
@@ -241,17 +242,17 @@ const apply_club = asyncHandler(async (req, res) => {
     )
 })
 
- const approve_join_club = asyncHandler(async (req, res) => {
+const approve_join_club = asyncHandler(async (req, res) => {
     const ClubId = req.user._id;
-    const {id} = req.params;
-    await approve_join_club_service(id,ClubId);
+    const { id } = req.params;
+    await approve_join_club_service(id, ClubId);
     return res.status(200).json(new ApiResponse(200, null, "Club approve successfully"));
 })
 export const reject_join_club = asyncHandler(async (req, res) => {
     const ClubId = req.user._id;
-    console.log(ClubId,"ClubId===")
-    const {id} = req.params;
-    await reject_join_club_service(id,ClubId);
+    console.log(ClubId, "ClubId===")
+    const { id } = req.params;
+    await reject_join_club_service(id, ClubId);
     return res.status(200).json(new ApiResponse(200, null, "Club reject successfully"));
 })
 
@@ -329,7 +330,7 @@ const display_all_apply_skater = asyncHandler(async (req, res) => {
         page,
         limit,
     });
-
+    console.log("result", result)
     return res
         .status(200)
         .json(
@@ -402,6 +403,54 @@ const block_skater_toggle = asyncHandler(async (req, res) => {
         new ApiResponse(200, result, result.blocked ? "Skater blocked" : "Skater unblocked")
     );
 });
+
+
+
+export const approveEventRegistration = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+
+        const participant = await updateClubApprovalStatus(id, "approved");
+
+        if (!participant) {
+            return res.status(404).json({
+                success: false,
+                message: "Event participant not found",
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Event registration approved successfully",
+            data: participant,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const rejectEventRegistration = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+
+        const participant = await updateClubApprovalStatus(id, "rejected");
+
+        if (!participant) {
+            return res.status(404).json({
+                success: false,
+                message: "Event registration rejected successfully",
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Event registration rejected successfully",
+            data: participant,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
 export {
     displayClubDashboard,
     displayClubProfile,

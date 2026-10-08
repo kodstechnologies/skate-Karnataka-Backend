@@ -435,8 +435,8 @@ const allClubsRepository = async (id) => {
             { members: id }
         ]
     })
-    .select("_id name createdAt updatedAt __v")
-    .lean();
+        .select("_id name createdAt updatedAt __v")
+        .lean();
 
     if (!district) {
         throw new AppError(
@@ -448,16 +448,16 @@ const allClubsRepository = async (id) => {
     const clubs = await Club.find({
         district: district._id
     })
-    .select("_id name")
-    .sort({ createdAt: -1 })
-    .lean();
+        .select("_id name")
+        .sort({ createdAt: -1 })
+        .lean();
 
     return {
         _id: String(district._id),
         name: district.name || "",
 
         // keep same old key for flutter
-        club: clubs.map((item)=>({
+        club: clubs.map((item) => ({
             _id: String(item._id),
             name: item.name || ""
         })),
@@ -571,7 +571,7 @@ const createClubRepository = async (data) => {
         skaters,
         rank,
         championships,
-   
+
     });
 
     console.log(club, "===/////");
@@ -851,19 +851,19 @@ export const resolveClubDocumentByRef = async (clubRefOrMemberId) => {
     }
 
     const rawId = clubRefOrMemberId?._id ?? clubRefOrMemberId;
-    
+
     // Check if rawId is a valid ObjectId
     const isValidObjectId = /^[0-9a-fA-F]{24}$/.test(rawId);
-    
+
     // Build the query conditions
     const conditions = [{ clubId: rawId }];
-    
+
     // Only include _id condition if it's a valid ObjectId
     if (isValidObjectId) {
         conditions.push({ _id: rawId });
         conditions.push({ members: rawId });
     }
-    
+
     return Club.findOne({
         $or: conditions,
     })
@@ -1077,11 +1077,13 @@ const display_all_apply_skater_repositories = async (
 
         const certificationApplications = await EventParticipant.find({
             userId: { $in: memberIdList },
-            skaterApply: true,
-            clubAllow: false,
+            $or: [
+                { clubApprovalStatus: "pending" },
+                { clubApprovalStatus: { $exists: false }, clubAllow: false },
+            ],
         })
-            .select("userId ageGroup eventId updatedAt createdAt")
-            .populate({ path: "eventId", select: "header" })
+            .select("userId ageGroup eventId clubApprovalStatus clubAllow updatedAt createdAt")
+            .populate({ path: "eventId", select: "header eventType" })
             .sort({ updatedAt: -1 })
             .lean();
 
@@ -1092,20 +1094,35 @@ const display_all_apply_skater_repositories = async (
             if (!skaterId || seenCertApplications.has(participant._id.toString())) {
                 continue;
             }
+
+            const status = participant.clubApprovalStatus || (participant.clubAllow ? "approved" : "pending");
+            if (status !== "pending") {
+                continue;
+            }
+
+            const event = participant.eventId;
+            const eventType = event?.eventType;
+            const allowedTypes = ["District", "State", "Admin"];
+            if (!event || !allowedTypes.includes(eventType)) {
+                continue;
+            }
+
             seenCertApplications.add(participant._id.toString());
 
             const skaterProfile = skaterProfileById.get(skaterId);
 
             data.push(
                 formatApplyListItem(
-                    "certificateRequest",
+                    "eventRegistration",
                     participant._id,
                     skaterProfile?.fullName || "",
                     participant.updatedAt || participant.createdAt,
                     {
                         skaterID: skaterId,
                         krsaId: skaterProfile?.krsaId || "",
-                        eventName: participant.eventId?.header || "",
+                        eventName: event?.header || "",
+                        eventType: eventType || "",
+                        clubApprovalStatus: status,
                         ageGroup: participant.ageGroup || "",
                     }
                 )
@@ -1154,7 +1171,8 @@ const display_all_apply_skater_repositories = async (
         counts: {
             joinClub: countByType("joinClub"),
             leaveClub: countByType("leaveClub"),
-            certificateRequest: countByType("certificateRequest"),
+            eventRegistration: countByType("eventRegistration"),
+            certificateRequest: countByType("eventRegistration") + countByType("certificateRequest"),
             rsfiChange: countByType("rsfiChange"),
             photoChange: countByType("photoChange"),
         },
@@ -1253,7 +1271,7 @@ export const display_club_skater_details_repositories = async (
         .populate("category", "name")
         .populate("eventCategory", "name disciplines._id disciplines.name")
         .populate("applyClub", "name clubId img")
-        .populate("SkaterParent", "fullName phone email address")
+        .populate("SkaterParent", "fullName phone email address documents")
         .lean();
 
     if (!skater) {
@@ -1266,13 +1284,13 @@ export const display_club_skater_details_repositories = async (
     const eventCategoryDoc = skater.eventCategory;
     const eventCategoryOut = eventCategoryDoc
         ? {
-              _id: eventCategoryDoc._id,
-              name: eventCategoryDoc.name || eventCategoryDoc.typeName || "",
-              disciplines: (eventCategoryDoc.disciplines || []).map((d) => ({
-                  _id: d._id,
-                  name: d.name || "",
-              })),
-          }
+            _id: eventCategoryDoc._id,
+            name: eventCategoryDoc.name || eventCategoryDoc.typeName || "",
+            disciplines: (eventCategoryDoc.disciplines || []).map((d) => ({
+                _id: d._id,
+                name: d.name || "",
+            })),
+        }
         : null;
 
     const p = skater.SkaterParent;
@@ -1312,12 +1330,12 @@ export const display_club_skater_details_repositories = async (
         discipline: { _id: discInfo.id, name: discInfo.name },
         club: skater.club
             ? {
-                  _id: skater.club._id,
-                  name: skater.club.name || "",
-                  clubId: skater.club.clubId || "",
-                  img: skater.club.img || "",
-                  districtName: skater.club.districtName || "",
-              }
+                _id: skater.club._id,
+                name: skater.club.name || "",
+                clubId: skater.club.clubId || "",
+                img: skater.club.img || "",
+                districtName: skater.club.districtName || "",
+            }
             : null,
         applyClub: (skater.applyClub || []).map((item) => ({
             _id: item?._id,
@@ -1572,3 +1590,22 @@ export const block_skater_repository = async (clubMemberId, skaterId) => {
         blocked: updated.clubStatus === "block",
     };
 };
+
+
+
+export const updateClubApprovalStatus = async (participantId, status) => {
+    return await EventParticipant.findByIdAndUpdate(
+        participantId,
+        {
+            $set: {
+                clubApprovalStatus: status,
+            },
+        },
+        {
+            new: true,
+            runValidators: true,
+        }
+    );
+};
+
+

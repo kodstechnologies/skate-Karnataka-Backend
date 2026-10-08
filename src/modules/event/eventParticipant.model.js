@@ -108,6 +108,13 @@ const participantSchema = new mongoose.Schema(
       default: false
     },
 
+    clubApprovalStatus: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
+    }
+    ,
+
     // =====================
 
     paymentStatus: {

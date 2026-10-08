@@ -23,7 +23,7 @@ import {
     patchClubFormulaSourceSetting,
     updateClubFormulaHandler,
 } from "./club.formula.controller.js";
-import { addSkaterByClub, affiliatedDistrict, apply_club, apply_leave, applyForDistrict, approve_join_club, approve_leave_club, approve_rsfi_change, createNewClub, deleteClub, display_all_Club_basedOn_user_district, display_all_apply_skater, display_all_club_skater, display_club_skater_details, displayDistrictFullDetails, display_existing_club, displayAllClubs, displayAllClubsInDb, displayClubDashboard, displayClubProfile, displaySingleClub, exceptOwnDistrictDisplayAllDistrict, reject_join_club, reject_leave_club, reject_rsfi_change, remove_skater_from_club, removeAffiliation, reports, updateClub, updateClubProfile, edit_club_skater } from "./club.controller.js";
+import { addSkaterByClub, affiliatedDistrict, apply_club, apply_leave, applyForDistrict, approve_join_club, approve_leave_club, approve_rsfi_change, createNewClub, deleteClub, display_all_Club_basedOn_user_district, display_all_apply_skater, display_all_club_skater, display_club_skater_details, displayDistrictFullDetails, display_existing_club, displayAllClubs, displayAllClubsInDb, displayClubDashboard, displayClubProfile, displaySingleClub, exceptOwnDistrictDisplayAllDistrict, reject_join_club, reject_leave_club, reject_rsfi_change, remove_skater_from_club, removeAffiliation, reports, updateClub, updateClubProfile, edit_club_skater, approveEventRegistration, rejectEventRegistration } from "./club.controller.js";
 import { block_skater_toggle } from "./club.controller.js";
 import { upload } from "../../middleware/multer.middleware.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
@@ -206,5 +206,9 @@ router.delete("/v1/:id",
     deleteClub);
 
 
+// ==============  event approve regestration 
+
+router.get("/v1/approve-event-registration/:id", authenticate(["Club"]),approveEventRegistration );
+router.get("/v1/reject-event-registration/:id", authenticate(["Club"]), rejectEventRegistration);
 
 export default router;

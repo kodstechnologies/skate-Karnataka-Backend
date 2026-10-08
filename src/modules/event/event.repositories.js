@@ -957,6 +957,8 @@ const formatRegisterDetailsByEvent = (item, chestNo = "") => {
       name: category.name || "",
     })),
     paymentStatus: item.paymentStatus,
+    clubApprovalStatus:
+      item.clubApprovalStatus || (item.clubAllow ? "approved" : "pending"),
     isRegister: item.paymentStatus === "paid",
     chestNo: chestNo || "",
     createdAt: item.createdAt,
@@ -1819,6 +1821,7 @@ export const approveCertificationByRoleRepository = async (reqUser, participantI
       throw new AppError("Skater has not applied for certification", 400);
     }
     update.clubAllow = true;
+    update.clubApprovalStatus = "approved";
   } else if (role === "district") {
     const districtUser = await BaseAuth.findById(reqUser._id).select("district").lean();
     const districtId = districtUser?.district || reqUser._id;
@@ -1990,7 +1993,7 @@ const buildCertificationRejectionMessage = (eventName, actorName) => {
 
 const buildCertificationRejectionUpdate = (role) => {
   if (role === "club") {
-    return { skaterApply: false };
+    return { skaterApply: false, clubApprovalStatus: "rejected" };
   }
   if (role === "district") {
     return { skaterApply: false, clubAllow: false };
@@ -2290,9 +2293,15 @@ export const listCompetitionCategoryRankingsRepository = async (
   }
 
   let participants = await EventParticipant.find(initialMatch)
-    .select("name userId categories")
+    .select("name userId categories clubApprovalStatus clubAllow")
     .populate("userId", "fullName krsaId")
     .lean();
+
+  participants = participants.filter((row) => {
+    const status =
+      row.clubApprovalStatus || (row.clubAllow ? "approved" : "pending");
+    return status !== "pending" && status !== "rejected";
+  });
 
   if (clubId && mongoose.Types.ObjectId.isValid(String(clubId))) {
     const clubOid = new mongoose.Types.ObjectId(clubId);
@@ -2478,12 +2487,19 @@ export const listEventSkatersBasicByEventIdRepository = async (eventId) => {
   const participants = await EventParticipant.find({
     eventId: new mongoose.Types.ObjectId(eventId),
   })
-    .select("name userId")
+    .select("name userId clubApprovalStatus clubAllow")
     .populate("userId", "fullName krsaId phone email")
     .lean();
 
   const uniqueSkaters = new Map();
   for (const participant of participants) {
+    const status =
+      participant.clubApprovalStatus ||
+      (participant.clubAllow ? "approved" : "pending");
+    if (status === "pending" || status === "rejected") {
+      continue;
+    }
+
     const dedupeKey =
       String(participant.userId?._id || "").trim() ||
       String(participant.userId?.krsaId || "").trim() ||
@@ -3579,12 +3595,11 @@ export const getSkaterEventFullDetailsDtoRepository = async (eventId, skaterUser
 
   const name = resolveSkaterEventOrganizerName(event);
 
-  const paidRegistration = await EventParticipant.findOne({
+  const participant = await EventParticipant.findOne({
     userId: skaterUserId,
     eventId: event._id,
-    paymentStatus: "paid",
   })
-    .select("_id")
+    .select("paymentStatus clubApprovalStatus clubAllow")
     .lean();
 
   return {
@@ -3606,7 +3621,10 @@ export const getSkaterEventFullDetailsDtoRepository = async (eventId, skaterUser
     colorTwo: event.colorTwo ?? "#2575FC",
     textColor: event.textColor ?? "#FFFFFF",
     skatingEventCategories: enriched.skatingEventCategories ?? [],
-    isRegister: Boolean(paidRegistration),
+    isRegister: participant ? participant.paymentStatus === "paid" : false,
+    clubApprovalStatus: participant
+      ? participant.clubApprovalStatus || (participant.clubAllow ? "approved" : "pending")
+      : null,
   };
 };
 
@@ -4046,24 +4064,34 @@ const display_all_event_based_on_user_repositories = async (userId, { page, limi
   const enriched = await enrichLeanEventsSkatingCategoryNames(events);
 
   const paidEventIdSet = new Set();
+  const participantMap = new Map();
   if (events.length > 0) {
-    const paidParticipations = await EventParticipant.find({
+    const participations = await EventParticipant.find({
       userId,
       eventId: { $in: events.map((e) => e._id) },
-      paymentStatus: "paid",
     })
-      .select("eventId")
+      .select("eventId paymentStatus clubApprovalStatus clubAllow")
       .lean();
 
-    for (const participation of paidParticipations) {
-      paidEventIdSet.add(String(participation.eventId));
+    for (const participation of participations) {
+      if (participation.paymentStatus === "paid") {
+        paidEventIdSet.add(String(participation.eventId));
+      }
+      participantMap.set(String(participation.eventId), participation);
     }
   }
 
-  const data = enriched.map((ev) => ({
-    ...toEventCardListItem(ev),
-    isRegister: paidEventIdSet.has(String(ev._id)),
-  }));
+  const data = enriched.map((ev) => {
+    const part = participantMap.get(String(ev._id));
+    const clubApprovalStatus = part
+      ? part.clubApprovalStatus || (part.clubAllow ? "approved" : "pending")
+      : null;
+    return {
+      ...toEventCardListItem(ev),
+      isRegister: paidEventIdSet.has(String(ev._id)),
+      clubApprovalStatus,
+    };
+  });
   return {
     total,
     page: currentPage,

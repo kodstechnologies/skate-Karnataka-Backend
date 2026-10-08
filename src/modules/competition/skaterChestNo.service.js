@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { EventParticipant } from "../event/eventParticipant.model.js";
 import { Event } from "../event/event.model.js";
 import { approvedPublicEventFilter } from "../event/eventApprovalPolicy.js";
@@ -9,6 +10,8 @@ import { Club } from "../club/club.model.js";
 import { District } from "../district/district.model.js";
 import { AppError } from "../../util/common/AppError.js";
 import { buildPaginationMeta, paginate } from "../../util/common/paginate.js";
+import { Discipline } from "../guest/disciplines.model.js";
+import SkatingEventCategory from "../event/SkatingEventCategory.model.js";
 
 /** Last moment registration is open (end of registerEndDate calendar day). */
 const getRegistrationCloseMoment = (registerEndDate) => {
@@ -1152,10 +1155,10 @@ export const getChestNumberSummaryByEvent = async (
   const [chestDocs, participants, eventHeader] = await Promise.all([
     SkaterChestNo.find({ eventId }).sort({ ageGroup: 1, chestNo: 1 }).lean(),
     EventParticipant.find(participantFilter)
-      .select("ageGroup categories categoriesId name userId paymentStatus")
+      .select("ageGroup categories categoriesId discipline name userId paymentStatus")
       .populate({
         path: "userId",
-        select: "fullName krsaId rsfiId gender email phone dob club district",
+        select: "fullName krsaId rsfiId gender email phone dob club district SkaterParent discipline",
         populate: [
           { path: "district", select: "name" },
           {
@@ -1163,8 +1166,11 @@ export const getChestNumberSummaryByEvent = async (
             select: "name district districtName",
             populate: { path: "district", select: "name" },
           },
+          { path: "SkaterParent", select: "phone email" },
+          { path: "discipline", select: "title name" },
         ],
       })
+      .populate({ path: "discipline", select: "title name" })
       .lean(),
     Event.findById(eventId)
       .select("header address eventStartDate eventEndDate eventType eventFor")
@@ -1253,6 +1259,102 @@ export const getChestNumberSummaryByEvent = async (
       .filter(Boolean)
   );
 
+  // Pre-fetch all SkatingEventCategories referenced by participants (not just event-linked ones)
+  const uniqueCategoryRefIds = [
+    ...new Set(
+      participants
+        .map((p) => String(p.categoriesId || "").trim())
+        .filter(Boolean)
+    ),
+  ];
+  const catDocs =
+    uniqueCategoryRefIds.length > 0
+      ? await SkatingEventCategory.find({ _id: { $in: uniqueCategoryRefIds } })
+          .select("name typeName")
+          .lean()
+      : [];
+  const catNameById = new Map(
+    catDocs.map((d) => [
+      String(d._id),
+      String(d.name || d.typeName || "").trim(),
+    ])
+  );
+
+  // Pre-fetch discipline names for raw discipline ObjectIds (embedded in SkatingEventCategory or Discipline model)
+  const rawDisciplineIds = [
+    ...new Set(
+      participants
+        .flatMap((p) => [
+          p.discipline?._id || p.discipline,
+          p.userId?.discipline?._id || p.userId?.discipline,
+          // Also include per-category disciplineIds
+          ...(p.categories || []).map((cat) => cat?.disciplineId),
+        ])
+        .map((d) => (d ? String(d) : null))
+        .filter((d) => d && mongoose.Types.ObjectId.isValid(d))
+    ),
+  ];
+
+  const discNameById = new Map();
+  if (rawDisciplineIds.length > 0) {
+    const discObjectIds = rawDisciplineIds.map(
+      (id) => new mongoose.Types.ObjectId(id)
+    );
+
+    // 1. Check embedded disciplines inside SkatingEventCategory documents
+    const categoriesWithDisc = await SkatingEventCategory.find({
+      "disciplines._id": { $in: discObjectIds },
+    })
+      .select("disciplines._id disciplines.name")
+      .lean();
+
+    for (const catDoc of categoriesWithDisc) {
+      for (const disc of catDoc.disciplines || []) {
+        if (disc?._id && disc?.name) {
+          discNameById.set(String(disc._id), String(disc.name).trim());
+        }
+      }
+    }
+
+    // 2. Check standalone Discipline collection for missing IDs
+    let missingDiscIds = rawDisciplineIds.filter(
+      (id) => !discNameById.has(id)
+    );
+    if (missingDiscIds.length > 0) {
+      const standaloneDiscs = await Discipline.find({
+        _id: { $in: missingDiscIds.map((id) => new mongoose.Types.ObjectId(id)) },
+      })
+        .select("title name")
+        .lean();
+      for (const disc of standaloneDiscs) {
+        if (disc?._id && (disc?.title || disc?.name)) {
+          discNameById.set(
+            String(disc._id),
+            String(disc.title || disc.name).trim()
+          );
+        }
+      }
+    }
+
+    // 3. Check SkatingEventCategory parent documents (if skater.discipline stores SkatingEventCategory ID)
+    missingDiscIds = rawDisciplineIds.filter((id) => !discNameById.has(id));
+    if (missingDiscIds.length > 0) {
+      const catAsDiscs = await SkatingEventCategory.find({
+        _id: { $in: missingDiscIds.map((id) => new mongoose.Types.ObjectId(id)) },
+      })
+        .select("name typeName")
+        .lean();
+      for (const cat of catAsDiscs) {
+        if (cat?._id && (cat?.name || cat?.typeName)) {
+          discNameById.set(
+            String(cat._id),
+            String(cat.name || cat.typeName).trim()
+          );
+        }
+      }
+    }
+  }
+
   // Build attendees directly from participants — bypasses category-name key matching issues
   const directAttendees = [];
   for (const participant of participants) {
@@ -1263,27 +1365,56 @@ export const getChestNumberSummaryByEvent = async (
     const krsaId = String(user?.krsaId || "").trim();
     const rsfiId = String(user?.rsfiId || "").trim();
     const gender = String(user?.gender || "").trim();
-    const email = String(user?.email || "").trim();
-    const phone = String(user?.phone || "").trim();
+    // Phone: use skater's own phone; fall back to linked parent phone
+    const ownPhone = String(user?.phone || "").trim();
+    const parentPhone = String(user?.SkaterParent?.phone || "").trim();
+    const phone = ownPhone || parentPhone;
+    const phoneIsParent = !ownPhone && !!parentPhone;
+    // Email: use skater's own email; fall back to linked parent email
+    const ownEmail = String(user?.email || "").trim();
+    const parentEmail = String(user?.SkaterParent?.email || "").trim();
+    const email = ownEmail || parentEmail;
+    const emailIsParent = !ownEmail && !!parentEmail;
     const dob = user?.dob || null;
     const clubName = String(user?.club?.name || user?.clubName || "").trim();
     const district = resolveSkaterDistrictName(user);
     const clubDistrict = resolveClubDistrictName(user);
     const paymentStatus = String(participant.paymentStatus || "").trim();
 
-    // Find discipline name from skatingCategories
-    const disciplineId = String(participant.categoriesId || "").trim();
+    // Resolve Event Category name from SkatingEventCategory (categoriesId)
+    const categoryRefId = String(participant.categoriesId || "").trim();
     const skatingCat = resolvedCategories.find(
-      (sc) => String(sc._id || "") === disciplineId
+      (sc) => String(sc._id || "") === categoryRefId
     );
-    const disciplineName = skatingCat
-      ? String(skatingCat.name || skatingCat.typeName || "").trim()
-      : "";
+    const eventCategoryName =
+      catNameById.get(categoryRefId) ||
+      (skatingCat
+        ? String(skatingCat.name || skatingCat.typeName || "").trim()
+        : "");
+
+    // Resolve Discipline name
+    const pDiscRaw = participant.discipline;
+    const uDiscRaw = user?.discipline;
+    const pDiscId = String(pDiscRaw?._id || pDiscRaw || "").trim();
+    const uDiscId = String(uDiscRaw?._id || uDiscRaw || "").trim();
+
+    const participantDisciplineName =
+      (typeof pDiscRaw === "object" ? pDiscRaw?.name || pDiscRaw?.title : "") ||
+      discNameById.get(pDiscId) ||
+      "";
+    const userDisciplineName =
+      (typeof uDiscRaw === "object" ? uDiscRaw?.name || uDiscRaw?.title : "") ||
+      discNameById.get(uDiscId) ||
+      "";
+    const disciplineName = String(
+      participantDisciplineName || userDisciplineName || eventCategoryName || ""
+    ).trim();
 
     if ((participant.categories || []).length === 0) {
       // Participant with no categories — still show them
       directAttendees.push({
         id: `${participant._id}-nocat`,
+        eventCategory: eventCategoryName,
         discipline: disciplineName,
         ageGroup: ageGroupLabel,
         lap: "",
@@ -1293,7 +1424,9 @@ export const getChestNumberSummaryByEvent = async (
         rsfiId,
         gender,
         email,
+        emailIsParent,
         phone,
+        phoneIsParent,
         dob,
         clubName,
         district,
@@ -1307,9 +1440,16 @@ export const getChestNumberSummaryByEvent = async (
     } else {
       for (const category of participant.categories) {
         const lap = String(category?.name || "").trim();
+
+        // Resolve discipline name at category level first, then fall back up the chain
+        const catDiscId = String(category?.disciplineId || "").trim();
+        const catDisciplineName = catDiscId ? (discNameById.get(catDiscId) || "") : "";
+        const resolvedDisciplineName = catDisciplineName || disciplineName;
+
         directAttendees.push({
           id: `${participant._id}-${lap}-${ageGroupLabel}`,
-          discipline: disciplineName,
+          eventCategory: eventCategoryName,
+          discipline: resolvedDisciplineName,
           ageGroup: ageGroupLabel,
           lap,
           fullName,
@@ -1318,7 +1458,9 @@ export const getChestNumberSummaryByEvent = async (
           rsfiId,
           gender,
           email,
+          emailIsParent,
           phone,
+          phoneIsParent,
           dob,
           clubName,
           district,

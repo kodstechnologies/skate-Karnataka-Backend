@@ -99,7 +99,7 @@ const displayAllParentRepositories = async ({ page, limit, search, fullName, pho
     const [total, data] = await Promise.all([
         Parent.countDocuments(query),
         Parent.find(query)
-            .select("fullName phone gender email")
+            .select("fullName phone gender email countryCode verify krsaId createdAt")
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(perPage)

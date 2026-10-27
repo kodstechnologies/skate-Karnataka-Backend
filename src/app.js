@@ -26,6 +26,7 @@ import skatingEventCategoryRouter from "./modules/event/skatingEventCategory.rou
 import onboardingRouter from "./modules/onboarding/onboarding.router.js";
 import aboutUsCardRouter from "./modules/about-us-card/aboutUsCard.router.js";
 import sidebarRouter from "./modules/sidebar/sidebar.router.js";
+import manualEventRouter from "./modules/manual-events/manual-event.router.js";
 import { CORS_ORIGIN } from "./config/envConfig.js";
 import { AppError } from "./util/common/AppError.js";
 import { globalErrorHandler } from "./util/globalErrorHandler.js";
@@ -103,6 +104,8 @@ app.use("/payment", paymentRouter);
 app.use("/onboarding", onboardingRouter);
 app.use("/about-us-card", aboutUsCardRouter);
 app.use("/api/sidebar", sidebarRouter);
+app.use("/manual-event", manualEventRouter);
+app.use("/manual-events", manualEventRouter);
 
 app.use((req, res, next) => {
     next(new AppError(`Route not found: ${req.method} ${req.originalUrl}`, 404));

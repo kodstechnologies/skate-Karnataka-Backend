@@ -140,6 +140,18 @@ const manualEventSchema = new Schema(
           required: true,
         },
 
+        fileName: {
+          type: String,
+          trim: true,
+          default: null,
+        },
+
+        fileType: {
+          type: String,
+          trim: true,
+          default: null,
+        },
+
         uploadedAt: {
           type: Date,
           default: Date.now,

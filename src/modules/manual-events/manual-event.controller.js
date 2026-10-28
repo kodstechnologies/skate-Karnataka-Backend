@@ -70,18 +70,20 @@ export const deleteManualEvent = asyncHandler(async (req, res) => {
  */
 export const uploadManualEventAttendance = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { districtId, districtName, stateName, skaterExcelDocument } = req.body;
+  const { districtId, districtName, stateName, skaterExcelDocument, fileName } = req.body;
   const user = req.user;
   const resolvedDistrictId = districtId || user?.district || user?.districtId || null;
   const resolvedDistrictName = districtName || user?.districtName || null;
+  const originalFileName = fileName || req.file?.originalname || null;
 
   const result = await upload_manual_event_attendance_service(id, {
     districtId: resolvedDistrictId,
     districtName: resolvedDistrictName,
     stateName,
     skaterExcelDocument,
+    fileName: originalFileName,
   });
   return res
     .status(200)
-    .json(new ApiResponse(200, result, "Skater Excel attendance document uploaded successfully"));
+    .json(new ApiResponse(200, result, "Skater document uploaded successfully"));
 });

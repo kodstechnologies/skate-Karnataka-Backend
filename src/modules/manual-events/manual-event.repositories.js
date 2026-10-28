@@ -62,8 +62,9 @@ const delete_manual_event_repositories = async (id) => {
  */
 const upload_attendance_repository = async (
   eventId,
-  { districtId, districtName, stateName, skaterExcelDocument }
+  data = {}
 ) => {
+  const { districtId, districtName, stateName, skaterExcelDocument } = data;
   const event = await ManualEvent.findById(eventId);
   if (!event) return null;
 
@@ -123,9 +124,14 @@ const upload_attendance_repository = async (
     return false;
   });
 
+  const fileName = data.fileName || (skaterExcelDocument ? skaterExcelDocument.split("/").pop() : null);
+  const fileExt = fileName && fileName.includes(".") ? fileName.split(".").pop().toLowerCase() : null;
+
   if (existingIndex >= 0) {
     // Re-upload: update existing district attendance
     event.attendance[existingIndex].skaterExcelDocument = skaterExcelDocument;
+    if (fileName) event.attendance[existingIndex].fileName = fileName;
+    if (fileExt) event.attendance[existingIndex].fileType = fileExt;
     if (resolvedDistrictId) event.attendance[existingIndex].districtId = resolvedDistrictId;
     if (resolvedDistrictName) event.attendance[existingIndex].districtName = resolvedDistrictName;
     if (stateName) event.attendance[existingIndex].stateName = stateName;
@@ -137,6 +143,8 @@ const upload_attendance_repository = async (
       districtName: resolvedDistrictName,
       stateName: stateName || resolvedDistrictName || "Karnataka",
       skaterExcelDocument,
+      fileName,
+      fileType: fileExt,
       uploadedAt: new Date(),
     });
   }

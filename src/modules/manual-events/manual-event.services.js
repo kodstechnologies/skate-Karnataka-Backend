@@ -339,7 +339,7 @@ const upload_manual_event_attendance_service = async (eventId, data = {}) => {
   }
 
   if (!data?.skaterExcelDocument) {
-    throw new AppError("Skater Excel document is required", 400);
+    throw new AppError("Skater document is required", 400);
   }
 
   const result = await upload_attendance_repository(eventId, data);
